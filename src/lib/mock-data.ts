@@ -229,4 +229,33 @@ export const initialData: AppState = {
       trackingNumber: 'BR112233445XP',
     },
   ],
+  messages: [
+    {
+      id: 'm1',
+      leadId: 'l1',
+      text: 'Olá João, tudo bem? Aqui é da FourLab.',
+      sender: 'me',
+      timestamp: new Date(Date.now() - 86400000).toISOString(),
+      status: 'read',
+    },
+    {
+      id: 'm2',
+      leadId: 'l1',
+      text: 'Tudo ótimo! Recebi o kit, muito bom.',
+      sender: 'them',
+      timestamp: new Date(Date.now() - 86000000).toISOString(),
+      status: 'read',
+    },
+    {
+      id: 'm3',
+      leadId: 'l2',
+      text: 'Gostaria de agendar uma nova visita para apresentar os lançamentos deste mês.',
+      sender: 'me',
+      timestamp: new Date(Date.now() - 3600000).toISOString(),
+      status: 'delivered',
+    },
+  ],
+  settings: {
+    whatsappConnected: true,
+  },
 }

@@ -12,6 +12,7 @@ import CrmPage from './pages/Crm/Index'
 import KitsPage from './pages/Kits/Index'
 import SettingsPage from './pages/Settings/Index'
 import LeadDetailPage from './pages/Crm/LeadDetail'
+import ChatPage from './pages/Chat/Index'
 import NotFound from './pages/NotFound'
 
 const App = () => (
@@ -26,6 +27,7 @@ const App = () => (
             <Route path="/agendamento" element={<SchedulingPage />} />
             <Route path="/crm" element={<CrmPage />} />
             <Route path="/crm/prescritor/:id" element={<LeadDetailPage />} />
+            <Route path="/chat" element={<ChatPage />} />
             <Route path="/kits" element={<KitsPage />} />
             <Route path="/config" element={<SettingsPage />} />
           </Route>

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, ReactNode } from 'react'
-import { AppState, Lead, Appointment, Shipment, LeadStage } from '@/lib/types'
+import { AppState, Lead, Appointment, Shipment, LeadStage, Message, AppSettings } from '@/lib/types'
 import { initialData } from '@/lib/mock-data'
 
 type Action =
@@ -11,6 +11,8 @@ type Action =
   | { type: 'ADD_TAG'; payload: { id: string; tag: string } }
   | { type: 'REMOVE_TAG'; payload: { id: string; tag: string } }
   | { type: 'IMPORT_COUPON_USAGE'; payload: { code: string; usage: number }[] }
+  | { type: 'SEND_MESSAGE'; payload: Message }
+  | { type: 'UPDATE_SETTINGS'; payload: Partial<AppSettings> }
 
 const AppContext = createContext<{ state: AppState; dispatch: React.Dispatch<Action> } | undefined>(
   undefined,
@@ -139,6 +141,12 @@ function appReducer(state: AppState, action: Action): AppState {
         }),
       }
     }
+
+    case 'SEND_MESSAGE':
+      return { ...state, messages: [...state.messages, action.payload] }
+
+    case 'UPDATE_SETTINGS':
+      return { ...state, settings: { ...state.settings, ...action.payload } }
 
     default:
       return state

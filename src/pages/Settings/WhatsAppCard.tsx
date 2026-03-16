@@ -13,13 +13,15 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { toast } from '@/hooks/use-toast'
 import { MessageCircle } from 'lucide-react'
+import { useMainStore } from '@/stores/main'
 
 export function WhatsAppCard() {
-  const [connected, setConnected] = useState(false)
+  const { state, dispatch } = useMainStore()
+  const connected = state.settings?.whatsappConnected ?? false
   const [welcomeMsg, setWelcomeMsg] = useState(true)
 
   const handleConnect = () => {
-    setConnected(!connected)
+    dispatch({ type: 'UPDATE_SETTINGS', payload: { whatsappConnected: !connected } })
     toast({
       title: connected ? 'WhatsApp Desconectado' : 'WhatsApp Conectado',
       description: connected ? 'A integração foi pausada.' : 'QR Code escaneado com sucesso.',

@@ -61,9 +61,24 @@ export interface Shipment {
   trackingNumber: string
 }
 
+export interface Message {
+  id: string
+  leadId: string
+  text: string
+  sender: 'me' | 'them'
+  timestamp: string
+  status: 'sent' | 'delivered' | 'read'
+}
+
+export interface AppSettings {
+  whatsappConnected: boolean
+}
+
 export interface AppState {
   leads: Lead[]
   appointments: Appointment[]
   kits: Kit[]
   shipments: Shipment[]
+  messages: Message[]
+  settings: AppSettings
 }

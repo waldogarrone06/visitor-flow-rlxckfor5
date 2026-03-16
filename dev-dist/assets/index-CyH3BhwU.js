@@ -16477,6 +16477,21 @@ function isModifiedEvent(event) {
 function shouldProcessLinkClick(event, target) {
 	return event.button === 0 && (!target || target === "_self") && !isModifiedEvent(event);
 }
+function createSearchParams(init = "") {
+	return new URLSearchParams(typeof init === "string" || Array.isArray(init) || init instanceof URLSearchParams ? init : Object.keys(init).reduce((memo2, key) => {
+		let value = init[key];
+		return memo2.concat(Array.isArray(value) ? value.map((v) => [key, v]) : [[key, value]]);
+	}, []));
+}
+function getSearchParamsForLocation(locationSearch, defaultSearchParams) {
+	let searchParams = createSearchParams(locationSearch);
+	if (defaultSearchParams) defaultSearchParams.forEach((_, key) => {
+		if (!searchParams.has(key)) defaultSearchParams.getAll(key).forEach((value) => {
+			searchParams.append(key, value);
+		});
+	});
+	return searchParams;
+}
 var _formDataSupportsSubmitter = null;
 function isFormDataSubmitterSupported() {
 	if (_formDataSupportsSubmitter === null) try {
@@ -17120,6 +17135,19 @@ function useLinkClickHandler(to, { target, replace: replaceProp, unstable_mask, 
 		unstable_defaultShouldRevalidate,
 		unstable_useTransitions
 	]);
+}
+function useSearchParams(defaultInit) {
+	warning(typeof URLSearchParams !== "undefined", `You cannot use the \`useSearchParams\` hook in a browser that does not support the URLSearchParams API. If you need to support Internet Explorer 11, we recommend you load a polyfill such as https://github.com/ungap/url-search-params.`);
+	let defaultSearchParamsRef = import_react.useRef(createSearchParams(defaultInit));
+	let hasSetSearchParamsRef = import_react.useRef(false);
+	let location = useLocation();
+	let searchParams = import_react.useMemo(() => getSearchParamsForLocation(location.search, hasSetSearchParamsRef.current ? null : defaultSearchParamsRef.current), [location.search]);
+	let navigate = useNavigate();
+	return [searchParams, import_react.useCallback((nextInit, navigateOptions) => {
+		const newSearchParams = createSearchParams(typeof nextInit === "function" ? nextInit(new URLSearchParams(searchParams)) : nextInit);
+		hasSetSearchParamsRef.current = true;
+		navigate("?" + newSearchParams, navigateOptions);
+	}, [navigate, searchParams])];
 }
 var fetcherId = 0;
 var getUniqueFetcherId = () => `__${String(++fetcherId)}__`;
@@ -19157,6 +19185,13 @@ var Calendar$1 = createLucideIcon("calendar", [
 		key: "8toen8"
 	}]
 ]);
+var CheckCheck = createLucideIcon("check-check", [["path", {
+	d: "M18 6 7 17l-5-5",
+	key: "116fxf"
+}], ["path", {
+	d: "m22 10-7.5 7.5L13 16",
+	key: "ke71qq"
+}]]);
 var Check = createLucideIcon("check", [["path", {
 	d: "M20 6 9 17l-5-5",
 	key: "1gmf2c"
@@ -19404,6 +19439,13 @@ var Search = createLucideIcon("search", [["path", {
 	cy: "11",
 	r: "8",
 	key: "4ej97u"
+}]]);
+var Send = createLucideIcon("send", [["path", {
+	d: "M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z",
+	key: "1ffxy3"
+}], ["path", {
+	d: "m21.854 2.147-10.94 10.939",
+	key: "12cjpa"
 }]]);
 var Settings = createLucideIcon("settings", [["path", {
 	d: "M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915",
@@ -29878,6 +29920,11 @@ var menuItems = [
 		icon: Users
 	},
 	{
+		title: "Mensagens",
+		url: "/chat",
+		icon: MessageCircle
+	},
+	{
 		title: "Gestão de Kits",
 		url: "/kits",
 		icon: Package
@@ -29891,63 +29938,63 @@ var menuItems = [
 function AppSidebar() {
 	const location = useLocation();
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sidebar, {
-		"data-uid": "src/components/layout/AppSidebar.tsx:27:5",
+		"data-uid": "src/components/layout/AppSidebar.tsx:35:5",
 		"data-prohibitions": "[editContent]",
 		className: "border-r border-border/50 bg-sidebar",
 		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(SidebarHeader, {
-			"data-uid": "src/components/layout/AppSidebar.tsx:28:7",
+			"data-uid": "src/components/layout/AppSidebar.tsx:36:7",
 			"data-prohibitions": "[]",
 			className: "h-16 flex items-center px-6 border-b border-border/50",
 			children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				"data-uid": "src/components/layout/AppSidebar.tsx:29:9",
+				"data-uid": "src/components/layout/AppSidebar.tsx:37:9",
 				"data-prohibitions": "[]",
 				className: "flex items-center gap-2 font-bold text-primary text-xl overflow-hidden",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FourLabLogo, {
-					"data-uid": "src/components/layout/AppSidebar.tsx:30:11",
+					"data-uid": "src/components/layout/AppSidebar.tsx:38:11",
 					"data-prohibitions": "[editContent]",
 					className: "h-6 w-auto shrink-0 text-foreground"
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-					"data-uid": "src/components/layout/AppSidebar.tsx:31:11",
+					"data-uid": "src/components/layout/AppSidebar.tsx:39:11",
 					"data-prohibitions": "[]",
 					className: "truncate tracking-tight text-foreground",
 					children: "Visitor Flow"
 				})]
 			})
 		}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SidebarContent, {
-			"data-uid": "src/components/layout/AppSidebar.tsx:34:7",
+			"data-uid": "src/components/layout/AppSidebar.tsx:42:7",
 			"data-prohibitions": "[editContent]",
 			className: "pt-4",
 			children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SidebarGroup, {
-				"data-uid": "src/components/layout/AppSidebar.tsx:35:9",
+				"data-uid": "src/components/layout/AppSidebar.tsx:43:9",
 				"data-prohibitions": "[editContent]",
 				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SidebarGroupContent, {
-					"data-uid": "src/components/layout/AppSidebar.tsx:36:11",
+					"data-uid": "src/components/layout/AppSidebar.tsx:44:11",
 					"data-prohibitions": "[editContent]",
 					children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SidebarMenu, {
-						"data-uid": "src/components/layout/AppSidebar.tsx:37:13",
+						"data-uid": "src/components/layout/AppSidebar.tsx:45:13",
 						"data-prohibitions": "[editContent]",
 						children: menuItems.map((item) => {
 							const isActive = location.pathname === item.url || item.url !== "/" && location.pathname.startsWith(item.url);
 							return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SidebarMenuItem, {
-								"data-uid": "src/components/layout/AppSidebar.tsx:43:19",
+								"data-uid": "src/components/layout/AppSidebar.tsx:51:19",
 								"data-prohibitions": "[editContent]",
 								children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SidebarMenuButton, {
-									"data-uid": "src/components/layout/AppSidebar.tsx:44:21",
+									"data-uid": "src/components/layout/AppSidebar.tsx:52:21",
 									"data-prohibitions": "[editContent]",
 									asChild: true,
 									isActive,
 									className: `h-11 ${isActive ? "text-primary border-l-4 border-primary bg-primary/10 rounded-none" : "text-muted-foreground"}`,
 									children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Link, {
-										"data-uid": "src/components/layout/AppSidebar.tsx:49:23",
+										"data-uid": "src/components/layout/AppSidebar.tsx:57:23",
 										"data-prohibitions": "[editContent]",
 										to: item.url,
 										className: "flex items-center gap-3 px-4",
 										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(item.icon, {
-											"data-uid": "src/components/layout/AppSidebar.tsx:50:25",
+											"data-uid": "src/components/layout/AppSidebar.tsx:58:25",
 											"data-prohibitions": "[editContent]",
 											className: "h-5 w-5"
 										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-											"data-uid": "src/components/layout/AppSidebar.tsx:51:25",
+											"data-uid": "src/components/layout/AppSidebar.tsx:59:25",
 											"data-prohibitions": "[editContent]",
 											className: "font-medium",
 											children: item.title
@@ -30639,7 +30686,34 @@ var initialData = {
 			expectedDeliveryDate: (/* @__PURE__ */ new Date(Date.now() - 1728e5)).toISOString(),
 			trackingNumber: "BR112233445XP"
 		}
-	]
+	],
+	messages: [
+		{
+			id: "m1",
+			leadId: "l1",
+			text: "Olá João, tudo bem? Aqui é da FourLab.",
+			sender: "me",
+			timestamp: (/* @__PURE__ */ new Date(Date.now() - 864e5)).toISOString(),
+			status: "read"
+		},
+		{
+			id: "m2",
+			leadId: "l1",
+			text: "Tudo ótimo! Recebi o kit, muito bom.",
+			sender: "them",
+			timestamp: (/* @__PURE__ */ new Date(Date.now() - 86e6)).toISOString(),
+			status: "read"
+		},
+		{
+			id: "m3",
+			leadId: "l2",
+			text: "Gostaria de agendar uma nova visita para apresentar os lançamentos deste mês.",
+			sender: "me",
+			timestamp: (/* @__PURE__ */ new Date(Date.now() - 36e5)).toISOString(),
+			status: "delivered"
+		}
+	],
+	settings: { whatsappConnected: true }
 };
 //#endregion
 //#region src/stores/main.ts
@@ -30762,6 +30836,17 @@ function appReducer(state, action) {
 				})
 			};
 		}
+		case "SEND_MESSAGE": return {
+			...state,
+			messages: [...state.messages, action.payload]
+		};
+		case "UPDATE_SETTINGS": return {
+			...state,
+			settings: {
+				...state.settings,
+				...action.payload
+			}
+		};
 		default: return state;
 	}
 }
@@ -73702,10 +73787,14 @@ function EmailSettingsCard() {
 //#endregion
 //#region src/pages/Settings/WhatsAppCard.tsx
 function WhatsAppCard() {
-	const [connected, setConnected] = (0, import_react.useState)(false);
+	const { state, dispatch } = useMainStore();
+	const connected = state.settings?.whatsappConnected ?? false;
 	const [welcomeMsg, setWelcomeMsg] = (0, import_react.useState)(true);
 	const handleConnect = () => {
-		setConnected(!connected);
+		dispatch({
+			type: "UPDATE_SETTINGS",
+			payload: { whatsappConnected: !connected }
+		});
 		toast$1({
 			title: connected ? "WhatsApp Desconectado" : "WhatsApp Conectado",
 			description: connected ? "A integração foi pausada." : "QR Code escaneado com sucesso."
@@ -73718,29 +73807,29 @@ function WhatsAppCard() {
 		});
 	};
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
-		"data-uid": "src/pages/Settings/WhatsAppCard.tsx:37:5",
+		"data-uid": "src/pages/Settings/WhatsAppCard.tsx:39:5",
 		"data-prohibitions": "[editContent]",
 		className: "flex flex-col shadow-subtle border-border/50",
 		children: [
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, {
-				"data-uid": "src/pages/Settings/WhatsAppCard.tsx:38:7",
+				"data-uid": "src/pages/Settings/WhatsAppCard.tsx:40:7",
 				"data-prohibitions": "[editContent]",
 				children: [
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						"data-uid": "src/pages/Settings/WhatsAppCard.tsx:39:9",
+						"data-uid": "src/pages/Settings/WhatsAppCard.tsx:41:9",
 						"data-prohibitions": "[editContent]",
 						className: "flex justify-between items-start",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							"data-uid": "src/pages/Settings/WhatsAppCard.tsx:40:11",
+							"data-uid": "src/pages/Settings/WhatsAppCard.tsx:42:11",
 							"data-prohibitions": "[]",
 							className: "p-3 bg-green-50 text-green-600 rounded-lg mb-2",
 							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(MessageCircle, {
-								"data-uid": "src/pages/Settings/WhatsAppCard.tsx:41:13",
+								"data-uid": "src/pages/Settings/WhatsAppCard.tsx:43:13",
 								"data-prohibitions": "[editContent]",
 								className: "h-6 w-6"
 							})
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
-							"data-uid": "src/pages/Settings/WhatsAppCard.tsx:43:11",
+							"data-uid": "src/pages/Settings/WhatsAppCard.tsx:45:11",
 							"data-prohibitions": "[editContent]",
 							variant: connected ? "default" : "secondary",
 							className: connected ? "bg-green-600 hover:bg-green-700" : "",
@@ -73748,37 +73837,37 @@ function WhatsAppCard() {
 						})]
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, {
-						"data-uid": "src/pages/Settings/WhatsAppCard.tsx:50:9",
+						"data-uid": "src/pages/Settings/WhatsAppCard.tsx:52:9",
 						"data-prohibitions": "[]",
 						children: "Integração WhatsApp"
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardDescription, {
-						"data-uid": "src/pages/Settings/WhatsAppCard.tsx:51:9",
+						"data-uid": "src/pages/Settings/WhatsAppCard.tsx:53:9",
 						"data-prohibitions": "[]",
 						children: "Envie mensagens diretas via WhatsApp Web API."
 					})
 				]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardContent, {
-				"data-uid": "src/pages/Settings/WhatsAppCard.tsx:53:7",
+				"data-uid": "src/pages/Settings/WhatsAppCard.tsx:55:7",
 				"data-prohibitions": "[]",
 				className: "flex-1 space-y-6",
 				children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					"data-uid": "src/pages/Settings/WhatsAppCard.tsx:54:9",
+					"data-uid": "src/pages/Settings/WhatsAppCard.tsx:56:9",
 					"data-prohibitions": "[]",
 					className: "space-y-4",
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						"data-uid": "src/pages/Settings/WhatsAppCard.tsx:55:11",
+						"data-uid": "src/pages/Settings/WhatsAppCard.tsx:57:11",
 						"data-prohibitions": "[]",
 						className: "flex items-center justify-between",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label$2, {
-							"data-uid": "src/pages/Settings/WhatsAppCard.tsx:56:13",
+							"data-uid": "src/pages/Settings/WhatsAppCard.tsx:58:13",
 							"data-prohibitions": "[]",
 							className: "text-sm text-muted-foreground cursor-pointer",
 							htmlFor: "wa-welcome",
 							children: "Mensagem de Boas-vindas p/ Prescritores"
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Switch, {
-							"data-uid": "src/pages/Settings/WhatsAppCard.tsx:59:13",
+							"data-uid": "src/pages/Settings/WhatsAppCard.tsx:61:13",
 							"data-prohibitions": "[editContent]",
 							id: "wa-welcome",
 							checked: welcomeMsg,
@@ -73786,17 +73875,17 @@ function WhatsAppCard() {
 							disabled: !connected
 						})]
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						"data-uid": "src/pages/Settings/WhatsAppCard.tsx:66:11",
+						"data-uid": "src/pages/Settings/WhatsAppCard.tsx:68:11",
 						"data-prohibitions": "[]",
 						className: "flex items-center justify-between",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label$2, {
-							"data-uid": "src/pages/Settings/WhatsAppCard.tsx:67:13",
+							"data-uid": "src/pages/Settings/WhatsAppCard.tsx:69:13",
 							"data-prohibitions": "[]",
 							className: "text-sm text-muted-foreground cursor-pointer",
 							htmlFor: "wa-delay",
 							children: "Alertas Automáticos de Atraso"
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Switch, {
-							"data-uid": "src/pages/Settings/WhatsAppCard.tsx:70:13",
+							"data-uid": "src/pages/Settings/WhatsAppCard.tsx:72:13",
 							"data-prohibitions": "[editContent]",
 							id: "wa-delay",
 							defaultChecked: true,
@@ -73806,18 +73895,18 @@ function WhatsAppCard() {
 				})
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardFooter, {
-				"data-uid": "src/pages/Settings/WhatsAppCard.tsx:74:7",
+				"data-uid": "src/pages/Settings/WhatsAppCard.tsx:76:7",
 				"data-prohibitions": "[editContent]",
 				className: "flex flex-wrap gap-2",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button$1, {
-					"data-uid": "src/pages/Settings/WhatsAppCard.tsx:75:9",
+					"data-uid": "src/pages/Settings/WhatsAppCard.tsx:77:9",
 					"data-prohibitions": "[editContent]",
 					variant: connected ? "outline" : "default",
 					onClick: handleConnect,
 					className: "flex-1",
 					children: connected ? "Desconectar" : "Escanear QR Code"
 				}), connected && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button$1, {
-					"data-uid": "src/pages/Settings/WhatsAppCard.tsx:83:11",
+					"data-uid": "src/pages/Settings/WhatsAppCard.tsx:85:11",
 					"data-prohibitions": "[]",
 					variant: "secondary",
 					onClick: testConnection,
@@ -74057,103 +74146,93 @@ function LeadDetailPage() {
 		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 			"data-uid": "src/pages/Crm/LeadDetail.tsx:30:7",
 			"data-prohibitions": "[editContent]",
-			className: "flex items-center gap-4",
-			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Link, {
+			className: "flex flex-col sm:flex-row sm:items-center justify-between gap-4",
+			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				"data-uid": "src/pages/Crm/LeadDetail.tsx:31:9",
-				"data-prohibitions": "[]",
-				to: "/crm",
-				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button$1, {
+				"data-prohibitions": "[editContent]",
+				className: "flex items-center gap-4",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Link, {
 					"data-uid": "src/pages/Crm/LeadDetail.tsx:32:11",
 					"data-prohibitions": "[]",
-					variant: "ghost",
-					size: "icon",
-					className: "rounded-full",
-					children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ArrowLeft, {
+					to: "/crm",
+					children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button$1, {
 						"data-uid": "src/pages/Crm/LeadDetail.tsx:33:13",
-						"data-prohibitions": "[editContent]",
-						className: "h-5 w-5"
+						"data-prohibitions": "[]",
+						variant: "ghost",
+						size: "icon",
+						className: "rounded-full",
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ArrowLeft, {
+							"data-uid": "src/pages/Crm/LeadDetail.tsx:34:15",
+							"data-prohibitions": "[editContent]",
+							className: "h-5 w-5"
+						})
 					})
-				})
-			}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				"data-uid": "src/pages/Crm/LeadDetail.tsx:36:9",
-				"data-prohibitions": "[editContent]",
-				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", {
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 					"data-uid": "src/pages/Crm/LeadDetail.tsx:37:11",
 					"data-prohibitions": "[editContent]",
-					className: "text-2xl font-bold tracking-tight",
-					children: lead.name
-				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-					"data-uid": "src/pages/Crm/LeadDetail.tsx:38:11",
-					"data-prohibitions": "[editContent]",
-					className: "text-muted-foreground flex items-center gap-2 mt-1",
-					children: [lead.company || lead.type, /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
-						"data-uid": "src/pages/Crm/LeadDetail.tsx:40:13",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", {
+						"data-uid": "src/pages/Crm/LeadDetail.tsx:38:13",
 						"data-prohibitions": "[editContent]",
-						variant: "outline",
-						children: lead.stage
+						className: "text-2xl font-bold tracking-tight",
+						children: lead.name
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+						"data-uid": "src/pages/Crm/LeadDetail.tsx:39:13",
+						"data-prohibitions": "[editContent]",
+						className: "text-muted-foreground flex items-center gap-2 mt-1",
+						children: [lead.company || lead.type, /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
+							"data-uid": "src/pages/Crm/LeadDetail.tsx:41:15",
+							"data-prohibitions": "[editContent]",
+							variant: "outline",
+							children: lead.stage
+						})]
 					})]
 				})]
+			}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Link, {
+				"data-uid": "src/pages/Crm/LeadDetail.tsx:45:9",
+				"data-prohibitions": "[]",
+				to: `/chat?contactId=${lead.id}`,
+				children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button$1, {
+					"data-uid": "src/pages/Crm/LeadDetail.tsx:46:11",
+					"data-prohibitions": "[]",
+					className: "bg-green-600 hover:bg-green-700 text-white shadow-md gap-2 w-full sm:w-auto",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(MessageCircle, {
+						"data-uid": "src/pages/Crm/LeadDetail.tsx:47:13",
+						"data-prohibitions": "[editContent]",
+						className: "h-4 w-4"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+						"data-uid": "src/pages/Crm/LeadDetail.tsx:48:13",
+						"data-prohibitions": "[]",
+						children: "WhatsApp"
+					})]
+				})
 			})]
 		}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-			"data-uid": "src/pages/Crm/LeadDetail.tsx:45:7",
+			"data-uid": "src/pages/Crm/LeadDetail.tsx:53:7",
 			"data-prohibitions": "[editContent]",
 			className: "grid gap-6 md:grid-cols-3",
 			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
-				"data-uid": "src/pages/Crm/LeadDetail.tsx:46:9",
+				"data-uid": "src/pages/Crm/LeadDetail.tsx:54:9",
 				"data-prohibitions": "[editContent]",
 				className: "md:col-span-1 shadow-subtle h-fit",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardHeader, {
-					"data-uid": "src/pages/Crm/LeadDetail.tsx:47:11",
+					"data-uid": "src/pages/Crm/LeadDetail.tsx:55:11",
 					"data-prohibitions": "[]",
 					children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, {
-						"data-uid": "src/pages/Crm/LeadDetail.tsx:48:13",
+						"data-uid": "src/pages/Crm/LeadDetail.tsx:56:13",
 						"data-prohibitions": "[]",
 						className: "text-lg",
 						children: "Informações"
 					})
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardContent, {
-					"data-uid": "src/pages/Crm/LeadDetail.tsx:50:11",
+					"data-uid": "src/pages/Crm/LeadDetail.tsx:58:11",
 					"data-prohibitions": "[editContent]",
 					className: "space-y-4",
 					children: [
 						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							"data-uid": "src/pages/Crm/LeadDetail.tsx:51:13",
-							"data-prohibitions": "[editContent]",
-							className: "flex items-start gap-3",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(User, {
-								"data-uid": "src/pages/Crm/LeadDetail.tsx:52:15",
-								"data-prohibitions": "[editContent]",
-								className: "h-4 w-4 text-muted-foreground mt-0.5"
-							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								"data-uid": "src/pages/Crm/LeadDetail.tsx:53:15",
-								"data-prohibitions": "[editContent]",
-								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-										"data-uid": "src/pages/Crm/LeadDetail.tsx:54:17",
-										"data-prohibitions": "[]",
-										className: "text-sm font-medium",
-										children: "Contato"
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-										"data-uid": "src/pages/Crm/LeadDetail.tsx:55:17",
-										"data-prohibitions": "[editContent]",
-										className: "text-sm text-muted-foreground",
-										children: lead.email || "Sem e-mail"
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-										"data-uid": "src/pages/Crm/LeadDetail.tsx:56:17",
-										"data-prohibitions": "[editContent]",
-										className: "text-sm text-muted-foreground",
-										children: lead.phone || "Sem telefone"
-									})
-								]
-							})]
-						}),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 							"data-uid": "src/pages/Crm/LeadDetail.tsx:59:13",
 							"data-prohibitions": "[editContent]",
 							className: "flex items-start gap-3",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(MapPin, {
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(User, {
 								"data-uid": "src/pages/Crm/LeadDetail.tsx:60:15",
 								"data-prohibitions": "[editContent]",
 								className: "h-4 w-4 text-muted-foreground mt-0.5"
@@ -74165,16 +74244,49 @@ function LeadDetailPage() {
 										"data-uid": "src/pages/Crm/LeadDetail.tsx:62:17",
 										"data-prohibitions": "[]",
 										className: "text-sm font-medium",
-										children: "Endereço"
+										children: "Contato"
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 										"data-uid": "src/pages/Crm/LeadDetail.tsx:63:17",
 										"data-prohibitions": "[editContent]",
 										className: "text-sm text-muted-foreground",
+										children: lead.email || "Sem e-mail"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										"data-uid": "src/pages/Crm/LeadDetail.tsx:64:17",
+										"data-prohibitions": "[editContent]",
+										className: "text-sm text-muted-foreground",
+										children: lead.phone || "Sem telefone"
+									})
+								]
+							})]
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							"data-uid": "src/pages/Crm/LeadDetail.tsx:67:13",
+							"data-prohibitions": "[editContent]",
+							className: "flex items-start gap-3",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(MapPin, {
+								"data-uid": "src/pages/Crm/LeadDetail.tsx:68:15",
+								"data-prohibitions": "[editContent]",
+								className: "h-4 w-4 text-muted-foreground mt-0.5"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								"data-uid": "src/pages/Crm/LeadDetail.tsx:69:15",
+								"data-prohibitions": "[editContent]",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										"data-uid": "src/pages/Crm/LeadDetail.tsx:70:17",
+										"data-prohibitions": "[]",
+										className: "text-sm font-medium",
+										children: "Endereço"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										"data-uid": "src/pages/Crm/LeadDetail.tsx:71:17",
+										"data-prohibitions": "[editContent]",
+										className: "text-sm text-muted-foreground",
 										children: lead.address
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-										"data-uid": "src/pages/Crm/LeadDetail.tsx:64:17",
+										"data-uid": "src/pages/Crm/LeadDetail.tsx:72:17",
 										"data-prohibitions": "[editContent]",
 										className: "text-sm text-muted-foreground",
 										children: [
@@ -74187,32 +74299,32 @@ function LeadDetailPage() {
 							})]
 						}),
 						lead.couponCode && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							"data-uid": "src/pages/Crm/LeadDetail.tsx:70:15",
+							"data-uid": "src/pages/Crm/LeadDetail.tsx:78:15",
 							"data-prohibitions": "[editContent]",
 							className: "flex items-start gap-3",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Tag, {
-								"data-uid": "src/pages/Crm/LeadDetail.tsx:71:17",
+								"data-uid": "src/pages/Crm/LeadDetail.tsx:79:17",
 								"data-prohibitions": "[editContent]",
 								className: "h-4 w-4 text-muted-foreground mt-0.5"
 							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								"data-uid": "src/pages/Crm/LeadDetail.tsx:72:17",
+								"data-uid": "src/pages/Crm/LeadDetail.tsx:80:17",
 								"data-prohibitions": "[editContent]",
 								children: [
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-										"data-uid": "src/pages/Crm/LeadDetail.tsx:73:19",
+										"data-uid": "src/pages/Crm/LeadDetail.tsx:81:19",
 										"data-prohibitions": "[]",
 										className: "text-sm font-medium",
 										children: "Cupom Ativo"
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
-										"data-uid": "src/pages/Crm/LeadDetail.tsx:74:19",
+										"data-uid": "src/pages/Crm/LeadDetail.tsx:82:19",
 										"data-prohibitions": "[editContent]",
 										variant: "secondary",
 										className: "mt-1 font-mono",
 										children: lead.couponCode
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-										"data-uid": "src/pages/Crm/LeadDetail.tsx:77:19",
+										"data-uid": "src/pages/Crm/LeadDetail.tsx:85:19",
 										"data-prohibitions": "[editContent]",
 										className: "text-xs text-muted-foreground mt-1",
 										children: ["Total de usos: ", lead.couponUsage || 0]
@@ -74223,32 +74335,442 @@ function LeadDetailPage() {
 					]
 				})]
 			}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
-				"data-uid": "src/pages/Crm/LeadDetail.tsx:86:9",
+				"data-uid": "src/pages/Crm/LeadDetail.tsx:94:9",
 				"data-prohibitions": "[]",
 				className: "md:col-span-2 shadow-subtle",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, {
-					"data-uid": "src/pages/Crm/LeadDetail.tsx:87:11",
+					"data-uid": "src/pages/Crm/LeadDetail.tsx:95:11",
 					"data-prohibitions": "[]",
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, {
-						"data-uid": "src/pages/Crm/LeadDetail.tsx:88:13",
+						"data-uid": "src/pages/Crm/LeadDetail.tsx:96:13",
 						"data-prohibitions": "[]",
 						className: "text-lg",
 						children: "Evolução de Conversões"
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardDescription, {
-						"data-uid": "src/pages/Crm/LeadDetail.tsx:89:13",
+						"data-uid": "src/pages/Crm/LeadDetail.tsx:97:13",
 						"data-prohibitions": "[]",
 						children: "Histórico de uso do cupom ao longo dos meses."
 					})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardContent, {
-					"data-uid": "src/pages/Crm/LeadDetail.tsx:91:11",
+					"data-uid": "src/pages/Crm/LeadDetail.tsx:99:11",
 					"data-prohibitions": "[]",
 					children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ConversionEvolutionChart, {
-						"data-uid": "src/pages/Crm/LeadDetail.tsx:92:13",
+						"data-uid": "src/pages/Crm/LeadDetail.tsx:100:13",
 						"data-prohibitions": "[editContent]",
 						data: lead.conversionsHistory || []
 					})
 				})]
 			})]
+		})]
+	});
+}
+//#endregion
+//#region src/pages/Chat/ChatSidebar.tsx
+function ChatSidebar({ selectedId, onSelect }) {
+	const { state } = useMainStore();
+	const [search, setSearch] = (0, import_react.useState)("");
+	const contacts = (0, import_react.useMemo)(() => {
+		let list = state.leads.map((lead) => {
+			const messages = state.messages.filter((m) => m.leadId === lead.id);
+			return {
+				lead,
+				lastMessage: messages.length > 0 ? messages[messages.length - 1] : null
+			};
+		});
+		if (search.trim()) list = list.filter((c) => c.lead.name.toLowerCase().includes(search.toLowerCase()) || c.lead.company && c.lead.company.toLowerCase().includes(search.toLowerCase()));
+		return list.sort((a, b) => {
+			if (!a.lastMessage) return 1;
+			if (!b.lastMessage) return -1;
+			return new Date(b.lastMessage.timestamp).getTime() - new Date(a.lastMessage.timestamp).getTime();
+		});
+	}, [
+		state.leads,
+		state.messages,
+		search
+	]);
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		"data-uid": "src/pages/Chat/ChatSidebar.tsx:44:5",
+		"data-prohibitions": "[editContent]",
+		className: "flex flex-col h-full bg-card overflow-hidden",
+		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+			"data-uid": "src/pages/Chat/ChatSidebar.tsx:45:7",
+			"data-prohibitions": "[]",
+			className: "p-3 border-b",
+			children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				"data-uid": "src/pages/Chat/ChatSidebar.tsx:46:9",
+				"data-prohibitions": "[]",
+				className: "relative",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Search, {
+					"data-uid": "src/pages/Chat/ChatSidebar.tsx:47:11",
+					"data-prohibitions": "[editContent]",
+					className: "absolute left-3 top-2.5 h-4 w-4 text-muted-foreground"
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+					"data-uid": "src/pages/Chat/ChatSidebar.tsx:48:11",
+					"data-prohibitions": "[editContent]",
+					placeholder: "Buscar contato...",
+					className: "pl-9 bg-muted/50 border-transparent focus-visible:bg-background",
+					value: search,
+					onChange: (e) => setSearch(e.target.value)
+				})]
+			})
+		}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+			"data-uid": "src/pages/Chat/ChatSidebar.tsx:56:7",
+			"data-prohibitions": "[editContent]",
+			className: "flex-1 overflow-y-auto",
+			children: contacts.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				"data-uid": "src/pages/Chat/ChatSidebar.tsx:58:11",
+				"data-prohibitions": "[]",
+				className: "p-4 text-center text-sm text-muted-foreground",
+				children: "Nenhum contato encontrado."
+			}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				"data-uid": "src/pages/Chat/ChatSidebar.tsx:62:11",
+				"data-prohibitions": "[editContent]",
+				className: "divide-y divide-border/50",
+				children: contacts.map(({ lead, lastMessage }) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+					"data-uid": "src/pages/Chat/ChatSidebar.tsx:64:15",
+					"data-prohibitions": "[editContent]",
+					onClick: () => onSelect(lead.id),
+					className: cn$1("w-full flex items-center gap-3 p-4 text-left hover:bg-muted/60 transition-colors", selectedId === lead.id && "bg-muted"),
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Avatar, {
+						"data-uid": "src/pages/Chat/ChatSidebar.tsx:72:17",
+						"data-prohibitions": "[editContent]",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(AvatarImage, {
+							"data-uid": "src/pages/Chat/ChatSidebar.tsx:73:19",
+							"data-prohibitions": "[editContent]",
+							src: `https://img.usecurling.com/ppl/thumbnail?seed=${lead.avatarSeed || 1}`
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AvatarFallback, {
+							"data-uid": "src/pages/Chat/ChatSidebar.tsx:76:19",
+							"data-prohibitions": "[editContent]",
+							children: lead.name.substring(0, 2)
+						})]
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						"data-uid": "src/pages/Chat/ChatSidebar.tsx:78:17",
+						"data-prohibitions": "[editContent]",
+						className: "flex-1 min-w-0",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							"data-uid": "src/pages/Chat/ChatSidebar.tsx:79:19",
+							"data-prohibitions": "[editContent]",
+							className: "flex justify-between items-baseline mb-1",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", {
+								"data-uid": "src/pages/Chat/ChatSidebar.tsx:80:21",
+								"data-prohibitions": "[editContent]",
+								className: "font-medium text-sm truncate pr-2",
+								children: lead.name
+							}), lastMessage && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+								"data-uid": "src/pages/Chat/ChatSidebar.tsx:82:23",
+								"data-prohibitions": "[editContent]",
+								className: "text-[10px] text-muted-foreground shrink-0 font-medium",
+								children: format$1(new Date(lastMessage.timestamp), "HH:mm")
+							})]
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							"data-uid": "src/pages/Chat/ChatSidebar.tsx:87:19",
+							"data-prohibitions": "[editContent]",
+							className: "text-xs text-muted-foreground truncate",
+							children: lastMessage ? lastMessage.text : "Iniciar conversa..."
+						})]
+					})]
+				}, lead.id))
+			})
+		})]
+	});
+}
+//#endregion
+//#region src/pages/Chat/ChatArea.tsx
+function ChatArea({ leadId, onBack }) {
+	const { state, dispatch } = useMainStore();
+	const [text, setText] = (0, import_react.useState)("");
+	const messagesEndRef = (0, import_react.useRef)(null);
+	const lead = (0, import_react.useMemo)(() => state.leads.find((l) => l.id === leadId), [state.leads, leadId]);
+	const messages = (0, import_react.useMemo)(() => state.messages.filter((m) => m.leadId === leadId).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()), [state.messages, leadId]);
+	(0, import_react.useEffect)(() => {
+		messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+	}, [messages]);
+	if (!lead) return null;
+	const handleSend = (e) => {
+		e.preventDefault();
+		if (!text.trim()) return;
+		dispatch({
+			type: "SEND_MESSAGE",
+			payload: {
+				id: `m-${Date.now()}`,
+				leadId,
+				text: text.trim(),
+				sender: "me",
+				timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+				status: "sent"
+			}
+		});
+		setText("");
+	};
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		"data-uid": "src/pages/Chat/ChatArea.tsx:49:5",
+		"data-prohibitions": "[editContent]",
+		className: "flex flex-col h-full bg-background relative overflow-hidden",
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				"data-uid": "src/pages/Chat/ChatArea.tsx:50:7",
+				"data-prohibitions": "[editContent]",
+				className: "flex items-center gap-3 p-3 border-b bg-card",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button$1, {
+						"data-uid": "src/pages/Chat/ChatArea.tsx:51:9",
+						"data-prohibitions": "[]",
+						variant: "ghost",
+						size: "icon",
+						className: "md:hidden shrink-0",
+						onClick: onBack,
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ArrowLeft, {
+							"data-uid": "src/pages/Chat/ChatArea.tsx:52:11",
+							"data-prohibitions": "[editContent]",
+							className: "h-5 w-5"
+						})
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Avatar, {
+						"data-uid": "src/pages/Chat/ChatArea.tsx:54:9",
+						"data-prohibitions": "[]",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(AvatarImage, {
+							"data-uid": "src/pages/Chat/ChatArea.tsx:55:11",
+							"data-prohibitions": "[editContent]",
+							src: `https://img.usecurling.com/ppl/thumbnail?seed=${lead.avatarSeed || 1}`
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AvatarFallback, {
+							"data-uid": "src/pages/Chat/ChatArea.tsx:58:11",
+							"data-prohibitions": "[]",
+							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(User, {
+								"data-uid": "src/pages/Chat/ChatArea.tsx:59:13",
+								"data-prohibitions": "[editContent]",
+								className: "h-4 w-4"
+							})
+						})]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						"data-uid": "src/pages/Chat/ChatArea.tsx:62:9",
+						"data-prohibitions": "[editContent]",
+						className: "flex-1 min-w-0",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+							"data-uid": "src/pages/Chat/ChatArea.tsx:63:11",
+							"data-prohibitions": "[editContent]",
+							className: "font-semibold text-sm truncate",
+							children: lead.name
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							"data-uid": "src/pages/Chat/ChatArea.tsx:64:11",
+							"data-prohibitions": "[editContent]",
+							className: "text-xs text-muted-foreground truncate",
+							children: lead.company || lead.type
+						})]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Link, {
+						"data-uid": "src/pages/Chat/ChatArea.tsx:66:9",
+						"data-prohibitions": "[]",
+						to: `/crm/prescritor/${lead.id}`,
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button$1, {
+							"data-uid": "src/pages/Chat/ChatArea.tsx:67:11",
+							"data-prohibitions": "[]",
+							variant: "outline",
+							size: "sm",
+							children: "Ver Perfil"
+						})
+					})
+				]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				"data-uid": "src/pages/Chat/ChatArea.tsx:73:7",
+				"data-prohibitions": "[editContent]",
+				className: "flex-1 overflow-y-auto p-4 space-y-4 bg-[url('https://img.usecurling.com/i?q=seamless-pattern&color=azure')] bg-[length:300px] bg-opacity-5",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						"data-uid": "src/pages/Chat/ChatArea.tsx:74:9",
+						"data-prohibitions": "[editContent]",
+						className: "absolute inset-0 bg-slate-50/90 pointer-events-none -z-10"
+					}),
+					messages.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						"data-uid": "src/pages/Chat/ChatArea.tsx:76:11",
+						"data-prohibitions": "[]",
+						className: "h-full flex items-center justify-center text-muted-foreground text-sm",
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+							"data-uid": "src/pages/Chat/ChatArea.tsx:77:13",
+							"data-prohibitions": "[]",
+							className: "bg-background px-4 py-2 rounded-full shadow-sm border",
+							children: "Nenhuma mensagem ainda. Envie um \"Olá\"!"
+						})
+					}),
+					messages.map((msg) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						"data-uid": "src/pages/Chat/ChatArea.tsx:83:11",
+						"data-prohibitions": "[editContent]",
+						className: cn$1("flex flex-col max-w-[85%] md:max-w-[75%]", msg.sender === "me" ? "items-end ml-auto" : "items-start mr-auto"),
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							"data-uid": "src/pages/Chat/ChatArea.tsx:90:13",
+							"data-prohibitions": "[editContent]",
+							className: cn$1("px-3 sm:px-4 py-2 rounded-2xl shadow-sm relative group", msg.sender === "me" ? "bg-primary text-primary-foreground rounded-br-sm" : "bg-white border text-foreground rounded-bl-sm"),
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								"data-uid": "src/pages/Chat/ChatArea.tsx:98:15",
+								"data-prohibitions": "[editContent]",
+								className: "text-[13px] sm:text-sm break-words whitespace-pre-wrap",
+								children: msg.text
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								"data-uid": "src/pages/Chat/ChatArea.tsx:99:15",
+								"data-prohibitions": "[editContent]",
+								className: cn$1("flex items-center justify-end gap-1 mt-1 text-[10px]", msg.sender === "me" ? "text-primary-foreground/70" : "text-muted-foreground"),
+								children: [format$1(new Date(msg.timestamp), "HH:mm"), msg.sender === "me" && (msg.status === "read" ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CheckCheck, {
+									"data-uid": "src/pages/Chat/ChatArea.tsx:108:21",
+									"data-prohibitions": "[editContent]",
+									className: "h-3 w-3"
+								}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Check, {
+									"data-uid": "src/pages/Chat/ChatArea.tsx:110:21",
+									"data-prohibitions": "[editContent]",
+									className: "h-3 w-3"
+								}))]
+							})]
+						})
+					}, msg.id)),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						"data-uid": "src/pages/Chat/ChatArea.tsx:116:9",
+						"data-prohibitions": "[editContent]",
+						ref: messagesEndRef
+					})
+				]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("form", {
+				"data-uid": "src/pages/Chat/ChatArea.tsx:119:7",
+				"data-prohibitions": "[]",
+				onSubmit: handleSend,
+				className: "p-3 bg-card border-t flex items-center gap-2",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+					"data-uid": "src/pages/Chat/ChatArea.tsx:120:9",
+					"data-prohibitions": "[editContent]",
+					value: text,
+					onChange: (e) => setText(e.target.value),
+					placeholder: "Mensagem",
+					className: "flex-1 rounded-full bg-muted/50 border-transparent focus-visible:bg-background px-4"
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button$1, {
+					"data-uid": "src/pages/Chat/ChatArea.tsx:126:9",
+					"data-prohibitions": "[]",
+					type: "submit",
+					size: "icon",
+					className: "rounded-full shrink-0 h-10 w-10 shadow-sm",
+					disabled: !text.trim(),
+					children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Send, {
+						"data-uid": "src/pages/Chat/ChatArea.tsx:132:11",
+						"data-prohibitions": "[editContent]",
+						className: "h-4 w-4"
+					})
+				})]
+			})
+		]
+	});
+}
+//#endregion
+//#region src/pages/Chat/Index.tsx
+function ChatPage() {
+	const [searchParams, setSearchParams] = useSearchParams();
+	const selectedContactId = searchParams.get("contactId");
+	const { state } = useMainStore();
+	if (!state.settings?.whatsappConnected) return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		"data-uid": "src/pages/Chat/Index.tsx:17:7",
+		"data-prohibitions": "[]",
+		className: "flex flex-col items-center justify-center h-[calc(100dvh-140px)] animate-fade-in space-y-4",
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				"data-uid": "src/pages/Chat/Index.tsx:18:9",
+				"data-prohibitions": "[]",
+				className: "p-6 bg-green-50 rounded-full text-green-600 mb-4",
+				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(MessageCircle, {
+					"data-uid": "src/pages/Chat/Index.tsx:19:11",
+					"data-prohibitions": "[editContent]",
+					className: "h-12 w-12"
+				})
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+				"data-uid": "src/pages/Chat/Index.tsx:21:9",
+				"data-prohibitions": "[]",
+				className: "text-2xl font-bold",
+				children: "WhatsApp Não Conectado"
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+				"data-uid": "src/pages/Chat/Index.tsx:22:9",
+				"data-prohibitions": "[]",
+				className: "text-muted-foreground text-center max-w-md",
+				children: "Para utilizar o chat integrado, é necessário conectar a sua conta do WhatsApp nas configurações da plataforma."
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Link, {
+				"data-uid": "src/pages/Chat/Index.tsx:26:9",
+				"data-prohibitions": "[]",
+				to: "/config",
+				children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button$1, {
+					"data-uid": "src/pages/Chat/Index.tsx:27:11",
+					"data-prohibitions": "[]",
+					size: "lg",
+					className: "mt-4",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Settings, {
+						"data-uid": "src/pages/Chat/Index.tsx:28:13",
+						"data-prohibitions": "[editContent]",
+						className: "mr-2 h-4 w-4"
+					}), " Ir para Configurações"]
+				})
+			})
+		]
+	});
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		"data-uid": "src/pages/Chat/Index.tsx:36:5",
+		"data-prohibitions": "[editContent]",
+		className: "h-[calc(100dvh-120px)] sm:h-[calc(100dvh-140px)] min-h-[500px] flex gap-4 animate-slide-up pb-2",
+		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
+			"data-uid": "src/pages/Chat/Index.tsx:37:7",
+			"data-prohibitions": "[editContent]",
+			className: cn$1("flex-1 overflow-hidden flex flex-col shadow-subtle border-border/50", selectedContactId ? "hidden md:flex md:max-w-xs lg:max-w-sm" : "flex"),
+			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				"data-uid": "src/pages/Chat/Index.tsx:43:9",
+				"data-prohibitions": "[]",
+				className: "p-4 border-b",
+				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+					"data-uid": "src/pages/Chat/Index.tsx:44:11",
+					"data-prohibitions": "[]",
+					className: "font-semibold text-lg",
+					children: "Mensagens"
+				})
+			}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChatSidebar, {
+				"data-uid": "src/pages/Chat/Index.tsx:46:9",
+				"data-prohibitions": "[editContent]",
+				selectedId: selectedContactId,
+				onSelect: (id) => setSearchParams({ contactId: id })
+			})]
+		}), selectedContactId ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Card, {
+			"data-uid": "src/pages/Chat/Index.tsx:53:9",
+			"data-prohibitions": "[editContent]",
+			className: cn$1("flex-1 overflow-hidden flex flex-col shadow-subtle border-border/50", !selectedContactId && "hidden md:flex"),
+			children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChatArea, {
+				"data-uid": "src/pages/Chat/Index.tsx:59:11",
+				"data-prohibitions": "[editContent]",
+				leadId: selectedContactId,
+				onBack: () => setSearchParams({})
+			})
+		}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
+			"data-uid": "src/pages/Chat/Index.tsx:62:9",
+			"data-prohibitions": "[]",
+			className: "hidden md:flex flex-1 items-center justify-center flex-col text-muted-foreground shadow-subtle border-border/50 bg-slate-50/50",
+			children: [
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+					"data-uid": "src/pages/Chat/Index.tsx:63:11",
+					"data-prohibitions": "[]",
+					className: "h-20 w-20 rounded-full bg-white border flex items-center justify-center mb-6 shadow-sm",
+					children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(MessageCircle, {
+						"data-uid": "src/pages/Chat/Index.tsx:64:13",
+						"data-prohibitions": "[editContent]",
+						className: "h-10 w-10 opacity-30"
+					})
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					"data-uid": "src/pages/Chat/Index.tsx:66:11",
+					"data-prohibitions": "[]",
+					className: "font-medium text-lg text-foreground/80",
+					children: "Nenhuma conversa selecionada"
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					"data-uid": "src/pages/Chat/Index.tsx:67:11",
+					"data-prohibitions": "[]",
+					className: "text-sm mt-1",
+					children: "Selecione um contato na lista para iniciar o atendimento."
+				})
+			]
 		})]
 	});
 }
@@ -74294,99 +74816,108 @@ var NotFound = () => {
 //#endregion
 //#region src/App.tsx
 var App = () => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AppProvider, {
-	"data-uid": "src/App.tsx:18:3",
+	"data-uid": "src/App.tsx:19:3",
 	"data-prohibitions": "[]",
 	children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(BrowserRouter, {
-		"data-uid": "src/App.tsx:19:5",
+		"data-uid": "src/App.tsx:20:5",
 		"data-prohibitions": "[]",
 		future: {
 			v7_startTransition: false,
 			v7_relativeSplatPath: false
 		},
 		children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(TooltipProvider, {
-			"data-uid": "src/App.tsx:20:7",
+			"data-uid": "src/App.tsx:21:7",
 			"data-prohibitions": "[]",
 			children: [
 				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Toaster$2, {
-					"data-uid": "src/App.tsx:21:9",
-					"data-prohibitions": "[editContent]"
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Toaster, {
 					"data-uid": "src/App.tsx:22:9",
 					"data-prohibitions": "[editContent]"
 				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Routes, {
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Toaster, {
 					"data-uid": "src/App.tsx:23:9",
+					"data-prohibitions": "[editContent]"
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Routes, {
+					"data-uid": "src/App.tsx:24:9",
 					"data-prohibitions": "[]",
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Route, {
-						"data-uid": "src/App.tsx:24:11",
+						"data-uid": "src/App.tsx:25:11",
 						"data-prohibitions": "[]",
 						element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Layout, {
-							"data-uid": "src/App.tsx:24:27",
+							"data-uid": "src/App.tsx:25:27",
 							"data-prohibitions": "[editContent]"
 						}),
 						children: [
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
-								"data-uid": "src/App.tsx:25:13",
+								"data-uid": "src/App.tsx:26:13",
 								"data-prohibitions": "[editContent]",
 								path: "/",
 								element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DashboardPage, {
-									"data-uid": "src/App.tsx:25:38",
-									"data-prohibitions": "[editContent]"
-								})
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
-								"data-uid": "src/App.tsx:26:13",
-								"data-prohibitions": "[editContent]",
-								path: "/agendamento",
-								element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SchedulingPage, {
-									"data-uid": "src/App.tsx:26:49",
+									"data-uid": "src/App.tsx:26:38",
 									"data-prohibitions": "[editContent]"
 								})
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
 								"data-uid": "src/App.tsx:27:13",
 								"data-prohibitions": "[editContent]",
-								path: "/crm",
-								element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CrmPage, {
-									"data-uid": "src/App.tsx:27:41",
+								path: "/agendamento",
+								element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SchedulingPage, {
+									"data-uid": "src/App.tsx:27:49",
 									"data-prohibitions": "[editContent]"
 								})
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
 								"data-uid": "src/App.tsx:28:13",
 								"data-prohibitions": "[editContent]",
-								path: "/crm/prescritor/:id",
-								element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LeadDetailPage, {
-									"data-uid": "src/App.tsx:28:56",
+								path: "/crm",
+								element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CrmPage, {
+									"data-uid": "src/App.tsx:28:41",
 									"data-prohibitions": "[editContent]"
 								})
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
 								"data-uid": "src/App.tsx:29:13",
 								"data-prohibitions": "[editContent]",
-								path: "/kits",
-								element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(KitsPage, {
-									"data-uid": "src/App.tsx:29:42",
+								path: "/crm/prescritor/:id",
+								element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LeadDetailPage, {
+									"data-uid": "src/App.tsx:29:56",
 									"data-prohibitions": "[editContent]"
 								})
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
 								"data-uid": "src/App.tsx:30:13",
 								"data-prohibitions": "[editContent]",
+								path: "/chat",
+								element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChatPage, {
+									"data-uid": "src/App.tsx:30:42",
+									"data-prohibitions": "[editContent]"
+								})
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
+								"data-uid": "src/App.tsx:31:13",
+								"data-prohibitions": "[editContent]",
+								path: "/kits",
+								element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(KitsPage, {
+									"data-uid": "src/App.tsx:31:42",
+									"data-prohibitions": "[editContent]"
+								})
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
+								"data-uid": "src/App.tsx:32:13",
+								"data-prohibitions": "[editContent]",
 								path: "/config",
 								element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SettingsPage, {
-									"data-uid": "src/App.tsx:30:44",
+									"data-uid": "src/App.tsx:32:44",
 									"data-prohibitions": "[editContent]"
 								})
 							})
 						]
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
-						"data-uid": "src/App.tsx:32:11",
+						"data-uid": "src/App.tsx:34:11",
 						"data-prohibitions": "[editContent]",
 						path: "*",
 						element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(NotFound, {
-							"data-uid": "src/App.tsx:32:36",
+							"data-uid": "src/App.tsx:34:36",
 							"data-prohibitions": "[editContent]"
 						})
 					})]
@@ -74403,4 +74934,4 @@ var App = () => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AppProvider, {
 }));
 //#endregion
 
-//# sourceMappingURL=index-xr5LtHEe.js.map
+//# sourceMappingURL=index-CyH3BhwU.js.map

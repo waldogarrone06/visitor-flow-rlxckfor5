@@ -2,7 +2,7 @@ import { useParams, Link } from 'react-router-dom'
 import { useMainStore } from '@/stores/main'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, User, MapPin, Tag } from 'lucide-react'
+import { ArrowLeft, User, MapPin, Tag, MessageCircle } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { ConversionEvolutionChart } from './ConversionEvolutionChart'
 
@@ -27,19 +27,27 @@ export default function LeadDetailPage() {
 
   return (
     <div className="space-y-6 animate-slide-up pb-8">
-      <div className="flex items-center gap-4">
-        <Link to="/crm">
-          <Button variant="ghost" size="icon" className="rounded-full">
-            <ArrowLeft className="h-5 w-5" />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Link to="/crm">
+            <Button variant="ghost" size="icon" className="rounded-full">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">{lead.name}</h1>
+            <p className="text-muted-foreground flex items-center gap-2 mt-1">
+              {lead.company || lead.type}
+              <Badge variant="outline">{lead.stage}</Badge>
+            </p>
+          </div>
+        </div>
+        <Link to={`/chat?contactId=${lead.id}`}>
+          <Button className="bg-green-600 hover:bg-green-700 text-white shadow-md gap-2 w-full sm:w-auto">
+            <MessageCircle className="h-4 w-4" />
+            <span>WhatsApp</span>
           </Button>
         </Link>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">{lead.name}</h1>
-          <p className="text-muted-foreground flex items-center gap-2 mt-1">
-            {lead.company || lead.type}
-            <Badge variant="outline">{lead.stage}</Badge>
-          </p>
-        </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">

@@ -1,5 +1,12 @@
 import { Link, useLocation } from 'react-router-dom'
-import { LayoutDashboard, CalendarDays, Users, Package, Settings } from 'lucide-react'
+import {
+  LayoutDashboard,
+  CalendarDays,
+  Users,
+  Package,
+  Settings,
+  MessageCircle,
+} from 'lucide-react'
 import {
   Sidebar,
   SidebarContent,
@@ -16,6 +23,7 @@ const menuItems = [
   { title: 'Painel', url: '/', icon: LayoutDashboard },
   { title: 'Agendamento', url: '/agendamento', icon: CalendarDays },
   { title: 'CRM', url: '/crm', icon: Users },
+  { title: 'Mensagens', url: '/chat', icon: MessageCircle },
   { title: 'Gestão de Kits', url: '/kits', icon: Package },
   { title: 'Configurações', url: '/config', icon: Settings },
 ]
