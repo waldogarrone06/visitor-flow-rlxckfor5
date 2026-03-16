@@ -1,12 +1,6 @@
 import { AppState } from './types'
 
 export const initialData: AppState = {
-  heatmapConfig: {
-    lowColor: '#e0f2fe', // sky-100
-    highColor: '#0369a1', // sky-700
-    minThreshold: 0,
-    maxThreshold: 10,
-  },
   leads: [
     {
       id: 'l1',
@@ -184,6 +178,7 @@ export const initialData: AppState = {
       kitId: 'k3',
       status: 'Delivered',
       date: new Date(Date.now() - 259200000).toISOString(),
+      expectedDeliveryDate: new Date(Date.now() - 86400000).toISOString(),
       trackingNumber: 'BR123456789XP',
     },
     {
@@ -192,7 +187,17 @@ export const initialData: AppState = {
       kitId: 'k4',
       status: 'In Transit',
       date: new Date(Date.now() - 86400000).toISOString(),
+      expectedDeliveryDate: new Date(Date.now() + 172800000).toISOString(),
       trackingNumber: 'BR987654321XP',
+    },
+    {
+      id: 's3',
+      contactId: 'l2',
+      kitId: 'k2',
+      status: 'Delayed',
+      date: new Date(Date.now() - 864000000).toISOString(),
+      expectedDeliveryDate: new Date(Date.now() - 172800000).toISOString(),
+      trackingNumber: 'BR112233445XP',
     },
   ],
 }

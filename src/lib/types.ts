@@ -39,7 +39,7 @@ export interface Kit {
   cost: number
 }
 
-export type ShipmentStatus = 'Requested' | 'In Transit' | 'Delivered'
+export type ShipmentStatus = 'Requested' | 'In Transit' | 'Delivered' | 'Delayed'
 
 export interface Shipment {
   id: string
@@ -47,14 +47,8 @@ export interface Shipment {
   kitId: string
   status: ShipmentStatus
   date: string
+  expectedDeliveryDate?: string
   trackingNumber: string
-}
-
-export interface HeatmapConfig {
-  lowColor: string
-  highColor: string
-  minThreshold: number
-  maxThreshold: number
 }
 
 export interface AppState {
@@ -62,5 +56,4 @@ export interface AppState {
   appointments: Appointment[]
   kits: Kit[]
   shipments: Shipment[]
-  heatmapConfig: HeatmapConfig
 }

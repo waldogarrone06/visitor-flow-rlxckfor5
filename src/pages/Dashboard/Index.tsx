@@ -3,7 +3,7 @@ import { DateRange } from 'react-day-picker'
 import { KpiCards } from './KpiCards'
 import { DashboardAgenda } from './Agenda'
 import { PerformancePanel } from './PerformancePanel'
-import { BrazilMapDashboard } from './BrazilMap'
+import { StateVisitsTrendChart } from './StateVisitsTrendChart'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Calendar } from '@/components/ui/calendar'
 import { Button } from '@/components/ui/button'
@@ -73,7 +73,7 @@ export default function DashboardPage() {
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <BrazilMapDashboard dateRange={dateRange} />
+          <StateVisitsTrendChart dateRange={dateRange} />
         </div>
         <div className="space-y-4 flex flex-col h-full">
           <PerformancePanel dateRange={dateRange} />
