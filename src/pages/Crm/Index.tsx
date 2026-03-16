@@ -2,6 +2,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { Plus, Download } from 'lucide-react'
 import { KanbanBoard } from './KanbanBoard'
+import { LeadList } from './LeadList'
+import { ImportCouponDialog } from './ImportCouponDialog'
 
 export default function CrmPage() {
   return (
@@ -11,7 +13,8 @@ export default function CrmPage() {
           <h1 className="text-2xl font-bold tracking-tight">CRM Pipeline</h1>
           <p className="text-muted-foreground">Gerencie o fluxo de seus contatos e clientes.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <ImportCouponDialog />
           <Button variant="outline" size="sm" className="gap-2">
             <Download className="h-4 w-4" /> Exportar
           </Button>
@@ -24,7 +27,7 @@ export default function CrmPage() {
       <Tabs defaultValue="kanban" className="flex-1 flex flex-col">
         <TabsList className="w-fit">
           <TabsTrigger value="kanban">Kanban Board</TabsTrigger>
-          <TabsTrigger value="list">Lista (Tabela)</TabsTrigger>
+          <TabsTrigger value="list">Lista e Cupons</TabsTrigger>
         </TabsList>
         <TabsContent
           value="kanban"
@@ -32,10 +35,8 @@ export default function CrmPage() {
         >
           <KanbanBoard />
         </TabsContent>
-        <TabsContent value="list" className="mt-4">
-          <div className="bg-white border rounded-lg p-8 text-center text-muted-foreground">
-            Visualização em lista em desenvolvimento. Use o Kanban.
-          </div>
+        <TabsContent value="list" className="mt-4 flex-1 data-[state=active]:flex flex-col min-h-0">
+          <LeadList />
         </TabsContent>
       </Tabs>
     </div>

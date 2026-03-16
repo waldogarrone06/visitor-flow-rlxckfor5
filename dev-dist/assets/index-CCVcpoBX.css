@@ -868,6 +868,10 @@ section[aria-label='Notifications alt+T'] {
   margin-right: -0.25rem;
 }
 
+.-mr-3{
+  margin-right: -0.75rem;
+}
+
 .-mt-4{
   margin-top: -1rem;
 }
@@ -898,6 +902,10 @@ section[aria-label='Notifications alt+T'] {
 
 .ml-1{
   margin-left: 0.25rem;
+}
+
+.ml-2{
+  margin-left: 0.5rem;
 }
 
 .ml-auto{
@@ -1021,8 +1029,16 @@ section[aria-label='Notifications alt+T'] {
   height: 0.875rem;
 }
 
+.h-32{
+  height: 8rem;
+}
+
 .h-4{
   height: 1rem;
+}
+
+.h-40{
+  height: 10rem;
 }
 
 .h-5{
@@ -1441,6 +1457,10 @@ section[aria-label='Notifications alt+T'] {
           user-select: none;
 }
 
+.resize-none{
+  resize: none;
+}
+
 .list-none{
   list-style-type: none;
 }
@@ -1748,6 +1768,11 @@ section[aria-label='Notifications alt+T'] {
   border-color: hsl(var(--destructive) / 0.5);
 }
 
+.border-emerald-200{
+  --tw-border-opacity: 1;
+  border-color: rgb(167 243 208 / var(--tw-border-opacity, 1));
+}
+
 .border-input{
   border-color: hsl(var(--input));
 }
@@ -1819,6 +1844,11 @@ section[aria-label='Notifications alt+T'] {
   background-color: hsl(var(--destructive));
 }
 
+.bg-emerald-50{
+  --tw-bg-opacity: 1;
+  background-color: rgb(236 253 245 / var(--tw-bg-opacity, 1));
+}
+
 .bg-foreground{
   background-color: hsl(var(--foreground));
 }
@@ -1883,6 +1913,11 @@ section[aria-label='Notifications alt+T'] {
   background-color: hsl(var(--sidebar-border));
 }
 
+.bg-slate-100{
+  --tw-bg-opacity: 1;
+  background-color: rgb(241 245 249 / var(--tw-bg-opacity, 1));
+}
+
 .bg-slate-100\/50{
   background-color: rgb(241 245 249 / 0.5);
 }
@@ -1943,10 +1978,6 @@ section[aria-label='Notifications alt+T'] {
 
 .p-6{
   padding: 1.5rem;
-}
-
-.p-8{
-  padding: 2rem;
 }
 
 .p-\[1px\]{
@@ -2244,6 +2275,11 @@ section[aria-label='Notifications alt+T'] {
 
 .text-destructive-foreground{
   color: hsl(var(--destructive-foreground));
+}
+
+.text-emerald-700{
+  --tw-text-opacity: 1;
+  color: rgb(4 120 87 / var(--tw-text-opacity, 1));
 }
 
 .text-foreground{
@@ -2746,9 +2782,18 @@ section[aria-label='Notifications alt+T'] {
   background-color: hsl(var(--sidebar-accent));
 }
 
+.hover\:bg-slate-200:hover{
+  --tw-bg-opacity: 1;
+  background-color: rgb(226 232 240 / var(--tw-bg-opacity, 1));
+}
+
 .hover\:bg-slate-50:hover{
   --tw-bg-opacity: 1;
   background-color: rgb(248 250 252 / var(--tw-bg-opacity, 1));
+}
+
+.hover\:bg-slate-50\/50:hover{
+  background-color: rgb(248 250 252 / 0.5);
 }
 
 .hover\:bg-success\/80:hover{
@@ -3703,6 +3748,10 @@ section[aria-label='Notifications alt+T'] {
 
   .sm\:w-auto{
     width: auto;
+  }
+
+  .sm\:max-w-md{
+    max-width: 28rem;
   }
 
   .sm\:max-w-sm{

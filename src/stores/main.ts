@@ -10,6 +10,7 @@ type Action =
   | { type: 'UPDATE_KIT_STOCK'; payload: { kitId: string; amount: number } }
   | { type: 'ADD_TAG'; payload: { id: string; tag: string } }
   | { type: 'REMOVE_TAG'; payload: { id: string; tag: string } }
+  | { type: 'IMPORT_COUPON_USAGE'; payload: { code: string; usage: number }[] }
 
 const AppContext = createContext<{ state: AppState; dispatch: React.Dispatch<Action> } | undefined>(
   undefined,
@@ -118,6 +119,21 @@ function appReducer(state: AppState, action: Action): AppState {
               ...l,
               tags: (l.tags || []).filter((t) => t !== tag),
             }
+          }
+          return l
+        }),
+      }
+    }
+
+    case 'IMPORT_COUPON_USAGE': {
+      const updates = action.payload
+      return {
+        ...state,
+        leads: state.leads.map((l) => {
+          if (!l.couponCode) return l
+          const update = updates.find((u) => u.code.toLowerCase() === l.couponCode?.toLowerCase())
+          if (update) {
+            return { ...l, couponUsage: update.usage }
           }
           return l
         }),

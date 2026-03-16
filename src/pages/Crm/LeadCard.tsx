@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { format } from 'date-fns'
-import { X, Tag as TagIcon, MoreHorizontal, MapPin } from 'lucide-react'
+import { X, Tag as TagIcon, MoreHorizontal, MapPin, Ticket } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -86,6 +86,16 @@ export function LeadCard({
           </div>
 
           <div className="flex flex-col gap-1.5">
+            {lead.couponCode && (
+              <Badge
+                variant="outline"
+                className="w-fit text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200 pointer-events-none gap-1"
+              >
+                <Ticket className="h-3 w-3" />
+                Cupom: {lead.couponCode} ({lead.couponUsage || 0})
+              </Badge>
+            )}
+
             {kit && (
               <Badge
                 variant="secondary"

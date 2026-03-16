@@ -20,6 +20,8 @@ export interface Lead {
   registrationNumber?: string
   phone?: string
   email?: string
+  couponCode?: string
+  couponUsage?: number
 }
 
 export interface Appointment {

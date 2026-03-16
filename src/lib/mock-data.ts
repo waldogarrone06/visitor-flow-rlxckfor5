@@ -16,6 +16,8 @@ export const initialData: AppState = {
       avatarSeed: 1,
       phone: '(11) 98765-4321',
       email: 'joao.silva@exemplo.com',
+      couponCode: 'JOAO10',
+      couponUsage: 5,
     },
     {
       id: 'l2',
@@ -33,6 +35,8 @@ export const initialData: AppState = {
       avatarSeed: 2,
       phone: '(11) 3214-5678',
       email: 'contato@corpoforte.com.br',
+      couponCode: 'CORPOFORTE20',
+      couponUsage: 145,
     },
     {
       id: 'l3',
@@ -49,6 +53,8 @@ export const initialData: AppState = {
       avatarSeed: 3,
       phone: '(11) 91234-5678',
       email: 'maria.souza@exemplo.com',
+      couponCode: 'MARIA15',
+      couponUsage: 12,
     },
     {
       id: 'l4',
@@ -67,6 +73,8 @@ export const initialData: AppState = {
       avatarSeed: 4,
       phone: '(21) 2222-3333',
       email: 'loja@vidasaudavel.com.br',
+      couponCode: 'VIDA10',
+      couponUsage: 33,
     },
     {
       id: 'l5',
@@ -98,6 +106,8 @@ export const initialData: AppState = {
       state: 'RS',
       lastInteraction: new Date(Date.now() - 500000000).toISOString(),
       avatarSeed: 6,
+      couponCode: 'SAUDE5',
+      couponUsage: 89,
     },
   ],
   appointments: [
