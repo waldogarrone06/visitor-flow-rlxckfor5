@@ -30,6 +30,8 @@ import { Lead } from '@/lib/types'
 const formSchema = z.object({
   name: z.string().min(2, 'Nome muito curto'),
   cpf: z.string().min(14, 'CPF inválido'),
+  phone: z.string().min(14, 'Telefone inválido'),
+  email: z.string().email('E-mail inválido'),
   profession: z.enum(['médico', 'nutricionista', 'treinador'], {
     required_error: 'Selecione uma profissão',
   }),
@@ -58,6 +60,8 @@ export function ScheduleForm({
     defaultValues: {
       name: '',
       cpf: '',
+      phone: '',
+      email: '',
       profession: undefined,
       registrationNumber: '',
       address: '',
@@ -88,6 +92,8 @@ export function ScheduleForm({
         address: values.address,
         profession: values.profession,
         registrationNumber: values.registrationNumber,
+        phone: values.phone,
+        email: values.email,
         lastInteraction: new Date().toISOString(),
         avatarSeed: Math.floor(Math.random() * 100),
       }
@@ -140,26 +146,67 @@ export function ScheduleForm({
           )}
         />
 
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="cpf"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>CPF</FormLabel>
+                <FormControl>
+                  <Input
+                    {...field}
+                    placeholder="000.000.000-00"
+                    onChange={(e) => {
+                      let value = e.target.value.replace(/\D/g, '')
+                      if (value.length > 11) value = value.slice(0, 11)
+                      value = value.replace(/(\d{3})(\d)/, '$1.$2')
+                      value = value.replace(/(\d{3})(\d)/, '$1.$2')
+                      value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2')
+                      field.onChange(value)
+                    }}
+                    maxLength={14}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="phone"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Telefone de contato</FormLabel>
+                <FormControl>
+                  <Input
+                    {...field}
+                    placeholder="(00) 00000-0000"
+                    onChange={(e) => {
+                      let value = e.target.value.replace(/\D/g, '')
+                      if (value.length > 11) value = value.slice(0, 11)
+                      value = value.replace(/^(\d{2})(\d)/g, '($1) $2')
+                      value = value.replace(/(\d)(\d{4})$/, '$1-$2')
+                      field.onChange(value)
+                    }}
+                    maxLength={15}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
         <FormField
           control={form.control}
-          name="cpf"
+          name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>CPF</FormLabel>
+              <FormLabel>E-mail</FormLabel>
               <FormControl>
-                <Input
-                  {...field}
-                  placeholder="000.000.000-00"
-                  onChange={(e) => {
-                    let value = e.target.value.replace(/\D/g, '')
-                    if (value.length > 11) value = value.slice(0, 11)
-                    value = value.replace(/(\d{3})(\d)/, '$1.$2')
-                    value = value.replace(/(\d{3})(\d)/, '$1.$2')
-                    value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2')
-                    field.onChange(value)
-                  }}
-                  maxLength={14}
-                />
+                <Input {...field} type="email" placeholder="email@exemplo.com" />
               </FormControl>
               <FormMessage />
             </FormItem>

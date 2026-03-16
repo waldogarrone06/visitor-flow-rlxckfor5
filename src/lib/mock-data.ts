@@ -12,6 +12,8 @@ export const initialData: AppState = {
       address: 'Rua das Flores, 123',
       lastInteraction: '2023-10-01',
       avatarSeed: 1,
+      phone: '(11) 98765-4321',
+      email: 'joao.silva@exemplo.com',
     },
     {
       id: 'l2',
@@ -25,6 +27,8 @@ export const initialData: AppState = {
       lastInteraction: '2023-10-05',
       assignedKitId: 'k2',
       avatarSeed: 2,
+      phone: '(11) 3214-5678',
+      email: 'contato@corpoforte.com.br',
     },
     {
       id: 'l3',
@@ -37,6 +41,8 @@ export const initialData: AppState = {
       lastInteraction: '2023-10-10',
       assignedKitId: 'k1',
       avatarSeed: 3,
+      phone: '(11) 91234-5678',
+      email: 'maria.souza@exemplo.com',
     },
     {
       id: 'l4',
@@ -50,6 +56,8 @@ export const initialData: AppState = {
       lastInteraction: '2023-10-12',
       assignedKitId: 'k3',
       avatarSeed: 4,
+      phone: '(21) 2222-3333',
+      email: 'loja@vidasaudavel.com.br',
     },
     {
       id: 'l5',
@@ -62,6 +70,8 @@ export const initialData: AppState = {
       lastInteraction: '2023-10-15',
       assignedKitId: 'k4',
       avatarSeed: 5,
+      phone: '(31) 98888-7777',
+      email: 'carlos.santos@exemplo.com',
     },
   ],
   appointments: [

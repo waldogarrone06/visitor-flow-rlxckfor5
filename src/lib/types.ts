@@ -15,6 +15,8 @@ export interface Lead {
   avatarSeed?: number
   profession?: string
   registrationNumber?: string
+  phone?: string
+  email?: string
 }
 
 export interface Appointment {
