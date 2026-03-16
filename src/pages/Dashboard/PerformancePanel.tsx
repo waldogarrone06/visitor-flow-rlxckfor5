@@ -4,15 +4,18 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 import { useMainStore } from '@/stores/main'
 import { CheckCircle } from 'lucide-react'
+import { DateRange } from 'react-day-picker'
+import { isDateInRange } from '@/lib/utils'
 
-export function PerformancePanel() {
+export function PerformancePanel({ dateRange }: { dateRange?: DateRange }) {
   const { state } = useMainStore()
 
   const { scheduled, visited } = useMemo(() => {
-    const s = state.appointments.filter((a) => a.status === 'Scheduled').length
-    const v = state.appointments.filter((a) => a.status === 'Visited').length
+    const filtered = state.appointments.filter((a) => isDateInRange(a.date, dateRange))
+    const s = filtered.filter((a) => a.status === 'Scheduled').length
+    const v = filtered.filter((a) => a.status === 'Visited').length
     return { scheduled: s, visited: v }
-  }, [state.appointments])
+  }, [state.appointments, dateRange])
 
   const pieData = [
     { name: 'Realizadas', value: visited, color: 'hsl(var(--success))' },
@@ -20,13 +23,13 @@ export function PerformancePanel() {
   ]
 
   return (
-    <Card className="shadow-subtle flex flex-col h-full">
+    <Card className="shadow-subtle flex flex-col h-full min-h-[300px]">
       <CardHeader className="pb-2">
         <CardTitle className="text-lg">Efetividade de Visitas</CardTitle>
-        <CardDescription>Comparativo do ciclo atual</CardDescription>
+        <CardDescription>Comparativo do período selecionado</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 flex flex-col justify-center pb-6">
-        <div className="h-[200px] w-full">
+        <div className="h-[180px] w-full">
           <ChartContainer
             config={{
               realizadas: { label: 'Realizadas', color: 'hsl(var(--success))' },
@@ -37,8 +40,8 @@ export function PerformancePanel() {
               <PieChart>
                 <Pie
                   data={pieData}
-                  innerRadius={60}
-                  outerRadius={80}
+                  innerRadius={50}
+                  outerRadius={70}
                   paddingAngle={5}
                   dataKey="value"
                 >

@@ -1,6 +1,12 @@
 import { AppState } from './types'
 
 export const initialData: AppState = {
+  heatmapConfig: {
+    lowColor: '#e0f2fe', // sky-100
+    highColor: '#0369a1', // sky-700
+    minThreshold: 0,
+    maxThreshold: 10,
+  },
   leads: [
     {
       id: 'l1',
@@ -11,6 +17,7 @@ export const initialData: AppState = {
       document: '123.456.789-00',
       address: 'Rua das Flores, 123',
       neighborhood: 'Jardins',
+      state: 'SP',
       lastInteraction: new Date(Date.now() - 86400000).toISOString(),
       avatarSeed: 1,
       phone: '(11) 98765-4321',
@@ -26,6 +33,7 @@ export const initialData: AppState = {
       company: 'Corpo Forte Ltda',
       address: 'Av Paulista, 1000',
       neighborhood: 'Centro',
+      state: 'SP',
       lastInteraction: new Date(Date.now() - 172800000).toISOString(),
       assignedKitId: 'k2',
       avatarSeed: 2,
@@ -41,6 +49,7 @@ export const initialData: AppState = {
       document: '987.654.321-11',
       address: 'Rua Augusta, 500',
       neighborhood: 'Pinheiros',
+      state: 'RJ',
       lastInteraction: new Date(Date.now() - 259200000).toISOString(),
       assignedKitId: 'k1',
       avatarSeed: 3,
@@ -57,6 +66,7 @@ export const initialData: AppState = {
       company: 'Vida Saudável',
       address: 'Centro, 45',
       neighborhood: 'Centro',
+      state: 'MG',
       tags: ['Revisitar 30 dias'],
       lastInteraction: new Date(Date.now() - 345600000).toISOString(),
       assignedKitId: 'k3',
@@ -73,12 +83,27 @@ export const initialData: AppState = {
       document: '111.222.333-44',
       address: 'Bairro Novo, 99',
       neighborhood: 'Vila Mariana',
+      state: 'SC',
       tags: ['Revisitar 90 dias'],
       lastInteraction: new Date(Date.now() - 432000000).toISOString(),
       assignedKitId: 'k4',
       avatarSeed: 5,
       phone: '(31) 98888-7777',
       email: 'carlos.santos@exemplo.com',
+    },
+    {
+      id: 'l6',
+      name: 'Farmácia Saúde',
+      stage: 'Visitado',
+      type: 'B2B',
+      score: 4,
+      document: '33.444.555/0001-66',
+      company: 'Farma Saúde',
+      address: 'Rua Principal, 10',
+      neighborhood: 'Centro',
+      state: 'RS',
+      lastInteraction: new Date(Date.now() - 500000000).toISOString(),
+      avatarSeed: 6,
     },
   ],
   appointments: [
@@ -101,6 +126,20 @@ export const initialData: AppState = {
       leadId: 'l4',
       date: new Date(Date.now() - 86400000).toISOString(),
       vendor: 'Ana Vendedora',
+      status: 'Visited',
+    },
+    {
+      id: 'a4',
+      leadId: 'l6',
+      date: new Date(Date.now() - 150000000).toISOString(),
+      vendor: 'Ana Vendedora',
+      status: 'Visited',
+    },
+    {
+      id: 'a5',
+      leadId: 'l2',
+      date: new Date(Date.now() - 200000000).toISOString(),
+      vendor: 'Marcos Sales',
       status: 'Visited',
     },
   ],

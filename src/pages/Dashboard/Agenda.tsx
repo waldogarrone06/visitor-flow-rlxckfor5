@@ -7,12 +7,14 @@ import { CheckCircle2, Clock } from 'lucide-react'
 import { format, isToday, isTomorrow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { toast } from '@/hooks/use-toast'
+import { DateRange } from 'react-day-picker'
+import { isDateInRange } from '@/lib/utils'
 
-export function DashboardAgenda() {
+export function DashboardAgenda({ dateRange }: { dateRange?: DateRange }) {
   const { state, dispatch } = useMainStore()
 
   const upcoming = state.appointments
-    .filter((a) => a.status === 'Scheduled')
+    .filter((a) => a.status === 'Scheduled' && isDateInRange(a.date, dateRange))
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     .slice(0, 5)
 
@@ -32,16 +34,18 @@ export function DashboardAgenda() {
   }
 
   return (
-    <Card className="shadow-subtle">
+    <Card className="shadow-subtle flex-1 flex flex-col">
       <CardHeader>
         <CardTitle className="text-lg flex items-center gap-2">
           <Clock className="h-5 w-5 text-muted-foreground" />
           Próximas Visitas
         </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-1 overflow-y-auto min-h-[200px]">
         {upcoming.length === 0 ? (
-          <p className="text-muted-foreground text-sm text-center py-4">Nenhuma visita agendada.</p>
+          <p className="text-muted-foreground text-sm text-center py-4">
+            Nenhuma visita no período.
+          </p>
         ) : (
           <div className="space-y-4">
             {upcoming.map((apt) => {

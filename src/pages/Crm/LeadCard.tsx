@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { format } from 'date-fns'
-import { X, Tag as TagIcon, MoreHorizontal } from 'lucide-react'
+import { X, Tag as TagIcon, MoreHorizontal, MapPin } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,6 +22,10 @@ export function LeadCard({
 }) {
   const { state, dispatch } = useMainStore()
   const kit = lead.assignedKitId ? state.kits.find((k) => k.id === lead.assignedKitId) : null
+
+  const locationStr = lead.state
+    ? `${lead.neighborhood ? lead.neighborhood + ', ' : ''}${lead.state}`
+    : lead.neighborhood || (lead.type === 'B2B' ? lead.company : 'Consumidor')
 
   return (
     <Card
@@ -40,8 +44,9 @@ export function LeadCard({
             </Avatar>
             <div>
               <p className="text-sm font-medium leading-none truncate w-[140px]">{lead.name}</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">
-                {lead.neighborhood || (lead.type === 'B2B' ? lead.company : 'Consumidor')}
+              <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
+                <MapPin className="h-3 w-3" />
+                <span className="truncate w-[120px]">{locationStr}</span>
               </p>
             </div>
           </div>

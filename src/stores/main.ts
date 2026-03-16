@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, ReactNode } from 'react'
-import { AppState, Lead, Appointment, Shipment, LeadStage } from '@/lib/types'
+import { AppState, Lead, Appointment, Shipment, LeadStage, HeatmapConfig } from '@/lib/types'
 import { initialData } from '@/lib/mock-data'
 
 type Action =
@@ -10,6 +10,7 @@ type Action =
   | { type: 'UPDATE_KIT_STOCK'; payload: { kitId: string; amount: number } }
   | { type: 'ADD_TAG'; payload: { id: string; tag: string } }
   | { type: 'REMOVE_TAG'; payload: { id: string; tag: string } }
+  | { type: 'UPDATE_HEATMAP_CONFIG'; payload: Partial<HeatmapConfig> }
 
 const AppContext = createContext<{ state: AppState; dispatch: React.Dispatch<Action> } | undefined>(
   undefined,
@@ -122,6 +123,12 @@ function appReducer(state: AppState, action: Action): AppState {
         }),
       }
     }
+
+    case 'UPDATE_HEATMAP_CONFIG':
+      return {
+        ...state,
+        heatmapConfig: { ...state.heatmapConfig, ...action.payload },
+      }
 
     default:
       return state

@@ -19284,6 +19284,29 @@ var LayoutDashboard = createLucideIcon("layout-dashboard", [
 		key: "ldoo1y"
 	}]
 ]);
+var MapPin = createLucideIcon("map-pin", [["path", {
+	d: "M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0",
+	key: "1r0f0z"
+}], ["circle", {
+	cx: "12",
+	cy: "10",
+	r: "3",
+	key: "ilqhr7"
+}]]);
+var Map$1 = createLucideIcon("map", [
+	["path", {
+		d: "M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z",
+		key: "169xi5"
+	}],
+	["path", {
+		d: "M15 5.764v15",
+		key: "1pn4in"
+	}],
+	["path", {
+		d: "M9 3.236v15",
+		key: "1uimfh"
+	}]
+]);
 var PackagePlus = createLucideIcon("package-plus", [
 	["path", {
 		d: "M12 22V12",
@@ -20853,14 +20876,3216 @@ var getDefaultConfig = () => {
 };
 var twMerge = /* @__PURE__ */ createTailwindMerge(getDefaultConfig);
 //#endregion
-//#region src/lib/utils.ts
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/constants.js
 /**
-* Merges multiple class names into a single string
-* @param inputs - Array of class names
-* @returns Merged class names
+* @constant
+* @name daysInYear
+* @summary Days in 1 year.
+*
+* @description
+* How many days in a year.
+*
+* One years equals 365.2425 days according to the formula:
+*
+* > Leap year occurs every 4 years, except for years that are divisible by 100 and not divisible by 400.
+* > 1 mean year = (365+1/4-1/100+1/400) days = 365.2425 days
 */
+var daysInYear = 365.2425;
+Math.pow(10, 8) * 24 * 60 * 60 * 1e3;
+/**
+* @constant
+* @name millisecondsInWeek
+* @summary Milliseconds in 1 week.
+*/
+var millisecondsInWeek = 6048e5;
+/**
+* @constant
+* @name millisecondsInDay
+* @summary Milliseconds in 1 day.
+*/
+var millisecondsInDay = 864e5;
+/**
+* @constant
+* @name secondsInDay
+* @summary Seconds in 1 day.
+*/
+var secondsInDay = 3600 * 24;
+secondsInDay * 7;
+secondsInDay * daysInYear / 12 * 3;
+/**
+* @constant
+* @name constructFromSymbol
+* @summary Symbol enabling Date extensions to inherit properties from the reference date.
+*
+* The symbol is used to enable the `constructFrom` function to construct a date
+* using a reference date and a value. It allows to transfer extra properties
+* from the reference date to the new date. It's useful for extensions like
+* [`TZDate`](https://github.com/date-fns/tz) that accept a time zone as
+* a constructor argument.
+*/
+var constructFromSymbol$1 = Symbol.for("constructDateFrom");
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/constructFrom.js
+/**
+* @name constructFrom
+* @category Generic Helpers
+* @summary Constructs a date using the reference date and the value
+*
+* @description
+* The function constructs a new date using the constructor from the reference
+* date and the given value. It helps to build generic functions that accept
+* date extensions.
+*
+* It defaults to `Date` if the passed reference date is a number or a string.
+*
+* Starting from v3.7.0, it allows to construct a date using `[Symbol.for("constructDateFrom")]`
+* enabling to transfer extra properties from the reference date to the new date.
+* It's useful for extensions like [`TZDate`](https://github.com/date-fns/tz)
+* that accept a time zone as a constructor argument.
+*
+* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+*
+* @param date - The reference date to take constructor from
+* @param value - The value to create the date
+*
+* @returns Date initialized using the given date and value
+*
+* @example
+* import { constructFrom } from "./constructFrom/date-fns";
+*
+* // A function that clones a date preserving the original type
+* function cloneDate<DateType extends Date>(date: DateType): DateType {
+*   return constructFrom(
+*     date, // Use constructor from the given date
+*     date.getTime() // Use the date value to create a new date
+*   );
+* }
+*/
+function constructFrom(date, value) {
+	if (typeof date === "function") return date(value);
+	if (date && typeof date === "object" && constructFromSymbol$1 in date) return date[constructFromSymbol$1](value);
+	if (date instanceof Date) return new date.constructor(value);
+	return new Date(value);
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/toDate.js
+/**
+* @name toDate
+* @category Common Helpers
+* @summary Convert the given argument to an instance of Date.
+*
+* @description
+* Convert the given argument to an instance of Date.
+*
+* If the argument is an instance of Date, the function returns its clone.
+*
+* If the argument is a number, it is treated as a timestamp.
+*
+* If the argument is none of the above, the function returns Invalid Date.
+*
+* Starting from v3.7.0, it clones a date using `[Symbol.for("constructDateFrom")]`
+* enabling to transfer extra properties from the reference date to the new date.
+* It's useful for extensions like [`TZDate`](https://github.com/date-fns/tz)
+* that accept a time zone as a constructor argument.
+*
+* **Note**: *all* Date arguments passed to any *date-fns* function is processed by `toDate`.
+*
+* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+*
+* @param argument - The value to convert
+*
+* @returns The parsed date in the local time zone
+*
+* @example
+* // Clone the date:
+* const result = toDate(new Date(2014, 1, 11, 11, 30, 30))
+* //=> Tue Feb 11 2014 11:30:30
+*
+* @example
+* // Convert the timestamp to date:
+* const result = toDate(1392098430000)
+* //=> Tue Feb 11 2014 11:30:30
+*/
+function toDate(argument, context) {
+	return constructFrom(context || argument, argument);
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/addDays.js
+/**
+* The {@link addDays} function options.
+*/
+/**
+* @name addDays
+* @category Day Helpers
+* @summary Add the specified number of days to the given date.
+*
+* @description
+* Add the specified number of days to the given date.
+*
+* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+*
+* @param date - The date to be changed
+* @param amount - The amount of days to be added.
+* @param options - An object with options
+*
+* @returns The new date with the days added
+*
+* @example
+* // Add 10 days to 1 September 2014:
+* const result = addDays(new Date(2014, 8, 1), 10)
+* //=> Thu Sep 11 2014 00:00:00
+*/
+function addDays(date, amount, options) {
+	const _date = toDate(date, options?.in);
+	if (isNaN(amount)) return constructFrom(options?.in || date, NaN);
+	if (!amount) return _date;
+	_date.setDate(_date.getDate() + amount);
+	return _date;
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/addMonths.js
+/**
+* The {@link addMonths} function options.
+*/
+/**
+* @name addMonths
+* @category Month Helpers
+* @summary Add the specified number of months to the given date.
+*
+* @description
+* Add the specified number of months to the given date.
+*
+* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+*
+* @param date - The date to be changed
+* @param amount - The amount of months to be added.
+* @param options - The options object
+*
+* @returns The new date with the months added
+*
+* @example
+* // Add 5 months to 1 September 2014:
+* const result = addMonths(new Date(2014, 8, 1), 5)
+* //=> Sun Feb 01 2015 00:00:00
+*
+* // Add one month to 30 January 2023:
+* const result = addMonths(new Date(2023, 0, 30), 1)
+* //=> Tue Feb 28 2023 00:00:00
+*/
+function addMonths(date, amount, options) {
+	const _date = toDate(date, options?.in);
+	if (isNaN(amount)) return constructFrom(options?.in || date, NaN);
+	if (!amount) return _date;
+	const dayOfMonth = _date.getDate();
+	const endOfDesiredMonth = constructFrom(options?.in || date, _date.getTime());
+	endOfDesiredMonth.setMonth(_date.getMonth() + amount + 1, 0);
+	if (dayOfMonth >= endOfDesiredMonth.getDate()) return endOfDesiredMonth;
+	else {
+		_date.setFullYear(endOfDesiredMonth.getFullYear(), endOfDesiredMonth.getMonth(), dayOfMonth);
+		return _date;
+	}
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/_lib/defaultOptions.js
+var defaultOptions$1 = {};
+function getDefaultOptions() {
+	return defaultOptions$1;
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/startOfWeek.js
+/**
+* The {@link startOfWeek} function options.
+*/
+/**
+* @name startOfWeek
+* @category Week Helpers
+* @summary Return the start of a week for the given date.
+*
+* @description
+* Return the start of a week for the given date.
+* The result will be in the local timezone.
+*
+* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+*
+* @param date - The original date
+* @param options - An object with options
+*
+* @returns The start of a week
+*
+* @example
+* // The start of a week for 2 September 2014 11:55:00:
+* const result = startOfWeek(new Date(2014, 8, 2, 11, 55, 0))
+* //=> Sun Aug 31 2014 00:00:00
+*
+* @example
+* // If the week starts on Monday, the start of the week for 2 September 2014 11:55:00:
+* const result = startOfWeek(new Date(2014, 8, 2, 11, 55, 0), { weekStartsOn: 1 })
+* //=> Mon Sep 01 2014 00:00:00
+*/
+function startOfWeek(date, options) {
+	const defaultOptions = getDefaultOptions();
+	const weekStartsOn = options?.weekStartsOn ?? options?.locale?.options?.weekStartsOn ?? defaultOptions.weekStartsOn ?? defaultOptions.locale?.options?.weekStartsOn ?? 0;
+	const _date = toDate(date, options?.in);
+	const day = _date.getDay();
+	const diff = (day < weekStartsOn ? 7 : 0) + day - weekStartsOn;
+	_date.setDate(_date.getDate() - diff);
+	_date.setHours(0, 0, 0, 0);
+	return _date;
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/startOfISOWeek.js
+/**
+* The {@link startOfISOWeek} function options.
+*/
+/**
+* @name startOfISOWeek
+* @category ISO Week Helpers
+* @summary Return the start of an ISO week for the given date.
+*
+* @description
+* Return the start of an ISO week for the given date.
+* The result will be in the local timezone.
+*
+* ISO week-numbering year: http://en.wikipedia.org/wiki/ISO_week_date
+*
+* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+*
+* @param date - The original date
+* @param options - An object with options
+*
+* @returns The start of an ISO week
+*
+* @example
+* // The start of an ISO week for 2 September 2014 11:55:00:
+* const result = startOfISOWeek(new Date(2014, 8, 2, 11, 55, 0))
+* //=> Mon Sep 01 2014 00:00:00
+*/
+function startOfISOWeek(date, options) {
+	return startOfWeek(date, {
+		...options,
+		weekStartsOn: 1
+	});
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/getISOWeekYear.js
+/**
+* The {@link getISOWeekYear} function options.
+*/
+/**
+* @name getISOWeekYear
+* @category ISO Week-Numbering Year Helpers
+* @summary Get the ISO week-numbering year of the given date.
+*
+* @description
+* Get the ISO week-numbering year of the given date,
+* which always starts 3 days before the year's first Thursday.
+*
+* ISO week-numbering year: http://en.wikipedia.org/wiki/ISO_week_date
+*
+* @param date - The given date
+*
+* @returns The ISO week-numbering year
+*
+* @example
+* // Which ISO-week numbering year is 2 January 2005?
+* const result = getISOWeekYear(new Date(2005, 0, 2))
+* //=> 2004
+*/
+function getISOWeekYear(date, options) {
+	const _date = toDate(date, options?.in);
+	const year = _date.getFullYear();
+	const fourthOfJanuaryOfNextYear = constructFrom(_date, 0);
+	fourthOfJanuaryOfNextYear.setFullYear(year + 1, 0, 4);
+	fourthOfJanuaryOfNextYear.setHours(0, 0, 0, 0);
+	const startOfNextYear = startOfISOWeek(fourthOfJanuaryOfNextYear);
+	const fourthOfJanuaryOfThisYear = constructFrom(_date, 0);
+	fourthOfJanuaryOfThisYear.setFullYear(year, 0, 4);
+	fourthOfJanuaryOfThisYear.setHours(0, 0, 0, 0);
+	const startOfThisYear = startOfISOWeek(fourthOfJanuaryOfThisYear);
+	if (_date.getTime() >= startOfNextYear.getTime()) return year + 1;
+	else if (_date.getTime() >= startOfThisYear.getTime()) return year;
+	else return year - 1;
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/_lib/getTimezoneOffsetInMilliseconds.js
+/**
+* Google Chrome as of 67.0.3396.87 introduced timezones with offset that includes seconds.
+* They usually appear for dates that denote time before the timezones were introduced
+* (e.g. for 'Europe/Prague' timezone the offset is GMT+00:57:44 before 1 October 1891
+* and GMT+01:00:00 after that date)
+*
+* Date#getTimezoneOffset returns the offset in minutes and would return 57 for the example above,
+* which would lead to incorrect calculations.
+*
+* This function returns the timezone offset in milliseconds that takes seconds in account.
+*/
+function getTimezoneOffsetInMilliseconds(date) {
+	const _date = toDate(date);
+	const utcDate = new Date(Date.UTC(_date.getFullYear(), _date.getMonth(), _date.getDate(), _date.getHours(), _date.getMinutes(), _date.getSeconds(), _date.getMilliseconds()));
+	utcDate.setUTCFullYear(_date.getFullYear());
+	return +date - +utcDate;
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/_lib/normalizeDates.js
+function normalizeDates(context, ...dates) {
+	const normalize = constructFrom.bind(null, context || dates.find((date) => typeof date === "object"));
+	return dates.map(normalize);
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/startOfDay.js
+/**
+* The {@link startOfDay} function options.
+*/
+/**
+* @name startOfDay
+* @category Day Helpers
+* @summary Return the start of a day for the given date.
+*
+* @description
+* Return the start of a day for the given date.
+* The result will be in the local timezone.
+*
+* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+*
+* @param date - The original date
+* @param options - The options
+*
+* @returns The start of a day
+*
+* @example
+* // The start of a day for 2 September 2014 11:55:00:
+* const result = startOfDay(new Date(2014, 8, 2, 11, 55, 0))
+* //=> Tue Sep 02 2014 00:00:00
+*/
+function startOfDay(date, options) {
+	const _date = toDate(date, options?.in);
+	_date.setHours(0, 0, 0, 0);
+	return _date;
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/differenceInCalendarDays.js
+/**
+* The {@link differenceInCalendarDays} function options.
+*/
+/**
+* @name differenceInCalendarDays
+* @category Day Helpers
+* @summary Get the number of calendar days between the given dates.
+*
+* @description
+* Get the number of calendar days between the given dates. This means that the times are removed
+* from the dates and then the difference in days is calculated.
+*
+* @param laterDate - The later date
+* @param earlierDate - The earlier date
+* @param options - The options object
+*
+* @returns The number of calendar days
+*
+* @example
+* // How many calendar days are between
+* // 2 July 2011 23:00:00 and 2 July 2012 00:00:00?
+* const result = differenceInCalendarDays(
+*   new Date(2012, 6, 2, 0, 0),
+*   new Date(2011, 6, 2, 23, 0)
+* )
+* //=> 366
+* // How many calendar days are between
+* // 2 July 2011 23:59:00 and 3 July 2011 00:01:00?
+* const result = differenceInCalendarDays(
+*   new Date(2011, 6, 3, 0, 1),
+*   new Date(2011, 6, 2, 23, 59)
+* )
+* //=> 1
+*/
+function differenceInCalendarDays(laterDate, earlierDate, options) {
+	const [laterDate_, earlierDate_] = normalizeDates(options?.in, laterDate, earlierDate);
+	const laterStartOfDay = startOfDay(laterDate_);
+	const earlierStartOfDay = startOfDay(earlierDate_);
+	const laterTimestamp = +laterStartOfDay - getTimezoneOffsetInMilliseconds(laterStartOfDay);
+	const earlierTimestamp = +earlierStartOfDay - getTimezoneOffsetInMilliseconds(earlierStartOfDay);
+	return Math.round((laterTimestamp - earlierTimestamp) / millisecondsInDay);
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/startOfISOWeekYear.js
+/**
+* The {@link startOfISOWeekYear} function options.
+*/
+/**
+* @name startOfISOWeekYear
+* @category ISO Week-Numbering Year Helpers
+* @summary Return the start of an ISO week-numbering year for the given date.
+*
+* @description
+* Return the start of an ISO week-numbering year,
+* which always starts 3 days before the year's first Thursday.
+* The result will be in the local timezone.
+*
+* ISO week-numbering year: http://en.wikipedia.org/wiki/ISO_week_date
+*
+* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+*
+* @param date - The original date
+* @param options - An object with options
+*
+* @returns The start of an ISO week-numbering year
+*
+* @example
+* // The start of an ISO week-numbering year for 2 July 2005:
+* const result = startOfISOWeekYear(new Date(2005, 6, 2))
+* //=> Mon Jan 03 2005 00:00:00
+*/
+function startOfISOWeekYear(date, options) {
+	const year = getISOWeekYear(date, options);
+	const fourthOfJanuary = constructFrom(options?.in || date, 0);
+	fourthOfJanuary.setFullYear(year, 0, 4);
+	fourthOfJanuary.setHours(0, 0, 0, 0);
+	return startOfISOWeek(fourthOfJanuary);
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/addWeeks.js
+/**
+* The {@link addWeeks} function options.
+*/
+/**
+* @name addWeeks
+* @category Week Helpers
+* @summary Add the specified number of weeks to the given date.
+*
+* @description
+* Add the specified number of weeks to the given date.
+*
+* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+*
+* @param date - The date to be changed
+* @param amount - The amount of weeks to be added.
+* @param options - An object with options
+*
+* @returns The new date with the weeks added
+*
+* @example
+* // Add 4 weeks to 1 September 2014:
+* const result = addWeeks(new Date(2014, 8, 1), 4)
+* //=> Mon Sep 29 2014 00:00:00
+*/
+function addWeeks(date, amount, options) {
+	return addDays(date, amount * 7, options);
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/addYears.js
+/**
+* The {@link addYears} function options.
+*/
+/**
+* @name addYears
+* @category Year Helpers
+* @summary Add the specified number of years to the given date.
+*
+* @description
+* Add the specified number of years to the given date.
+*
+* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+* @typeParam ResultDate - The result `Date` type.
+*
+* @param date - The date to be changed
+* @param amount - The amount of years to be added.
+* @param options - The options
+*
+* @returns The new date with the years added
+*
+* @example
+* // Add 5 years to 1 September 2014:
+* const result = addYears(new Date(2014, 8, 1), 5)
+* //=> Sun Sep 01 2019 00:00:00
+*/
+function addYears(date, amount, options) {
+	return addMonths(date, amount * 12, options);
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/max.js
+/**
+* The {@link max} function options.
+*/
+/**
+* @name max
+* @category Common Helpers
+* @summary Return the latest of the given dates.
+*
+* @description
+* Return the latest of the given dates.
+*
+* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+*
+* @param dates - The dates to compare
+*
+* @returns The latest of the dates
+*
+* @example
+* // Which of these dates is the latest?
+* const result = max([
+*   new Date(1989, 6, 10),
+*   new Date(1987, 1, 11),
+*   new Date(1995, 6, 2),
+*   new Date(1990, 0, 1)
+* ])
+* //=> Sun Jul 02 1995 00:00:00
+*/
+function max$3(dates, options) {
+	let result;
+	let context = options?.in;
+	dates.forEach((date) => {
+		if (!context && typeof date === "object") context = constructFrom.bind(null, date);
+		const date_ = toDate(date, context);
+		if (!result || result < date_ || isNaN(+date_)) result = date_;
+	});
+	return constructFrom(context, result || NaN);
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/min.js
+/**
+* The {@link min} function options.
+*/
+/**
+* @name min
+* @category Common Helpers
+* @summary Returns the earliest of the given dates.
+*
+* @description
+* Returns the earliest of the given dates.
+*
+* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+*
+* @param dates - The dates to compare
+*
+* @returns The earliest of the dates
+*
+* @example
+* // Which of these dates is the earliest?
+* const result = min([
+*   new Date(1989, 6, 10),
+*   new Date(1987, 1, 11),
+*   new Date(1995, 6, 2),
+*   new Date(1990, 0, 1)
+* ])
+* //=> Wed Feb 11 1987 00:00:00
+*/
+function min$3(dates, options) {
+	let result;
+	let context = options?.in;
+	dates.forEach((date) => {
+		if (!context && typeof date === "object") context = constructFrom.bind(null, date);
+		const date_ = toDate(date, context);
+		if (!result || result > date_ || isNaN(+date_)) result = date_;
+	});
+	return constructFrom(context, result || NaN);
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/constructNow.js
+/**
+* @name constructNow
+* @category Generic Helpers
+* @summary Constructs a new current date using the passed value constructor.
+* @pure false
+*
+* @description
+* The function constructs a new current date using the constructor from
+* the reference date. It helps to build generic functions that accept date
+* extensions and use the current date.
+*
+* It defaults to `Date` if the passed reference date is a number or a string.
+*
+* @param date - The reference date to take constructor from
+*
+* @returns Current date initialized using the given date constructor
+*
+* @example
+* import { constructNow, isSameDay } from 'date-fns'
+*
+* function isToday<DateType extends Date>(
+*   date: DateArg<DateType>,
+* ): boolean {
+*   // If we were to use `new Date()` directly, the function would  behave
+*   // differently in different timezones and return false for the same date.
+*   return isSameDay(date, constructNow(date));
+* }
+*/
+function constructNow(date) {
+	return constructFrom(date, Date.now());
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/isSameDay.js
+/**
+* The {@link isSameDay} function options.
+*/
+/**
+* @name isSameDay
+* @category Day Helpers
+* @summary Are the given dates in the same day (and year and month)?
+*
+* @description
+* Are the given dates in the same day (and year and month)?
+*
+* @param laterDate - The first date to check
+* @param earlierDate - The second date to check
+* @param options - An object with options
+*
+* @returns The dates are in the same day (and year and month)
+*
+* @example
+* // Are 4 September 06:00:00 and 4 September 18:00:00 in the same day?
+* const result = isSameDay(new Date(2014, 8, 4, 6, 0), new Date(2014, 8, 4, 18, 0))
+* //=> true
+*
+* @example
+* // Are 4 September and 4 October in the same day?
+* const result = isSameDay(new Date(2014, 8, 4), new Date(2014, 9, 4))
+* //=> false
+*
+* @example
+* // Are 4 September, 2014 and 4 September, 2015 in the same day?
+* const result = isSameDay(new Date(2014, 8, 4), new Date(2015, 8, 4))
+* //=> false
+*/
+function isSameDay(laterDate, earlierDate, options) {
+	const [dateLeft_, dateRight_] = normalizeDates(options?.in, laterDate, earlierDate);
+	return +startOfDay(dateLeft_) === +startOfDay(dateRight_);
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/isDate.js
+/**
+* @name isDate
+* @category Common Helpers
+* @summary Is the given value a date?
+*
+* @description
+* Returns true if the given value is an instance of Date. The function works for dates transferred across iframes.
+*
+* @param value - The value to check
+*
+* @returns True if the given value is a date
+*
+* @example
+* // For a valid date:
+* const result = isDate(new Date())
+* //=> true
+*
+* @example
+* // For an invalid date:
+* const result = isDate(new Date(NaN))
+* //=> true
+*
+* @example
+* // For some value:
+* const result = isDate('2014-02-31')
+* //=> false
+*
+* @example
+* // For an object:
+* const result = isDate({})
+* //=> false
+*/
+function isDate(value) {
+	return value instanceof Date || typeof value === "object" && Object.prototype.toString.call(value) === "[object Date]";
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/isValid.js
+/**
+* @name isValid
+* @category Common Helpers
+* @summary Is the given date valid?
+*
+* @description
+* Returns false if argument is Invalid Date and true otherwise.
+* Argument is converted to Date using `toDate`. See [toDate](https://date-fns.org/docs/toDate)
+* Invalid Date is a Date, whose time value is NaN.
+*
+* Time value of Date: http://es5.github.io/#x15.9.1.1
+*
+* @param date - The date to check
+*
+* @returns The date is valid
+*
+* @example
+* // For the valid date:
+* const result = isValid(new Date(2014, 1, 31))
+* //=> true
+*
+* @example
+* // For the value, convertible into a date:
+* const result = isValid(1393804800000)
+* //=> true
+*
+* @example
+* // For the invalid date:
+* const result = isValid(new Date(''))
+* //=> false
+*/
+function isValid(date) {
+	return !(!isDate(date) && typeof date !== "number" || isNaN(+toDate(date)));
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/differenceInCalendarMonths.js
+/**
+* The {@link differenceInCalendarMonths} function options.
+*/
+/**
+* @name differenceInCalendarMonths
+* @category Month Helpers
+* @summary Get the number of calendar months between the given dates.
+*
+* @description
+* Get the number of calendar months between the given dates.
+*
+* @param laterDate - The later date
+* @param earlierDate - The earlier date
+* @param options - An object with options
+*
+* @returns The number of calendar months
+*
+* @example
+* // How many calendar months are between 31 January 2014 and 1 September 2014?
+* const result = differenceInCalendarMonths(
+*   new Date(2014, 8, 1),
+*   new Date(2014, 0, 31)
+* )
+* //=> 8
+*/
+function differenceInCalendarMonths(laterDate, earlierDate, options) {
+	const [laterDate_, earlierDate_] = normalizeDates(options?.in, laterDate, earlierDate);
+	const yearsDiff = laterDate_.getFullYear() - earlierDate_.getFullYear();
+	const monthsDiff = laterDate_.getMonth() - earlierDate_.getMonth();
+	return yearsDiff * 12 + monthsDiff;
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/endOfDay.js
+/**
+* The {@link endOfDay} function options.
+*/
+/**
+* @name endOfDay
+* @category Day Helpers
+* @summary Return the end of a day for the given date.
+*
+* @description
+* Return the end of a day for the given date.
+* The result will be in the local timezone.
+*
+* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+*
+* @param date - The original date
+* @param options - An object with options
+*
+* @returns The end of a day
+*
+* @example
+* // The end of a day for 2 September 2014 11:55:00:
+* const result = endOfDay(new Date(2014, 8, 2, 11, 55, 0))
+* //=> Tue Sep 02 2014 23:59:59.999
+*/
+function endOfDay(date, options) {
+	const _date = toDate(date, options?.in);
+	_date.setHours(23, 59, 59, 999);
+	return _date;
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/endOfMonth.js
+/**
+* The {@link endOfMonth} function options.
+*/
+/**
+* @name endOfMonth
+* @category Month Helpers
+* @summary Return the end of a month for the given date.
+*
+* @description
+* Return the end of a month for the given date.
+* The result will be in the local timezone.
+*
+* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+*
+* @param date - The original date
+* @param options - An object with options
+*
+* @returns The end of a month
+*
+* @example
+* // The end of a month for 2 September 2014 11:55:00:
+* const result = endOfMonth(new Date(2014, 8, 2, 11, 55, 0))
+* //=> Tue Sep 30 2014 23:59:59.999
+*/
+function endOfMonth(date, options) {
+	const _date = toDate(date, options?.in);
+	const month = _date.getMonth();
+	_date.setFullYear(_date.getFullYear(), month + 1, 0);
+	_date.setHours(23, 59, 59, 999);
+	return _date;
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/_lib/normalizeInterval.js
+function normalizeInterval(context, interval) {
+	const [start, end] = normalizeDates(context, interval.start, interval.end);
+	return {
+		start,
+		end
+	};
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/eachMonthOfInterval.js
+/**
+* The {@link eachMonthOfInterval} function options.
+*/
+/**
+* The {@link eachMonthOfInterval} function result type. It resolves the proper data type.
+*/
+/**
+* @name eachMonthOfInterval
+* @category Interval Helpers
+* @summary Return the array of months within the specified time interval.
+*
+* @description
+* Return the array of months within the specified time interval.
+*
+* @typeParam IntervalType - Interval type.
+* @typeParam Options - Options type.
+*
+* @param interval - The interval.
+* @param options - An object with options.
+*
+* @returns The array with starts of months from the month of the interval start to the month of the interval end
+*
+* @example
+* // Each month between 6 February 2014 and 10 August 2014:
+* const result = eachMonthOfInterval({
+*   start: new Date(2014, 1, 6),
+*   end: new Date(2014, 7, 10)
+* })
+* //=> [
+* //   Sat Feb 01 2014 00:00:00,
+* //   Sat Mar 01 2014 00:00:00,
+* //   Tue Apr 01 2014 00:00:00,
+* //   Thu May 01 2014 00:00:00,
+* //   Sun Jun 01 2014 00:00:00,
+* //   Tue Jul 01 2014 00:00:00,
+* //   Fri Aug 01 2014 00:00:00
+* // ]
+*/
+function eachMonthOfInterval(interval, options) {
+	const { start, end } = normalizeInterval(options?.in, interval);
+	let reversed = +start > +end;
+	const endTime = reversed ? +start : +end;
+	const date = reversed ? end : start;
+	date.setHours(0, 0, 0, 0);
+	date.setDate(1);
+	let step = options?.step ?? 1;
+	if (!step) return [];
+	if (step < 0) {
+		step = -step;
+		reversed = !reversed;
+	}
+	const dates = [];
+	while (+date <= endTime) {
+		dates.push(constructFrom(start, date));
+		date.setMonth(date.getMonth() + step);
+	}
+	return reversed ? dates.reverse() : dates;
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/startOfMonth.js
+/**
+* The {@link startOfMonth} function options.
+*/
+/**
+* @name startOfMonth
+* @category Month Helpers
+* @summary Return the start of a month for the given date.
+*
+* @description
+* Return the start of a month for the given date. The result will be in the local timezone.
+*
+* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments.
+* Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed,
+* or inferred from the arguments.
+*
+* @param date - The original date
+* @param options - An object with options
+*
+* @returns The start of a month
+*
+* @example
+* // The start of a month for 2 September 2014 11:55:00:
+* const result = startOfMonth(new Date(2014, 8, 2, 11, 55, 0))
+* //=> Mon Sep 01 2014 00:00:00
+*/
+function startOfMonth(date, options) {
+	const _date = toDate(date, options?.in);
+	_date.setDate(1);
+	_date.setHours(0, 0, 0, 0);
+	return _date;
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/endOfYear.js
+/**
+* The {@link endOfYear} function options.
+*/
+/**
+* @name endOfYear
+* @category Year Helpers
+* @summary Return the end of a year for the given date.
+*
+* @description
+* Return the end of a year for the given date.
+* The result will be in the local timezone.
+*
+* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+*
+* @param date - The original date
+* @param options - The options
+*
+* @returns The end of a year
+*
+* @example
+* // The end of a year for 2 September 2014 11:55:00:
+* const result = endOfYear(new Date(2014, 8, 2, 11, 55, 0))
+* //=> Wed Dec 31 2014 23:59:59.999
+*/
+function endOfYear(date, options) {
+	const _date = toDate(date, options?.in);
+	const year = _date.getFullYear();
+	_date.setFullYear(year + 1, 0, 0);
+	_date.setHours(23, 59, 59, 999);
+	return _date;
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/startOfYear.js
+/**
+* The {@link startOfYear} function options.
+*/
+/**
+* @name startOfYear
+* @category Year Helpers
+* @summary Return the start of a year for the given date.
+*
+* @description
+* Return the start of a year for the given date.
+* The result will be in the local timezone.
+*
+* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+*
+* @param date - The original date
+* @param options - The options
+*
+* @returns The start of a year
+*
+* @example
+* // The start of a year for 2 September 2014 11:55:00:
+* const result = startOfYear(new Date(2014, 8, 2, 11, 55, 00))
+* //=> Wed Jan 01 2014 00:00:00
+*/
+function startOfYear(date, options) {
+	const date_ = toDate(date, options?.in);
+	date_.setFullYear(date_.getFullYear(), 0, 1);
+	date_.setHours(0, 0, 0, 0);
+	return date_;
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/eachYearOfInterval.js
+/**
+* The {@link eachYearOfInterval} function options.
+*/
+/**
+* The {@link eachYearOfInterval} function result type. It resolves the proper data type.
+* It uses the first argument date object type, starting from the date argument,
+* then the start interval date, and finally the end interval date. If
+* a context function is passed, it uses the context function return type.
+*/
+/**
+* @name eachYearOfInterval
+* @category Interval Helpers
+* @summary Return the array of yearly timestamps within the specified time interval.
+*
+* @description
+* Return the array of yearly timestamps within the specified time interval.
+*
+* @typeParam IntervalType - Interval type.
+* @typeParam Options - Options type.
+*
+* @param interval - The interval.
+* @param options - An object with options.
+*
+* @returns The array with starts of yearly timestamps from the month of the interval start to the month of the interval end
+*
+* @example
+* // Each year between 6 February 2014 and 10 August 2017:
+* const result = eachYearOfInterval({
+*   start: new Date(2014, 1, 6),
+*   end: new Date(2017, 7, 10)
+* })
+* //=> [
+* //   Wed Jan 01 2014 00:00:00,
+* //   Thu Jan 01 2015 00:00:00,
+* //   Fri Jan 01 2016 00:00:00,
+* //   Sun Jan 01 2017 00:00:00
+* // ]
+*/
+function eachYearOfInterval(interval, options) {
+	const { start, end } = normalizeInterval(options?.in, interval);
+	let reversed = +start > +end;
+	const endTime = reversed ? +start : +end;
+	const date = reversed ? end : start;
+	date.setHours(0, 0, 0, 0);
+	date.setMonth(0, 1);
+	let step = options?.step ?? 1;
+	if (!step) return [];
+	if (step < 0) {
+		step = -step;
+		reversed = !reversed;
+	}
+	const dates = [];
+	while (+date <= endTime) {
+		dates.push(constructFrom(start, date));
+		date.setFullYear(date.getFullYear() + step);
+	}
+	return reversed ? dates.reverse() : dates;
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/endOfWeek.js
+/**
+* The {@link endOfWeek} function options.
+*/
+/**
+* @name endOfWeek
+* @category Week Helpers
+* @summary Return the end of a week for the given date.
+*
+* @description
+* Return the end of a week for the given date.
+* The result will be in the local timezone.
+*
+* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+*
+* @param date - The original date
+* @param options - An object with options
+*
+* @returns The end of a week
+*
+* @example
+* // The end of a week for 2 September 2014 11:55:00:
+* const result = endOfWeek(new Date(2014, 8, 2, 11, 55, 0))
+* //=> Sat Sep 06 2014 23:59:59.999
+*
+* @example
+* // If the week starts on Monday, the end of the week for 2 September 2014 11:55:00:
+* const result = endOfWeek(new Date(2014, 8, 2, 11, 55, 0), { weekStartsOn: 1 })
+* //=> Sun Sep 07 2014 23:59:59.999
+*/
+function endOfWeek(date, options) {
+	const defaultOptions = getDefaultOptions();
+	const weekStartsOn = options?.weekStartsOn ?? options?.locale?.options?.weekStartsOn ?? defaultOptions.weekStartsOn ?? defaultOptions.locale?.options?.weekStartsOn ?? 0;
+	const _date = toDate(date, options?.in);
+	const day = _date.getDay();
+	const diff = (day < weekStartsOn ? -7 : 0) + 6 - (day - weekStartsOn);
+	_date.setDate(_date.getDate() + diff);
+	_date.setHours(23, 59, 59, 999);
+	return _date;
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/endOfISOWeek.js
+/**
+* The {@link endOfISOWeek} function options.
+*/
+/**
+* @name endOfISOWeek
+* @category ISO Week Helpers
+* @summary Return the end of an ISO week for the given date.
+*
+* @description
+* Return the end of an ISO week for the given date.
+* The result will be in the local timezone.
+*
+* ISO week-numbering year: http://en.wikipedia.org/wiki/ISO_week_date
+*
+* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+*
+* @param date - The original date
+* @param options - An object with options
+*
+* @returns The end of an ISO week
+*
+* @example
+* // The end of an ISO week for 2 September 2014 11:55:00:
+* const result = endOfISOWeek(new Date(2014, 8, 2, 11, 55, 0))
+* //=> Sun Sep 07 2014 23:59:59.999
+*/
+function endOfISOWeek(date, options) {
+	return endOfWeek(date, {
+		...options,
+		weekStartsOn: 1
+	});
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/locale/en-US/_lib/formatDistance.js
+var formatDistanceLocale$1 = {
+	lessThanXSeconds: {
+		one: "less than a second",
+		other: "less than {{count}} seconds"
+	},
+	xSeconds: {
+		one: "1 second",
+		other: "{{count}} seconds"
+	},
+	halfAMinute: "half a minute",
+	lessThanXMinutes: {
+		one: "less than a minute",
+		other: "less than {{count}} minutes"
+	},
+	xMinutes: {
+		one: "1 minute",
+		other: "{{count}} minutes"
+	},
+	aboutXHours: {
+		one: "about 1 hour",
+		other: "about {{count}} hours"
+	},
+	xHours: {
+		one: "1 hour",
+		other: "{{count}} hours"
+	},
+	xDays: {
+		one: "1 day",
+		other: "{{count}} days"
+	},
+	aboutXWeeks: {
+		one: "about 1 week",
+		other: "about {{count}} weeks"
+	},
+	xWeeks: {
+		one: "1 week",
+		other: "{{count}} weeks"
+	},
+	aboutXMonths: {
+		one: "about 1 month",
+		other: "about {{count}} months"
+	},
+	xMonths: {
+		one: "1 month",
+		other: "{{count}} months"
+	},
+	aboutXYears: {
+		one: "about 1 year",
+		other: "about {{count}} years"
+	},
+	xYears: {
+		one: "1 year",
+		other: "{{count}} years"
+	},
+	overXYears: {
+		one: "over 1 year",
+		other: "over {{count}} years"
+	},
+	almostXYears: {
+		one: "almost 1 year",
+		other: "almost {{count}} years"
+	}
+};
+var formatDistance$1 = (token, count, options) => {
+	let result;
+	const tokenValue = formatDistanceLocale$1[token];
+	if (typeof tokenValue === "string") result = tokenValue;
+	else if (count === 1) result = tokenValue.one;
+	else result = tokenValue.other.replace("{{count}}", count.toString());
+	if (options?.addSuffix) if (options.comparison && options.comparison > 0) return "in " + result;
+	else return result + " ago";
+	return result;
+};
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/locale/_lib/buildFormatLongFn.js
+function buildFormatLongFn(args) {
+	return (options = {}) => {
+		const width = options.width ? String(options.width) : args.defaultWidth;
+		return args.formats[width] || args.formats[args.defaultWidth];
+	};
+}
+var formatLong$1 = {
+	date: buildFormatLongFn({
+		formats: {
+			full: "EEEE, MMMM do, y",
+			long: "MMMM do, y",
+			medium: "MMM d, y",
+			short: "MM/dd/yyyy"
+		},
+		defaultWidth: "full"
+	}),
+	time: buildFormatLongFn({
+		formats: {
+			full: "h:mm:ss a zzzz",
+			long: "h:mm:ss a z",
+			medium: "h:mm:ss a",
+			short: "h:mm a"
+		},
+		defaultWidth: "full"
+	}),
+	dateTime: buildFormatLongFn({
+		formats: {
+			full: "{{date}} 'at' {{time}}",
+			long: "{{date}} 'at' {{time}}",
+			medium: "{{date}}, {{time}}",
+			short: "{{date}}, {{time}}"
+		},
+		defaultWidth: "full"
+	})
+};
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/locale/en-US/_lib/formatRelative.js
+var formatRelativeLocale$1 = {
+	lastWeek: "'last' eeee 'at' p",
+	yesterday: "'yesterday at' p",
+	today: "'today at' p",
+	tomorrow: "'tomorrow at' p",
+	nextWeek: "eeee 'at' p",
+	other: "P"
+};
+var formatRelative$1 = (token, _date, _baseDate, _options) => formatRelativeLocale$1[token];
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/locale/_lib/buildLocalizeFn.js
+/**
+* The localize function argument callback which allows to convert raw value to
+* the actual type.
+*
+* @param value - The value to convert
+*
+* @returns The converted value
+*/
+/**
+* The map of localized values for each width.
+*/
+/**
+* The index type of the locale unit value. It types conversion of units of
+* values that don't start at 0 (i.e. quarters).
+*/
+/**
+* Converts the unit value to the tuple of values.
+*/
+/**
+* The tuple of localized era values. The first element represents BC,
+* the second element represents AD.
+*/
+/**
+* The tuple of localized quarter values. The first element represents Q1.
+*/
+/**
+* The tuple of localized day values. The first element represents Sunday.
+*/
+/**
+* The tuple of localized month values. The first element represents January.
+*/
+function buildLocalizeFn(args) {
+	return (value, options) => {
+		const context = options?.context ? String(options.context) : "standalone";
+		let valuesArray;
+		if (context === "formatting" && args.formattingValues) {
+			const defaultWidth = args.defaultFormattingWidth || args.defaultWidth;
+			const width = options?.width ? String(options.width) : defaultWidth;
+			valuesArray = args.formattingValues[width] || args.formattingValues[defaultWidth];
+		} else {
+			const defaultWidth = args.defaultWidth;
+			const width = options?.width ? String(options.width) : args.defaultWidth;
+			valuesArray = args.values[width] || args.values[defaultWidth];
+		}
+		const index = args.argumentCallback ? args.argumentCallback(value) : value;
+		return valuesArray[index];
+	};
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/locale/en-US/_lib/localize.js
+var eraValues$1 = {
+	narrow: ["B", "A"],
+	abbreviated: ["BC", "AD"],
+	wide: ["Before Christ", "Anno Domini"]
+};
+var quarterValues$1 = {
+	narrow: [
+		"1",
+		"2",
+		"3",
+		"4"
+	],
+	abbreviated: [
+		"Q1",
+		"Q2",
+		"Q3",
+		"Q4"
+	],
+	wide: [
+		"1st quarter",
+		"2nd quarter",
+		"3rd quarter",
+		"4th quarter"
+	]
+};
+var monthValues$1 = {
+	narrow: [
+		"J",
+		"F",
+		"M",
+		"A",
+		"M",
+		"J",
+		"J",
+		"A",
+		"S",
+		"O",
+		"N",
+		"D"
+	],
+	abbreviated: [
+		"Jan",
+		"Feb",
+		"Mar",
+		"Apr",
+		"May",
+		"Jun",
+		"Jul",
+		"Aug",
+		"Sep",
+		"Oct",
+		"Nov",
+		"Dec"
+	],
+	wide: [
+		"January",
+		"February",
+		"March",
+		"April",
+		"May",
+		"June",
+		"July",
+		"August",
+		"September",
+		"October",
+		"November",
+		"December"
+	]
+};
+var dayValues$1 = {
+	narrow: [
+		"S",
+		"M",
+		"T",
+		"W",
+		"T",
+		"F",
+		"S"
+	],
+	short: [
+		"Su",
+		"Mo",
+		"Tu",
+		"We",
+		"Th",
+		"Fr",
+		"Sa"
+	],
+	abbreviated: [
+		"Sun",
+		"Mon",
+		"Tue",
+		"Wed",
+		"Thu",
+		"Fri",
+		"Sat"
+	],
+	wide: [
+		"Sunday",
+		"Monday",
+		"Tuesday",
+		"Wednesday",
+		"Thursday",
+		"Friday",
+		"Saturday"
+	]
+};
+var dayPeriodValues$1 = {
+	narrow: {
+		am: "a",
+		pm: "p",
+		midnight: "mi",
+		noon: "n",
+		morning: "morning",
+		afternoon: "afternoon",
+		evening: "evening",
+		night: "night"
+	},
+	abbreviated: {
+		am: "AM",
+		pm: "PM",
+		midnight: "midnight",
+		noon: "noon",
+		morning: "morning",
+		afternoon: "afternoon",
+		evening: "evening",
+		night: "night"
+	},
+	wide: {
+		am: "a.m.",
+		pm: "p.m.",
+		midnight: "midnight",
+		noon: "noon",
+		morning: "morning",
+		afternoon: "afternoon",
+		evening: "evening",
+		night: "night"
+	}
+};
+var formattingDayPeriodValues$1 = {
+	narrow: {
+		am: "a",
+		pm: "p",
+		midnight: "mi",
+		noon: "n",
+		morning: "in the morning",
+		afternoon: "in the afternoon",
+		evening: "in the evening",
+		night: "at night"
+	},
+	abbreviated: {
+		am: "AM",
+		pm: "PM",
+		midnight: "midnight",
+		noon: "noon",
+		morning: "in the morning",
+		afternoon: "in the afternoon",
+		evening: "in the evening",
+		night: "at night"
+	},
+	wide: {
+		am: "a.m.",
+		pm: "p.m.",
+		midnight: "midnight",
+		noon: "noon",
+		morning: "in the morning",
+		afternoon: "in the afternoon",
+		evening: "in the evening",
+		night: "at night"
+	}
+};
+var ordinalNumber$1 = (dirtyNumber, _options) => {
+	const number = Number(dirtyNumber);
+	const rem100 = number % 100;
+	if (rem100 > 20 || rem100 < 10) switch (rem100 % 10) {
+		case 1: return number + "st";
+		case 2: return number + "nd";
+		case 3: return number + "rd";
+	}
+	return number + "th";
+};
+var localize$1 = {
+	ordinalNumber: ordinalNumber$1,
+	era: buildLocalizeFn({
+		values: eraValues$1,
+		defaultWidth: "wide"
+	}),
+	quarter: buildLocalizeFn({
+		values: quarterValues$1,
+		defaultWidth: "wide",
+		argumentCallback: (quarter) => quarter - 1
+	}),
+	month: buildLocalizeFn({
+		values: monthValues$1,
+		defaultWidth: "wide"
+	}),
+	day: buildLocalizeFn({
+		values: dayValues$1,
+		defaultWidth: "wide"
+	}),
+	dayPeriod: buildLocalizeFn({
+		values: dayPeriodValues$1,
+		defaultWidth: "wide",
+		formattingValues: formattingDayPeriodValues$1,
+		defaultFormattingWidth: "wide"
+	})
+};
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/locale/_lib/buildMatchFn.js
+function buildMatchFn(args) {
+	return (string, options = {}) => {
+		const width = options.width;
+		const matchPattern = width && args.matchPatterns[width] || args.matchPatterns[args.defaultMatchWidth];
+		const matchResult = string.match(matchPattern);
+		if (!matchResult) return null;
+		const matchedString = matchResult[0];
+		const parsePatterns = width && args.parsePatterns[width] || args.parsePatterns[args.defaultParseWidth];
+		const key = Array.isArray(parsePatterns) ? findIndex(parsePatterns, (pattern) => pattern.test(matchedString)) : findKey(parsePatterns, (pattern) => pattern.test(matchedString));
+		let value;
+		value = args.valueCallback ? args.valueCallback(key) : key;
+		value = options.valueCallback ? options.valueCallback(value) : value;
+		const rest = string.slice(matchedString.length);
+		return {
+			value,
+			rest
+		};
+	};
+}
+function findKey(object, predicate) {
+	for (const key in object) if (Object.prototype.hasOwnProperty.call(object, key) && predicate(object[key])) return key;
+}
+function findIndex(array, predicate) {
+	for (let key = 0; key < array.length; key++) if (predicate(array[key])) return key;
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/locale/_lib/buildMatchPatternFn.js
+function buildMatchPatternFn(args) {
+	return (string, options = {}) => {
+		const matchResult = string.match(args.matchPattern);
+		if (!matchResult) return null;
+		const matchedString = matchResult[0];
+		const parseResult = string.match(args.parsePattern);
+		if (!parseResult) return null;
+		let value = args.valueCallback ? args.valueCallback(parseResult[0]) : parseResult[0];
+		value = options.valueCallback ? options.valueCallback(value) : value;
+		const rest = string.slice(matchedString.length);
+		return {
+			value,
+			rest
+		};
+	};
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/locale/en-US.js
+/**
+* @category Locales
+* @summary English locale (United States).
+* @language English
+* @iso-639-2 eng
+* @author Sasha Koss [@kossnocorp](https://github.com/kossnocorp)
+* @author Lesha Koss [@leshakoss](https://github.com/leshakoss)
+*/
+var enUS$1 = {
+	code: "en-US",
+	formatDistance: formatDistance$1,
+	formatLong: formatLong$1,
+	formatRelative: formatRelative$1,
+	localize: localize$1,
+	match: {
+		ordinalNumber: buildMatchPatternFn({
+			matchPattern: /^(\d+)(th|st|nd|rd)?/i,
+			parsePattern: /\d+/i,
+			valueCallback: (value) => parseInt(value, 10)
+		}),
+		era: buildMatchFn({
+			matchPatterns: {
+				narrow: /^(b|a)/i,
+				abbreviated: /^(b\.?\s?c\.?|b\.?\s?c\.?\s?e\.?|a\.?\s?d\.?|c\.?\s?e\.?)/i,
+				wide: /^(before christ|before common era|anno domini|common era)/i
+			},
+			defaultMatchWidth: "wide",
+			parsePatterns: { any: [/^b/i, /^(a|c)/i] },
+			defaultParseWidth: "any"
+		}),
+		quarter: buildMatchFn({
+			matchPatterns: {
+				narrow: /^[1234]/i,
+				abbreviated: /^q[1234]/i,
+				wide: /^[1234](th|st|nd|rd)? quarter/i
+			},
+			defaultMatchWidth: "wide",
+			parsePatterns: { any: [
+				/1/i,
+				/2/i,
+				/3/i,
+				/4/i
+			] },
+			defaultParseWidth: "any",
+			valueCallback: (index) => index + 1
+		}),
+		month: buildMatchFn({
+			matchPatterns: {
+				narrow: /^[jfmasond]/i,
+				abbreviated: /^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i,
+				wide: /^(january|february|march|april|may|june|july|august|september|october|november|december)/i
+			},
+			defaultMatchWidth: "wide",
+			parsePatterns: {
+				narrow: [
+					/^j/i,
+					/^f/i,
+					/^m/i,
+					/^a/i,
+					/^m/i,
+					/^j/i,
+					/^j/i,
+					/^a/i,
+					/^s/i,
+					/^o/i,
+					/^n/i,
+					/^d/i
+				],
+				any: [
+					/^ja/i,
+					/^f/i,
+					/^mar/i,
+					/^ap/i,
+					/^may/i,
+					/^jun/i,
+					/^jul/i,
+					/^au/i,
+					/^s/i,
+					/^o/i,
+					/^n/i,
+					/^d/i
+				]
+			},
+			defaultParseWidth: "any"
+		}),
+		day: buildMatchFn({
+			matchPatterns: {
+				narrow: /^[smtwf]/i,
+				short: /^(su|mo|tu|we|th|fr|sa)/i,
+				abbreviated: /^(sun|mon|tue|wed|thu|fri|sat)/i,
+				wide: /^(sunday|monday|tuesday|wednesday|thursday|friday|saturday)/i
+			},
+			defaultMatchWidth: "wide",
+			parsePatterns: {
+				narrow: [
+					/^s/i,
+					/^m/i,
+					/^t/i,
+					/^w/i,
+					/^t/i,
+					/^f/i,
+					/^s/i
+				],
+				any: [
+					/^su/i,
+					/^m/i,
+					/^tu/i,
+					/^w/i,
+					/^th/i,
+					/^f/i,
+					/^sa/i
+				]
+			},
+			defaultParseWidth: "any"
+		}),
+		dayPeriod: buildMatchFn({
+			matchPatterns: {
+				narrow: /^(a|p|mi|n|(in the|at) (morning|afternoon|evening|night))/i,
+				any: /^([ap]\.?\s?m\.?|midnight|noon|(in the|at) (morning|afternoon|evening|night))/i
+			},
+			defaultMatchWidth: "any",
+			parsePatterns: { any: {
+				am: /^a/i,
+				pm: /^p/i,
+				midnight: /^mi/i,
+				noon: /^no/i,
+				morning: /morning/i,
+				afternoon: /afternoon/i,
+				evening: /evening/i,
+				night: /night/i
+			} },
+			defaultParseWidth: "any"
+		})
+	},
+	options: {
+		weekStartsOn: 0,
+		firstWeekContainsDate: 1
+	}
+};
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/getDayOfYear.js
+/**
+* The {@link getDayOfYear} function options.
+*/
+/**
+* @name getDayOfYear
+* @category Day Helpers
+* @summary Get the day of the year of the given date.
+*
+* @description
+* Get the day of the year of the given date.
+*
+* @param date - The given date
+* @param options - The options
+*
+* @returns The day of year
+*
+* @example
+* // Which day of the year is 2 July 2014?
+* const result = getDayOfYear(new Date(2014, 6, 2))
+* //=> 183
+*/
+function getDayOfYear(date, options) {
+	const _date = toDate(date, options?.in);
+	return differenceInCalendarDays(_date, startOfYear(_date)) + 1;
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/getISOWeek.js
+/**
+* The {@link getISOWeek} function options.
+*/
+/**
+* @name getISOWeek
+* @category ISO Week Helpers
+* @summary Get the ISO week of the given date.
+*
+* @description
+* Get the ISO week of the given date.
+*
+* ISO week-numbering year: http://en.wikipedia.org/wiki/ISO_week_date
+*
+* @param date - The given date
+* @param options - The options
+*
+* @returns The ISO week
+*
+* @example
+* // Which week of the ISO-week numbering year is 2 January 2005?
+* const result = getISOWeek(new Date(2005, 0, 2))
+* //=> 53
+*/
+function getISOWeek(date, options) {
+	const _date = toDate(date, options?.in);
+	const diff = +startOfISOWeek(_date) - +startOfISOWeekYear(_date);
+	return Math.round(diff / millisecondsInWeek) + 1;
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/getWeekYear.js
+/**
+* The {@link getWeekYear} function options.
+*/
+/**
+* @name getWeekYear
+* @category Week-Numbering Year Helpers
+* @summary Get the local week-numbering year of the given date.
+*
+* @description
+* Get the local week-numbering year of the given date.
+* The exact calculation depends on the values of
+* `options.weekStartsOn` (which is the index of the first day of the week)
+* and `options.firstWeekContainsDate` (which is the day of January, which is always in
+* the first week of the week-numbering year)
+*
+* Week numbering: https://en.wikipedia.org/wiki/Week#The_ISO_week_date_system
+*
+* @param date - The given date
+* @param options - An object with options.
+*
+* @returns The local week-numbering year
+*
+* @example
+* // Which week numbering year is 26 December 2004 with the default settings?
+* const result = getWeekYear(new Date(2004, 11, 26))
+* //=> 2005
+*
+* @example
+* // Which week numbering year is 26 December 2004 if week starts on Saturday?
+* const result = getWeekYear(new Date(2004, 11, 26), { weekStartsOn: 6 })
+* //=> 2004
+*
+* @example
+* // Which week numbering year is 26 December 2004 if the first week contains 4 January?
+* const result = getWeekYear(new Date(2004, 11, 26), { firstWeekContainsDate: 4 })
+* //=> 2004
+*/
+function getWeekYear(date, options) {
+	const _date = toDate(date, options?.in);
+	const year = _date.getFullYear();
+	const defaultOptions = getDefaultOptions();
+	const firstWeekContainsDate = options?.firstWeekContainsDate ?? options?.locale?.options?.firstWeekContainsDate ?? defaultOptions.firstWeekContainsDate ?? defaultOptions.locale?.options?.firstWeekContainsDate ?? 1;
+	const firstWeekOfNextYear = constructFrom(options?.in || date, 0);
+	firstWeekOfNextYear.setFullYear(year + 1, 0, firstWeekContainsDate);
+	firstWeekOfNextYear.setHours(0, 0, 0, 0);
+	const startOfNextYear = startOfWeek(firstWeekOfNextYear, options);
+	const firstWeekOfThisYear = constructFrom(options?.in || date, 0);
+	firstWeekOfThisYear.setFullYear(year, 0, firstWeekContainsDate);
+	firstWeekOfThisYear.setHours(0, 0, 0, 0);
+	const startOfThisYear = startOfWeek(firstWeekOfThisYear, options);
+	if (+_date >= +startOfNextYear) return year + 1;
+	else if (+_date >= +startOfThisYear) return year;
+	else return year - 1;
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/startOfWeekYear.js
+/**
+* The {@link startOfWeekYear} function options.
+*/
+/**
+* @name startOfWeekYear
+* @category Week-Numbering Year Helpers
+* @summary Return the start of a local week-numbering year for the given date.
+*
+* @description
+* Return the start of a local week-numbering year.
+* The exact calculation depends on the values of
+* `options.weekStartsOn` (which is the index of the first day of the week)
+* and `options.firstWeekContainsDate` (which is the day of January, which is always in
+* the first week of the week-numbering year)
+*
+* Week numbering: https://en.wikipedia.org/wiki/Week#The_ISO_week_date_system
+*
+* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+* @typeParam ResultDate - The result `Date` type.
+*
+* @param date - The original date
+* @param options - An object with options
+*
+* @returns The start of a week-numbering year
+*
+* @example
+* // The start of an a week-numbering year for 2 July 2005 with default settings:
+* const result = startOfWeekYear(new Date(2005, 6, 2))
+* //=> Sun Dec 26 2004 00:00:00
+*
+* @example
+* // The start of a week-numbering year for 2 July 2005
+* // if Monday is the first day of week
+* // and 4 January is always in the first week of the year:
+* const result = startOfWeekYear(new Date(2005, 6, 2), {
+*   weekStartsOn: 1,
+*   firstWeekContainsDate: 4
+* })
+* //=> Mon Jan 03 2005 00:00:00
+*/
+function startOfWeekYear(date, options) {
+	const defaultOptions = getDefaultOptions();
+	const firstWeekContainsDate = options?.firstWeekContainsDate ?? options?.locale?.options?.firstWeekContainsDate ?? defaultOptions.firstWeekContainsDate ?? defaultOptions.locale?.options?.firstWeekContainsDate ?? 1;
+	const year = getWeekYear(date, options);
+	const firstWeek = constructFrom(options?.in || date, 0);
+	firstWeek.setFullYear(year, 0, firstWeekContainsDate);
+	firstWeek.setHours(0, 0, 0, 0);
+	return startOfWeek(firstWeek, options);
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/getWeek.js
+/**
+* The {@link getWeek} function options.
+*/
+/**
+* @name getWeek
+* @category Week Helpers
+* @summary Get the local week index of the given date.
+*
+* @description
+* Get the local week index of the given date.
+* The exact calculation depends on the values of
+* `options.weekStartsOn` (which is the index of the first day of the week)
+* and `options.firstWeekContainsDate` (which is the day of January, which is always in
+* the first week of the week-numbering year)
+*
+* Week numbering: https://en.wikipedia.org/wiki/Week#The_ISO_week_date_system
+*
+* @param date - The given date
+* @param options - An object with options
+*
+* @returns The week
+*
+* @example
+* // Which week of the local week numbering year is 2 January 2005 with default options?
+* const result = getWeek(new Date(2005, 0, 2))
+* //=> 2
+*
+* @example
+* // Which week of the local week numbering year is 2 January 2005,
+* // if Monday is the first day of the week,
+* // and the first week of the year always contains 4 January?
+* const result = getWeek(new Date(2005, 0, 2), {
+*   weekStartsOn: 1,
+*   firstWeekContainsDate: 4
+* })
+* //=> 53
+*/
+function getWeek(date, options) {
+	const _date = toDate(date, options?.in);
+	const diff = +startOfWeek(_date, options) - +startOfWeekYear(_date, options);
+	return Math.round(diff / millisecondsInWeek) + 1;
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/_lib/addLeadingZeros.js
+function addLeadingZeros(number, targetLength) {
+	return (number < 0 ? "-" : "") + Math.abs(number).toString().padStart(targetLength, "0");
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/_lib/format/lightFormatters.js
+var lightFormatters = {
+	y(date, token) {
+		const signedYear = date.getFullYear();
+		const year = signedYear > 0 ? signedYear : 1 - signedYear;
+		return addLeadingZeros(token === "yy" ? year % 100 : year, token.length);
+	},
+	M(date, token) {
+		const month = date.getMonth();
+		return token === "M" ? String(month + 1) : addLeadingZeros(month + 1, 2);
+	},
+	d(date, token) {
+		return addLeadingZeros(date.getDate(), token.length);
+	},
+	a(date, token) {
+		const dayPeriodEnumValue = date.getHours() / 12 >= 1 ? "pm" : "am";
+		switch (token) {
+			case "a":
+			case "aa": return dayPeriodEnumValue.toUpperCase();
+			case "aaa": return dayPeriodEnumValue;
+			case "aaaaa": return dayPeriodEnumValue[0];
+			default: return dayPeriodEnumValue === "am" ? "a.m." : "p.m.";
+		}
+	},
+	h(date, token) {
+		return addLeadingZeros(date.getHours() % 12 || 12, token.length);
+	},
+	H(date, token) {
+		return addLeadingZeros(date.getHours(), token.length);
+	},
+	m(date, token) {
+		return addLeadingZeros(date.getMinutes(), token.length);
+	},
+	s(date, token) {
+		return addLeadingZeros(date.getSeconds(), token.length);
+	},
+	S(date, token) {
+		const numberOfDigits = token.length;
+		const milliseconds = date.getMilliseconds();
+		return addLeadingZeros(Math.trunc(milliseconds * Math.pow(10, numberOfDigits - 3)), token.length);
+	}
+};
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/_lib/format/formatters.js
+var dayPeriodEnum = {
+	am: "am",
+	pm: "pm",
+	midnight: "midnight",
+	noon: "noon",
+	morning: "morning",
+	afternoon: "afternoon",
+	evening: "evening",
+	night: "night"
+};
+var formatters = {
+	G: function(date, token, localize) {
+		const era = date.getFullYear() > 0 ? 1 : 0;
+		switch (token) {
+			case "G":
+			case "GG":
+			case "GGG": return localize.era(era, { width: "abbreviated" });
+			case "GGGGG": return localize.era(era, { width: "narrow" });
+			default: return localize.era(era, { width: "wide" });
+		}
+	},
+	y: function(date, token, localize) {
+		if (token === "yo") {
+			const signedYear = date.getFullYear();
+			const year = signedYear > 0 ? signedYear : 1 - signedYear;
+			return localize.ordinalNumber(year, { unit: "year" });
+		}
+		return lightFormatters.y(date, token);
+	},
+	Y: function(date, token, localize, options) {
+		const signedWeekYear = getWeekYear(date, options);
+		const weekYear = signedWeekYear > 0 ? signedWeekYear : 1 - signedWeekYear;
+		if (token === "YY") return addLeadingZeros(weekYear % 100, 2);
+		if (token === "Yo") return localize.ordinalNumber(weekYear, { unit: "year" });
+		return addLeadingZeros(weekYear, token.length);
+	},
+	R: function(date, token) {
+		return addLeadingZeros(getISOWeekYear(date), token.length);
+	},
+	u: function(date, token) {
+		return addLeadingZeros(date.getFullYear(), token.length);
+	},
+	Q: function(date, token, localize) {
+		const quarter = Math.ceil((date.getMonth() + 1) / 3);
+		switch (token) {
+			case "Q": return String(quarter);
+			case "QQ": return addLeadingZeros(quarter, 2);
+			case "Qo": return localize.ordinalNumber(quarter, { unit: "quarter" });
+			case "QQQ": return localize.quarter(quarter, {
+				width: "abbreviated",
+				context: "formatting"
+			});
+			case "QQQQQ": return localize.quarter(quarter, {
+				width: "narrow",
+				context: "formatting"
+			});
+			default: return localize.quarter(quarter, {
+				width: "wide",
+				context: "formatting"
+			});
+		}
+	},
+	q: function(date, token, localize) {
+		const quarter = Math.ceil((date.getMonth() + 1) / 3);
+		switch (token) {
+			case "q": return String(quarter);
+			case "qq": return addLeadingZeros(quarter, 2);
+			case "qo": return localize.ordinalNumber(quarter, { unit: "quarter" });
+			case "qqq": return localize.quarter(quarter, {
+				width: "abbreviated",
+				context: "standalone"
+			});
+			case "qqqqq": return localize.quarter(quarter, {
+				width: "narrow",
+				context: "standalone"
+			});
+			default: return localize.quarter(quarter, {
+				width: "wide",
+				context: "standalone"
+			});
+		}
+	},
+	M: function(date, token, localize) {
+		const month = date.getMonth();
+		switch (token) {
+			case "M":
+			case "MM": return lightFormatters.M(date, token);
+			case "Mo": return localize.ordinalNumber(month + 1, { unit: "month" });
+			case "MMM": return localize.month(month, {
+				width: "abbreviated",
+				context: "formatting"
+			});
+			case "MMMMM": return localize.month(month, {
+				width: "narrow",
+				context: "formatting"
+			});
+			default: return localize.month(month, {
+				width: "wide",
+				context: "formatting"
+			});
+		}
+	},
+	L: function(date, token, localize) {
+		const month = date.getMonth();
+		switch (token) {
+			case "L": return String(month + 1);
+			case "LL": return addLeadingZeros(month + 1, 2);
+			case "Lo": return localize.ordinalNumber(month + 1, { unit: "month" });
+			case "LLL": return localize.month(month, {
+				width: "abbreviated",
+				context: "standalone"
+			});
+			case "LLLLL": return localize.month(month, {
+				width: "narrow",
+				context: "standalone"
+			});
+			default: return localize.month(month, {
+				width: "wide",
+				context: "standalone"
+			});
+		}
+	},
+	w: function(date, token, localize, options) {
+		const week = getWeek(date, options);
+		if (token === "wo") return localize.ordinalNumber(week, { unit: "week" });
+		return addLeadingZeros(week, token.length);
+	},
+	I: function(date, token, localize) {
+		const isoWeek = getISOWeek(date);
+		if (token === "Io") return localize.ordinalNumber(isoWeek, { unit: "week" });
+		return addLeadingZeros(isoWeek, token.length);
+	},
+	d: function(date, token, localize) {
+		if (token === "do") return localize.ordinalNumber(date.getDate(), { unit: "date" });
+		return lightFormatters.d(date, token);
+	},
+	D: function(date, token, localize) {
+		const dayOfYear = getDayOfYear(date);
+		if (token === "Do") return localize.ordinalNumber(dayOfYear, { unit: "dayOfYear" });
+		return addLeadingZeros(dayOfYear, token.length);
+	},
+	E: function(date, token, localize) {
+		const dayOfWeek = date.getDay();
+		switch (token) {
+			case "E":
+			case "EE":
+			case "EEE": return localize.day(dayOfWeek, {
+				width: "abbreviated",
+				context: "formatting"
+			});
+			case "EEEEE": return localize.day(dayOfWeek, {
+				width: "narrow",
+				context: "formatting"
+			});
+			case "EEEEEE": return localize.day(dayOfWeek, {
+				width: "short",
+				context: "formatting"
+			});
+			default: return localize.day(dayOfWeek, {
+				width: "wide",
+				context: "formatting"
+			});
+		}
+	},
+	e: function(date, token, localize, options) {
+		const dayOfWeek = date.getDay();
+		const localDayOfWeek = (dayOfWeek - options.weekStartsOn + 8) % 7 || 7;
+		switch (token) {
+			case "e": return String(localDayOfWeek);
+			case "ee": return addLeadingZeros(localDayOfWeek, 2);
+			case "eo": return localize.ordinalNumber(localDayOfWeek, { unit: "day" });
+			case "eee": return localize.day(dayOfWeek, {
+				width: "abbreviated",
+				context: "formatting"
+			});
+			case "eeeee": return localize.day(dayOfWeek, {
+				width: "narrow",
+				context: "formatting"
+			});
+			case "eeeeee": return localize.day(dayOfWeek, {
+				width: "short",
+				context: "formatting"
+			});
+			default: return localize.day(dayOfWeek, {
+				width: "wide",
+				context: "formatting"
+			});
+		}
+	},
+	c: function(date, token, localize, options) {
+		const dayOfWeek = date.getDay();
+		const localDayOfWeek = (dayOfWeek - options.weekStartsOn + 8) % 7 || 7;
+		switch (token) {
+			case "c": return String(localDayOfWeek);
+			case "cc": return addLeadingZeros(localDayOfWeek, token.length);
+			case "co": return localize.ordinalNumber(localDayOfWeek, { unit: "day" });
+			case "ccc": return localize.day(dayOfWeek, {
+				width: "abbreviated",
+				context: "standalone"
+			});
+			case "ccccc": return localize.day(dayOfWeek, {
+				width: "narrow",
+				context: "standalone"
+			});
+			case "cccccc": return localize.day(dayOfWeek, {
+				width: "short",
+				context: "standalone"
+			});
+			default: return localize.day(dayOfWeek, {
+				width: "wide",
+				context: "standalone"
+			});
+		}
+	},
+	i: function(date, token, localize) {
+		const dayOfWeek = date.getDay();
+		const isoDayOfWeek = dayOfWeek === 0 ? 7 : dayOfWeek;
+		switch (token) {
+			case "i": return String(isoDayOfWeek);
+			case "ii": return addLeadingZeros(isoDayOfWeek, token.length);
+			case "io": return localize.ordinalNumber(isoDayOfWeek, { unit: "day" });
+			case "iii": return localize.day(dayOfWeek, {
+				width: "abbreviated",
+				context: "formatting"
+			});
+			case "iiiii": return localize.day(dayOfWeek, {
+				width: "narrow",
+				context: "formatting"
+			});
+			case "iiiiii": return localize.day(dayOfWeek, {
+				width: "short",
+				context: "formatting"
+			});
+			default: return localize.day(dayOfWeek, {
+				width: "wide",
+				context: "formatting"
+			});
+		}
+	},
+	a: function(date, token, localize) {
+		const dayPeriodEnumValue = date.getHours() / 12 >= 1 ? "pm" : "am";
+		switch (token) {
+			case "a":
+			case "aa": return localize.dayPeriod(dayPeriodEnumValue, {
+				width: "abbreviated",
+				context: "formatting"
+			});
+			case "aaa": return localize.dayPeriod(dayPeriodEnumValue, {
+				width: "abbreviated",
+				context: "formatting"
+			}).toLowerCase();
+			case "aaaaa": return localize.dayPeriod(dayPeriodEnumValue, {
+				width: "narrow",
+				context: "formatting"
+			});
+			default: return localize.dayPeriod(dayPeriodEnumValue, {
+				width: "wide",
+				context: "formatting"
+			});
+		}
+	},
+	b: function(date, token, localize) {
+		const hours = date.getHours();
+		let dayPeriodEnumValue;
+		if (hours === 12) dayPeriodEnumValue = dayPeriodEnum.noon;
+		else if (hours === 0) dayPeriodEnumValue = dayPeriodEnum.midnight;
+		else dayPeriodEnumValue = hours / 12 >= 1 ? "pm" : "am";
+		switch (token) {
+			case "b":
+			case "bb": return localize.dayPeriod(dayPeriodEnumValue, {
+				width: "abbreviated",
+				context: "formatting"
+			});
+			case "bbb": return localize.dayPeriod(dayPeriodEnumValue, {
+				width: "abbreviated",
+				context: "formatting"
+			}).toLowerCase();
+			case "bbbbb": return localize.dayPeriod(dayPeriodEnumValue, {
+				width: "narrow",
+				context: "formatting"
+			});
+			default: return localize.dayPeriod(dayPeriodEnumValue, {
+				width: "wide",
+				context: "formatting"
+			});
+		}
+	},
+	B: function(date, token, localize) {
+		const hours = date.getHours();
+		let dayPeriodEnumValue;
+		if (hours >= 17) dayPeriodEnumValue = dayPeriodEnum.evening;
+		else if (hours >= 12) dayPeriodEnumValue = dayPeriodEnum.afternoon;
+		else if (hours >= 4) dayPeriodEnumValue = dayPeriodEnum.morning;
+		else dayPeriodEnumValue = dayPeriodEnum.night;
+		switch (token) {
+			case "B":
+			case "BB":
+			case "BBB": return localize.dayPeriod(dayPeriodEnumValue, {
+				width: "abbreviated",
+				context: "formatting"
+			});
+			case "BBBBB": return localize.dayPeriod(dayPeriodEnumValue, {
+				width: "narrow",
+				context: "formatting"
+			});
+			default: return localize.dayPeriod(dayPeriodEnumValue, {
+				width: "wide",
+				context: "formatting"
+			});
+		}
+	},
+	h: function(date, token, localize) {
+		if (token === "ho") {
+			let hours = date.getHours() % 12;
+			if (hours === 0) hours = 12;
+			return localize.ordinalNumber(hours, { unit: "hour" });
+		}
+		return lightFormatters.h(date, token);
+	},
+	H: function(date, token, localize) {
+		if (token === "Ho") return localize.ordinalNumber(date.getHours(), { unit: "hour" });
+		return lightFormatters.H(date, token);
+	},
+	K: function(date, token, localize) {
+		const hours = date.getHours() % 12;
+		if (token === "Ko") return localize.ordinalNumber(hours, { unit: "hour" });
+		return addLeadingZeros(hours, token.length);
+	},
+	k: function(date, token, localize) {
+		let hours = date.getHours();
+		if (hours === 0) hours = 24;
+		if (token === "ko") return localize.ordinalNumber(hours, { unit: "hour" });
+		return addLeadingZeros(hours, token.length);
+	},
+	m: function(date, token, localize) {
+		if (token === "mo") return localize.ordinalNumber(date.getMinutes(), { unit: "minute" });
+		return lightFormatters.m(date, token);
+	},
+	s: function(date, token, localize) {
+		if (token === "so") return localize.ordinalNumber(date.getSeconds(), { unit: "second" });
+		return lightFormatters.s(date, token);
+	},
+	S: function(date, token) {
+		return lightFormatters.S(date, token);
+	},
+	X: function(date, token, _localize) {
+		const timezoneOffset = date.getTimezoneOffset();
+		if (timezoneOffset === 0) return "Z";
+		switch (token) {
+			case "X": return formatTimezoneWithOptionalMinutes(timezoneOffset);
+			case "XXXX":
+			case "XX": return formatTimezone(timezoneOffset);
+			default: return formatTimezone(timezoneOffset, ":");
+		}
+	},
+	x: function(date, token, _localize) {
+		const timezoneOffset = date.getTimezoneOffset();
+		switch (token) {
+			case "x": return formatTimezoneWithOptionalMinutes(timezoneOffset);
+			case "xxxx":
+			case "xx": return formatTimezone(timezoneOffset);
+			default: return formatTimezone(timezoneOffset, ":");
+		}
+	},
+	O: function(date, token, _localize) {
+		const timezoneOffset = date.getTimezoneOffset();
+		switch (token) {
+			case "O":
+			case "OO":
+			case "OOO": return "GMT" + formatTimezoneShort(timezoneOffset, ":");
+			default: return "GMT" + formatTimezone(timezoneOffset, ":");
+		}
+	},
+	z: function(date, token, _localize) {
+		const timezoneOffset = date.getTimezoneOffset();
+		switch (token) {
+			case "z":
+			case "zz":
+			case "zzz": return "GMT" + formatTimezoneShort(timezoneOffset, ":");
+			default: return "GMT" + formatTimezone(timezoneOffset, ":");
+		}
+	},
+	t: function(date, token, _localize) {
+		return addLeadingZeros(Math.trunc(+date / 1e3), token.length);
+	},
+	T: function(date, token, _localize) {
+		return addLeadingZeros(+date, token.length);
+	}
+};
+function formatTimezoneShort(offset, delimiter = "") {
+	const sign = offset > 0 ? "-" : "+";
+	const absOffset = Math.abs(offset);
+	const hours = Math.trunc(absOffset / 60);
+	const minutes = absOffset % 60;
+	if (minutes === 0) return sign + String(hours);
+	return sign + String(hours) + delimiter + addLeadingZeros(minutes, 2);
+}
+function formatTimezoneWithOptionalMinutes(offset, delimiter) {
+	if (offset % 60 === 0) return (offset > 0 ? "-" : "+") + addLeadingZeros(Math.abs(offset) / 60, 2);
+	return formatTimezone(offset, delimiter);
+}
+function formatTimezone(offset, delimiter = "") {
+	const sign = offset > 0 ? "-" : "+";
+	const absOffset = Math.abs(offset);
+	const hours = addLeadingZeros(Math.trunc(absOffset / 60), 2);
+	const minutes = addLeadingZeros(absOffset % 60, 2);
+	return sign + hours + delimiter + minutes;
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/_lib/format/longFormatters.js
+var dateLongFormatter = (pattern, formatLong) => {
+	switch (pattern) {
+		case "P": return formatLong.date({ width: "short" });
+		case "PP": return formatLong.date({ width: "medium" });
+		case "PPP": return formatLong.date({ width: "long" });
+		default: return formatLong.date({ width: "full" });
+	}
+};
+var timeLongFormatter = (pattern, formatLong) => {
+	switch (pattern) {
+		case "p": return formatLong.time({ width: "short" });
+		case "pp": return formatLong.time({ width: "medium" });
+		case "ppp": return formatLong.time({ width: "long" });
+		default: return formatLong.time({ width: "full" });
+	}
+};
+var dateTimeLongFormatter = (pattern, formatLong) => {
+	const matchResult = pattern.match(/(P+)(p+)?/) || [];
+	const datePattern = matchResult[1];
+	const timePattern = matchResult[2];
+	if (!timePattern) return dateLongFormatter(pattern, formatLong);
+	let dateTimeFormat;
+	switch (datePattern) {
+		case "P":
+			dateTimeFormat = formatLong.dateTime({ width: "short" });
+			break;
+		case "PP":
+			dateTimeFormat = formatLong.dateTime({ width: "medium" });
+			break;
+		case "PPP":
+			dateTimeFormat = formatLong.dateTime({ width: "long" });
+			break;
+		default:
+			dateTimeFormat = formatLong.dateTime({ width: "full" });
+			break;
+	}
+	return dateTimeFormat.replace("{{date}}", dateLongFormatter(datePattern, formatLong)).replace("{{time}}", timeLongFormatter(timePattern, formatLong));
+};
+var longFormatters = {
+	p: timeLongFormatter,
+	P: dateTimeLongFormatter
+};
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/_lib/protectedTokens.js
+var dayOfYearTokenRE = /^D+$/;
+var weekYearTokenRE = /^Y+$/;
+var throwTokens = [
+	"D",
+	"DD",
+	"YY",
+	"YYYY"
+];
+function isProtectedDayOfYearToken(token) {
+	return dayOfYearTokenRE.test(token);
+}
+function isProtectedWeekYearToken(token) {
+	return weekYearTokenRE.test(token);
+}
+function warnOrThrowProtectedError(token, format, input) {
+	const _message = message(token, format, input);
+	console.warn(_message);
+	if (throwTokens.includes(token)) throw new RangeError(_message);
+}
+function message(token, format, input) {
+	const subject = token[0] === "Y" ? "years" : "days of the month";
+	return `Use \`${token.toLowerCase()}\` instead of \`${token}\` (in \`${format}\`) for formatting ${subject} to the input \`${input}\`; see: https://github.com/date-fns/date-fns/blob/master/docs/unicodeTokens.md`;
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/format.js
+var formattingTokensRegExp = /[yYQqMLwIdDecihHKkms]o|(\w)\1*|''|'(''|[^'])+('|$)|./g;
+var longFormattingTokensRegExp = /P+p+|P+|p+|''|'(''|[^'])+('|$)|./g;
+var escapedStringRegExp = /^'([^]*?)'?$/;
+var doubleQuoteRegExp = /''/g;
+var unescapedLatinCharacterRegExp = /[a-zA-Z]/;
+/**
+* The {@link format} function options.
+*/
+/**
+* @name format
+* @alias formatDate
+* @category Common Helpers
+* @summary Format the date.
+*
+* @description
+* Return the formatted date string in the given format. The result may vary by locale.
+*
+* > ⚠️ Please note that the `format` tokens differ from Moment.js and other libraries.
+* > See: https://github.com/date-fns/date-fns/blob/master/docs/unicodeTokens.md
+*
+* The characters wrapped between two single quotes characters (') are escaped.
+* Two single quotes in a row, whether inside or outside a quoted sequence, represent a 'real' single quote.
+* (see the last example)
+*
+* Format of the string is based on Unicode Technical Standard #35:
+* https://www.unicode.org/reports/tr35/tr35-dates.html#Date_Field_Symbol_Table
+* with a few additions (see note 7 below the table).
+*
+* Accepted patterns:
+* | Unit                            | Pattern | Result examples                   | Notes |
+* |---------------------------------|---------|-----------------------------------|-------|
+* | Era                             | G..GGG  | AD, BC                            |       |
+* |                                 | GGGG    | Anno Domini, Before Christ        | 2     |
+* |                                 | GGGGG   | A, B                              |       |
+* | Calendar year                   | y       | 44, 1, 1900, 2017                 | 5     |
+* |                                 | yo      | 44th, 1st, 0th, 17th              | 5,7   |
+* |                                 | yy      | 44, 01, 00, 17                    | 5     |
+* |                                 | yyy     | 044, 001, 1900, 2017              | 5     |
+* |                                 | yyyy    | 0044, 0001, 1900, 2017            | 5     |
+* |                                 | yyyyy   | ...                               | 3,5   |
+* | Local week-numbering year       | Y       | 44, 1, 1900, 2017                 | 5     |
+* |                                 | Yo      | 44th, 1st, 1900th, 2017th         | 5,7   |
+* |                                 | YY      | 44, 01, 00, 17                    | 5,8   |
+* |                                 | YYY     | 044, 001, 1900, 2017              | 5     |
+* |                                 | YYYY    | 0044, 0001, 1900, 2017            | 5,8   |
+* |                                 | YYYYY   | ...                               | 3,5   |
+* | ISO week-numbering year         | R       | -43, 0, 1, 1900, 2017             | 5,7   |
+* |                                 | RR      | -43, 00, 01, 1900, 2017           | 5,7   |
+* |                                 | RRR     | -043, 000, 001, 1900, 2017        | 5,7   |
+* |                                 | RRRR    | -0043, 0000, 0001, 1900, 2017     | 5,7   |
+* |                                 | RRRRR   | ...                               | 3,5,7 |
+* | Extended year                   | u       | -43, 0, 1, 1900, 2017             | 5     |
+* |                                 | uu      | -43, 01, 1900, 2017               | 5     |
+* |                                 | uuu     | -043, 001, 1900, 2017             | 5     |
+* |                                 | uuuu    | -0043, 0001, 1900, 2017           | 5     |
+* |                                 | uuuuu   | ...                               | 3,5   |
+* | Quarter (formatting)            | Q       | 1, 2, 3, 4                        |       |
+* |                                 | Qo      | 1st, 2nd, 3rd, 4th                | 7     |
+* |                                 | QQ      | 01, 02, 03, 04                    |       |
+* |                                 | QQQ     | Q1, Q2, Q3, Q4                    |       |
+* |                                 | QQQQ    | 1st quarter, 2nd quarter, ...     | 2     |
+* |                                 | QQQQQ   | 1, 2, 3, 4                        | 4     |
+* | Quarter (stand-alone)           | q       | 1, 2, 3, 4                        |       |
+* |                                 | qo      | 1st, 2nd, 3rd, 4th                | 7     |
+* |                                 | qq      | 01, 02, 03, 04                    |       |
+* |                                 | qqq     | Q1, Q2, Q3, Q4                    |       |
+* |                                 | qqqq    | 1st quarter, 2nd quarter, ...     | 2     |
+* |                                 | qqqqq   | 1, 2, 3, 4                        | 4     |
+* | Month (formatting)              | M       | 1, 2, ..., 12                     |       |
+* |                                 | Mo      | 1st, 2nd, ..., 12th               | 7     |
+* |                                 | MM      | 01, 02, ..., 12                   |       |
+* |                                 | MMM     | Jan, Feb, ..., Dec                |       |
+* |                                 | MMMM    | January, February, ..., December  | 2     |
+* |                                 | MMMMM   | J, F, ..., D                      |       |
+* | Month (stand-alone)             | L       | 1, 2, ..., 12                     |       |
+* |                                 | Lo      | 1st, 2nd, ..., 12th               | 7     |
+* |                                 | LL      | 01, 02, ..., 12                   |       |
+* |                                 | LLL     | Jan, Feb, ..., Dec                |       |
+* |                                 | LLLL    | January, February, ..., December  | 2     |
+* |                                 | LLLLL   | J, F, ..., D                      |       |
+* | Local week of year              | w       | 1, 2, ..., 53                     |       |
+* |                                 | wo      | 1st, 2nd, ..., 53th               | 7     |
+* |                                 | ww      | 01, 02, ..., 53                   |       |
+* | ISO week of year                | I       | 1, 2, ..., 53                     | 7     |
+* |                                 | Io      | 1st, 2nd, ..., 53th               | 7     |
+* |                                 | II      | 01, 02, ..., 53                   | 7     |
+* | Day of month                    | d       | 1, 2, ..., 31                     |       |
+* |                                 | do      | 1st, 2nd, ..., 31st               | 7     |
+* |                                 | dd      | 01, 02, ..., 31                   |       |
+* | Day of year                     | D       | 1, 2, ..., 365, 366               | 9     |
+* |                                 | Do      | 1st, 2nd, ..., 365th, 366th       | 7     |
+* |                                 | DD      | 01, 02, ..., 365, 366             | 9     |
+* |                                 | DDD     | 001, 002, ..., 365, 366           |       |
+* |                                 | DDDD    | ...                               | 3     |
+* | Day of week (formatting)        | E..EEE  | Mon, Tue, Wed, ..., Sun           |       |
+* |                                 | EEEE    | Monday, Tuesday, ..., Sunday      | 2     |
+* |                                 | EEEEE   | M, T, W, T, F, S, S               |       |
+* |                                 | EEEEEE  | Mo, Tu, We, Th, Fr, Sa, Su        |       |
+* | ISO day of week (formatting)    | i       | 1, 2, 3, ..., 7                   | 7     |
+* |                                 | io      | 1st, 2nd, ..., 7th                | 7     |
+* |                                 | ii      | 01, 02, ..., 07                   | 7     |
+* |                                 | iii     | Mon, Tue, Wed, ..., Sun           | 7     |
+* |                                 | iiii    | Monday, Tuesday, ..., Sunday      | 2,7   |
+* |                                 | iiiii   | M, T, W, T, F, S, S               | 7     |
+* |                                 | iiiiii  | Mo, Tu, We, Th, Fr, Sa, Su        | 7     |
+* | Local day of week (formatting)  | e       | 2, 3, 4, ..., 1                   |       |
+* |                                 | eo      | 2nd, 3rd, ..., 1st                | 7     |
+* |                                 | ee      | 02, 03, ..., 01                   |       |
+* |                                 | eee     | Mon, Tue, Wed, ..., Sun           |       |
+* |                                 | eeee    | Monday, Tuesday, ..., Sunday      | 2     |
+* |                                 | eeeee   | M, T, W, T, F, S, S               |       |
+* |                                 | eeeeee  | Mo, Tu, We, Th, Fr, Sa, Su        |       |
+* | Local day of week (stand-alone) | c       | 2, 3, 4, ..., 1                   |       |
+* |                                 | co      | 2nd, 3rd, ..., 1st                | 7     |
+* |                                 | cc      | 02, 03, ..., 01                   |       |
+* |                                 | ccc     | Mon, Tue, Wed, ..., Sun           |       |
+* |                                 | cccc    | Monday, Tuesday, ..., Sunday      | 2     |
+* |                                 | ccccc   | M, T, W, T, F, S, S               |       |
+* |                                 | cccccc  | Mo, Tu, We, Th, Fr, Sa, Su        |       |
+* | AM, PM                          | a..aa   | AM, PM                            |       |
+* |                                 | aaa     | am, pm                            |       |
+* |                                 | aaaa    | a.m., p.m.                        | 2     |
+* |                                 | aaaaa   | a, p                              |       |
+* | AM, PM, noon, midnight          | b..bb   | AM, PM, noon, midnight            |       |
+* |                                 | bbb     | am, pm, noon, midnight            |       |
+* |                                 | bbbb    | a.m., p.m., noon, midnight        | 2     |
+* |                                 | bbbbb   | a, p, n, mi                       |       |
+* | Flexible day period             | B..BBB  | at night, in the morning, ...     |       |
+* |                                 | BBBB    | at night, in the morning, ...     | 2     |
+* |                                 | BBBBB   | at night, in the morning, ...     |       |
+* | Hour [1-12]                     | h       | 1, 2, ..., 11, 12                 |       |
+* |                                 | ho      | 1st, 2nd, ..., 11th, 12th         | 7     |
+* |                                 | hh      | 01, 02, ..., 11, 12               |       |
+* | Hour [0-23]                     | H       | 0, 1, 2, ..., 23                  |       |
+* |                                 | Ho      | 0th, 1st, 2nd, ..., 23rd          | 7     |
+* |                                 | HH      | 00, 01, 02, ..., 23               |       |
+* | Hour [0-11]                     | K       | 1, 2, ..., 11, 0                  |       |
+* |                                 | Ko      | 1st, 2nd, ..., 11th, 0th          | 7     |
+* |                                 | KK      | 01, 02, ..., 11, 00               |       |
+* | Hour [1-24]                     | k       | 24, 1, 2, ..., 23                 |       |
+* |                                 | ko      | 24th, 1st, 2nd, ..., 23rd         | 7     |
+* |                                 | kk      | 24, 01, 02, ..., 23               |       |
+* | Minute                          | m       | 0, 1, ..., 59                     |       |
+* |                                 | mo      | 0th, 1st, ..., 59th               | 7     |
+* |                                 | mm      | 00, 01, ..., 59                   |       |
+* | Second                          | s       | 0, 1, ..., 59                     |       |
+* |                                 | so      | 0th, 1st, ..., 59th               | 7     |
+* |                                 | ss      | 00, 01, ..., 59                   |       |
+* | Fraction of second              | S       | 0, 1, ..., 9                      |       |
+* |                                 | SS      | 00, 01, ..., 99                   |       |
+* |                                 | SSS     | 000, 001, ..., 999                |       |
+* |                                 | SSSS    | ...                               | 3     |
+* | Timezone (ISO-8601 w/ Z)        | X       | -08, +0530, Z                     |       |
+* |                                 | XX      | -0800, +0530, Z                   |       |
+* |                                 | XXX     | -08:00, +05:30, Z                 |       |
+* |                                 | XXXX    | -0800, +0530, Z, +123456          | 2     |
+* |                                 | XXXXX   | -08:00, +05:30, Z, +12:34:56      |       |
+* | Timezone (ISO-8601 w/o Z)       | x       | -08, +0530, +00                   |       |
+* |                                 | xx      | -0800, +0530, +0000               |       |
+* |                                 | xxx     | -08:00, +05:30, +00:00            | 2     |
+* |                                 | xxxx    | -0800, +0530, +0000, +123456      |       |
+* |                                 | xxxxx   | -08:00, +05:30, +00:00, +12:34:56 |       |
+* | Timezone (GMT)                  | O...OOO | GMT-8, GMT+5:30, GMT+0            |       |
+* |                                 | OOOO    | GMT-08:00, GMT+05:30, GMT+00:00   | 2     |
+* | Timezone (specific non-locat.)  | z...zzz | GMT-8, GMT+5:30, GMT+0            | 6     |
+* |                                 | zzzz    | GMT-08:00, GMT+05:30, GMT+00:00   | 2,6   |
+* | Seconds timestamp               | t       | 512969520                         | 7     |
+* |                                 | tt      | ...                               | 3,7   |
+* | Milliseconds timestamp          | T       | 512969520900                      | 7     |
+* |                                 | TT      | ...                               | 3,7   |
+* | Long localized date             | P       | 04/29/1453                        | 7     |
+* |                                 | PP      | Apr 29, 1453                      | 7     |
+* |                                 | PPP     | April 29th, 1453                  | 7     |
+* |                                 | PPPP    | Friday, April 29th, 1453          | 2,7   |
+* | Long localized time             | p       | 12:00 AM                          | 7     |
+* |                                 | pp      | 12:00:00 AM                       | 7     |
+* |                                 | ppp     | 12:00:00 AM GMT+2                 | 7     |
+* |                                 | pppp    | 12:00:00 AM GMT+02:00             | 2,7   |
+* | Combination of date and time    | Pp      | 04/29/1453, 12:00 AM              | 7     |
+* |                                 | PPpp    | Apr 29, 1453, 12:00:00 AM         | 7     |
+* |                                 | PPPppp  | April 29th, 1453 at ...           | 7     |
+* |                                 | PPPPpppp| Friday, April 29th, 1453 at ...   | 2,7   |
+* Notes:
+* 1. "Formatting" units (e.g. formatting quarter) in the default en-US locale
+*    are the same as "stand-alone" units, but are different in some languages.
+*    "Formatting" units are declined according to the rules of the language
+*    in the context of a date. "Stand-alone" units are always nominative singular:
+*
+*    `format(new Date(2017, 10, 6), 'do LLLL', {locale: cs}) //=> '6. listopad'`
+*
+*    `format(new Date(2017, 10, 6), 'do MMMM', {locale: cs}) //=> '6. listopadu'`
+*
+* 2. Any sequence of the identical letters is a pattern, unless it is escaped by
+*    the single quote characters (see below).
+*    If the sequence is longer than listed in table (e.g. `EEEEEEEEEEE`)
+*    the output will be the same as default pattern for this unit, usually
+*    the longest one (in case of ISO weekdays, `EEEE`). Default patterns for units
+*    are marked with "2" in the last column of the table.
+*
+*    `format(new Date(2017, 10, 6), 'MMM') //=> 'Nov'`
+*
+*    `format(new Date(2017, 10, 6), 'MMMM') //=> 'November'`
+*
+*    `format(new Date(2017, 10, 6), 'MMMMM') //=> 'N'`
+*
+*    `format(new Date(2017, 10, 6), 'MMMMMM') //=> 'November'`
+*
+*    `format(new Date(2017, 10, 6), 'MMMMMMM') //=> 'November'`
+*
+* 3. Some patterns could be unlimited length (such as `yyyyyyyy`).
+*    The output will be padded with zeros to match the length of the pattern.
+*
+*    `format(new Date(2017, 10, 6), 'yyyyyyyy') //=> '00002017'`
+*
+* 4. `QQQQQ` and `qqqqq` could be not strictly numerical in some locales.
+*    These tokens represent the shortest form of the quarter.
+*
+* 5. The main difference between `y` and `u` patterns are B.C. years:
+*
+*    | Year | `y` | `u` |
+*    |------|-----|-----|
+*    | AC 1 |   1 |   1 |
+*    | BC 1 |   1 |   0 |
+*    | BC 2 |   2 |  -1 |
+*
+*    Also `yy` always returns the last two digits of a year,
+*    while `uu` pads single digit years to 2 characters and returns other years unchanged:
+*
+*    | Year | `yy` | `uu` |
+*    |------|------|------|
+*    | 1    |   01 |   01 |
+*    | 14   |   14 |   14 |
+*    | 376  |   76 |  376 |
+*    | 1453 |   53 | 1453 |
+*
+*    The same difference is true for local and ISO week-numbering years (`Y` and `R`),
+*    except local week-numbering years are dependent on `options.weekStartsOn`
+*    and `options.firstWeekContainsDate` (compare [getISOWeekYear](https://date-fns.org/docs/getISOWeekYear)
+*    and [getWeekYear](https://date-fns.org/docs/getWeekYear)).
+*
+* 6. Specific non-location timezones are currently unavailable in `date-fns`,
+*    so right now these tokens fall back to GMT timezones.
+*
+* 7. These patterns are not in the Unicode Technical Standard #35:
+*    - `i`: ISO day of week
+*    - `I`: ISO week of year
+*    - `R`: ISO week-numbering year
+*    - `t`: seconds timestamp
+*    - `T`: milliseconds timestamp
+*    - `o`: ordinal number modifier
+*    - `P`: long localized date
+*    - `p`: long localized time
+*
+* 8. `YY` and `YYYY` tokens represent week-numbering years but they are often confused with years.
+*    You should enable `options.useAdditionalWeekYearTokens` to use them. See: https://github.com/date-fns/date-fns/blob/master/docs/unicodeTokens.md
+*
+* 9. `D` and `DD` tokens represent days of the year but they are often confused with days of the month.
+*    You should enable `options.useAdditionalDayOfYearTokens` to use them. See: https://github.com/date-fns/date-fns/blob/master/docs/unicodeTokens.md
+*
+* @param date - The original date
+* @param format - The string of tokens
+* @param options - An object with options
+*
+* @returns The formatted date string
+*
+* @throws `date` must not be Invalid Date
+* @throws `options.locale` must contain `localize` property
+* @throws `options.locale` must contain `formatLong` property
+* @throws use `yyyy` instead of `YYYY` for formatting years using [format provided] to the input [input provided]; see: https://github.com/date-fns/date-fns/blob/master/docs/unicodeTokens.md
+* @throws use `yy` instead of `YY` for formatting years using [format provided] to the input [input provided]; see: https://github.com/date-fns/date-fns/blob/master/docs/unicodeTokens.md
+* @throws use `d` instead of `D` for formatting days of the month using [format provided] to the input [input provided]; see: https://github.com/date-fns/date-fns/blob/master/docs/unicodeTokens.md
+* @throws use `dd` instead of `DD` for formatting days of the month using [format provided] to the input [input provided]; see: https://github.com/date-fns/date-fns/blob/master/docs/unicodeTokens.md
+* @throws format string contains an unescaped latin alphabet character
+*
+* @example
+* // Represent 11 February 2014 in middle-endian format:
+* const result = format(new Date(2014, 1, 11), 'MM/dd/yyyy')
+* //=> '02/11/2014'
+*
+* @example
+* // Represent 2 July 2014 in Esperanto:
+* import { eoLocale } from 'date-fns/locale/eo'
+* const result = format(new Date(2014, 6, 2), "do 'de' MMMM yyyy", {
+*   locale: eoLocale
+* })
+* //=> '2-a de julio 2014'
+*
+* @example
+* // Escape string by single quote characters:
+* const result = format(new Date(2014, 6, 2, 15), "h 'o''clock'")
+* //=> "3 o'clock"
+*/
+function format$1(date, formatStr, options) {
+	const defaultOptions = getDefaultOptions();
+	const locale = options?.locale ?? defaultOptions.locale ?? enUS$1;
+	const firstWeekContainsDate = options?.firstWeekContainsDate ?? options?.locale?.options?.firstWeekContainsDate ?? defaultOptions.firstWeekContainsDate ?? defaultOptions.locale?.options?.firstWeekContainsDate ?? 1;
+	const weekStartsOn = options?.weekStartsOn ?? options?.locale?.options?.weekStartsOn ?? defaultOptions.weekStartsOn ?? defaultOptions.locale?.options?.weekStartsOn ?? 0;
+	const originalDate = toDate(date, options?.in);
+	if (!isValid(originalDate)) throw new RangeError("Invalid time value");
+	let parts = formatStr.match(longFormattingTokensRegExp).map((substring) => {
+		const firstCharacter = substring[0];
+		if (firstCharacter === "p" || firstCharacter === "P") {
+			const longFormatter = longFormatters[firstCharacter];
+			return longFormatter(substring, locale.formatLong);
+		}
+		return substring;
+	}).join("").match(formattingTokensRegExp).map((substring) => {
+		if (substring === "''") return {
+			isToken: false,
+			value: "'"
+		};
+		const firstCharacter = substring[0];
+		if (firstCharacter === "'") return {
+			isToken: false,
+			value: cleanEscapedString(substring)
+		};
+		if (formatters[firstCharacter]) return {
+			isToken: true,
+			value: substring
+		};
+		if (firstCharacter.match(unescapedLatinCharacterRegExp)) throw new RangeError("Format string contains an unescaped latin alphabet character `" + firstCharacter + "`");
+		return {
+			isToken: false,
+			value: substring
+		};
+	});
+	if (locale.localize.preprocessor) parts = locale.localize.preprocessor(originalDate, parts);
+	const formatterOptions = {
+		firstWeekContainsDate,
+		weekStartsOn,
+		locale
+	};
+	return parts.map((part) => {
+		if (!part.isToken) return part.value;
+		const token = part.value;
+		if (!options?.useAdditionalWeekYearTokens && isProtectedWeekYearToken(token) || !options?.useAdditionalDayOfYearTokens && isProtectedDayOfYearToken(token)) warnOrThrowProtectedError(token, formatStr, String(date));
+		const formatter = formatters[token[0]];
+		return formatter(originalDate, token, locale.localize, formatterOptions);
+	}).join("");
+}
+function cleanEscapedString(input) {
+	const matched = input.match(escapedStringRegExp);
+	if (!matched) return input;
+	return matched[1].replace(doubleQuoteRegExp, "'");
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/getDaysInMonth.js
+/**
+* The {@link getDaysInMonth} function options.
+*/
+/**
+* @name getDaysInMonth
+* @category Month Helpers
+* @summary Get the number of days in a month of the given date.
+*
+* @description
+* Get the number of days in a month of the given date, considering the context if provided.
+*
+* @param date - The given date
+* @param options - An object with options
+*
+* @returns The number of days in a month
+*
+* @example
+* // How many days are in February 2000?
+* const result = getDaysInMonth(new Date(2000, 1))
+* //=> 29
+*/
+function getDaysInMonth(date, options) {
+	const _date = toDate(date, options?.in);
+	const year = _date.getFullYear();
+	const monthIndex = _date.getMonth();
+	const lastDayOfMonth = constructFrom(_date, 0);
+	lastDayOfMonth.setFullYear(year, monthIndex + 1, 0);
+	lastDayOfMonth.setHours(0, 0, 0, 0);
+	return lastDayOfMonth.getDate();
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/getMonth.js
+/**
+* The {@link getMonth} function options.
+*/
+/**
+* @name getMonth
+* @category Month Helpers
+* @summary Get the month of the given date.
+*
+* @description
+* Get the month of the given date.
+*
+* @param date - The given date
+* @param options - An object with options
+*
+* @returns The month index (0-11)
+*
+* @example
+* // Which month is 29 February 2012?
+* const result = getMonth(new Date(2012, 1, 29))
+* //=> 1
+*/
+function getMonth(date, options) {
+	return toDate(date, options?.in).getMonth();
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/getYear.js
+/**
+* The {@link getYear} function options.
+*/
+/**
+* @name getYear
+* @category Year Helpers
+* @summary Get the year of the given date.
+*
+* @description
+* Get the year of the given date.
+*
+* @param date - The given date
+* @param options - An object with options
+*
+* @returns The year
+*
+* @example
+* // Which year is 2 July 2014?
+* const result = getYear(new Date(2014, 6, 2))
+* //=> 2014
+*/
+function getYear(date, options) {
+	return toDate(date, options?.in).getFullYear();
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/isAfter.js
+/**
+* @name isAfter
+* @category Common Helpers
+* @summary Is the first date after the second one?
+*
+* @description
+* Is the first date after the second one?
+*
+* @param date - The date that should be after the other one to return true
+* @param dateToCompare - The date to compare with
+*
+* @returns The first date is after the second date
+*
+* @example
+* // Is 10 July 1989 after 11 February 1987?
+* const result = isAfter(new Date(1989, 6, 10), new Date(1987, 1, 11))
+* //=> true
+*/
+function isAfter(date, dateToCompare) {
+	return +toDate(date) > +toDate(dateToCompare);
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/isBefore.js
+/**
+* @name isBefore
+* @category Common Helpers
+* @summary Is the first date before the second one?
+*
+* @description
+* Is the first date before the second one?
+*
+* @param date - The date that should be before the other one to return true
+* @param dateToCompare - The date to compare with
+*
+* @returns The first date is before the second date
+*
+* @example
+* // Is 10 July 1989 before 11 February 1987?
+* const result = isBefore(new Date(1989, 6, 10), new Date(1987, 1, 11))
+* //=> false
+*/
+function isBefore(date, dateToCompare) {
+	return +toDate(date) < +toDate(dateToCompare);
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/isSameMonth.js
+/**
+* The {@link isSameMonth} function options.
+*/
+/**
+* @name isSameMonth
+* @category Month Helpers
+* @summary Are the given dates in the same month (and year)?
+*
+* @description
+* Are the given dates in the same month (and year)?
+*
+* @param laterDate - The first date to check
+* @param earlierDate - The second date to check
+* @param options - An object with options
+*
+* @returns The dates are in the same month (and year)
+*
+* @example
+* // Are 2 September 2014 and 25 September 2014 in the same month?
+* const result = isSameMonth(new Date(2014, 8, 2), new Date(2014, 8, 25))
+* //=> true
+*
+* @example
+* // Are 2 September 2014 and 25 September 2015 in the same month?
+* const result = isSameMonth(new Date(2014, 8, 2), new Date(2015, 8, 25))
+* //=> false
+*/
+function isSameMonth(laterDate, earlierDate, options) {
+	const [laterDate_, earlierDate_] = normalizeDates(options?.in, laterDate, earlierDate);
+	return laterDate_.getFullYear() === earlierDate_.getFullYear() && laterDate_.getMonth() === earlierDate_.getMonth();
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/isSameYear.js
+/**
+* The {@link isSameYear} function options.
+*/
+/**
+* @name isSameYear
+* @category Year Helpers
+* @summary Are the given dates in the same year?
+*
+* @description
+* Are the given dates in the same year?
+*
+* @param laterDate - The first date to check
+* @param earlierDate - The second date to check
+* @param options - An object with options
+*
+* @returns The dates are in the same year
+*
+* @example
+* // Are 2 September 2014 and 25 September 2014 in the same year?
+* const result = isSameYear(new Date(2014, 8, 2), new Date(2014, 8, 25))
+* //=> true
+*/
+function isSameYear(laterDate, earlierDate, options) {
+	const [laterDate_, earlierDate_] = normalizeDates(options?.in, laterDate, earlierDate);
+	return laterDate_.getFullYear() === earlierDate_.getFullYear();
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/isToday.js
+/**
+* The {@link isToday} function options.
+*/
+/**
+* @name isToday
+* @category Day Helpers
+* @summary Is the given date today?
+* @pure false
+*
+* @description
+* Is the given date today?
+*
+* @param date - The date to check
+* @param options - An object with options
+*
+* @returns The date is today
+*
+* @example
+* // If today is 6 October 2014, is 6 October 14:00:00 today?
+* const result = isToday(new Date(2014, 9, 6, 14, 0))
+* //=> true
+*/
+function isToday(date, options) {
+	return isSameDay(constructFrom(options?.in || date, date), constructNow(options?.in || date));
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/isTomorrow.js
+/**
+* The {@link isTomorrow} function options.
+*/
+/**
+* @name isTomorrow
+* @category Day Helpers
+* @summary Is the given date tomorrow?
+* @pure false
+*
+* @description
+* Is the given date tomorrow?
+*
+* @param date - The date to check
+* @param options - An object with options
+*
+* @returns The date is tomorrow
+*
+* @example
+* // If today is 6 October 2014, is 7 October 14:00:00 tomorrow?
+* const result = isTomorrow(new Date(2014, 9, 7, 14, 0))
+* //=> true
+*/
+function isTomorrow(date, options) {
+	return isSameDay(date, addDays(constructNow(options?.in || date), 1), options);
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/isWithinInterval.js
+/**
+* The {@link isWithinInterval} function options.
+*/
+/**
+* @name isWithinInterval
+* @category Interval Helpers
+* @summary Is the given date within the interval?
+*
+* @description
+* Is the given date within the interval? (Including start and end.)
+*
+* @param date - The date to check
+* @param interval - The interval to check
+* @param options - An object with options
+*
+* @returns The date is within the interval
+*
+* @example
+* // For the date within the interval:
+* isWithinInterval(new Date(2014, 0, 3), {
+*   start: new Date(2014, 0, 1),
+*   end: new Date(2014, 0, 7)
+* })
+* // => true
+*
+* @example
+* // For the date outside of the interval:
+* isWithinInterval(new Date(2014, 0, 10), {
+*   start: new Date(2014, 0, 1),
+*   end: new Date(2014, 0, 7)
+* })
+* // => false
+*
+* @example
+* // For date equal to the interval start:
+* isWithinInterval(date, { start, end: date })
+* // => true
+*
+* @example
+* // For date equal to the interval end:
+* isWithinInterval(date, { start: date, end })
+* // => true
+*/
+function isWithinInterval(date, interval, options) {
+	const time = +toDate(date, options?.in);
+	const [startTime, endTime] = [+toDate(interval.start, options?.in), +toDate(interval.end, options?.in)].sort((a, b) => a - b);
+	return time >= startTime && time <= endTime;
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/setMonth.js
+/**
+* The {@link setMonth} function options.
+*/
+/**
+* @name setMonth
+* @category Month Helpers
+* @summary Set the month to the given date.
+*
+* @description
+* Set the month to the given date.
+*
+* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+*
+* @param date - The date to be changed
+* @param month - The month index to set (0-11)
+* @param options - The options
+*
+* @returns The new date with the month set
+*
+* @example
+* // Set February to 1 September 2014:
+* const result = setMonth(new Date(2014, 8, 1), 1)
+* //=> Sat Feb 01 2014 00:00:00
+*/
+function setMonth(date, month, options) {
+	const _date = toDate(date, options?.in);
+	const year = _date.getFullYear();
+	const day = _date.getDate();
+	const midMonth = constructFrom(options?.in || date, 0);
+	midMonth.setFullYear(year, month, 15);
+	midMonth.setHours(0, 0, 0, 0);
+	const daysInMonth = getDaysInMonth(midMonth);
+	_date.setMonth(month, Math.min(day, daysInMonth));
+	return _date;
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/setYear.js
+/**
+* The {@link setYear} function options.
+*/
+/**
+* @name setYear
+* @category Year Helpers
+* @summary Set the year to the given date.
+*
+* @description
+* Set the year to the given date.
+*
+* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+*
+* @param date - The date to be changed
+* @param year - The year of the new date
+* @param options - An object with options.
+*
+* @returns The new date with the year set
+*
+* @example
+* // Set year 2013 to 1 September 2014:
+* const result = setYear(new Date(2014, 8, 1), 2013)
+* //=> Sun Sep 01 2013 00:00:00
+*/
+function setYear(date, year, options) {
+	const date_ = toDate(date, options?.in);
+	if (isNaN(+date_)) return constructFrom(options?.in || date, NaN);
+	date_.setFullYear(year);
+	return date_;
+}
+//#endregion
+//#region src/lib/utils.ts
 function cn$1(...inputs) {
 	return twMerge(clsx(inputs));
+}
+function isDateInRange(dateString, range) {
+	if (!range?.from) return true;
+	const date = new Date(dateString);
+	if (range.to) return isWithinInterval(date, {
+		start: startOfDay(range.from),
+		end: endOfDay(range.to)
+	});
+	return isSameDay(date, range.from);
+}
+function interpolateColor(color1, color2, factor) {
+	const f = Math.max(0, Math.min(1, factor));
+	const hexToRgb = (hex) => {
+		const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+		return result ? {
+			r: parseInt(result[1], 16),
+			g: parseInt(result[2], 16),
+			b: parseInt(result[3], 16)
+		} : {
+			r: 0,
+			g: 0,
+			b: 0
+		};
+	};
+	const c1 = hexToRgb(color1);
+	const c2 = hexToRgb(color2);
+	return `rgb(${Math.round(c1.r + f * (c2.r - c1.r))}, ${Math.round(c1.g + f * (c2.g - c1.g))}, ${Math.round(c1.b + f * (c2.b - c1.b))})`;
 }
 //#endregion
 //#region src/components/ui/toast.tsx
@@ -21958,8 +25183,8 @@ var sides = [
 	"bottom",
 	"left"
 ];
-var min$3 = Math.min;
-var max$3 = Math.max;
+var min$2 = Math.min;
+var max$2 = Math.max;
 var round = Math.round;
 var floor = Math.floor;
 var createCoords = (v) => ({
@@ -21973,7 +25198,7 @@ var oppositeSideMap = {
 	top: "bottom"
 };
 function clamp$1(start, value, end) {
-	return max$3(start, min$3(value, end));
+	return max$2(start, min$2(value, end));
 }
 function evaluate(value, param) {
 	return typeof value === "function" ? value(param) : value;
@@ -22277,8 +25502,8 @@ var arrow$3 = (options) => ({
 		if (!clientSize || !await (platform.isElement == null ? void 0 : platform.isElement(arrowOffsetParent))) clientSize = elements.floating[clientProp] || rects.floating[length];
 		const centerToReference = endDiff / 2 - startDiff / 2;
 		const largestPossiblePadding = clientSize / 2 - arrowDimensions[length] / 2 - 1;
-		const minPadding = min$3(paddingObject[minProp], largestPossiblePadding);
-		const maxPadding = min$3(paddingObject[maxProp], largestPossiblePadding);
+		const minPadding = min$2(paddingObject[minProp], largestPossiblePadding);
+		const maxPadding = min$2(paddingObject[maxProp], largestPossiblePadding);
 		const min$1 = minPadding;
 		const max = clientSize - arrowDimensions[length] - maxPadding;
 		const center = clientSize / 2 - arrowDimensions[length] / 2 + centerToReference;
@@ -22617,20 +25842,20 @@ var size$2 = function(options) {
 			}
 			const maximumClippingHeight = height - overflow.top - overflow.bottom;
 			const maximumClippingWidth = width - overflow.left - overflow.right;
-			const overflowAvailableHeight = min$3(height - overflow[heightSide], maximumClippingHeight);
-			const overflowAvailableWidth = min$3(width - overflow[widthSide], maximumClippingWidth);
+			const overflowAvailableHeight = min$2(height - overflow[heightSide], maximumClippingHeight);
+			const overflowAvailableWidth = min$2(width - overflow[widthSide], maximumClippingWidth);
 			const noShift = !state.middlewareData.shift;
 			let availableHeight = overflowAvailableHeight;
 			let availableWidth = overflowAvailableWidth;
 			if ((_state$middlewareData = state.middlewareData.shift) != null && _state$middlewareData.enabled.x) availableWidth = maximumClippingWidth;
 			if ((_state$middlewareData2 = state.middlewareData.shift) != null && _state$middlewareData2.enabled.y) availableHeight = maximumClippingHeight;
 			if (noShift && !alignment) {
-				const xMin = max$3(overflow.left, 0);
-				const xMax = max$3(overflow.right, 0);
-				const yMin = max$3(overflow.top, 0);
-				const yMax = max$3(overflow.bottom, 0);
-				if (isYAxis) availableWidth = width - 2 * (xMin !== 0 || xMax !== 0 ? xMin + xMax : max$3(overflow.left, overflow.right));
-				else availableHeight = height - 2 * (yMin !== 0 || yMax !== 0 ? yMin + yMax : max$3(overflow.top, overflow.bottom));
+				const xMin = max$2(overflow.left, 0);
+				const xMax = max$2(overflow.right, 0);
+				const yMin = max$2(overflow.top, 0);
+				const yMax = max$2(overflow.bottom, 0);
+				if (isYAxis) availableWidth = width - 2 * (xMin !== 0 || xMax !== 0 ? xMin + xMax : max$2(overflow.left, overflow.right));
+				else availableHeight = height - 2 * (yMin !== 0 || yMax !== 0 ? yMin + yMax : max$2(overflow.top, overflow.bottom));
 			}
 			await apply({
 				...state,
@@ -22898,11 +26123,11 @@ function getDocumentRect(element) {
 	const html = getDocumentElement(element);
 	const scroll = getNodeScroll(element);
 	const body = element.ownerDocument.body;
-	const width = max$3(html.scrollWidth, html.clientWidth, body.scrollWidth, body.clientWidth);
-	const height = max$3(html.scrollHeight, html.clientHeight, body.scrollHeight, body.clientHeight);
+	const width = max$2(html.scrollWidth, html.clientWidth, body.scrollWidth, body.clientWidth);
+	const height = max$2(html.scrollHeight, html.clientHeight, body.scrollHeight, body.clientHeight);
 	let x = -scroll.scrollLeft + getWindowScrollBarX(element);
 	const y = -scroll.scrollTop;
-	if (getComputedStyle$1(body).direction === "rtl") x += max$3(html.clientWidth, body.clientWidth) - width;
+	if (getComputedStyle$1(body).direction === "rtl") x += max$2(html.clientWidth, body.clientWidth) - width;
 	return {
 		width,
 		height,
@@ -23005,10 +26230,10 @@ function getClippingRect(_ref) {
 	let left = firstRect.left;
 	for (let i = 1; i < clippingAncestors.length; i++) {
 		const rect = getClientRectFromClippingAncestor(element, clippingAncestors[i], strategy);
-		top = max$3(rect.top, top);
-		right = min$3(rect.right, right);
-		bottom = min$3(rect.bottom, bottom);
-		left = max$3(rect.left, left);
+		top = max$2(rect.top, top);
+		right = min$2(rect.right, right);
+		bottom = min$2(rect.bottom, bottom);
+		left = max$2(rect.left, left);
 	}
 	return {
 		width: right - left,
@@ -23136,7 +26361,7 @@ function observeMove(element, onMove) {
 		const insetLeft = floor(left);
 		const options = {
 			rootMargin: -insetTop + "px " + -insetRight + "px " + -insetBottom + "px " + -insetLeft + "px",
-			threshold: max$3(0, min$3(1, threshold)) || 1
+			threshold: max$2(0, min$2(1, threshold)) || 1
 		};
 		let isFirstUpdate = true;
 		function handleObserve(entries) {
@@ -25662,7 +28887,7 @@ var hideOthers = function(originalTarget, parentNode, markerName) {
 var DIALOG_NAME = "Dialog";
 var [createDialogContext, createDialogScope] = createContextScope$1(DIALOG_NAME);
 var [DialogProvider, useDialogContext] = createDialogContext(DIALOG_NAME);
-var Dialog = (props) => {
+var Dialog$1 = (props) => {
 	const { __scopeDialog, children, open: openProp, defaultOpen, onOpenChange, modal = true } = props;
 	const triggerRef = import_react.useRef(null);
 	const contentRef = import_react.useRef(null);
@@ -25686,9 +28911,9 @@ var Dialog = (props) => {
 		children
 	});
 };
-Dialog.displayName = DIALOG_NAME;
+Dialog$1.displayName = DIALOG_NAME;
 var TRIGGER_NAME$5 = "DialogTrigger";
-var DialogTrigger = import_react.forwardRef((props, forwardedRef) => {
+var DialogTrigger$1 = import_react.forwardRef((props, forwardedRef) => {
 	const { __scopeDialog, ...triggerProps } = props;
 	const context = useDialogContext(TRIGGER_NAME$5, __scopeDialog);
 	const composedTriggerRef = useComposedRefs(forwardedRef, context.triggerRef);
@@ -25703,10 +28928,10 @@ var DialogTrigger = import_react.forwardRef((props, forwardedRef) => {
 		onClick: composeEventHandlers(props.onClick, context.onOpenToggle)
 	});
 });
-DialogTrigger.displayName = TRIGGER_NAME$5;
+DialogTrigger$1.displayName = TRIGGER_NAME$5;
 var PORTAL_NAME$4 = "DialogPortal";
 var [PortalProvider$2, usePortalContext$2] = createDialogContext(PORTAL_NAME$4, { forceMount: void 0 });
-var DialogPortal = (props) => {
+var DialogPortal$1 = (props) => {
 	const { __scopeDialog, forceMount, children, container } = props;
 	const context = useDialogContext(PORTAL_NAME$4, __scopeDialog);
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PortalProvider$2, {
@@ -25722,9 +28947,9 @@ var DialogPortal = (props) => {
 		}))
 	});
 };
-DialogPortal.displayName = PORTAL_NAME$4;
+DialogPortal$1.displayName = PORTAL_NAME$4;
 var OVERLAY_NAME = "DialogOverlay";
-var DialogOverlay = import_react.forwardRef((props, forwardedRef) => {
+var DialogOverlay$1 = import_react.forwardRef((props, forwardedRef) => {
 	const portalContext = usePortalContext$2(OVERLAY_NAME, props.__scopeDialog);
 	const { forceMount = portalContext.forceMount, ...overlayProps } = props;
 	const context = useDialogContext(OVERLAY_NAME, props.__scopeDialog);
@@ -25736,7 +28961,7 @@ var DialogOverlay = import_react.forwardRef((props, forwardedRef) => {
 		})
 	}) : null;
 });
-DialogOverlay.displayName = OVERLAY_NAME;
+DialogOverlay$1.displayName = OVERLAY_NAME;
 var Slot$3 = /* @__PURE__ */ createSlot$1("DialogOverlay.RemoveScroll");
 var DialogOverlayImpl = import_react.forwardRef((props, forwardedRef) => {
 	const { __scopeDialog, ...overlayProps } = props;
@@ -25757,7 +28982,7 @@ var DialogOverlayImpl = import_react.forwardRef((props, forwardedRef) => {
 	});
 });
 var CONTENT_NAME$5 = "DialogContent";
-var DialogContent = import_react.forwardRef((props, forwardedRef) => {
+var DialogContent$1 = import_react.forwardRef((props, forwardedRef) => {
 	const portalContext = usePortalContext$2(CONTENT_NAME$5, props.__scopeDialog);
 	const { forceMount = portalContext.forceMount, ...contentProps } = props;
 	const context = useDialogContext(CONTENT_NAME$5, props.__scopeDialog);
@@ -25772,7 +28997,7 @@ var DialogContent = import_react.forwardRef((props, forwardedRef) => {
 		})
 	});
 });
-DialogContent.displayName = CONTENT_NAME$5;
+DialogContent$1.displayName = CONTENT_NAME$5;
 var DialogContentModal = import_react.forwardRef((props, forwardedRef) => {
 	const context = useDialogContext(CONTENT_NAME$5, props.__scopeDialog);
 	const contentRef = import_react.useRef(null);
@@ -25856,7 +29081,7 @@ var DialogContentImpl = import_react.forwardRef((props, forwardedRef) => {
 	})] })] });
 });
 var TITLE_NAME = "DialogTitle";
-var DialogTitle = import_react.forwardRef((props, forwardedRef) => {
+var DialogTitle$1 = import_react.forwardRef((props, forwardedRef) => {
 	const { __scopeDialog, ...titleProps } = props;
 	const context = useDialogContext(TITLE_NAME, __scopeDialog);
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Primitive$1.h2, {
@@ -25865,9 +29090,9 @@ var DialogTitle = import_react.forwardRef((props, forwardedRef) => {
 		ref: forwardedRef
 	});
 });
-DialogTitle.displayName = TITLE_NAME;
+DialogTitle$1.displayName = TITLE_NAME;
 var DESCRIPTION_NAME = "DialogDescription";
-var DialogDescription = import_react.forwardRef((props, forwardedRef) => {
+var DialogDescription$1 = import_react.forwardRef((props, forwardedRef) => {
 	const { __scopeDialog, ...descriptionProps } = props;
 	const context = useDialogContext(DESCRIPTION_NAME, __scopeDialog);
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Primitive$1.p, {
@@ -25876,9 +29101,9 @@ var DialogDescription = import_react.forwardRef((props, forwardedRef) => {
 		ref: forwardedRef
 	});
 });
-DialogDescription.displayName = DESCRIPTION_NAME;
+DialogDescription$1.displayName = DESCRIPTION_NAME;
 var CLOSE_NAME$1 = "DialogClose";
-var DialogClose = import_react.forwardRef((props, forwardedRef) => {
+var DialogClose$1 = import_react.forwardRef((props, forwardedRef) => {
 	const { __scopeDialog, ...closeProps } = props;
 	const context = useDialogContext(CLOSE_NAME$1, __scopeDialog);
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Primitive$1.button, {
@@ -25888,7 +29113,7 @@ var DialogClose = import_react.forwardRef((props, forwardedRef) => {
 		onClick: composeEventHandlers(props.onClick, () => context.onOpenChange(false))
 	});
 });
-DialogClose.displayName = CLOSE_NAME$1;
+DialogClose$1.displayName = CLOSE_NAME$1;
 function getState$2(open) {
 	return open ? "open" : "closed";
 }
@@ -25927,13 +29152,14 @@ var DescriptionWarning = ({ contentRef, descriptionId }) => {
 	]);
 	return null;
 };
-var Root$5 = Dialog;
-var Portal$3 = DialogPortal;
-var Overlay = DialogOverlay;
-var Content$1 = DialogContent;
-var Title = DialogTitle;
-var Description = DialogDescription;
-var Close = DialogClose;
+var Root$5 = Dialog$1;
+var Trigger$4 = DialogTrigger$1;
+var Portal$3 = DialogPortal$1;
+var Overlay = DialogOverlay$1;
+var Content$1 = DialogContent$1;
+var Title = DialogTitle$1;
+var Description = DialogDescription$1;
+var Close = DialogClose$1;
 //#endregion
 //#region src/components/ui/sheet.tsx
 var Sheet = Root$5;
@@ -27067,6 +30293,12 @@ function Layout() {
 //#endregion
 //#region src/lib/mock-data.ts
 var initialData = {
+	heatmapConfig: {
+		lowColor: "#e0f2fe",
+		highColor: "#0369a1",
+		minThreshold: 0,
+		maxThreshold: 10
+	},
 	leads: [
 		{
 			id: "l1",
@@ -27077,6 +30309,7 @@ var initialData = {
 			document: "123.456.789-00",
 			address: "Rua das Flores, 123",
 			neighborhood: "Jardins",
+			state: "SP",
 			lastInteraction: (/* @__PURE__ */ new Date(Date.now() - 864e5)).toISOString(),
 			avatarSeed: 1,
 			phone: "(11) 98765-4321",
@@ -27092,6 +30325,7 @@ var initialData = {
 			company: "Corpo Forte Ltda",
 			address: "Av Paulista, 1000",
 			neighborhood: "Centro",
+			state: "SP",
 			lastInteraction: (/* @__PURE__ */ new Date(Date.now() - 1728e5)).toISOString(),
 			assignedKitId: "k2",
 			avatarSeed: 2,
@@ -27107,6 +30341,7 @@ var initialData = {
 			document: "987.654.321-11",
 			address: "Rua Augusta, 500",
 			neighborhood: "Pinheiros",
+			state: "RJ",
 			lastInteraction: (/* @__PURE__ */ new Date(Date.now() - 2592e5)).toISOString(),
 			assignedKitId: "k1",
 			avatarSeed: 3,
@@ -27123,6 +30358,7 @@ var initialData = {
 			company: "Vida Saudável",
 			address: "Centro, 45",
 			neighborhood: "Centro",
+			state: "MG",
 			tags: ["Revisitar 30 dias"],
 			lastInteraction: (/* @__PURE__ */ new Date(Date.now() - 3456e5)).toISOString(),
 			assignedKitId: "k3",
@@ -27139,12 +30375,27 @@ var initialData = {
 			document: "111.222.333-44",
 			address: "Bairro Novo, 99",
 			neighborhood: "Vila Mariana",
+			state: "SC",
 			tags: ["Revisitar 90 dias"],
 			lastInteraction: (/* @__PURE__ */ new Date(Date.now() - 432e6)).toISOString(),
 			assignedKitId: "k4",
 			avatarSeed: 5,
 			phone: "(31) 98888-7777",
 			email: "carlos.santos@exemplo.com"
+		},
+		{
+			id: "l6",
+			name: "Farmácia Saúde",
+			stage: "Visitado",
+			type: "B2B",
+			score: 4,
+			document: "33.444.555/0001-66",
+			company: "Farma Saúde",
+			address: "Rua Principal, 10",
+			neighborhood: "Centro",
+			state: "RS",
+			lastInteraction: (/* @__PURE__ */ new Date(Date.now() - 5e8)).toISOString(),
+			avatarSeed: 6
 		}
 	],
 	appointments: [
@@ -27167,6 +30418,20 @@ var initialData = {
 			leadId: "l4",
 			date: (/* @__PURE__ */ new Date(Date.now() - 864e5)).toISOString(),
 			vendor: "Ana Vendedora",
+			status: "Visited"
+		},
+		{
+			id: "a4",
+			leadId: "l6",
+			date: (/* @__PURE__ */ new Date(Date.now() - 15e7)).toISOString(),
+			vendor: "Ana Vendedora",
+			status: "Visited"
+		},
+		{
+			id: "a5",
+			leadId: "l2",
+			date: (/* @__PURE__ */ new Date(Date.now() - 2e8)).toISOString(),
+			vendor: "Marcos Sales",
 			status: "Visited"
 		}
 	],
@@ -27325,6 +30590,13 @@ function appReducer(state, action) {
 				})
 			};
 		}
+		case "UPDATE_HEATMAP_CONFIG": return {
+			...state,
+			heatmapConfig: {
+				...state.heatmapConfig,
+				...action.payload
+			}
+		};
 		default: return state;
 	}
 }
@@ -27392,33 +30664,33 @@ var CardFooter = import_react.forwardRef(({ className, ...props }, ref) => /* @_
 CardFooter.displayName = "CardFooter";
 //#endregion
 //#region src/pages/Dashboard/KpiCards.tsx
-function KpiCards() {
+function KpiCards({ dateRange }) {
 	const { state } = useMainStore();
 	const kpis = (0, import_react.useMemo)(() => {
-		const scheduled = state.appointments.filter((a) => a.status === "Scheduled").length;
-		const newLeads = state.leads.filter((l) => l.stage === "Prospect" || l.stage === "Lead").length;
-		const activeShipments = state.shipments.filter((s) => s.status === "Requested" || s.status === "In Transit").length;
+		const scheduled = state.appointments.filter((a) => a.status === "Scheduled" && isDateInRange(a.date, dateRange)).length;
+		const newLeads = state.leads.filter((l) => (l.stage === "Prospect" || l.stage === "Lead") && isDateInRange(l.lastInteraction, dateRange)).length;
+		const activeShipments = state.shipments.filter((s) => (s.status === "Requested" || s.status === "In Transit") && isDateInRange(s.date, dateRange)).length;
 		const lowStock = state.kits.filter((k) => k.stock <= k.threshold).length;
 		return [
 			{
 				title: "Visitas Agendadas",
 				value: scheduled,
 				icon: CalendarCheck,
-				trend: "+2 esta semana",
+				trend: "No período",
 				color: "text-primary"
 			},
 			{
 				title: "Novos Leads",
 				value: newLeads,
 				icon: Users,
-				trend: "+15% vs mês anterior",
+				trend: "No período",
 				color: "text-success"
 			},
 			{
 				title: "Kits em Trânsito",
 				value: activeShipments,
 				icon: Truck,
-				trend: "4 entregues hoje",
+				trend: "No período",
 				color: "text-blue-500"
 			},
 			{
@@ -27429,39 +30701,39 @@ function KpiCards() {
 				color: lowStock > 0 ? "text-destructive" : "text-muted-foreground"
 			}
 		];
-	}, [state]);
+	}, [state, dateRange]);
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-		"data-uid": "src/pages/Dashboard/KpiCards.tsx:50:5",
+		"data-uid": "src/pages/Dashboard/KpiCards.tsx:62:5",
 		"data-prohibitions": "[editContent]",
 		className: "grid gap-4 md:grid-cols-2 lg:grid-cols-4",
 		children: kpis.map((kpi, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
-			"data-uid": "src/pages/Dashboard/KpiCards.tsx:52:9",
+			"data-uid": "src/pages/Dashboard/KpiCards.tsx:64:9",
 			"data-prohibitions": "[editContent]",
 			className: "border-border/50 shadow-subtle hover:shadow-md transition-shadow",
 			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, {
-				"data-uid": "src/pages/Dashboard/KpiCards.tsx:53:11",
+				"data-uid": "src/pages/Dashboard/KpiCards.tsx:65:11",
 				"data-prohibitions": "[editContent]",
 				className: "flex flex-row items-center justify-between pb-2",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, {
-					"data-uid": "src/pages/Dashboard/KpiCards.tsx:54:13",
+					"data-uid": "src/pages/Dashboard/KpiCards.tsx:66:13",
 					"data-prohibitions": "[editContent]",
 					className: "text-sm font-medium text-muted-foreground",
 					children: kpi.title
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(kpi.icon, {
-					"data-uid": "src/pages/Dashboard/KpiCards.tsx:55:13",
+					"data-uid": "src/pages/Dashboard/KpiCards.tsx:67:13",
 					"data-prohibitions": "[editContent]",
 					className: `h-4 w-4 ${kpi.color}`
 				})]
 			}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardContent, {
-				"data-uid": "src/pages/Dashboard/KpiCards.tsx:57:11",
+				"data-uid": "src/pages/Dashboard/KpiCards.tsx:69:11",
 				"data-prohibitions": "[editContent]",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-					"data-uid": "src/pages/Dashboard/KpiCards.tsx:58:13",
+					"data-uid": "src/pages/Dashboard/KpiCards.tsx:70:13",
 					"data-prohibitions": "[editContent]",
 					className: "text-2xl font-bold",
 					children: kpi.value
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-					"data-uid": "src/pages/Dashboard/KpiCards.tsx:59:13",
+					"data-uid": "src/pages/Dashboard/KpiCards.tsx:71:13",
 					"data-prohibitions": "[editContent]",
 					className: "text-xs text-muted-foreground mt-1",
 					children: kpi.trend
@@ -27488,3154 +30760,6 @@ function Badge({ className, variant, ...props }) {
 		className: cn$1(badgeVariants({ variant }), className),
 		...props
 	});
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/constants.js
-/**
-* @constant
-* @name daysInYear
-* @summary Days in 1 year.
-*
-* @description
-* How many days in a year.
-*
-* One years equals 365.2425 days according to the formula:
-*
-* > Leap year occurs every 4 years, except for years that are divisible by 100 and not divisible by 400.
-* > 1 mean year = (365+1/4-1/100+1/400) days = 365.2425 days
-*/
-var daysInYear = 365.2425;
-Math.pow(10, 8) * 24 * 60 * 60 * 1e3;
-/**
-* @constant
-* @name millisecondsInWeek
-* @summary Milliseconds in 1 week.
-*/
-var millisecondsInWeek = 6048e5;
-/**
-* @constant
-* @name millisecondsInDay
-* @summary Milliseconds in 1 day.
-*/
-var millisecondsInDay = 864e5;
-/**
-* @constant
-* @name secondsInDay
-* @summary Seconds in 1 day.
-*/
-var secondsInDay = 3600 * 24;
-secondsInDay * 7;
-secondsInDay * daysInYear / 12 * 3;
-/**
-* @constant
-* @name constructFromSymbol
-* @summary Symbol enabling Date extensions to inherit properties from the reference date.
-*
-* The symbol is used to enable the `constructFrom` function to construct a date
-* using a reference date and a value. It allows to transfer extra properties
-* from the reference date to the new date. It's useful for extensions like
-* [`TZDate`](https://github.com/date-fns/tz) that accept a time zone as
-* a constructor argument.
-*/
-var constructFromSymbol$1 = Symbol.for("constructDateFrom");
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/constructFrom.js
-/**
-* @name constructFrom
-* @category Generic Helpers
-* @summary Constructs a date using the reference date and the value
-*
-* @description
-* The function constructs a new date using the constructor from the reference
-* date and the given value. It helps to build generic functions that accept
-* date extensions.
-*
-* It defaults to `Date` if the passed reference date is a number or a string.
-*
-* Starting from v3.7.0, it allows to construct a date using `[Symbol.for("constructDateFrom")]`
-* enabling to transfer extra properties from the reference date to the new date.
-* It's useful for extensions like [`TZDate`](https://github.com/date-fns/tz)
-* that accept a time zone as a constructor argument.
-*
-* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
-*
-* @param date - The reference date to take constructor from
-* @param value - The value to create the date
-*
-* @returns Date initialized using the given date and value
-*
-* @example
-* import { constructFrom } from "./constructFrom/date-fns";
-*
-* // A function that clones a date preserving the original type
-* function cloneDate<DateType extends Date>(date: DateType): DateType {
-*   return constructFrom(
-*     date, // Use constructor from the given date
-*     date.getTime() // Use the date value to create a new date
-*   );
-* }
-*/
-function constructFrom(date, value) {
-	if (typeof date === "function") return date(value);
-	if (date && typeof date === "object" && constructFromSymbol$1 in date) return date[constructFromSymbol$1](value);
-	if (date instanceof Date) return new date.constructor(value);
-	return new Date(value);
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/toDate.js
-/**
-* @name toDate
-* @category Common Helpers
-* @summary Convert the given argument to an instance of Date.
-*
-* @description
-* Convert the given argument to an instance of Date.
-*
-* If the argument is an instance of Date, the function returns its clone.
-*
-* If the argument is a number, it is treated as a timestamp.
-*
-* If the argument is none of the above, the function returns Invalid Date.
-*
-* Starting from v3.7.0, it clones a date using `[Symbol.for("constructDateFrom")]`
-* enabling to transfer extra properties from the reference date to the new date.
-* It's useful for extensions like [`TZDate`](https://github.com/date-fns/tz)
-* that accept a time zone as a constructor argument.
-*
-* **Note**: *all* Date arguments passed to any *date-fns* function is processed by `toDate`.
-*
-* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
-* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
-*
-* @param argument - The value to convert
-*
-* @returns The parsed date in the local time zone
-*
-* @example
-* // Clone the date:
-* const result = toDate(new Date(2014, 1, 11, 11, 30, 30))
-* //=> Tue Feb 11 2014 11:30:30
-*
-* @example
-* // Convert the timestamp to date:
-* const result = toDate(1392098430000)
-* //=> Tue Feb 11 2014 11:30:30
-*/
-function toDate(argument, context) {
-	return constructFrom(context || argument, argument);
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/addDays.js
-/**
-* The {@link addDays} function options.
-*/
-/**
-* @name addDays
-* @category Day Helpers
-* @summary Add the specified number of days to the given date.
-*
-* @description
-* Add the specified number of days to the given date.
-*
-* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
-* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
-*
-* @param date - The date to be changed
-* @param amount - The amount of days to be added.
-* @param options - An object with options
-*
-* @returns The new date with the days added
-*
-* @example
-* // Add 10 days to 1 September 2014:
-* const result = addDays(new Date(2014, 8, 1), 10)
-* //=> Thu Sep 11 2014 00:00:00
-*/
-function addDays(date, amount, options) {
-	const _date = toDate(date, options?.in);
-	if (isNaN(amount)) return constructFrom(options?.in || date, NaN);
-	if (!amount) return _date;
-	_date.setDate(_date.getDate() + amount);
-	return _date;
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/addMonths.js
-/**
-* The {@link addMonths} function options.
-*/
-/**
-* @name addMonths
-* @category Month Helpers
-* @summary Add the specified number of months to the given date.
-*
-* @description
-* Add the specified number of months to the given date.
-*
-* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
-* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
-*
-* @param date - The date to be changed
-* @param amount - The amount of months to be added.
-* @param options - The options object
-*
-* @returns The new date with the months added
-*
-* @example
-* // Add 5 months to 1 September 2014:
-* const result = addMonths(new Date(2014, 8, 1), 5)
-* //=> Sun Feb 01 2015 00:00:00
-*
-* // Add one month to 30 January 2023:
-* const result = addMonths(new Date(2023, 0, 30), 1)
-* //=> Tue Feb 28 2023 00:00:00
-*/
-function addMonths(date, amount, options) {
-	const _date = toDate(date, options?.in);
-	if (isNaN(amount)) return constructFrom(options?.in || date, NaN);
-	if (!amount) return _date;
-	const dayOfMonth = _date.getDate();
-	const endOfDesiredMonth = constructFrom(options?.in || date, _date.getTime());
-	endOfDesiredMonth.setMonth(_date.getMonth() + amount + 1, 0);
-	if (dayOfMonth >= endOfDesiredMonth.getDate()) return endOfDesiredMonth;
-	else {
-		_date.setFullYear(endOfDesiredMonth.getFullYear(), endOfDesiredMonth.getMonth(), dayOfMonth);
-		return _date;
-	}
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/_lib/defaultOptions.js
-var defaultOptions$1 = {};
-function getDefaultOptions() {
-	return defaultOptions$1;
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/startOfWeek.js
-/**
-* The {@link startOfWeek} function options.
-*/
-/**
-* @name startOfWeek
-* @category Week Helpers
-* @summary Return the start of a week for the given date.
-*
-* @description
-* Return the start of a week for the given date.
-* The result will be in the local timezone.
-*
-* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
-* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
-*
-* @param date - The original date
-* @param options - An object with options
-*
-* @returns The start of a week
-*
-* @example
-* // The start of a week for 2 September 2014 11:55:00:
-* const result = startOfWeek(new Date(2014, 8, 2, 11, 55, 0))
-* //=> Sun Aug 31 2014 00:00:00
-*
-* @example
-* // If the week starts on Monday, the start of the week for 2 September 2014 11:55:00:
-* const result = startOfWeek(new Date(2014, 8, 2, 11, 55, 0), { weekStartsOn: 1 })
-* //=> Mon Sep 01 2014 00:00:00
-*/
-function startOfWeek(date, options) {
-	const defaultOptions = getDefaultOptions();
-	const weekStartsOn = options?.weekStartsOn ?? options?.locale?.options?.weekStartsOn ?? defaultOptions.weekStartsOn ?? defaultOptions.locale?.options?.weekStartsOn ?? 0;
-	const _date = toDate(date, options?.in);
-	const day = _date.getDay();
-	const diff = (day < weekStartsOn ? 7 : 0) + day - weekStartsOn;
-	_date.setDate(_date.getDate() - diff);
-	_date.setHours(0, 0, 0, 0);
-	return _date;
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/startOfISOWeek.js
-/**
-* The {@link startOfISOWeek} function options.
-*/
-/**
-* @name startOfISOWeek
-* @category ISO Week Helpers
-* @summary Return the start of an ISO week for the given date.
-*
-* @description
-* Return the start of an ISO week for the given date.
-* The result will be in the local timezone.
-*
-* ISO week-numbering year: http://en.wikipedia.org/wiki/ISO_week_date
-*
-* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
-* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
-*
-* @param date - The original date
-* @param options - An object with options
-*
-* @returns The start of an ISO week
-*
-* @example
-* // The start of an ISO week for 2 September 2014 11:55:00:
-* const result = startOfISOWeek(new Date(2014, 8, 2, 11, 55, 0))
-* //=> Mon Sep 01 2014 00:00:00
-*/
-function startOfISOWeek(date, options) {
-	return startOfWeek(date, {
-		...options,
-		weekStartsOn: 1
-	});
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/getISOWeekYear.js
-/**
-* The {@link getISOWeekYear} function options.
-*/
-/**
-* @name getISOWeekYear
-* @category ISO Week-Numbering Year Helpers
-* @summary Get the ISO week-numbering year of the given date.
-*
-* @description
-* Get the ISO week-numbering year of the given date,
-* which always starts 3 days before the year's first Thursday.
-*
-* ISO week-numbering year: http://en.wikipedia.org/wiki/ISO_week_date
-*
-* @param date - The given date
-*
-* @returns The ISO week-numbering year
-*
-* @example
-* // Which ISO-week numbering year is 2 January 2005?
-* const result = getISOWeekYear(new Date(2005, 0, 2))
-* //=> 2004
-*/
-function getISOWeekYear(date, options) {
-	const _date = toDate(date, options?.in);
-	const year = _date.getFullYear();
-	const fourthOfJanuaryOfNextYear = constructFrom(_date, 0);
-	fourthOfJanuaryOfNextYear.setFullYear(year + 1, 0, 4);
-	fourthOfJanuaryOfNextYear.setHours(0, 0, 0, 0);
-	const startOfNextYear = startOfISOWeek(fourthOfJanuaryOfNextYear);
-	const fourthOfJanuaryOfThisYear = constructFrom(_date, 0);
-	fourthOfJanuaryOfThisYear.setFullYear(year, 0, 4);
-	fourthOfJanuaryOfThisYear.setHours(0, 0, 0, 0);
-	const startOfThisYear = startOfISOWeek(fourthOfJanuaryOfThisYear);
-	if (_date.getTime() >= startOfNextYear.getTime()) return year + 1;
-	else if (_date.getTime() >= startOfThisYear.getTime()) return year;
-	else return year - 1;
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/_lib/getTimezoneOffsetInMilliseconds.js
-/**
-* Google Chrome as of 67.0.3396.87 introduced timezones with offset that includes seconds.
-* They usually appear for dates that denote time before the timezones were introduced
-* (e.g. for 'Europe/Prague' timezone the offset is GMT+00:57:44 before 1 October 1891
-* and GMT+01:00:00 after that date)
-*
-* Date#getTimezoneOffset returns the offset in minutes and would return 57 for the example above,
-* which would lead to incorrect calculations.
-*
-* This function returns the timezone offset in milliseconds that takes seconds in account.
-*/
-function getTimezoneOffsetInMilliseconds(date) {
-	const _date = toDate(date);
-	const utcDate = new Date(Date.UTC(_date.getFullYear(), _date.getMonth(), _date.getDate(), _date.getHours(), _date.getMinutes(), _date.getSeconds(), _date.getMilliseconds()));
-	utcDate.setUTCFullYear(_date.getFullYear());
-	return +date - +utcDate;
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/_lib/normalizeDates.js
-function normalizeDates(context, ...dates) {
-	const normalize = constructFrom.bind(null, context || dates.find((date) => typeof date === "object"));
-	return dates.map(normalize);
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/startOfDay.js
-/**
-* The {@link startOfDay} function options.
-*/
-/**
-* @name startOfDay
-* @category Day Helpers
-* @summary Return the start of a day for the given date.
-*
-* @description
-* Return the start of a day for the given date.
-* The result will be in the local timezone.
-*
-* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
-* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
-*
-* @param date - The original date
-* @param options - The options
-*
-* @returns The start of a day
-*
-* @example
-* // The start of a day for 2 September 2014 11:55:00:
-* const result = startOfDay(new Date(2014, 8, 2, 11, 55, 0))
-* //=> Tue Sep 02 2014 00:00:00
-*/
-function startOfDay(date, options) {
-	const _date = toDate(date, options?.in);
-	_date.setHours(0, 0, 0, 0);
-	return _date;
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/differenceInCalendarDays.js
-/**
-* The {@link differenceInCalendarDays} function options.
-*/
-/**
-* @name differenceInCalendarDays
-* @category Day Helpers
-* @summary Get the number of calendar days between the given dates.
-*
-* @description
-* Get the number of calendar days between the given dates. This means that the times are removed
-* from the dates and then the difference in days is calculated.
-*
-* @param laterDate - The later date
-* @param earlierDate - The earlier date
-* @param options - The options object
-*
-* @returns The number of calendar days
-*
-* @example
-* // How many calendar days are between
-* // 2 July 2011 23:00:00 and 2 July 2012 00:00:00?
-* const result = differenceInCalendarDays(
-*   new Date(2012, 6, 2, 0, 0),
-*   new Date(2011, 6, 2, 23, 0)
-* )
-* //=> 366
-* // How many calendar days are between
-* // 2 July 2011 23:59:00 and 3 July 2011 00:01:00?
-* const result = differenceInCalendarDays(
-*   new Date(2011, 6, 3, 0, 1),
-*   new Date(2011, 6, 2, 23, 59)
-* )
-* //=> 1
-*/
-function differenceInCalendarDays(laterDate, earlierDate, options) {
-	const [laterDate_, earlierDate_] = normalizeDates(options?.in, laterDate, earlierDate);
-	const laterStartOfDay = startOfDay(laterDate_);
-	const earlierStartOfDay = startOfDay(earlierDate_);
-	const laterTimestamp = +laterStartOfDay - getTimezoneOffsetInMilliseconds(laterStartOfDay);
-	const earlierTimestamp = +earlierStartOfDay - getTimezoneOffsetInMilliseconds(earlierStartOfDay);
-	return Math.round((laterTimestamp - earlierTimestamp) / millisecondsInDay);
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/startOfISOWeekYear.js
-/**
-* The {@link startOfISOWeekYear} function options.
-*/
-/**
-* @name startOfISOWeekYear
-* @category ISO Week-Numbering Year Helpers
-* @summary Return the start of an ISO week-numbering year for the given date.
-*
-* @description
-* Return the start of an ISO week-numbering year,
-* which always starts 3 days before the year's first Thursday.
-* The result will be in the local timezone.
-*
-* ISO week-numbering year: http://en.wikipedia.org/wiki/ISO_week_date
-*
-* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
-* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
-*
-* @param date - The original date
-* @param options - An object with options
-*
-* @returns The start of an ISO week-numbering year
-*
-* @example
-* // The start of an ISO week-numbering year for 2 July 2005:
-* const result = startOfISOWeekYear(new Date(2005, 6, 2))
-* //=> Mon Jan 03 2005 00:00:00
-*/
-function startOfISOWeekYear(date, options) {
-	const year = getISOWeekYear(date, options);
-	const fourthOfJanuary = constructFrom(options?.in || date, 0);
-	fourthOfJanuary.setFullYear(year, 0, 4);
-	fourthOfJanuary.setHours(0, 0, 0, 0);
-	return startOfISOWeek(fourthOfJanuary);
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/addWeeks.js
-/**
-* The {@link addWeeks} function options.
-*/
-/**
-* @name addWeeks
-* @category Week Helpers
-* @summary Add the specified number of weeks to the given date.
-*
-* @description
-* Add the specified number of weeks to the given date.
-*
-* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
-* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
-*
-* @param date - The date to be changed
-* @param amount - The amount of weeks to be added.
-* @param options - An object with options
-*
-* @returns The new date with the weeks added
-*
-* @example
-* // Add 4 weeks to 1 September 2014:
-* const result = addWeeks(new Date(2014, 8, 1), 4)
-* //=> Mon Sep 29 2014 00:00:00
-*/
-function addWeeks(date, amount, options) {
-	return addDays(date, amount * 7, options);
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/addYears.js
-/**
-* The {@link addYears} function options.
-*/
-/**
-* @name addYears
-* @category Year Helpers
-* @summary Add the specified number of years to the given date.
-*
-* @description
-* Add the specified number of years to the given date.
-*
-* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
-* @typeParam ResultDate - The result `Date` type.
-*
-* @param date - The date to be changed
-* @param amount - The amount of years to be added.
-* @param options - The options
-*
-* @returns The new date with the years added
-*
-* @example
-* // Add 5 years to 1 September 2014:
-* const result = addYears(new Date(2014, 8, 1), 5)
-* //=> Sun Sep 01 2019 00:00:00
-*/
-function addYears(date, amount, options) {
-	return addMonths(date, amount * 12, options);
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/max.js
-/**
-* The {@link max} function options.
-*/
-/**
-* @name max
-* @category Common Helpers
-* @summary Return the latest of the given dates.
-*
-* @description
-* Return the latest of the given dates.
-*
-* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
-* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
-*
-* @param dates - The dates to compare
-*
-* @returns The latest of the dates
-*
-* @example
-* // Which of these dates is the latest?
-* const result = max([
-*   new Date(1989, 6, 10),
-*   new Date(1987, 1, 11),
-*   new Date(1995, 6, 2),
-*   new Date(1990, 0, 1)
-* ])
-* //=> Sun Jul 02 1995 00:00:00
-*/
-function max$2(dates, options) {
-	let result;
-	let context = options?.in;
-	dates.forEach((date) => {
-		if (!context && typeof date === "object") context = constructFrom.bind(null, date);
-		const date_ = toDate(date, context);
-		if (!result || result < date_ || isNaN(+date_)) result = date_;
-	});
-	return constructFrom(context, result || NaN);
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/min.js
-/**
-* The {@link min} function options.
-*/
-/**
-* @name min
-* @category Common Helpers
-* @summary Returns the earliest of the given dates.
-*
-* @description
-* Returns the earliest of the given dates.
-*
-* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
-* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
-*
-* @param dates - The dates to compare
-*
-* @returns The earliest of the dates
-*
-* @example
-* // Which of these dates is the earliest?
-* const result = min([
-*   new Date(1989, 6, 10),
-*   new Date(1987, 1, 11),
-*   new Date(1995, 6, 2),
-*   new Date(1990, 0, 1)
-* ])
-* //=> Wed Feb 11 1987 00:00:00
-*/
-function min$2(dates, options) {
-	let result;
-	let context = options?.in;
-	dates.forEach((date) => {
-		if (!context && typeof date === "object") context = constructFrom.bind(null, date);
-		const date_ = toDate(date, context);
-		if (!result || result > date_ || isNaN(+date_)) result = date_;
-	});
-	return constructFrom(context, result || NaN);
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/constructNow.js
-/**
-* @name constructNow
-* @category Generic Helpers
-* @summary Constructs a new current date using the passed value constructor.
-* @pure false
-*
-* @description
-* The function constructs a new current date using the constructor from
-* the reference date. It helps to build generic functions that accept date
-* extensions and use the current date.
-*
-* It defaults to `Date` if the passed reference date is a number or a string.
-*
-* @param date - The reference date to take constructor from
-*
-* @returns Current date initialized using the given date constructor
-*
-* @example
-* import { constructNow, isSameDay } from 'date-fns'
-*
-* function isToday<DateType extends Date>(
-*   date: DateArg<DateType>,
-* ): boolean {
-*   // If we were to use `new Date()` directly, the function would  behave
-*   // differently in different timezones and return false for the same date.
-*   return isSameDay(date, constructNow(date));
-* }
-*/
-function constructNow(date) {
-	return constructFrom(date, Date.now());
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/isSameDay.js
-/**
-* The {@link isSameDay} function options.
-*/
-/**
-* @name isSameDay
-* @category Day Helpers
-* @summary Are the given dates in the same day (and year and month)?
-*
-* @description
-* Are the given dates in the same day (and year and month)?
-*
-* @param laterDate - The first date to check
-* @param earlierDate - The second date to check
-* @param options - An object with options
-*
-* @returns The dates are in the same day (and year and month)
-*
-* @example
-* // Are 4 September 06:00:00 and 4 September 18:00:00 in the same day?
-* const result = isSameDay(new Date(2014, 8, 4, 6, 0), new Date(2014, 8, 4, 18, 0))
-* //=> true
-*
-* @example
-* // Are 4 September and 4 October in the same day?
-* const result = isSameDay(new Date(2014, 8, 4), new Date(2014, 9, 4))
-* //=> false
-*
-* @example
-* // Are 4 September, 2014 and 4 September, 2015 in the same day?
-* const result = isSameDay(new Date(2014, 8, 4), new Date(2015, 8, 4))
-* //=> false
-*/
-function isSameDay(laterDate, earlierDate, options) {
-	const [dateLeft_, dateRight_] = normalizeDates(options?.in, laterDate, earlierDate);
-	return +startOfDay(dateLeft_) === +startOfDay(dateRight_);
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/isDate.js
-/**
-* @name isDate
-* @category Common Helpers
-* @summary Is the given value a date?
-*
-* @description
-* Returns true if the given value is an instance of Date. The function works for dates transferred across iframes.
-*
-* @param value - The value to check
-*
-* @returns True if the given value is a date
-*
-* @example
-* // For a valid date:
-* const result = isDate(new Date())
-* //=> true
-*
-* @example
-* // For an invalid date:
-* const result = isDate(new Date(NaN))
-* //=> true
-*
-* @example
-* // For some value:
-* const result = isDate('2014-02-31')
-* //=> false
-*
-* @example
-* // For an object:
-* const result = isDate({})
-* //=> false
-*/
-function isDate(value) {
-	return value instanceof Date || typeof value === "object" && Object.prototype.toString.call(value) === "[object Date]";
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/isValid.js
-/**
-* @name isValid
-* @category Common Helpers
-* @summary Is the given date valid?
-*
-* @description
-* Returns false if argument is Invalid Date and true otherwise.
-* Argument is converted to Date using `toDate`. See [toDate](https://date-fns.org/docs/toDate)
-* Invalid Date is a Date, whose time value is NaN.
-*
-* Time value of Date: http://es5.github.io/#x15.9.1.1
-*
-* @param date - The date to check
-*
-* @returns The date is valid
-*
-* @example
-* // For the valid date:
-* const result = isValid(new Date(2014, 1, 31))
-* //=> true
-*
-* @example
-* // For the value, convertible into a date:
-* const result = isValid(1393804800000)
-* //=> true
-*
-* @example
-* // For the invalid date:
-* const result = isValid(new Date(''))
-* //=> false
-*/
-function isValid(date) {
-	return !(!isDate(date) && typeof date !== "number" || isNaN(+toDate(date)));
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/differenceInCalendarMonths.js
-/**
-* The {@link differenceInCalendarMonths} function options.
-*/
-/**
-* @name differenceInCalendarMonths
-* @category Month Helpers
-* @summary Get the number of calendar months between the given dates.
-*
-* @description
-* Get the number of calendar months between the given dates.
-*
-* @param laterDate - The later date
-* @param earlierDate - The earlier date
-* @param options - An object with options
-*
-* @returns The number of calendar months
-*
-* @example
-* // How many calendar months are between 31 January 2014 and 1 September 2014?
-* const result = differenceInCalendarMonths(
-*   new Date(2014, 8, 1),
-*   new Date(2014, 0, 31)
-* )
-* //=> 8
-*/
-function differenceInCalendarMonths(laterDate, earlierDate, options) {
-	const [laterDate_, earlierDate_] = normalizeDates(options?.in, laterDate, earlierDate);
-	const yearsDiff = laterDate_.getFullYear() - earlierDate_.getFullYear();
-	const monthsDiff = laterDate_.getMonth() - earlierDate_.getMonth();
-	return yearsDiff * 12 + monthsDiff;
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/endOfMonth.js
-/**
-* The {@link endOfMonth} function options.
-*/
-/**
-* @name endOfMonth
-* @category Month Helpers
-* @summary Return the end of a month for the given date.
-*
-* @description
-* Return the end of a month for the given date.
-* The result will be in the local timezone.
-*
-* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
-* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
-*
-* @param date - The original date
-* @param options - An object with options
-*
-* @returns The end of a month
-*
-* @example
-* // The end of a month for 2 September 2014 11:55:00:
-* const result = endOfMonth(new Date(2014, 8, 2, 11, 55, 0))
-* //=> Tue Sep 30 2014 23:59:59.999
-*/
-function endOfMonth(date, options) {
-	const _date = toDate(date, options?.in);
-	const month = _date.getMonth();
-	_date.setFullYear(_date.getFullYear(), month + 1, 0);
-	_date.setHours(23, 59, 59, 999);
-	return _date;
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/_lib/normalizeInterval.js
-function normalizeInterval(context, interval) {
-	const [start, end] = normalizeDates(context, interval.start, interval.end);
-	return {
-		start,
-		end
-	};
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/eachMonthOfInterval.js
-/**
-* The {@link eachMonthOfInterval} function options.
-*/
-/**
-* The {@link eachMonthOfInterval} function result type. It resolves the proper data type.
-*/
-/**
-* @name eachMonthOfInterval
-* @category Interval Helpers
-* @summary Return the array of months within the specified time interval.
-*
-* @description
-* Return the array of months within the specified time interval.
-*
-* @typeParam IntervalType - Interval type.
-* @typeParam Options - Options type.
-*
-* @param interval - The interval.
-* @param options - An object with options.
-*
-* @returns The array with starts of months from the month of the interval start to the month of the interval end
-*
-* @example
-* // Each month between 6 February 2014 and 10 August 2014:
-* const result = eachMonthOfInterval({
-*   start: new Date(2014, 1, 6),
-*   end: new Date(2014, 7, 10)
-* })
-* //=> [
-* //   Sat Feb 01 2014 00:00:00,
-* //   Sat Mar 01 2014 00:00:00,
-* //   Tue Apr 01 2014 00:00:00,
-* //   Thu May 01 2014 00:00:00,
-* //   Sun Jun 01 2014 00:00:00,
-* //   Tue Jul 01 2014 00:00:00,
-* //   Fri Aug 01 2014 00:00:00
-* // ]
-*/
-function eachMonthOfInterval(interval, options) {
-	const { start, end } = normalizeInterval(options?.in, interval);
-	let reversed = +start > +end;
-	const endTime = reversed ? +start : +end;
-	const date = reversed ? end : start;
-	date.setHours(0, 0, 0, 0);
-	date.setDate(1);
-	let step = options?.step ?? 1;
-	if (!step) return [];
-	if (step < 0) {
-		step = -step;
-		reversed = !reversed;
-	}
-	const dates = [];
-	while (+date <= endTime) {
-		dates.push(constructFrom(start, date));
-		date.setMonth(date.getMonth() + step);
-	}
-	return reversed ? dates.reverse() : dates;
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/startOfMonth.js
-/**
-* The {@link startOfMonth} function options.
-*/
-/**
-* @name startOfMonth
-* @category Month Helpers
-* @summary Return the start of a month for the given date.
-*
-* @description
-* Return the start of a month for the given date. The result will be in the local timezone.
-*
-* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments.
-* Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
-* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed,
-* or inferred from the arguments.
-*
-* @param date - The original date
-* @param options - An object with options
-*
-* @returns The start of a month
-*
-* @example
-* // The start of a month for 2 September 2014 11:55:00:
-* const result = startOfMonth(new Date(2014, 8, 2, 11, 55, 0))
-* //=> Mon Sep 01 2014 00:00:00
-*/
-function startOfMonth(date, options) {
-	const _date = toDate(date, options?.in);
-	_date.setDate(1);
-	_date.setHours(0, 0, 0, 0);
-	return _date;
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/endOfYear.js
-/**
-* The {@link endOfYear} function options.
-*/
-/**
-* @name endOfYear
-* @category Year Helpers
-* @summary Return the end of a year for the given date.
-*
-* @description
-* Return the end of a year for the given date.
-* The result will be in the local timezone.
-*
-* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
-* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
-*
-* @param date - The original date
-* @param options - The options
-*
-* @returns The end of a year
-*
-* @example
-* // The end of a year for 2 September 2014 11:55:00:
-* const result = endOfYear(new Date(2014, 8, 2, 11, 55, 0))
-* //=> Wed Dec 31 2014 23:59:59.999
-*/
-function endOfYear(date, options) {
-	const _date = toDate(date, options?.in);
-	const year = _date.getFullYear();
-	_date.setFullYear(year + 1, 0, 0);
-	_date.setHours(23, 59, 59, 999);
-	return _date;
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/startOfYear.js
-/**
-* The {@link startOfYear} function options.
-*/
-/**
-* @name startOfYear
-* @category Year Helpers
-* @summary Return the start of a year for the given date.
-*
-* @description
-* Return the start of a year for the given date.
-* The result will be in the local timezone.
-*
-* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
-* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
-*
-* @param date - The original date
-* @param options - The options
-*
-* @returns The start of a year
-*
-* @example
-* // The start of a year for 2 September 2014 11:55:00:
-* const result = startOfYear(new Date(2014, 8, 2, 11, 55, 00))
-* //=> Wed Jan 01 2014 00:00:00
-*/
-function startOfYear(date, options) {
-	const date_ = toDate(date, options?.in);
-	date_.setFullYear(date_.getFullYear(), 0, 1);
-	date_.setHours(0, 0, 0, 0);
-	return date_;
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/eachYearOfInterval.js
-/**
-* The {@link eachYearOfInterval} function options.
-*/
-/**
-* The {@link eachYearOfInterval} function result type. It resolves the proper data type.
-* It uses the first argument date object type, starting from the date argument,
-* then the start interval date, and finally the end interval date. If
-* a context function is passed, it uses the context function return type.
-*/
-/**
-* @name eachYearOfInterval
-* @category Interval Helpers
-* @summary Return the array of yearly timestamps within the specified time interval.
-*
-* @description
-* Return the array of yearly timestamps within the specified time interval.
-*
-* @typeParam IntervalType - Interval type.
-* @typeParam Options - Options type.
-*
-* @param interval - The interval.
-* @param options - An object with options.
-*
-* @returns The array with starts of yearly timestamps from the month of the interval start to the month of the interval end
-*
-* @example
-* // Each year between 6 February 2014 and 10 August 2017:
-* const result = eachYearOfInterval({
-*   start: new Date(2014, 1, 6),
-*   end: new Date(2017, 7, 10)
-* })
-* //=> [
-* //   Wed Jan 01 2014 00:00:00,
-* //   Thu Jan 01 2015 00:00:00,
-* //   Fri Jan 01 2016 00:00:00,
-* //   Sun Jan 01 2017 00:00:00
-* // ]
-*/
-function eachYearOfInterval(interval, options) {
-	const { start, end } = normalizeInterval(options?.in, interval);
-	let reversed = +start > +end;
-	const endTime = reversed ? +start : +end;
-	const date = reversed ? end : start;
-	date.setHours(0, 0, 0, 0);
-	date.setMonth(0, 1);
-	let step = options?.step ?? 1;
-	if (!step) return [];
-	if (step < 0) {
-		step = -step;
-		reversed = !reversed;
-	}
-	const dates = [];
-	while (+date <= endTime) {
-		dates.push(constructFrom(start, date));
-		date.setFullYear(date.getFullYear() + step);
-	}
-	return reversed ? dates.reverse() : dates;
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/endOfWeek.js
-/**
-* The {@link endOfWeek} function options.
-*/
-/**
-* @name endOfWeek
-* @category Week Helpers
-* @summary Return the end of a week for the given date.
-*
-* @description
-* Return the end of a week for the given date.
-* The result will be in the local timezone.
-*
-* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
-* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
-*
-* @param date - The original date
-* @param options - An object with options
-*
-* @returns The end of a week
-*
-* @example
-* // The end of a week for 2 September 2014 11:55:00:
-* const result = endOfWeek(new Date(2014, 8, 2, 11, 55, 0))
-* //=> Sat Sep 06 2014 23:59:59.999
-*
-* @example
-* // If the week starts on Monday, the end of the week for 2 September 2014 11:55:00:
-* const result = endOfWeek(new Date(2014, 8, 2, 11, 55, 0), { weekStartsOn: 1 })
-* //=> Sun Sep 07 2014 23:59:59.999
-*/
-function endOfWeek(date, options) {
-	const defaultOptions = getDefaultOptions();
-	const weekStartsOn = options?.weekStartsOn ?? options?.locale?.options?.weekStartsOn ?? defaultOptions.weekStartsOn ?? defaultOptions.locale?.options?.weekStartsOn ?? 0;
-	const _date = toDate(date, options?.in);
-	const day = _date.getDay();
-	const diff = (day < weekStartsOn ? -7 : 0) + 6 - (day - weekStartsOn);
-	_date.setDate(_date.getDate() + diff);
-	_date.setHours(23, 59, 59, 999);
-	return _date;
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/endOfISOWeek.js
-/**
-* The {@link endOfISOWeek} function options.
-*/
-/**
-* @name endOfISOWeek
-* @category ISO Week Helpers
-* @summary Return the end of an ISO week for the given date.
-*
-* @description
-* Return the end of an ISO week for the given date.
-* The result will be in the local timezone.
-*
-* ISO week-numbering year: http://en.wikipedia.org/wiki/ISO_week_date
-*
-* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
-* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
-*
-* @param date - The original date
-* @param options - An object with options
-*
-* @returns The end of an ISO week
-*
-* @example
-* // The end of an ISO week for 2 September 2014 11:55:00:
-* const result = endOfISOWeek(new Date(2014, 8, 2, 11, 55, 0))
-* //=> Sun Sep 07 2014 23:59:59.999
-*/
-function endOfISOWeek(date, options) {
-	return endOfWeek(date, {
-		...options,
-		weekStartsOn: 1
-	});
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/locale/en-US/_lib/formatDistance.js
-var formatDistanceLocale$1 = {
-	lessThanXSeconds: {
-		one: "less than a second",
-		other: "less than {{count}} seconds"
-	},
-	xSeconds: {
-		one: "1 second",
-		other: "{{count}} seconds"
-	},
-	halfAMinute: "half a minute",
-	lessThanXMinutes: {
-		one: "less than a minute",
-		other: "less than {{count}} minutes"
-	},
-	xMinutes: {
-		one: "1 minute",
-		other: "{{count}} minutes"
-	},
-	aboutXHours: {
-		one: "about 1 hour",
-		other: "about {{count}} hours"
-	},
-	xHours: {
-		one: "1 hour",
-		other: "{{count}} hours"
-	},
-	xDays: {
-		one: "1 day",
-		other: "{{count}} days"
-	},
-	aboutXWeeks: {
-		one: "about 1 week",
-		other: "about {{count}} weeks"
-	},
-	xWeeks: {
-		one: "1 week",
-		other: "{{count}} weeks"
-	},
-	aboutXMonths: {
-		one: "about 1 month",
-		other: "about {{count}} months"
-	},
-	xMonths: {
-		one: "1 month",
-		other: "{{count}} months"
-	},
-	aboutXYears: {
-		one: "about 1 year",
-		other: "about {{count}} years"
-	},
-	xYears: {
-		one: "1 year",
-		other: "{{count}} years"
-	},
-	overXYears: {
-		one: "over 1 year",
-		other: "over {{count}} years"
-	},
-	almostXYears: {
-		one: "almost 1 year",
-		other: "almost {{count}} years"
-	}
-};
-var formatDistance$1 = (token, count, options) => {
-	let result;
-	const tokenValue = formatDistanceLocale$1[token];
-	if (typeof tokenValue === "string") result = tokenValue;
-	else if (count === 1) result = tokenValue.one;
-	else result = tokenValue.other.replace("{{count}}", count.toString());
-	if (options?.addSuffix) if (options.comparison && options.comparison > 0) return "in " + result;
-	else return result + " ago";
-	return result;
-};
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/locale/_lib/buildFormatLongFn.js
-function buildFormatLongFn(args) {
-	return (options = {}) => {
-		const width = options.width ? String(options.width) : args.defaultWidth;
-		return args.formats[width] || args.formats[args.defaultWidth];
-	};
-}
-var formatLong$1 = {
-	date: buildFormatLongFn({
-		formats: {
-			full: "EEEE, MMMM do, y",
-			long: "MMMM do, y",
-			medium: "MMM d, y",
-			short: "MM/dd/yyyy"
-		},
-		defaultWidth: "full"
-	}),
-	time: buildFormatLongFn({
-		formats: {
-			full: "h:mm:ss a zzzz",
-			long: "h:mm:ss a z",
-			medium: "h:mm:ss a",
-			short: "h:mm a"
-		},
-		defaultWidth: "full"
-	}),
-	dateTime: buildFormatLongFn({
-		formats: {
-			full: "{{date}} 'at' {{time}}",
-			long: "{{date}} 'at' {{time}}",
-			medium: "{{date}}, {{time}}",
-			short: "{{date}}, {{time}}"
-		},
-		defaultWidth: "full"
-	})
-};
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/locale/en-US/_lib/formatRelative.js
-var formatRelativeLocale$1 = {
-	lastWeek: "'last' eeee 'at' p",
-	yesterday: "'yesterday at' p",
-	today: "'today at' p",
-	tomorrow: "'tomorrow at' p",
-	nextWeek: "eeee 'at' p",
-	other: "P"
-};
-var formatRelative$1 = (token, _date, _baseDate, _options) => formatRelativeLocale$1[token];
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/locale/_lib/buildLocalizeFn.js
-/**
-* The localize function argument callback which allows to convert raw value to
-* the actual type.
-*
-* @param value - The value to convert
-*
-* @returns The converted value
-*/
-/**
-* The map of localized values for each width.
-*/
-/**
-* The index type of the locale unit value. It types conversion of units of
-* values that don't start at 0 (i.e. quarters).
-*/
-/**
-* Converts the unit value to the tuple of values.
-*/
-/**
-* The tuple of localized era values. The first element represents BC,
-* the second element represents AD.
-*/
-/**
-* The tuple of localized quarter values. The first element represents Q1.
-*/
-/**
-* The tuple of localized day values. The first element represents Sunday.
-*/
-/**
-* The tuple of localized month values. The first element represents January.
-*/
-function buildLocalizeFn(args) {
-	return (value, options) => {
-		const context = options?.context ? String(options.context) : "standalone";
-		let valuesArray;
-		if (context === "formatting" && args.formattingValues) {
-			const defaultWidth = args.defaultFormattingWidth || args.defaultWidth;
-			const width = options?.width ? String(options.width) : defaultWidth;
-			valuesArray = args.formattingValues[width] || args.formattingValues[defaultWidth];
-		} else {
-			const defaultWidth = args.defaultWidth;
-			const width = options?.width ? String(options.width) : args.defaultWidth;
-			valuesArray = args.values[width] || args.values[defaultWidth];
-		}
-		const index = args.argumentCallback ? args.argumentCallback(value) : value;
-		return valuesArray[index];
-	};
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/locale/en-US/_lib/localize.js
-var eraValues$1 = {
-	narrow: ["B", "A"],
-	abbreviated: ["BC", "AD"],
-	wide: ["Before Christ", "Anno Domini"]
-};
-var quarterValues$1 = {
-	narrow: [
-		"1",
-		"2",
-		"3",
-		"4"
-	],
-	abbreviated: [
-		"Q1",
-		"Q2",
-		"Q3",
-		"Q4"
-	],
-	wide: [
-		"1st quarter",
-		"2nd quarter",
-		"3rd quarter",
-		"4th quarter"
-	]
-};
-var monthValues$1 = {
-	narrow: [
-		"J",
-		"F",
-		"M",
-		"A",
-		"M",
-		"J",
-		"J",
-		"A",
-		"S",
-		"O",
-		"N",
-		"D"
-	],
-	abbreviated: [
-		"Jan",
-		"Feb",
-		"Mar",
-		"Apr",
-		"May",
-		"Jun",
-		"Jul",
-		"Aug",
-		"Sep",
-		"Oct",
-		"Nov",
-		"Dec"
-	],
-	wide: [
-		"January",
-		"February",
-		"March",
-		"April",
-		"May",
-		"June",
-		"July",
-		"August",
-		"September",
-		"October",
-		"November",
-		"December"
-	]
-};
-var dayValues$1 = {
-	narrow: [
-		"S",
-		"M",
-		"T",
-		"W",
-		"T",
-		"F",
-		"S"
-	],
-	short: [
-		"Su",
-		"Mo",
-		"Tu",
-		"We",
-		"Th",
-		"Fr",
-		"Sa"
-	],
-	abbreviated: [
-		"Sun",
-		"Mon",
-		"Tue",
-		"Wed",
-		"Thu",
-		"Fri",
-		"Sat"
-	],
-	wide: [
-		"Sunday",
-		"Monday",
-		"Tuesday",
-		"Wednesday",
-		"Thursday",
-		"Friday",
-		"Saturday"
-	]
-};
-var dayPeriodValues$1 = {
-	narrow: {
-		am: "a",
-		pm: "p",
-		midnight: "mi",
-		noon: "n",
-		morning: "morning",
-		afternoon: "afternoon",
-		evening: "evening",
-		night: "night"
-	},
-	abbreviated: {
-		am: "AM",
-		pm: "PM",
-		midnight: "midnight",
-		noon: "noon",
-		morning: "morning",
-		afternoon: "afternoon",
-		evening: "evening",
-		night: "night"
-	},
-	wide: {
-		am: "a.m.",
-		pm: "p.m.",
-		midnight: "midnight",
-		noon: "noon",
-		morning: "morning",
-		afternoon: "afternoon",
-		evening: "evening",
-		night: "night"
-	}
-};
-var formattingDayPeriodValues$1 = {
-	narrow: {
-		am: "a",
-		pm: "p",
-		midnight: "mi",
-		noon: "n",
-		morning: "in the morning",
-		afternoon: "in the afternoon",
-		evening: "in the evening",
-		night: "at night"
-	},
-	abbreviated: {
-		am: "AM",
-		pm: "PM",
-		midnight: "midnight",
-		noon: "noon",
-		morning: "in the morning",
-		afternoon: "in the afternoon",
-		evening: "in the evening",
-		night: "at night"
-	},
-	wide: {
-		am: "a.m.",
-		pm: "p.m.",
-		midnight: "midnight",
-		noon: "noon",
-		morning: "in the morning",
-		afternoon: "in the afternoon",
-		evening: "in the evening",
-		night: "at night"
-	}
-};
-var ordinalNumber$1 = (dirtyNumber, _options) => {
-	const number = Number(dirtyNumber);
-	const rem100 = number % 100;
-	if (rem100 > 20 || rem100 < 10) switch (rem100 % 10) {
-		case 1: return number + "st";
-		case 2: return number + "nd";
-		case 3: return number + "rd";
-	}
-	return number + "th";
-};
-var localize$1 = {
-	ordinalNumber: ordinalNumber$1,
-	era: buildLocalizeFn({
-		values: eraValues$1,
-		defaultWidth: "wide"
-	}),
-	quarter: buildLocalizeFn({
-		values: quarterValues$1,
-		defaultWidth: "wide",
-		argumentCallback: (quarter) => quarter - 1
-	}),
-	month: buildLocalizeFn({
-		values: monthValues$1,
-		defaultWidth: "wide"
-	}),
-	day: buildLocalizeFn({
-		values: dayValues$1,
-		defaultWidth: "wide"
-	}),
-	dayPeriod: buildLocalizeFn({
-		values: dayPeriodValues$1,
-		defaultWidth: "wide",
-		formattingValues: formattingDayPeriodValues$1,
-		defaultFormattingWidth: "wide"
-	})
-};
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/locale/_lib/buildMatchFn.js
-function buildMatchFn(args) {
-	return (string, options = {}) => {
-		const width = options.width;
-		const matchPattern = width && args.matchPatterns[width] || args.matchPatterns[args.defaultMatchWidth];
-		const matchResult = string.match(matchPattern);
-		if (!matchResult) return null;
-		const matchedString = matchResult[0];
-		const parsePatterns = width && args.parsePatterns[width] || args.parsePatterns[args.defaultParseWidth];
-		const key = Array.isArray(parsePatterns) ? findIndex(parsePatterns, (pattern) => pattern.test(matchedString)) : findKey(parsePatterns, (pattern) => pattern.test(matchedString));
-		let value;
-		value = args.valueCallback ? args.valueCallback(key) : key;
-		value = options.valueCallback ? options.valueCallback(value) : value;
-		const rest = string.slice(matchedString.length);
-		return {
-			value,
-			rest
-		};
-	};
-}
-function findKey(object, predicate) {
-	for (const key in object) if (Object.prototype.hasOwnProperty.call(object, key) && predicate(object[key])) return key;
-}
-function findIndex(array, predicate) {
-	for (let key = 0; key < array.length; key++) if (predicate(array[key])) return key;
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/locale/_lib/buildMatchPatternFn.js
-function buildMatchPatternFn(args) {
-	return (string, options = {}) => {
-		const matchResult = string.match(args.matchPattern);
-		if (!matchResult) return null;
-		const matchedString = matchResult[0];
-		const parseResult = string.match(args.parsePattern);
-		if (!parseResult) return null;
-		let value = args.valueCallback ? args.valueCallback(parseResult[0]) : parseResult[0];
-		value = options.valueCallback ? options.valueCallback(value) : value;
-		const rest = string.slice(matchedString.length);
-		return {
-			value,
-			rest
-		};
-	};
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/locale/en-US.js
-/**
-* @category Locales
-* @summary English locale (United States).
-* @language English
-* @iso-639-2 eng
-* @author Sasha Koss [@kossnocorp](https://github.com/kossnocorp)
-* @author Lesha Koss [@leshakoss](https://github.com/leshakoss)
-*/
-var enUS$1 = {
-	code: "en-US",
-	formatDistance: formatDistance$1,
-	formatLong: formatLong$1,
-	formatRelative: formatRelative$1,
-	localize: localize$1,
-	match: {
-		ordinalNumber: buildMatchPatternFn({
-			matchPattern: /^(\d+)(th|st|nd|rd)?/i,
-			parsePattern: /\d+/i,
-			valueCallback: (value) => parseInt(value, 10)
-		}),
-		era: buildMatchFn({
-			matchPatterns: {
-				narrow: /^(b|a)/i,
-				abbreviated: /^(b\.?\s?c\.?|b\.?\s?c\.?\s?e\.?|a\.?\s?d\.?|c\.?\s?e\.?)/i,
-				wide: /^(before christ|before common era|anno domini|common era)/i
-			},
-			defaultMatchWidth: "wide",
-			parsePatterns: { any: [/^b/i, /^(a|c)/i] },
-			defaultParseWidth: "any"
-		}),
-		quarter: buildMatchFn({
-			matchPatterns: {
-				narrow: /^[1234]/i,
-				abbreviated: /^q[1234]/i,
-				wide: /^[1234](th|st|nd|rd)? quarter/i
-			},
-			defaultMatchWidth: "wide",
-			parsePatterns: { any: [
-				/1/i,
-				/2/i,
-				/3/i,
-				/4/i
-			] },
-			defaultParseWidth: "any",
-			valueCallback: (index) => index + 1
-		}),
-		month: buildMatchFn({
-			matchPatterns: {
-				narrow: /^[jfmasond]/i,
-				abbreviated: /^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i,
-				wide: /^(january|february|march|april|may|june|july|august|september|october|november|december)/i
-			},
-			defaultMatchWidth: "wide",
-			parsePatterns: {
-				narrow: [
-					/^j/i,
-					/^f/i,
-					/^m/i,
-					/^a/i,
-					/^m/i,
-					/^j/i,
-					/^j/i,
-					/^a/i,
-					/^s/i,
-					/^o/i,
-					/^n/i,
-					/^d/i
-				],
-				any: [
-					/^ja/i,
-					/^f/i,
-					/^mar/i,
-					/^ap/i,
-					/^may/i,
-					/^jun/i,
-					/^jul/i,
-					/^au/i,
-					/^s/i,
-					/^o/i,
-					/^n/i,
-					/^d/i
-				]
-			},
-			defaultParseWidth: "any"
-		}),
-		day: buildMatchFn({
-			matchPatterns: {
-				narrow: /^[smtwf]/i,
-				short: /^(su|mo|tu|we|th|fr|sa)/i,
-				abbreviated: /^(sun|mon|tue|wed|thu|fri|sat)/i,
-				wide: /^(sunday|monday|tuesday|wednesday|thursday|friday|saturday)/i
-			},
-			defaultMatchWidth: "wide",
-			parsePatterns: {
-				narrow: [
-					/^s/i,
-					/^m/i,
-					/^t/i,
-					/^w/i,
-					/^t/i,
-					/^f/i,
-					/^s/i
-				],
-				any: [
-					/^su/i,
-					/^m/i,
-					/^tu/i,
-					/^w/i,
-					/^th/i,
-					/^f/i,
-					/^sa/i
-				]
-			},
-			defaultParseWidth: "any"
-		}),
-		dayPeriod: buildMatchFn({
-			matchPatterns: {
-				narrow: /^(a|p|mi|n|(in the|at) (morning|afternoon|evening|night))/i,
-				any: /^([ap]\.?\s?m\.?|midnight|noon|(in the|at) (morning|afternoon|evening|night))/i
-			},
-			defaultMatchWidth: "any",
-			parsePatterns: { any: {
-				am: /^a/i,
-				pm: /^p/i,
-				midnight: /^mi/i,
-				noon: /^no/i,
-				morning: /morning/i,
-				afternoon: /afternoon/i,
-				evening: /evening/i,
-				night: /night/i
-			} },
-			defaultParseWidth: "any"
-		})
-	},
-	options: {
-		weekStartsOn: 0,
-		firstWeekContainsDate: 1
-	}
-};
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/getDayOfYear.js
-/**
-* The {@link getDayOfYear} function options.
-*/
-/**
-* @name getDayOfYear
-* @category Day Helpers
-* @summary Get the day of the year of the given date.
-*
-* @description
-* Get the day of the year of the given date.
-*
-* @param date - The given date
-* @param options - The options
-*
-* @returns The day of year
-*
-* @example
-* // Which day of the year is 2 July 2014?
-* const result = getDayOfYear(new Date(2014, 6, 2))
-* //=> 183
-*/
-function getDayOfYear(date, options) {
-	const _date = toDate(date, options?.in);
-	return differenceInCalendarDays(_date, startOfYear(_date)) + 1;
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/getISOWeek.js
-/**
-* The {@link getISOWeek} function options.
-*/
-/**
-* @name getISOWeek
-* @category ISO Week Helpers
-* @summary Get the ISO week of the given date.
-*
-* @description
-* Get the ISO week of the given date.
-*
-* ISO week-numbering year: http://en.wikipedia.org/wiki/ISO_week_date
-*
-* @param date - The given date
-* @param options - The options
-*
-* @returns The ISO week
-*
-* @example
-* // Which week of the ISO-week numbering year is 2 January 2005?
-* const result = getISOWeek(new Date(2005, 0, 2))
-* //=> 53
-*/
-function getISOWeek(date, options) {
-	const _date = toDate(date, options?.in);
-	const diff = +startOfISOWeek(_date) - +startOfISOWeekYear(_date);
-	return Math.round(diff / millisecondsInWeek) + 1;
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/getWeekYear.js
-/**
-* The {@link getWeekYear} function options.
-*/
-/**
-* @name getWeekYear
-* @category Week-Numbering Year Helpers
-* @summary Get the local week-numbering year of the given date.
-*
-* @description
-* Get the local week-numbering year of the given date.
-* The exact calculation depends on the values of
-* `options.weekStartsOn` (which is the index of the first day of the week)
-* and `options.firstWeekContainsDate` (which is the day of January, which is always in
-* the first week of the week-numbering year)
-*
-* Week numbering: https://en.wikipedia.org/wiki/Week#The_ISO_week_date_system
-*
-* @param date - The given date
-* @param options - An object with options.
-*
-* @returns The local week-numbering year
-*
-* @example
-* // Which week numbering year is 26 December 2004 with the default settings?
-* const result = getWeekYear(new Date(2004, 11, 26))
-* //=> 2005
-*
-* @example
-* // Which week numbering year is 26 December 2004 if week starts on Saturday?
-* const result = getWeekYear(new Date(2004, 11, 26), { weekStartsOn: 6 })
-* //=> 2004
-*
-* @example
-* // Which week numbering year is 26 December 2004 if the first week contains 4 January?
-* const result = getWeekYear(new Date(2004, 11, 26), { firstWeekContainsDate: 4 })
-* //=> 2004
-*/
-function getWeekYear(date, options) {
-	const _date = toDate(date, options?.in);
-	const year = _date.getFullYear();
-	const defaultOptions = getDefaultOptions();
-	const firstWeekContainsDate = options?.firstWeekContainsDate ?? options?.locale?.options?.firstWeekContainsDate ?? defaultOptions.firstWeekContainsDate ?? defaultOptions.locale?.options?.firstWeekContainsDate ?? 1;
-	const firstWeekOfNextYear = constructFrom(options?.in || date, 0);
-	firstWeekOfNextYear.setFullYear(year + 1, 0, firstWeekContainsDate);
-	firstWeekOfNextYear.setHours(0, 0, 0, 0);
-	const startOfNextYear = startOfWeek(firstWeekOfNextYear, options);
-	const firstWeekOfThisYear = constructFrom(options?.in || date, 0);
-	firstWeekOfThisYear.setFullYear(year, 0, firstWeekContainsDate);
-	firstWeekOfThisYear.setHours(0, 0, 0, 0);
-	const startOfThisYear = startOfWeek(firstWeekOfThisYear, options);
-	if (+_date >= +startOfNextYear) return year + 1;
-	else if (+_date >= +startOfThisYear) return year;
-	else return year - 1;
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/startOfWeekYear.js
-/**
-* The {@link startOfWeekYear} function options.
-*/
-/**
-* @name startOfWeekYear
-* @category Week-Numbering Year Helpers
-* @summary Return the start of a local week-numbering year for the given date.
-*
-* @description
-* Return the start of a local week-numbering year.
-* The exact calculation depends on the values of
-* `options.weekStartsOn` (which is the index of the first day of the week)
-* and `options.firstWeekContainsDate` (which is the day of January, which is always in
-* the first week of the week-numbering year)
-*
-* Week numbering: https://en.wikipedia.org/wiki/Week#The_ISO_week_date_system
-*
-* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
-* @typeParam ResultDate - The result `Date` type.
-*
-* @param date - The original date
-* @param options - An object with options
-*
-* @returns The start of a week-numbering year
-*
-* @example
-* // The start of an a week-numbering year for 2 July 2005 with default settings:
-* const result = startOfWeekYear(new Date(2005, 6, 2))
-* //=> Sun Dec 26 2004 00:00:00
-*
-* @example
-* // The start of a week-numbering year for 2 July 2005
-* // if Monday is the first day of week
-* // and 4 January is always in the first week of the year:
-* const result = startOfWeekYear(new Date(2005, 6, 2), {
-*   weekStartsOn: 1,
-*   firstWeekContainsDate: 4
-* })
-* //=> Mon Jan 03 2005 00:00:00
-*/
-function startOfWeekYear(date, options) {
-	const defaultOptions = getDefaultOptions();
-	const firstWeekContainsDate = options?.firstWeekContainsDate ?? options?.locale?.options?.firstWeekContainsDate ?? defaultOptions.firstWeekContainsDate ?? defaultOptions.locale?.options?.firstWeekContainsDate ?? 1;
-	const year = getWeekYear(date, options);
-	const firstWeek = constructFrom(options?.in || date, 0);
-	firstWeek.setFullYear(year, 0, firstWeekContainsDate);
-	firstWeek.setHours(0, 0, 0, 0);
-	return startOfWeek(firstWeek, options);
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/getWeek.js
-/**
-* The {@link getWeek} function options.
-*/
-/**
-* @name getWeek
-* @category Week Helpers
-* @summary Get the local week index of the given date.
-*
-* @description
-* Get the local week index of the given date.
-* The exact calculation depends on the values of
-* `options.weekStartsOn` (which is the index of the first day of the week)
-* and `options.firstWeekContainsDate` (which is the day of January, which is always in
-* the first week of the week-numbering year)
-*
-* Week numbering: https://en.wikipedia.org/wiki/Week#The_ISO_week_date_system
-*
-* @param date - The given date
-* @param options - An object with options
-*
-* @returns The week
-*
-* @example
-* // Which week of the local week numbering year is 2 January 2005 with default options?
-* const result = getWeek(new Date(2005, 0, 2))
-* //=> 2
-*
-* @example
-* // Which week of the local week numbering year is 2 January 2005,
-* // if Monday is the first day of the week,
-* // and the first week of the year always contains 4 January?
-* const result = getWeek(new Date(2005, 0, 2), {
-*   weekStartsOn: 1,
-*   firstWeekContainsDate: 4
-* })
-* //=> 53
-*/
-function getWeek(date, options) {
-	const _date = toDate(date, options?.in);
-	const diff = +startOfWeek(_date, options) - +startOfWeekYear(_date, options);
-	return Math.round(diff / millisecondsInWeek) + 1;
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/_lib/addLeadingZeros.js
-function addLeadingZeros(number, targetLength) {
-	return (number < 0 ? "-" : "") + Math.abs(number).toString().padStart(targetLength, "0");
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/_lib/format/lightFormatters.js
-var lightFormatters = {
-	y(date, token) {
-		const signedYear = date.getFullYear();
-		const year = signedYear > 0 ? signedYear : 1 - signedYear;
-		return addLeadingZeros(token === "yy" ? year % 100 : year, token.length);
-	},
-	M(date, token) {
-		const month = date.getMonth();
-		return token === "M" ? String(month + 1) : addLeadingZeros(month + 1, 2);
-	},
-	d(date, token) {
-		return addLeadingZeros(date.getDate(), token.length);
-	},
-	a(date, token) {
-		const dayPeriodEnumValue = date.getHours() / 12 >= 1 ? "pm" : "am";
-		switch (token) {
-			case "a":
-			case "aa": return dayPeriodEnumValue.toUpperCase();
-			case "aaa": return dayPeriodEnumValue;
-			case "aaaaa": return dayPeriodEnumValue[0];
-			default: return dayPeriodEnumValue === "am" ? "a.m." : "p.m.";
-		}
-	},
-	h(date, token) {
-		return addLeadingZeros(date.getHours() % 12 || 12, token.length);
-	},
-	H(date, token) {
-		return addLeadingZeros(date.getHours(), token.length);
-	},
-	m(date, token) {
-		return addLeadingZeros(date.getMinutes(), token.length);
-	},
-	s(date, token) {
-		return addLeadingZeros(date.getSeconds(), token.length);
-	},
-	S(date, token) {
-		const numberOfDigits = token.length;
-		const milliseconds = date.getMilliseconds();
-		return addLeadingZeros(Math.trunc(milliseconds * Math.pow(10, numberOfDigits - 3)), token.length);
-	}
-};
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/_lib/format/formatters.js
-var dayPeriodEnum = {
-	am: "am",
-	pm: "pm",
-	midnight: "midnight",
-	noon: "noon",
-	morning: "morning",
-	afternoon: "afternoon",
-	evening: "evening",
-	night: "night"
-};
-var formatters = {
-	G: function(date, token, localize) {
-		const era = date.getFullYear() > 0 ? 1 : 0;
-		switch (token) {
-			case "G":
-			case "GG":
-			case "GGG": return localize.era(era, { width: "abbreviated" });
-			case "GGGGG": return localize.era(era, { width: "narrow" });
-			default: return localize.era(era, { width: "wide" });
-		}
-	},
-	y: function(date, token, localize) {
-		if (token === "yo") {
-			const signedYear = date.getFullYear();
-			const year = signedYear > 0 ? signedYear : 1 - signedYear;
-			return localize.ordinalNumber(year, { unit: "year" });
-		}
-		return lightFormatters.y(date, token);
-	},
-	Y: function(date, token, localize, options) {
-		const signedWeekYear = getWeekYear(date, options);
-		const weekYear = signedWeekYear > 0 ? signedWeekYear : 1 - signedWeekYear;
-		if (token === "YY") return addLeadingZeros(weekYear % 100, 2);
-		if (token === "Yo") return localize.ordinalNumber(weekYear, { unit: "year" });
-		return addLeadingZeros(weekYear, token.length);
-	},
-	R: function(date, token) {
-		return addLeadingZeros(getISOWeekYear(date), token.length);
-	},
-	u: function(date, token) {
-		return addLeadingZeros(date.getFullYear(), token.length);
-	},
-	Q: function(date, token, localize) {
-		const quarter = Math.ceil((date.getMonth() + 1) / 3);
-		switch (token) {
-			case "Q": return String(quarter);
-			case "QQ": return addLeadingZeros(quarter, 2);
-			case "Qo": return localize.ordinalNumber(quarter, { unit: "quarter" });
-			case "QQQ": return localize.quarter(quarter, {
-				width: "abbreviated",
-				context: "formatting"
-			});
-			case "QQQQQ": return localize.quarter(quarter, {
-				width: "narrow",
-				context: "formatting"
-			});
-			default: return localize.quarter(quarter, {
-				width: "wide",
-				context: "formatting"
-			});
-		}
-	},
-	q: function(date, token, localize) {
-		const quarter = Math.ceil((date.getMonth() + 1) / 3);
-		switch (token) {
-			case "q": return String(quarter);
-			case "qq": return addLeadingZeros(quarter, 2);
-			case "qo": return localize.ordinalNumber(quarter, { unit: "quarter" });
-			case "qqq": return localize.quarter(quarter, {
-				width: "abbreviated",
-				context: "standalone"
-			});
-			case "qqqqq": return localize.quarter(quarter, {
-				width: "narrow",
-				context: "standalone"
-			});
-			default: return localize.quarter(quarter, {
-				width: "wide",
-				context: "standalone"
-			});
-		}
-	},
-	M: function(date, token, localize) {
-		const month = date.getMonth();
-		switch (token) {
-			case "M":
-			case "MM": return lightFormatters.M(date, token);
-			case "Mo": return localize.ordinalNumber(month + 1, { unit: "month" });
-			case "MMM": return localize.month(month, {
-				width: "abbreviated",
-				context: "formatting"
-			});
-			case "MMMMM": return localize.month(month, {
-				width: "narrow",
-				context: "formatting"
-			});
-			default: return localize.month(month, {
-				width: "wide",
-				context: "formatting"
-			});
-		}
-	},
-	L: function(date, token, localize) {
-		const month = date.getMonth();
-		switch (token) {
-			case "L": return String(month + 1);
-			case "LL": return addLeadingZeros(month + 1, 2);
-			case "Lo": return localize.ordinalNumber(month + 1, { unit: "month" });
-			case "LLL": return localize.month(month, {
-				width: "abbreviated",
-				context: "standalone"
-			});
-			case "LLLLL": return localize.month(month, {
-				width: "narrow",
-				context: "standalone"
-			});
-			default: return localize.month(month, {
-				width: "wide",
-				context: "standalone"
-			});
-		}
-	},
-	w: function(date, token, localize, options) {
-		const week = getWeek(date, options);
-		if (token === "wo") return localize.ordinalNumber(week, { unit: "week" });
-		return addLeadingZeros(week, token.length);
-	},
-	I: function(date, token, localize) {
-		const isoWeek = getISOWeek(date);
-		if (token === "Io") return localize.ordinalNumber(isoWeek, { unit: "week" });
-		return addLeadingZeros(isoWeek, token.length);
-	},
-	d: function(date, token, localize) {
-		if (token === "do") return localize.ordinalNumber(date.getDate(), { unit: "date" });
-		return lightFormatters.d(date, token);
-	},
-	D: function(date, token, localize) {
-		const dayOfYear = getDayOfYear(date);
-		if (token === "Do") return localize.ordinalNumber(dayOfYear, { unit: "dayOfYear" });
-		return addLeadingZeros(dayOfYear, token.length);
-	},
-	E: function(date, token, localize) {
-		const dayOfWeek = date.getDay();
-		switch (token) {
-			case "E":
-			case "EE":
-			case "EEE": return localize.day(dayOfWeek, {
-				width: "abbreviated",
-				context: "formatting"
-			});
-			case "EEEEE": return localize.day(dayOfWeek, {
-				width: "narrow",
-				context: "formatting"
-			});
-			case "EEEEEE": return localize.day(dayOfWeek, {
-				width: "short",
-				context: "formatting"
-			});
-			default: return localize.day(dayOfWeek, {
-				width: "wide",
-				context: "formatting"
-			});
-		}
-	},
-	e: function(date, token, localize, options) {
-		const dayOfWeek = date.getDay();
-		const localDayOfWeek = (dayOfWeek - options.weekStartsOn + 8) % 7 || 7;
-		switch (token) {
-			case "e": return String(localDayOfWeek);
-			case "ee": return addLeadingZeros(localDayOfWeek, 2);
-			case "eo": return localize.ordinalNumber(localDayOfWeek, { unit: "day" });
-			case "eee": return localize.day(dayOfWeek, {
-				width: "abbreviated",
-				context: "formatting"
-			});
-			case "eeeee": return localize.day(dayOfWeek, {
-				width: "narrow",
-				context: "formatting"
-			});
-			case "eeeeee": return localize.day(dayOfWeek, {
-				width: "short",
-				context: "formatting"
-			});
-			default: return localize.day(dayOfWeek, {
-				width: "wide",
-				context: "formatting"
-			});
-		}
-	},
-	c: function(date, token, localize, options) {
-		const dayOfWeek = date.getDay();
-		const localDayOfWeek = (dayOfWeek - options.weekStartsOn + 8) % 7 || 7;
-		switch (token) {
-			case "c": return String(localDayOfWeek);
-			case "cc": return addLeadingZeros(localDayOfWeek, token.length);
-			case "co": return localize.ordinalNumber(localDayOfWeek, { unit: "day" });
-			case "ccc": return localize.day(dayOfWeek, {
-				width: "abbreviated",
-				context: "standalone"
-			});
-			case "ccccc": return localize.day(dayOfWeek, {
-				width: "narrow",
-				context: "standalone"
-			});
-			case "cccccc": return localize.day(dayOfWeek, {
-				width: "short",
-				context: "standalone"
-			});
-			default: return localize.day(dayOfWeek, {
-				width: "wide",
-				context: "standalone"
-			});
-		}
-	},
-	i: function(date, token, localize) {
-		const dayOfWeek = date.getDay();
-		const isoDayOfWeek = dayOfWeek === 0 ? 7 : dayOfWeek;
-		switch (token) {
-			case "i": return String(isoDayOfWeek);
-			case "ii": return addLeadingZeros(isoDayOfWeek, token.length);
-			case "io": return localize.ordinalNumber(isoDayOfWeek, { unit: "day" });
-			case "iii": return localize.day(dayOfWeek, {
-				width: "abbreviated",
-				context: "formatting"
-			});
-			case "iiiii": return localize.day(dayOfWeek, {
-				width: "narrow",
-				context: "formatting"
-			});
-			case "iiiiii": return localize.day(dayOfWeek, {
-				width: "short",
-				context: "formatting"
-			});
-			default: return localize.day(dayOfWeek, {
-				width: "wide",
-				context: "formatting"
-			});
-		}
-	},
-	a: function(date, token, localize) {
-		const dayPeriodEnumValue = date.getHours() / 12 >= 1 ? "pm" : "am";
-		switch (token) {
-			case "a":
-			case "aa": return localize.dayPeriod(dayPeriodEnumValue, {
-				width: "abbreviated",
-				context: "formatting"
-			});
-			case "aaa": return localize.dayPeriod(dayPeriodEnumValue, {
-				width: "abbreviated",
-				context: "formatting"
-			}).toLowerCase();
-			case "aaaaa": return localize.dayPeriod(dayPeriodEnumValue, {
-				width: "narrow",
-				context: "formatting"
-			});
-			default: return localize.dayPeriod(dayPeriodEnumValue, {
-				width: "wide",
-				context: "formatting"
-			});
-		}
-	},
-	b: function(date, token, localize) {
-		const hours = date.getHours();
-		let dayPeriodEnumValue;
-		if (hours === 12) dayPeriodEnumValue = dayPeriodEnum.noon;
-		else if (hours === 0) dayPeriodEnumValue = dayPeriodEnum.midnight;
-		else dayPeriodEnumValue = hours / 12 >= 1 ? "pm" : "am";
-		switch (token) {
-			case "b":
-			case "bb": return localize.dayPeriod(dayPeriodEnumValue, {
-				width: "abbreviated",
-				context: "formatting"
-			});
-			case "bbb": return localize.dayPeriod(dayPeriodEnumValue, {
-				width: "abbreviated",
-				context: "formatting"
-			}).toLowerCase();
-			case "bbbbb": return localize.dayPeriod(dayPeriodEnumValue, {
-				width: "narrow",
-				context: "formatting"
-			});
-			default: return localize.dayPeriod(dayPeriodEnumValue, {
-				width: "wide",
-				context: "formatting"
-			});
-		}
-	},
-	B: function(date, token, localize) {
-		const hours = date.getHours();
-		let dayPeriodEnumValue;
-		if (hours >= 17) dayPeriodEnumValue = dayPeriodEnum.evening;
-		else if (hours >= 12) dayPeriodEnumValue = dayPeriodEnum.afternoon;
-		else if (hours >= 4) dayPeriodEnumValue = dayPeriodEnum.morning;
-		else dayPeriodEnumValue = dayPeriodEnum.night;
-		switch (token) {
-			case "B":
-			case "BB":
-			case "BBB": return localize.dayPeriod(dayPeriodEnumValue, {
-				width: "abbreviated",
-				context: "formatting"
-			});
-			case "BBBBB": return localize.dayPeriod(dayPeriodEnumValue, {
-				width: "narrow",
-				context: "formatting"
-			});
-			default: return localize.dayPeriod(dayPeriodEnumValue, {
-				width: "wide",
-				context: "formatting"
-			});
-		}
-	},
-	h: function(date, token, localize) {
-		if (token === "ho") {
-			let hours = date.getHours() % 12;
-			if (hours === 0) hours = 12;
-			return localize.ordinalNumber(hours, { unit: "hour" });
-		}
-		return lightFormatters.h(date, token);
-	},
-	H: function(date, token, localize) {
-		if (token === "Ho") return localize.ordinalNumber(date.getHours(), { unit: "hour" });
-		return lightFormatters.H(date, token);
-	},
-	K: function(date, token, localize) {
-		const hours = date.getHours() % 12;
-		if (token === "Ko") return localize.ordinalNumber(hours, { unit: "hour" });
-		return addLeadingZeros(hours, token.length);
-	},
-	k: function(date, token, localize) {
-		let hours = date.getHours();
-		if (hours === 0) hours = 24;
-		if (token === "ko") return localize.ordinalNumber(hours, { unit: "hour" });
-		return addLeadingZeros(hours, token.length);
-	},
-	m: function(date, token, localize) {
-		if (token === "mo") return localize.ordinalNumber(date.getMinutes(), { unit: "minute" });
-		return lightFormatters.m(date, token);
-	},
-	s: function(date, token, localize) {
-		if (token === "so") return localize.ordinalNumber(date.getSeconds(), { unit: "second" });
-		return lightFormatters.s(date, token);
-	},
-	S: function(date, token) {
-		return lightFormatters.S(date, token);
-	},
-	X: function(date, token, _localize) {
-		const timezoneOffset = date.getTimezoneOffset();
-		if (timezoneOffset === 0) return "Z";
-		switch (token) {
-			case "X": return formatTimezoneWithOptionalMinutes(timezoneOffset);
-			case "XXXX":
-			case "XX": return formatTimezone(timezoneOffset);
-			default: return formatTimezone(timezoneOffset, ":");
-		}
-	},
-	x: function(date, token, _localize) {
-		const timezoneOffset = date.getTimezoneOffset();
-		switch (token) {
-			case "x": return formatTimezoneWithOptionalMinutes(timezoneOffset);
-			case "xxxx":
-			case "xx": return formatTimezone(timezoneOffset);
-			default: return formatTimezone(timezoneOffset, ":");
-		}
-	},
-	O: function(date, token, _localize) {
-		const timezoneOffset = date.getTimezoneOffset();
-		switch (token) {
-			case "O":
-			case "OO":
-			case "OOO": return "GMT" + formatTimezoneShort(timezoneOffset, ":");
-			default: return "GMT" + formatTimezone(timezoneOffset, ":");
-		}
-	},
-	z: function(date, token, _localize) {
-		const timezoneOffset = date.getTimezoneOffset();
-		switch (token) {
-			case "z":
-			case "zz":
-			case "zzz": return "GMT" + formatTimezoneShort(timezoneOffset, ":");
-			default: return "GMT" + formatTimezone(timezoneOffset, ":");
-		}
-	},
-	t: function(date, token, _localize) {
-		return addLeadingZeros(Math.trunc(+date / 1e3), token.length);
-	},
-	T: function(date, token, _localize) {
-		return addLeadingZeros(+date, token.length);
-	}
-};
-function formatTimezoneShort(offset, delimiter = "") {
-	const sign = offset > 0 ? "-" : "+";
-	const absOffset = Math.abs(offset);
-	const hours = Math.trunc(absOffset / 60);
-	const minutes = absOffset % 60;
-	if (minutes === 0) return sign + String(hours);
-	return sign + String(hours) + delimiter + addLeadingZeros(minutes, 2);
-}
-function formatTimezoneWithOptionalMinutes(offset, delimiter) {
-	if (offset % 60 === 0) return (offset > 0 ? "-" : "+") + addLeadingZeros(Math.abs(offset) / 60, 2);
-	return formatTimezone(offset, delimiter);
-}
-function formatTimezone(offset, delimiter = "") {
-	const sign = offset > 0 ? "-" : "+";
-	const absOffset = Math.abs(offset);
-	const hours = addLeadingZeros(Math.trunc(absOffset / 60), 2);
-	const minutes = addLeadingZeros(absOffset % 60, 2);
-	return sign + hours + delimiter + minutes;
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/_lib/format/longFormatters.js
-var dateLongFormatter = (pattern, formatLong) => {
-	switch (pattern) {
-		case "P": return formatLong.date({ width: "short" });
-		case "PP": return formatLong.date({ width: "medium" });
-		case "PPP": return formatLong.date({ width: "long" });
-		default: return formatLong.date({ width: "full" });
-	}
-};
-var timeLongFormatter = (pattern, formatLong) => {
-	switch (pattern) {
-		case "p": return formatLong.time({ width: "short" });
-		case "pp": return formatLong.time({ width: "medium" });
-		case "ppp": return formatLong.time({ width: "long" });
-		default: return formatLong.time({ width: "full" });
-	}
-};
-var dateTimeLongFormatter = (pattern, formatLong) => {
-	const matchResult = pattern.match(/(P+)(p+)?/) || [];
-	const datePattern = matchResult[1];
-	const timePattern = matchResult[2];
-	if (!timePattern) return dateLongFormatter(pattern, formatLong);
-	let dateTimeFormat;
-	switch (datePattern) {
-		case "P":
-			dateTimeFormat = formatLong.dateTime({ width: "short" });
-			break;
-		case "PP":
-			dateTimeFormat = formatLong.dateTime({ width: "medium" });
-			break;
-		case "PPP":
-			dateTimeFormat = formatLong.dateTime({ width: "long" });
-			break;
-		default:
-			dateTimeFormat = formatLong.dateTime({ width: "full" });
-			break;
-	}
-	return dateTimeFormat.replace("{{date}}", dateLongFormatter(datePattern, formatLong)).replace("{{time}}", timeLongFormatter(timePattern, formatLong));
-};
-var longFormatters = {
-	p: timeLongFormatter,
-	P: dateTimeLongFormatter
-};
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/_lib/protectedTokens.js
-var dayOfYearTokenRE = /^D+$/;
-var weekYearTokenRE = /^Y+$/;
-var throwTokens = [
-	"D",
-	"DD",
-	"YY",
-	"YYYY"
-];
-function isProtectedDayOfYearToken(token) {
-	return dayOfYearTokenRE.test(token);
-}
-function isProtectedWeekYearToken(token) {
-	return weekYearTokenRE.test(token);
-}
-function warnOrThrowProtectedError(token, format, input) {
-	const _message = message(token, format, input);
-	console.warn(_message);
-	if (throwTokens.includes(token)) throw new RangeError(_message);
-}
-function message(token, format, input) {
-	const subject = token[0] === "Y" ? "years" : "days of the month";
-	return `Use \`${token.toLowerCase()}\` instead of \`${token}\` (in \`${format}\`) for formatting ${subject} to the input \`${input}\`; see: https://github.com/date-fns/date-fns/blob/master/docs/unicodeTokens.md`;
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/format.js
-var formattingTokensRegExp = /[yYQqMLwIdDecihHKkms]o|(\w)\1*|''|'(''|[^'])+('|$)|./g;
-var longFormattingTokensRegExp = /P+p+|P+|p+|''|'(''|[^'])+('|$)|./g;
-var escapedStringRegExp = /^'([^]*?)'?$/;
-var doubleQuoteRegExp = /''/g;
-var unescapedLatinCharacterRegExp = /[a-zA-Z]/;
-/**
-* The {@link format} function options.
-*/
-/**
-* @name format
-* @alias formatDate
-* @category Common Helpers
-* @summary Format the date.
-*
-* @description
-* Return the formatted date string in the given format. The result may vary by locale.
-*
-* > ⚠️ Please note that the `format` tokens differ from Moment.js and other libraries.
-* > See: https://github.com/date-fns/date-fns/blob/master/docs/unicodeTokens.md
-*
-* The characters wrapped between two single quotes characters (') are escaped.
-* Two single quotes in a row, whether inside or outside a quoted sequence, represent a 'real' single quote.
-* (see the last example)
-*
-* Format of the string is based on Unicode Technical Standard #35:
-* https://www.unicode.org/reports/tr35/tr35-dates.html#Date_Field_Symbol_Table
-* with a few additions (see note 7 below the table).
-*
-* Accepted patterns:
-* | Unit                            | Pattern | Result examples                   | Notes |
-* |---------------------------------|---------|-----------------------------------|-------|
-* | Era                             | G..GGG  | AD, BC                            |       |
-* |                                 | GGGG    | Anno Domini, Before Christ        | 2     |
-* |                                 | GGGGG   | A, B                              |       |
-* | Calendar year                   | y       | 44, 1, 1900, 2017                 | 5     |
-* |                                 | yo      | 44th, 1st, 0th, 17th              | 5,7   |
-* |                                 | yy      | 44, 01, 00, 17                    | 5     |
-* |                                 | yyy     | 044, 001, 1900, 2017              | 5     |
-* |                                 | yyyy    | 0044, 0001, 1900, 2017            | 5     |
-* |                                 | yyyyy   | ...                               | 3,5   |
-* | Local week-numbering year       | Y       | 44, 1, 1900, 2017                 | 5     |
-* |                                 | Yo      | 44th, 1st, 1900th, 2017th         | 5,7   |
-* |                                 | YY      | 44, 01, 00, 17                    | 5,8   |
-* |                                 | YYY     | 044, 001, 1900, 2017              | 5     |
-* |                                 | YYYY    | 0044, 0001, 1900, 2017            | 5,8   |
-* |                                 | YYYYY   | ...                               | 3,5   |
-* | ISO week-numbering year         | R       | -43, 0, 1, 1900, 2017             | 5,7   |
-* |                                 | RR      | -43, 00, 01, 1900, 2017           | 5,7   |
-* |                                 | RRR     | -043, 000, 001, 1900, 2017        | 5,7   |
-* |                                 | RRRR    | -0043, 0000, 0001, 1900, 2017     | 5,7   |
-* |                                 | RRRRR   | ...                               | 3,5,7 |
-* | Extended year                   | u       | -43, 0, 1, 1900, 2017             | 5     |
-* |                                 | uu      | -43, 01, 1900, 2017               | 5     |
-* |                                 | uuu     | -043, 001, 1900, 2017             | 5     |
-* |                                 | uuuu    | -0043, 0001, 1900, 2017           | 5     |
-* |                                 | uuuuu   | ...                               | 3,5   |
-* | Quarter (formatting)            | Q       | 1, 2, 3, 4                        |       |
-* |                                 | Qo      | 1st, 2nd, 3rd, 4th                | 7     |
-* |                                 | QQ      | 01, 02, 03, 04                    |       |
-* |                                 | QQQ     | Q1, Q2, Q3, Q4                    |       |
-* |                                 | QQQQ    | 1st quarter, 2nd quarter, ...     | 2     |
-* |                                 | QQQQQ   | 1, 2, 3, 4                        | 4     |
-* | Quarter (stand-alone)           | q       | 1, 2, 3, 4                        |       |
-* |                                 | qo      | 1st, 2nd, 3rd, 4th                | 7     |
-* |                                 | qq      | 01, 02, 03, 04                    |       |
-* |                                 | qqq     | Q1, Q2, Q3, Q4                    |       |
-* |                                 | qqqq    | 1st quarter, 2nd quarter, ...     | 2     |
-* |                                 | qqqqq   | 1, 2, 3, 4                        | 4     |
-* | Month (formatting)              | M       | 1, 2, ..., 12                     |       |
-* |                                 | Mo      | 1st, 2nd, ..., 12th               | 7     |
-* |                                 | MM      | 01, 02, ..., 12                   |       |
-* |                                 | MMM     | Jan, Feb, ..., Dec                |       |
-* |                                 | MMMM    | January, February, ..., December  | 2     |
-* |                                 | MMMMM   | J, F, ..., D                      |       |
-* | Month (stand-alone)             | L       | 1, 2, ..., 12                     |       |
-* |                                 | Lo      | 1st, 2nd, ..., 12th               | 7     |
-* |                                 | LL      | 01, 02, ..., 12                   |       |
-* |                                 | LLL     | Jan, Feb, ..., Dec                |       |
-* |                                 | LLLL    | January, February, ..., December  | 2     |
-* |                                 | LLLLL   | J, F, ..., D                      |       |
-* | Local week of year              | w       | 1, 2, ..., 53                     |       |
-* |                                 | wo      | 1st, 2nd, ..., 53th               | 7     |
-* |                                 | ww      | 01, 02, ..., 53                   |       |
-* | ISO week of year                | I       | 1, 2, ..., 53                     | 7     |
-* |                                 | Io      | 1st, 2nd, ..., 53th               | 7     |
-* |                                 | II      | 01, 02, ..., 53                   | 7     |
-* | Day of month                    | d       | 1, 2, ..., 31                     |       |
-* |                                 | do      | 1st, 2nd, ..., 31st               | 7     |
-* |                                 | dd      | 01, 02, ..., 31                   |       |
-* | Day of year                     | D       | 1, 2, ..., 365, 366               | 9     |
-* |                                 | Do      | 1st, 2nd, ..., 365th, 366th       | 7     |
-* |                                 | DD      | 01, 02, ..., 365, 366             | 9     |
-* |                                 | DDD     | 001, 002, ..., 365, 366           |       |
-* |                                 | DDDD    | ...                               | 3     |
-* | Day of week (formatting)        | E..EEE  | Mon, Tue, Wed, ..., Sun           |       |
-* |                                 | EEEE    | Monday, Tuesday, ..., Sunday      | 2     |
-* |                                 | EEEEE   | M, T, W, T, F, S, S               |       |
-* |                                 | EEEEEE  | Mo, Tu, We, Th, Fr, Sa, Su        |       |
-* | ISO day of week (formatting)    | i       | 1, 2, 3, ..., 7                   | 7     |
-* |                                 | io      | 1st, 2nd, ..., 7th                | 7     |
-* |                                 | ii      | 01, 02, ..., 07                   | 7     |
-* |                                 | iii     | Mon, Tue, Wed, ..., Sun           | 7     |
-* |                                 | iiii    | Monday, Tuesday, ..., Sunday      | 2,7   |
-* |                                 | iiiii   | M, T, W, T, F, S, S               | 7     |
-* |                                 | iiiiii  | Mo, Tu, We, Th, Fr, Sa, Su        | 7     |
-* | Local day of week (formatting)  | e       | 2, 3, 4, ..., 1                   |       |
-* |                                 | eo      | 2nd, 3rd, ..., 1st                | 7     |
-* |                                 | ee      | 02, 03, ..., 01                   |       |
-* |                                 | eee     | Mon, Tue, Wed, ..., Sun           |       |
-* |                                 | eeee    | Monday, Tuesday, ..., Sunday      | 2     |
-* |                                 | eeeee   | M, T, W, T, F, S, S               |       |
-* |                                 | eeeeee  | Mo, Tu, We, Th, Fr, Sa, Su        |       |
-* | Local day of week (stand-alone) | c       | 2, 3, 4, ..., 1                   |       |
-* |                                 | co      | 2nd, 3rd, ..., 1st                | 7     |
-* |                                 | cc      | 02, 03, ..., 01                   |       |
-* |                                 | ccc     | Mon, Tue, Wed, ..., Sun           |       |
-* |                                 | cccc    | Monday, Tuesday, ..., Sunday      | 2     |
-* |                                 | ccccc   | M, T, W, T, F, S, S               |       |
-* |                                 | cccccc  | Mo, Tu, We, Th, Fr, Sa, Su        |       |
-* | AM, PM                          | a..aa   | AM, PM                            |       |
-* |                                 | aaa     | am, pm                            |       |
-* |                                 | aaaa    | a.m., p.m.                        | 2     |
-* |                                 | aaaaa   | a, p                              |       |
-* | AM, PM, noon, midnight          | b..bb   | AM, PM, noon, midnight            |       |
-* |                                 | bbb     | am, pm, noon, midnight            |       |
-* |                                 | bbbb    | a.m., p.m., noon, midnight        | 2     |
-* |                                 | bbbbb   | a, p, n, mi                       |       |
-* | Flexible day period             | B..BBB  | at night, in the morning, ...     |       |
-* |                                 | BBBB    | at night, in the morning, ...     | 2     |
-* |                                 | BBBBB   | at night, in the morning, ...     |       |
-* | Hour [1-12]                     | h       | 1, 2, ..., 11, 12                 |       |
-* |                                 | ho      | 1st, 2nd, ..., 11th, 12th         | 7     |
-* |                                 | hh      | 01, 02, ..., 11, 12               |       |
-* | Hour [0-23]                     | H       | 0, 1, 2, ..., 23                  |       |
-* |                                 | Ho      | 0th, 1st, 2nd, ..., 23rd          | 7     |
-* |                                 | HH      | 00, 01, 02, ..., 23               |       |
-* | Hour [0-11]                     | K       | 1, 2, ..., 11, 0                  |       |
-* |                                 | Ko      | 1st, 2nd, ..., 11th, 0th          | 7     |
-* |                                 | KK      | 01, 02, ..., 11, 00               |       |
-* | Hour [1-24]                     | k       | 24, 1, 2, ..., 23                 |       |
-* |                                 | ko      | 24th, 1st, 2nd, ..., 23rd         | 7     |
-* |                                 | kk      | 24, 01, 02, ..., 23               |       |
-* | Minute                          | m       | 0, 1, ..., 59                     |       |
-* |                                 | mo      | 0th, 1st, ..., 59th               | 7     |
-* |                                 | mm      | 00, 01, ..., 59                   |       |
-* | Second                          | s       | 0, 1, ..., 59                     |       |
-* |                                 | so      | 0th, 1st, ..., 59th               | 7     |
-* |                                 | ss      | 00, 01, ..., 59                   |       |
-* | Fraction of second              | S       | 0, 1, ..., 9                      |       |
-* |                                 | SS      | 00, 01, ..., 99                   |       |
-* |                                 | SSS     | 000, 001, ..., 999                |       |
-* |                                 | SSSS    | ...                               | 3     |
-* | Timezone (ISO-8601 w/ Z)        | X       | -08, +0530, Z                     |       |
-* |                                 | XX      | -0800, +0530, Z                   |       |
-* |                                 | XXX     | -08:00, +05:30, Z                 |       |
-* |                                 | XXXX    | -0800, +0530, Z, +123456          | 2     |
-* |                                 | XXXXX   | -08:00, +05:30, Z, +12:34:56      |       |
-* | Timezone (ISO-8601 w/o Z)       | x       | -08, +0530, +00                   |       |
-* |                                 | xx      | -0800, +0530, +0000               |       |
-* |                                 | xxx     | -08:00, +05:30, +00:00            | 2     |
-* |                                 | xxxx    | -0800, +0530, +0000, +123456      |       |
-* |                                 | xxxxx   | -08:00, +05:30, +00:00, +12:34:56 |       |
-* | Timezone (GMT)                  | O...OOO | GMT-8, GMT+5:30, GMT+0            |       |
-* |                                 | OOOO    | GMT-08:00, GMT+05:30, GMT+00:00   | 2     |
-* | Timezone (specific non-locat.)  | z...zzz | GMT-8, GMT+5:30, GMT+0            | 6     |
-* |                                 | zzzz    | GMT-08:00, GMT+05:30, GMT+00:00   | 2,6   |
-* | Seconds timestamp               | t       | 512969520                         | 7     |
-* |                                 | tt      | ...                               | 3,7   |
-* | Milliseconds timestamp          | T       | 512969520900                      | 7     |
-* |                                 | TT      | ...                               | 3,7   |
-* | Long localized date             | P       | 04/29/1453                        | 7     |
-* |                                 | PP      | Apr 29, 1453                      | 7     |
-* |                                 | PPP     | April 29th, 1453                  | 7     |
-* |                                 | PPPP    | Friday, April 29th, 1453          | 2,7   |
-* | Long localized time             | p       | 12:00 AM                          | 7     |
-* |                                 | pp      | 12:00:00 AM                       | 7     |
-* |                                 | ppp     | 12:00:00 AM GMT+2                 | 7     |
-* |                                 | pppp    | 12:00:00 AM GMT+02:00             | 2,7   |
-* | Combination of date and time    | Pp      | 04/29/1453, 12:00 AM              | 7     |
-* |                                 | PPpp    | Apr 29, 1453, 12:00:00 AM         | 7     |
-* |                                 | PPPppp  | April 29th, 1453 at ...           | 7     |
-* |                                 | PPPPpppp| Friday, April 29th, 1453 at ...   | 2,7   |
-* Notes:
-* 1. "Formatting" units (e.g. formatting quarter) in the default en-US locale
-*    are the same as "stand-alone" units, but are different in some languages.
-*    "Formatting" units are declined according to the rules of the language
-*    in the context of a date. "Stand-alone" units are always nominative singular:
-*
-*    `format(new Date(2017, 10, 6), 'do LLLL', {locale: cs}) //=> '6. listopad'`
-*
-*    `format(new Date(2017, 10, 6), 'do MMMM', {locale: cs}) //=> '6. listopadu'`
-*
-* 2. Any sequence of the identical letters is a pattern, unless it is escaped by
-*    the single quote characters (see below).
-*    If the sequence is longer than listed in table (e.g. `EEEEEEEEEEE`)
-*    the output will be the same as default pattern for this unit, usually
-*    the longest one (in case of ISO weekdays, `EEEE`). Default patterns for units
-*    are marked with "2" in the last column of the table.
-*
-*    `format(new Date(2017, 10, 6), 'MMM') //=> 'Nov'`
-*
-*    `format(new Date(2017, 10, 6), 'MMMM') //=> 'November'`
-*
-*    `format(new Date(2017, 10, 6), 'MMMMM') //=> 'N'`
-*
-*    `format(new Date(2017, 10, 6), 'MMMMMM') //=> 'November'`
-*
-*    `format(new Date(2017, 10, 6), 'MMMMMMM') //=> 'November'`
-*
-* 3. Some patterns could be unlimited length (such as `yyyyyyyy`).
-*    The output will be padded with zeros to match the length of the pattern.
-*
-*    `format(new Date(2017, 10, 6), 'yyyyyyyy') //=> '00002017'`
-*
-* 4. `QQQQQ` and `qqqqq` could be not strictly numerical in some locales.
-*    These tokens represent the shortest form of the quarter.
-*
-* 5. The main difference between `y` and `u` patterns are B.C. years:
-*
-*    | Year | `y` | `u` |
-*    |------|-----|-----|
-*    | AC 1 |   1 |   1 |
-*    | BC 1 |   1 |   0 |
-*    | BC 2 |   2 |  -1 |
-*
-*    Also `yy` always returns the last two digits of a year,
-*    while `uu` pads single digit years to 2 characters and returns other years unchanged:
-*
-*    | Year | `yy` | `uu` |
-*    |------|------|------|
-*    | 1    |   01 |   01 |
-*    | 14   |   14 |   14 |
-*    | 376  |   76 |  376 |
-*    | 1453 |   53 | 1453 |
-*
-*    The same difference is true for local and ISO week-numbering years (`Y` and `R`),
-*    except local week-numbering years are dependent on `options.weekStartsOn`
-*    and `options.firstWeekContainsDate` (compare [getISOWeekYear](https://date-fns.org/docs/getISOWeekYear)
-*    and [getWeekYear](https://date-fns.org/docs/getWeekYear)).
-*
-* 6. Specific non-location timezones are currently unavailable in `date-fns`,
-*    so right now these tokens fall back to GMT timezones.
-*
-* 7. These patterns are not in the Unicode Technical Standard #35:
-*    - `i`: ISO day of week
-*    - `I`: ISO week of year
-*    - `R`: ISO week-numbering year
-*    - `t`: seconds timestamp
-*    - `T`: milliseconds timestamp
-*    - `o`: ordinal number modifier
-*    - `P`: long localized date
-*    - `p`: long localized time
-*
-* 8. `YY` and `YYYY` tokens represent week-numbering years but they are often confused with years.
-*    You should enable `options.useAdditionalWeekYearTokens` to use them. See: https://github.com/date-fns/date-fns/blob/master/docs/unicodeTokens.md
-*
-* 9. `D` and `DD` tokens represent days of the year but they are often confused with days of the month.
-*    You should enable `options.useAdditionalDayOfYearTokens` to use them. See: https://github.com/date-fns/date-fns/blob/master/docs/unicodeTokens.md
-*
-* @param date - The original date
-* @param format - The string of tokens
-* @param options - An object with options
-*
-* @returns The formatted date string
-*
-* @throws `date` must not be Invalid Date
-* @throws `options.locale` must contain `localize` property
-* @throws `options.locale` must contain `formatLong` property
-* @throws use `yyyy` instead of `YYYY` for formatting years using [format provided] to the input [input provided]; see: https://github.com/date-fns/date-fns/blob/master/docs/unicodeTokens.md
-* @throws use `yy` instead of `YY` for formatting years using [format provided] to the input [input provided]; see: https://github.com/date-fns/date-fns/blob/master/docs/unicodeTokens.md
-* @throws use `d` instead of `D` for formatting days of the month using [format provided] to the input [input provided]; see: https://github.com/date-fns/date-fns/blob/master/docs/unicodeTokens.md
-* @throws use `dd` instead of `DD` for formatting days of the month using [format provided] to the input [input provided]; see: https://github.com/date-fns/date-fns/blob/master/docs/unicodeTokens.md
-* @throws format string contains an unescaped latin alphabet character
-*
-* @example
-* // Represent 11 February 2014 in middle-endian format:
-* const result = format(new Date(2014, 1, 11), 'MM/dd/yyyy')
-* //=> '02/11/2014'
-*
-* @example
-* // Represent 2 July 2014 in Esperanto:
-* import { eoLocale } from 'date-fns/locale/eo'
-* const result = format(new Date(2014, 6, 2), "do 'de' MMMM yyyy", {
-*   locale: eoLocale
-* })
-* //=> '2-a de julio 2014'
-*
-* @example
-* // Escape string by single quote characters:
-* const result = format(new Date(2014, 6, 2, 15), "h 'o''clock'")
-* //=> "3 o'clock"
-*/
-function format$1(date, formatStr, options) {
-	const defaultOptions = getDefaultOptions();
-	const locale = options?.locale ?? defaultOptions.locale ?? enUS$1;
-	const firstWeekContainsDate = options?.firstWeekContainsDate ?? options?.locale?.options?.firstWeekContainsDate ?? defaultOptions.firstWeekContainsDate ?? defaultOptions.locale?.options?.firstWeekContainsDate ?? 1;
-	const weekStartsOn = options?.weekStartsOn ?? options?.locale?.options?.weekStartsOn ?? defaultOptions.weekStartsOn ?? defaultOptions.locale?.options?.weekStartsOn ?? 0;
-	const originalDate = toDate(date, options?.in);
-	if (!isValid(originalDate)) throw new RangeError("Invalid time value");
-	let parts = formatStr.match(longFormattingTokensRegExp).map((substring) => {
-		const firstCharacter = substring[0];
-		if (firstCharacter === "p" || firstCharacter === "P") {
-			const longFormatter = longFormatters[firstCharacter];
-			return longFormatter(substring, locale.formatLong);
-		}
-		return substring;
-	}).join("").match(formattingTokensRegExp).map((substring) => {
-		if (substring === "''") return {
-			isToken: false,
-			value: "'"
-		};
-		const firstCharacter = substring[0];
-		if (firstCharacter === "'") return {
-			isToken: false,
-			value: cleanEscapedString(substring)
-		};
-		if (formatters[firstCharacter]) return {
-			isToken: true,
-			value: substring
-		};
-		if (firstCharacter.match(unescapedLatinCharacterRegExp)) throw new RangeError("Format string contains an unescaped latin alphabet character `" + firstCharacter + "`");
-		return {
-			isToken: false,
-			value: substring
-		};
-	});
-	if (locale.localize.preprocessor) parts = locale.localize.preprocessor(originalDate, parts);
-	const formatterOptions = {
-		firstWeekContainsDate,
-		weekStartsOn,
-		locale
-	};
-	return parts.map((part) => {
-		if (!part.isToken) return part.value;
-		const token = part.value;
-		if (!options?.useAdditionalWeekYearTokens && isProtectedWeekYearToken(token) || !options?.useAdditionalDayOfYearTokens && isProtectedDayOfYearToken(token)) warnOrThrowProtectedError(token, formatStr, String(date));
-		const formatter = formatters[token[0]];
-		return formatter(originalDate, token, locale.localize, formatterOptions);
-	}).join("");
-}
-function cleanEscapedString(input) {
-	const matched = input.match(escapedStringRegExp);
-	if (!matched) return input;
-	return matched[1].replace(doubleQuoteRegExp, "'");
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/getDaysInMonth.js
-/**
-* The {@link getDaysInMonth} function options.
-*/
-/**
-* @name getDaysInMonth
-* @category Month Helpers
-* @summary Get the number of days in a month of the given date.
-*
-* @description
-* Get the number of days in a month of the given date, considering the context if provided.
-*
-* @param date - The given date
-* @param options - An object with options
-*
-* @returns The number of days in a month
-*
-* @example
-* // How many days are in February 2000?
-* const result = getDaysInMonth(new Date(2000, 1))
-* //=> 29
-*/
-function getDaysInMonth(date, options) {
-	const _date = toDate(date, options?.in);
-	const year = _date.getFullYear();
-	const monthIndex = _date.getMonth();
-	const lastDayOfMonth = constructFrom(_date, 0);
-	lastDayOfMonth.setFullYear(year, monthIndex + 1, 0);
-	lastDayOfMonth.setHours(0, 0, 0, 0);
-	return lastDayOfMonth.getDate();
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/getMonth.js
-/**
-* The {@link getMonth} function options.
-*/
-/**
-* @name getMonth
-* @category Month Helpers
-* @summary Get the month of the given date.
-*
-* @description
-* Get the month of the given date.
-*
-* @param date - The given date
-* @param options - An object with options
-*
-* @returns The month index (0-11)
-*
-* @example
-* // Which month is 29 February 2012?
-* const result = getMonth(new Date(2012, 1, 29))
-* //=> 1
-*/
-function getMonth(date, options) {
-	return toDate(date, options?.in).getMonth();
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/getYear.js
-/**
-* The {@link getYear} function options.
-*/
-/**
-* @name getYear
-* @category Year Helpers
-* @summary Get the year of the given date.
-*
-* @description
-* Get the year of the given date.
-*
-* @param date - The given date
-* @param options - An object with options
-*
-* @returns The year
-*
-* @example
-* // Which year is 2 July 2014?
-* const result = getYear(new Date(2014, 6, 2))
-* //=> 2014
-*/
-function getYear(date, options) {
-	return toDate(date, options?.in).getFullYear();
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/isAfter.js
-/**
-* @name isAfter
-* @category Common Helpers
-* @summary Is the first date after the second one?
-*
-* @description
-* Is the first date after the second one?
-*
-* @param date - The date that should be after the other one to return true
-* @param dateToCompare - The date to compare with
-*
-* @returns The first date is after the second date
-*
-* @example
-* // Is 10 July 1989 after 11 February 1987?
-* const result = isAfter(new Date(1989, 6, 10), new Date(1987, 1, 11))
-* //=> true
-*/
-function isAfter(date, dateToCompare) {
-	return +toDate(date) > +toDate(dateToCompare);
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/isBefore.js
-/**
-* @name isBefore
-* @category Common Helpers
-* @summary Is the first date before the second one?
-*
-* @description
-* Is the first date before the second one?
-*
-* @param date - The date that should be before the other one to return true
-* @param dateToCompare - The date to compare with
-*
-* @returns The first date is before the second date
-*
-* @example
-* // Is 10 July 1989 before 11 February 1987?
-* const result = isBefore(new Date(1989, 6, 10), new Date(1987, 1, 11))
-* //=> false
-*/
-function isBefore(date, dateToCompare) {
-	return +toDate(date) < +toDate(dateToCompare);
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/isSameMonth.js
-/**
-* The {@link isSameMonth} function options.
-*/
-/**
-* @name isSameMonth
-* @category Month Helpers
-* @summary Are the given dates in the same month (and year)?
-*
-* @description
-* Are the given dates in the same month (and year)?
-*
-* @param laterDate - The first date to check
-* @param earlierDate - The second date to check
-* @param options - An object with options
-*
-* @returns The dates are in the same month (and year)
-*
-* @example
-* // Are 2 September 2014 and 25 September 2014 in the same month?
-* const result = isSameMonth(new Date(2014, 8, 2), new Date(2014, 8, 25))
-* //=> true
-*
-* @example
-* // Are 2 September 2014 and 25 September 2015 in the same month?
-* const result = isSameMonth(new Date(2014, 8, 2), new Date(2015, 8, 25))
-* //=> false
-*/
-function isSameMonth(laterDate, earlierDate, options) {
-	const [laterDate_, earlierDate_] = normalizeDates(options?.in, laterDate, earlierDate);
-	return laterDate_.getFullYear() === earlierDate_.getFullYear() && laterDate_.getMonth() === earlierDate_.getMonth();
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/isSameYear.js
-/**
-* The {@link isSameYear} function options.
-*/
-/**
-* @name isSameYear
-* @category Year Helpers
-* @summary Are the given dates in the same year?
-*
-* @description
-* Are the given dates in the same year?
-*
-* @param laterDate - The first date to check
-* @param earlierDate - The second date to check
-* @param options - An object with options
-*
-* @returns The dates are in the same year
-*
-* @example
-* // Are 2 September 2014 and 25 September 2014 in the same year?
-* const result = isSameYear(new Date(2014, 8, 2), new Date(2014, 8, 25))
-* //=> true
-*/
-function isSameYear(laterDate, earlierDate, options) {
-	const [laterDate_, earlierDate_] = normalizeDates(options?.in, laterDate, earlierDate);
-	return laterDate_.getFullYear() === earlierDate_.getFullYear();
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/isToday.js
-/**
-* The {@link isToday} function options.
-*/
-/**
-* @name isToday
-* @category Day Helpers
-* @summary Is the given date today?
-* @pure false
-*
-* @description
-* Is the given date today?
-*
-* @param date - The date to check
-* @param options - An object with options
-*
-* @returns The date is today
-*
-* @example
-* // If today is 6 October 2014, is 6 October 14:00:00 today?
-* const result = isToday(new Date(2014, 9, 6, 14, 0))
-* //=> true
-*/
-function isToday(date, options) {
-	return isSameDay(constructFrom(options?.in || date, date), constructNow(options?.in || date));
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/isTomorrow.js
-/**
-* The {@link isTomorrow} function options.
-*/
-/**
-* @name isTomorrow
-* @category Day Helpers
-* @summary Is the given date tomorrow?
-* @pure false
-*
-* @description
-* Is the given date tomorrow?
-*
-* @param date - The date to check
-* @param options - An object with options
-*
-* @returns The date is tomorrow
-*
-* @example
-* // If today is 6 October 2014, is 7 October 14:00:00 tomorrow?
-* const result = isTomorrow(new Date(2014, 9, 7, 14, 0))
-* //=> true
-*/
-function isTomorrow(date, options) {
-	return isSameDay(date, addDays(constructNow(options?.in || date), 1), options);
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/isWithinInterval.js
-/**
-* The {@link isWithinInterval} function options.
-*/
-/**
-* @name isWithinInterval
-* @category Interval Helpers
-* @summary Is the given date within the interval?
-*
-* @description
-* Is the given date within the interval? (Including start and end.)
-*
-* @param date - The date to check
-* @param interval - The interval to check
-* @param options - An object with options
-*
-* @returns The date is within the interval
-*
-* @example
-* // For the date within the interval:
-* isWithinInterval(new Date(2014, 0, 3), {
-*   start: new Date(2014, 0, 1),
-*   end: new Date(2014, 0, 7)
-* })
-* // => true
-*
-* @example
-* // For the date outside of the interval:
-* isWithinInterval(new Date(2014, 0, 10), {
-*   start: new Date(2014, 0, 1),
-*   end: new Date(2014, 0, 7)
-* })
-* // => false
-*
-* @example
-* // For date equal to the interval start:
-* isWithinInterval(date, { start, end: date })
-* // => true
-*
-* @example
-* // For date equal to the interval end:
-* isWithinInterval(date, { start: date, end })
-* // => true
-*/
-function isWithinInterval(date, interval, options) {
-	const time = +toDate(date, options?.in);
-	const [startTime, endTime] = [+toDate(interval.start, options?.in), +toDate(interval.end, options?.in)].sort((a, b) => a - b);
-	return time >= startTime && time <= endTime;
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/setMonth.js
-/**
-* The {@link setMonth} function options.
-*/
-/**
-* @name setMonth
-* @category Month Helpers
-* @summary Set the month to the given date.
-*
-* @description
-* Set the month to the given date.
-*
-* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
-* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
-*
-* @param date - The date to be changed
-* @param month - The month index to set (0-11)
-* @param options - The options
-*
-* @returns The new date with the month set
-*
-* @example
-* // Set February to 1 September 2014:
-* const result = setMonth(new Date(2014, 8, 1), 1)
-* //=> Sat Feb 01 2014 00:00:00
-*/
-function setMonth(date, month, options) {
-	const _date = toDate(date, options?.in);
-	const year = _date.getFullYear();
-	const day = _date.getDate();
-	const midMonth = constructFrom(options?.in || date, 0);
-	midMonth.setFullYear(year, month, 15);
-	midMonth.setHours(0, 0, 0, 0);
-	const daysInMonth = getDaysInMonth(midMonth);
-	_date.setMonth(month, Math.min(day, daysInMonth));
-	return _date;
-}
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/setYear.js
-/**
-* The {@link setYear} function options.
-*/
-/**
-* @name setYear
-* @category Year Helpers
-* @summary Set the year to the given date.
-*
-* @description
-* Set the year to the given date.
-*
-* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
-* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
-*
-* @param date - The date to be changed
-* @param year - The year of the new date
-* @param options - An object with options.
-*
-* @returns The new date with the year set
-*
-* @example
-* // Set year 2013 to 1 September 2014:
-* const result = setYear(new Date(2014, 8, 1), 2013)
-* //=> Sun Sep 01 2013 00:00:00
-*/
-function setYear(date, year, options) {
-	const date_ = toDate(date, options?.in);
-	if (isNaN(+date_)) return constructFrom(options?.in || date, NaN);
-	date_.setFullYear(year);
-	return date_;
 }
 //#endregion
 //#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/locale/pt-BR/_lib/formatDistance.js
@@ -31117,9 +31241,9 @@ var ptBR = {
 };
 //#endregion
 //#region src/pages/Dashboard/Agenda.tsx
-function DashboardAgenda() {
+function DashboardAgenda({ dateRange }) {
 	const { state, dispatch } = useMainStore();
-	const upcoming = state.appointments.filter((a) => a.status === "Scheduled").sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).slice(0, 5);
+	const upcoming = state.appointments.filter((a) => a.status === "Scheduled" && isDateInRange(a.date, dateRange)).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).slice(0, 5);
 	const handleMarkVisited = (id) => {
 		dispatch({
 			type: "MARK_VISITED",
@@ -31137,72 +31261,73 @@ function DashboardAgenda() {
 		return format$1(d, "dd 'de' MMM", { locale: ptBR });
 	};
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
-		"data-uid": "src/pages/Dashboard/Agenda.tsx:35:5",
+		"data-uid": "src/pages/Dashboard/Agenda.tsx:37:5",
 		"data-prohibitions": "[editContent]",
-		className: "shadow-subtle",
+		className: "shadow-subtle flex-1 flex flex-col",
 		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardHeader, {
-			"data-uid": "src/pages/Dashboard/Agenda.tsx:36:7",
+			"data-uid": "src/pages/Dashboard/Agenda.tsx:38:7",
 			"data-prohibitions": "[]",
 			children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardTitle, {
-				"data-uid": "src/pages/Dashboard/Agenda.tsx:37:9",
+				"data-uid": "src/pages/Dashboard/Agenda.tsx:39:9",
 				"data-prohibitions": "[]",
 				className: "text-lg flex items-center gap-2",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Clock, {
-					"data-uid": "src/pages/Dashboard/Agenda.tsx:38:11",
+					"data-uid": "src/pages/Dashboard/Agenda.tsx:40:11",
 					"data-prohibitions": "[editContent]",
 					className: "h-5 w-5 text-muted-foreground"
 				}), "Próximas Visitas"]
 			})
 		}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardContent, {
-			"data-uid": "src/pages/Dashboard/Agenda.tsx:42:7",
+			"data-uid": "src/pages/Dashboard/Agenda.tsx:44:7",
 			"data-prohibitions": "[editContent]",
+			className: "flex-1 overflow-y-auto min-h-[200px]",
 			children: upcoming.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-				"data-uid": "src/pages/Dashboard/Agenda.tsx:44:11",
+				"data-uid": "src/pages/Dashboard/Agenda.tsx:46:11",
 				"data-prohibitions": "[]",
 				className: "text-muted-foreground text-sm text-center py-4",
-				children: "Nenhuma visita agendada."
+				children: "Nenhuma visita no período."
 			}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-				"data-uid": "src/pages/Dashboard/Agenda.tsx:46:11",
+				"data-uid": "src/pages/Dashboard/Agenda.tsx:50:11",
 				"data-prohibitions": "[editContent]",
 				className: "space-y-4",
 				children: upcoming.map((apt) => {
 					const lead = state.leads.find((l) => l.id === apt.leadId);
 					if (!lead) return null;
 					return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						"data-uid": "src/pages/Dashboard/Agenda.tsx:51:17",
+						"data-uid": "src/pages/Dashboard/Agenda.tsx:55:17",
 						"data-prohibitions": "[editContent]",
 						className: "flex items-center justify-between p-3 rounded-lg border border-border/50 bg-slate-50/50 hover:bg-slate-50 transition-colors",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							"data-uid": "src/pages/Dashboard/Agenda.tsx:55:19",
+							"data-uid": "src/pages/Dashboard/Agenda.tsx:59:19",
 							"data-prohibitions": "[editContent]",
 							className: "flex items-center gap-3",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Avatar, {
-								"data-uid": "src/pages/Dashboard/Agenda.tsx:56:21",
+								"data-uid": "src/pages/Dashboard/Agenda.tsx:60:21",
 								"data-prohibitions": "[editContent]",
 								className: "h-10 w-10 border border-border",
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(AvatarImage, {
-									"data-uid": "src/pages/Dashboard/Agenda.tsx:57:23",
+									"data-uid": "src/pages/Dashboard/Agenda.tsx:61:23",
 									"data-prohibitions": "[editContent]",
 									src: `https://img.usecurling.com/ppl/thumbnail?gender=male&seed=${lead.avatarSeed || 1}`
 								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AvatarFallback, {
-									"data-uid": "src/pages/Dashboard/Agenda.tsx:60:23",
+									"data-uid": "src/pages/Dashboard/Agenda.tsx:64:23",
 									"data-prohibitions": "[editContent]",
 									children: lead.name.charAt(0)
 								})]
 							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								"data-uid": "src/pages/Dashboard/Agenda.tsx:62:21",
+								"data-uid": "src/pages/Dashboard/Agenda.tsx:66:21",
 								"data-prohibitions": "[editContent]",
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-									"data-uid": "src/pages/Dashboard/Agenda.tsx:63:23",
+									"data-uid": "src/pages/Dashboard/Agenda.tsx:67:23",
 									"data-prohibitions": "[editContent]",
 									className: "text-sm font-medium leading-none",
 									children: lead.name
 								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									"data-uid": "src/pages/Dashboard/Agenda.tsx:64:23",
+									"data-uid": "src/pages/Dashboard/Agenda.tsx:68:23",
 									"data-prohibitions": "[editContent]",
 									className: "flex items-center gap-2 mt-1",
 									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Badge, {
-										"data-uid": "src/pages/Dashboard/Agenda.tsx:65:25",
+										"data-uid": "src/pages/Dashboard/Agenda.tsx:69:25",
 										"data-prohibitions": "[editContent]",
 										variant: "secondary",
 										className: "text-[10px] h-4 px-1.5 font-normal",
@@ -31212,7 +31337,7 @@ function DashboardAgenda() {
 											format$1(new Date(apt.date), "HH:mm")
 										]
 									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-										"data-uid": "src/pages/Dashboard/Agenda.tsx:68:25",
+										"data-uid": "src/pages/Dashboard/Agenda.tsx:72:25",
 										"data-prohibitions": "[editContent]",
 										className: "text-xs text-muted-foreground",
 										children: lead.type
@@ -31220,18 +31345,18 @@ function DashboardAgenda() {
 								})]
 							})]
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button$1, {
-							"data-uid": "src/pages/Dashboard/Agenda.tsx:72:19",
+							"data-uid": "src/pages/Dashboard/Agenda.tsx:76:19",
 							"data-prohibitions": "[]",
 							size: "sm",
 							variant: "outline",
 							className: "gap-1 h-8",
 							onClick: () => handleMarkVisited(apt.id),
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CircleCheck, {
-								"data-uid": "src/pages/Dashboard/Agenda.tsx:78:21",
+								"data-uid": "src/pages/Dashboard/Agenda.tsx:82:21",
 								"data-prohibitions": "[editContent]",
 								className: "h-4 w-4 text-success"
 							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-								"data-uid": "src/pages/Dashboard/Agenda.tsx:79:21",
+								"data-uid": "src/pages/Dashboard/Agenda.tsx:83:21",
 								"data-prohibitions": "[]",
 								className: "hidden sm:inline",
 								children: "Realizada"
@@ -54907,14 +55032,15 @@ function getPayloadConfigFromPayload(config, payload, key) {
 }
 //#endregion
 //#region src/pages/Dashboard/PerformancePanel.tsx
-function PerformancePanel() {
+function PerformancePanel({ dateRange }) {
 	const { state } = useMainStore();
 	const { scheduled, visited } = (0, import_react.useMemo)(() => {
+		const filtered = state.appointments.filter((a) => isDateInRange(a.date, dateRange));
 		return {
-			scheduled: state.appointments.filter((a) => a.status === "Scheduled").length,
-			visited: state.appointments.filter((a) => a.status === "Visited").length
+			scheduled: filtered.filter((a) => a.status === "Scheduled").length,
+			visited: filtered.filter((a) => a.status === "Visited").length
 		};
-	}, [state.appointments]);
+	}, [state.appointments, dateRange]);
 	const pieData = [{
 		name: "Realizadas",
 		value: visited,
@@ -54925,33 +55051,33 @@ function PerformancePanel() {
 		color: "hsl(var(--primary))"
 	}];
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
-		"data-uid": "src/pages/Dashboard/PerformancePanel.tsx:23:5",
+		"data-uid": "src/pages/Dashboard/PerformancePanel.tsx:26:5",
 		"data-prohibitions": "[editContent]",
-		className: "shadow-subtle flex flex-col h-full",
+		className: "shadow-subtle flex flex-col h-full min-h-[300px]",
 		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, {
-			"data-uid": "src/pages/Dashboard/PerformancePanel.tsx:24:7",
+			"data-uid": "src/pages/Dashboard/PerformancePanel.tsx:27:7",
 			"data-prohibitions": "[]",
 			className: "pb-2",
 			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, {
-				"data-uid": "src/pages/Dashboard/PerformancePanel.tsx:25:9",
+				"data-uid": "src/pages/Dashboard/PerformancePanel.tsx:28:9",
 				"data-prohibitions": "[]",
 				className: "text-lg",
 				children: "Efetividade de Visitas"
 			}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardDescription, {
-				"data-uid": "src/pages/Dashboard/PerformancePanel.tsx:26:9",
+				"data-uid": "src/pages/Dashboard/PerformancePanel.tsx:29:9",
 				"data-prohibitions": "[]",
-				children: "Comparativo do ciclo atual"
+				children: "Comparativo do período selecionado"
 			})]
 		}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardContent, {
-			"data-uid": "src/pages/Dashboard/PerformancePanel.tsx:28:7",
+			"data-uid": "src/pages/Dashboard/PerformancePanel.tsx:31:7",
 			"data-prohibitions": "[editContent]",
 			className: "flex-1 flex flex-col justify-center pb-6",
 			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-				"data-uid": "src/pages/Dashboard/PerformancePanel.tsx:29:9",
+				"data-uid": "src/pages/Dashboard/PerformancePanel.tsx:32:9",
 				"data-prohibitions": "[editContent]",
-				className: "h-[200px] w-full",
+				className: "h-[180px] w-full",
 				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChartContainer, {
-					"data-uid": "src/pages/Dashboard/PerformancePanel.tsx:30:11",
+					"data-uid": "src/pages/Dashboard/PerformancePanel.tsx:33:11",
 					"data-prohibitions": "[editContent]",
 					config: {
 						realizadas: {
@@ -54964,31 +55090,31 @@ function PerformancePanel() {
 						}
 					},
 					children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ResponsiveContainer, {
-						"data-uid": "src/pages/Dashboard/PerformancePanel.tsx:36:13",
+						"data-uid": "src/pages/Dashboard/PerformancePanel.tsx:39:13",
 						"data-prohibitions": "[editContent]",
 						width: "100%",
 						height: "100%",
 						children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(PieChart, {
-							"data-uid": "src/pages/Dashboard/PerformancePanel.tsx:37:15",
+							"data-uid": "src/pages/Dashboard/PerformancePanel.tsx:40:15",
 							"data-prohibitions": "[editContent]",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Pie, {
-								"data-uid": "src/pages/Dashboard/PerformancePanel.tsx:38:17",
+								"data-uid": "src/pages/Dashboard/PerformancePanel.tsx:41:17",
 								"data-prohibitions": "[editContent]",
 								data: pieData,
-								innerRadius: 60,
-								outerRadius: 80,
+								innerRadius: 50,
+								outerRadius: 70,
 								paddingAngle: 5,
 								dataKey: "value",
 								children: pieData.map((entry, index) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Cell, {
-									"data-uid": "src/pages/Dashboard/PerformancePanel.tsx:46:21",
+									"data-uid": "src/pages/Dashboard/PerformancePanel.tsx:49:21",
 									"data-prohibitions": "[editContent]",
 									fill: entry.color
 								}, `cell-${index}`))
 							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChartTooltip, {
-								"data-uid": "src/pages/Dashboard/PerformancePanel.tsx:49:17",
+								"data-uid": "src/pages/Dashboard/PerformancePanel.tsx:52:17",
 								"data-prohibitions": "[editContent]",
 								content: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChartTooltipContent, {
-									"data-uid": "src/pages/Dashboard/PerformancePanel.tsx:49:40",
+									"data-uid": "src/pages/Dashboard/PerformancePanel.tsx:52:40",
 									"data-prohibitions": "[editContent]"
 								})
 							})]
@@ -54996,20 +55122,20 @@ function PerformancePanel() {
 					})
 				})
 			}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				"data-uid": "src/pages/Dashboard/PerformancePanel.tsx:54:9",
+				"data-uid": "src/pages/Dashboard/PerformancePanel.tsx:57:9",
 				"data-prohibitions": "[editContent]",
 				className: "grid grid-cols-2 gap-4 mt-4 text-center",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					"data-uid": "src/pages/Dashboard/PerformancePanel.tsx:55:11",
+					"data-uid": "src/pages/Dashboard/PerformancePanel.tsx:58:11",
 					"data-prohibitions": "[editContent]",
 					className: "space-y-1",
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						"data-uid": "src/pages/Dashboard/PerformancePanel.tsx:56:13",
+						"data-uid": "src/pages/Dashboard/PerformancePanel.tsx:59:13",
 						"data-prohibitions": "[editContent]",
 						className: "text-2xl font-bold text-success flex items-center justify-center gap-1",
 						children: [
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CircleCheckBig, {
-								"data-uid": "src/pages/Dashboard/PerformancePanel.tsx:57:15",
+								"data-uid": "src/pages/Dashboard/PerformancePanel.tsx:60:15",
 								"data-prohibitions": "[editContent]",
 								className: "h-5 w-5"
 							}),
@@ -55017,22 +55143,22 @@ function PerformancePanel() {
 							visited
 						]
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-						"data-uid": "src/pages/Dashboard/PerformancePanel.tsx:59:13",
+						"data-uid": "src/pages/Dashboard/PerformancePanel.tsx:62:13",
 						"data-prohibitions": "[]",
 						className: "text-xs text-muted-foreground",
 						children: "Realizadas"
 					})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					"data-uid": "src/pages/Dashboard/PerformancePanel.tsx:61:11",
+					"data-uid": "src/pages/Dashboard/PerformancePanel.tsx:64:11",
 					"data-prohibitions": "[editContent]",
 					className: "space-y-1 border-l border-border/50",
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						"data-uid": "src/pages/Dashboard/PerformancePanel.tsx:62:13",
+						"data-uid": "src/pages/Dashboard/PerformancePanel.tsx:65:13",
 						"data-prohibitions": "[editContent]",
 						className: "text-2xl font-bold text-primary",
 						children: scheduled
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-						"data-uid": "src/pages/Dashboard/PerformancePanel.tsx:63:13",
+						"data-uid": "src/pages/Dashboard/PerformancePanel.tsx:66:13",
 						"data-prohibitions": "[]",
 						className: "text-xs text-muted-foreground",
 						children: "Em Aberto"
@@ -55043,47 +55169,828 @@ function PerformancePanel() {
 	});
 }
 //#endregion
-//#region src/pages/Dashboard/Index.tsx
-function DashboardPage() {
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-		"data-uid": "src/pages/Dashboard/Index.tsx:7:5",
+//#region src/lib/brazil-map-data.ts
+var BRAZIL_STATES = [
+	{
+		id: "AC",
+		name: "Acre",
+		path: "M 183.6 447.1 L 180.3 462.6 L 203.2 468.3 L 244.1 433.9 L 219.5 401.2 Z"
+	},
+	{
+		id: "AL",
+		name: "Alagoas",
+		path: "M 890.3 401.2 L 896.8 412.6 L 878.8 420.8 L 872.3 411.0 Z"
+	},
+	{
+		id: "AP",
+		name: "Amapá",
+		path: "M 648.3 64.9 L 666.3 84.5 L 682.6 128.6 L 620.5 156.4 L 620.5 86.1 Z"
+	},
+	{
+		id: "AM",
+		name: "Amazonas",
+		path: "M 353.6 200.5 L 438.7 151.4 L 466.5 190.7 L 468.1 319.9 L 366.7 344.4 L 273.5 352.6 Z"
+	},
+	{
+		id: "BA",
+		name: "Bahia",
+		path: "M 808.5 437.1 L 867.4 402.8 L 847.8 491.1 L 766.0 514.0 L 739.8 440.4 Z"
+	},
+	{
+		id: "CE",
+		name: "Ceará",
+		path: "M 823.2 249.1 L 862.4 252.3 L 860.8 316.1 L 811.7 337.3 L 800.3 275.2 Z"
+	},
+	{
+		id: "DF",
+		name: "Distrito Federal",
+		path: "M 636.8 543.4 L 643.4 543.4 L 643.4 549.9 L 636.8 549.9 Z"
+	},
+	{
+		id: "ES",
+		name: "Espírito Santo",
+		path: "M 800.3 623.5 L 819.9 617.0 L 806.8 679.1 L 788.8 667.6 Z"
+	},
+	{
+		id: "GO",
+		name: "Goiás",
+		path: "M 646.6 484.5 L 690.8 518.9 L 636.8 630.0 L 581.2 590.8 Z"
+	},
+	{
+		id: "MA",
+		name: "Maranhão",
+		path: "M 671.2 169.5 L 733.3 176.0 L 731.7 288.8 L 656.5 288.8 Z"
+	},
+	{
+		id: "MT",
+		name: "Mato Grosso",
+		path: "M 464.9 334.6 L 566.3 350.9 L 576.1 484.9 L 458.3 496.4 Z"
+	},
+	{
+		id: "MS",
+		name: "Mato Grosso do Sul",
+		path: "M 494.3 530.7 L 572.8 550.3 L 572.8 623.8 L 476.3 646.7 L 469.8 584.6 Z"
+	},
+	{
+		id: "MG",
+		name: "Minas Gerais",
+		path: "M 648.3 568.3 L 780.7 542.1 L 787.2 654.9 L 661.3 671.2 Z"
+	},
+	{
+		id: "PA",
+		name: "Pará",
+		path: "M 500.8 171.1 L 626.7 151.4 L 641.4 287.1 L 528.6 323.1 L 477.9 208.7 Z"
+	},
+	{
+		id: "PB",
+		name: "Paraíba",
+		path: "M 865.7 304.6 L 916.4 309.5 L 914.7 334.0 L 867.3 327.5 Z"
+	},
+	{
+		id: "PR",
+		name: "Paraná",
+		path: "M 553.2 694.1 L 656.2 666.3 L 672.6 720.3 L 536.8 743.2 Z"
+	},
+	{
+		id: "PE",
+		name: "Pernambuco",
+		path: "M 816.6 339.0 L 919.6 339.0 L 919.6 373.3 L 811.7 365.1 Z"
+	},
+	{
+		id: "PI",
+		name: "Piauí",
+		path: "M 748.0 252.3 L 795.5 267.1 L 766.0 384.8 L 739.8 358.6 L 728.4 278.5 Z"
+	},
+	{
+		id: "RJ",
+		name: "Rio de Janeiro",
+		path: "M 738.2 667.6 L 797.1 661.1 L 805.2 693.8 L 730.0 706.8 Z"
+	},
+	{
+		id: "RN",
+		name: "Rio Grande do Norte",
+		path: "M 867.3 268.7 L 931.1 278.5 L 929.4 301.4 L 867.3 293.2 Z"
+	},
+	{
+		id: "RS",
+		name: "Rio Grande do Sul",
+		path: "M 527.0 779.2 L 610.4 756.3 L 644.7 854.4 L 507.4 875.6 Z"
+	},
+	{
+		id: "RO",
+		name: "Rondônia",
+		path: "M 353.6 362.4 L 438.7 349.3 L 450.1 437.6 L 366.7 416.3 Z"
+	},
+	{
+		id: "RR",
+		name: "Roraima",
+		path: "M 379.8 63.3 L 428.8 69.8 L 415.8 141.8 L 366.7 131.9 Z"
+	},
+	{
+		id: "SC",
+		name: "Santa Catarina",
+		path: "M 574.4 730.1 L 664.4 703.9 L 664.4 746.5 L 549.9 762.8 Z"
+	},
+	{
+		id: "SP",
+		name: "São Paulo",
+		path: "M 607.1 639.8 L 720.0 621.8 L 726.5 693.8 L 643.1 700.3 Z"
+	},
+	{
+		id: "SE",
+		name: "Sergipe",
+		path: "M 872.3 378.2 L 890.3 379.9 L 888.6 399.5 L 869.0 397.8 Z"
+	},
+	{
+		id: "TO",
+		name: "Tocantins",
+		path: "M 600.6 313.3 L 651.3 308.4 L 662.7 447.4 L 590.8 458.8 Z"
+	}
+];
+//#endregion
+//#region src/components/ui/dialog.tsx
+var Dialog = Root$5;
+var DialogTrigger = Trigger$4;
+var DialogPortal = Portal$3;
+var DialogOverlay = import_react.forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Overlay, {
+	"data-uid": "src/components/ui/dialog.tsx:20:3",
+	"data-prohibitions": "[editContent]",
+	ref,
+	className: cn$1("fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0", className),
+	...props
+}));
+DialogOverlay.displayName = Overlay.displayName;
+var DialogContent = import_react.forwardRef(({ className, children, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogPortal, {
+	"data-uid": "src/components/ui/dialog.tsx:35:3",
+	"data-prohibitions": "[editContent]",
+	children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DialogOverlay, {
+		"data-uid": "src/components/ui/dialog.tsx:36:5",
+		"data-prohibitions": "[editContent]"
+	}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Content$1, {
+		"data-uid": "src/components/ui/dialog.tsx:37:5",
+		"data-prohibitions": "[editContent]",
+		ref,
+		className: cn$1("fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg overflow-y-auto max-h-screen", className),
+		...props,
+		children: [children, /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Close, {
+			"data-uid": "src/components/ui/dialog.tsx:46:7",
+			"data-prohibitions": "[]",
+			className: "absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground",
+			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(X, {
+				"data-uid": "src/components/ui/dialog.tsx:47:9",
+				"data-prohibitions": "[editContent]",
+				className: "h-4 w-4"
+			}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+				"data-uid": "src/components/ui/dialog.tsx:48:9",
+				"data-prohibitions": "[]",
+				className: "sr-only",
+				children: "Close"
+			})]
+		})]
+	})]
+}));
+DialogContent.displayName = Content$1.displayName;
+var DialogHeader = ({ className, ...props }) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+	"data-uid": "src/components/ui/dialog.tsx:56:3",
+	"data-prohibitions": "[editContent]",
+	className: cn$1("flex flex-col space-y-1.5 text-center sm:text-left", className),
+	...props
+});
+DialogHeader.displayName = "DialogHeader";
+var DialogFooter = ({ className, ...props }) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+	"data-uid": "src/components/ui/dialog.tsx:61:3",
+	"data-prohibitions": "[editContent]",
+	className: cn$1("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2", className),
+	...props
+});
+DialogFooter.displayName = "DialogFooter";
+var DialogTitle = import_react.forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Title, {
+	"data-uid": "src/components/ui/dialog.tsx:72:3",
+	"data-prohibitions": "[editContent]",
+	ref,
+	className: cn$1("text-lg font-semibold leading-none tracking-tight", className),
+	...props
+}));
+DialogTitle.displayName = Title.displayName;
+var DialogDescription = import_react.forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Description, {
+	"data-uid": "src/components/ui/dialog.tsx:84:3",
+	"data-prohibitions": "[editContent]",
+	ref,
+	className: cn$1("text-sm text-muted-foreground", className),
+	...props
+}));
+DialogDescription.displayName = Description.displayName;
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/@radix-ui+react-label@2.1.8_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@_55fa612a976b7bdfbf4dcdd93d861aab/node_modules/@radix-ui/react-label/dist/index.mjs
+var NAME = "Label";
+var Label$3 = import_react.forwardRef((props, forwardedRef) => {
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Primitive.label, {
+		...props,
+		ref: forwardedRef,
+		onMouseDown: (event) => {
+			if (event.target.closest("button, input, select, textarea")) return;
+			props.onMouseDown?.(event);
+			if (!event.defaultPrevented && event.detail > 1) event.preventDefault();
+		}
+	});
+});
+Label$3.displayName = NAME;
+var Root$3 = Label$3;
+//#endregion
+//#region src/components/ui/label.tsx
+var labelVariants = cva("text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70");
+var Label$2 = import_react.forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Root$3, {
+	"data-uid": "src/components/ui/label.tsx:16:3",
+	"data-prohibitions": "[editContent]",
+	ref,
+	className: cn$1(labelVariants(), className),
+	...props
+}));
+Label$2.displayName = Root$3.displayName;
+//#endregion
+//#region src/pages/Dashboard/HeatmapSettingsDialog.tsx
+function HeatmapSettingsDialog() {
+	const { state, dispatch } = useMainStore();
+	const [open, setOpen] = (0, import_react.useState)(false);
+	const [config, setConfig] = (0, import_react.useState)(state.heatmapConfig);
+	const handleSave = () => {
+		dispatch({
+			type: "UPDATE_HEATMAP_CONFIG",
+			payload: config
+		});
+		setOpen(false);
+	};
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Dialog, {
+		"data-uid": "src/pages/Dashboard/HeatmapSettingsDialog.tsx:26:5",
 		"data-prohibitions": "[]",
-		className: "space-y-6 animate-slide-up",
-		children: [
-			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				"data-uid": "src/pages/Dashboard/Index.tsx:8:7",
+		open,
+		onOpenChange: (o) => {
+			setOpen(o);
+			if (o) setConfig(state.heatmapConfig);
+		},
+		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DialogTrigger, {
+			"data-uid": "src/pages/Dashboard/HeatmapSettingsDialog.tsx:33:7",
+			"data-prohibitions": "[]",
+			asChild: true,
+			children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button$1, {
+				"data-uid": "src/pages/Dashboard/HeatmapSettingsDialog.tsx:34:9",
 				"data-prohibitions": "[]",
-				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", {
-					"data-uid": "src/pages/Dashboard/Index.tsx:9:9",
+				variant: "outline",
+				size: "sm",
+				className: "gap-2 shrink-0",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Settings, {
+					"data-uid": "src/pages/Dashboard/HeatmapSettingsDialog.tsx:35:11",
+					"data-prohibitions": "[editContent]",
+					className: "h-4 w-4"
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+					"data-uid": "src/pages/Dashboard/HeatmapSettingsDialog.tsx:36:11",
 					"data-prohibitions": "[]",
-					className: "text-2xl font-bold tracking-tight",
-					children: "Visão Geral"
-				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-					"data-uid": "src/pages/Dashboard/Index.tsx:10:9",
-					"data-prohibitions": "[]",
-					className: "text-muted-foreground",
-					children: "Acompanhe seus agendamentos, funil e logística."
-				})]
-			}),
-			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(KpiCards, {
-				"data-uid": "src/pages/Dashboard/Index.tsx:12:7",
-				"data-prohibitions": "[editContent]"
-			}),
-			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				"data-uid": "src/pages/Dashboard/Index.tsx:13:7",
-				"data-prohibitions": "[]",
-				className: "grid gap-4 md:grid-cols-2",
-				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PerformancePanel, {
-					"data-uid": "src/pages/Dashboard/Index.tsx:14:9",
-					"data-prohibitions": "[editContent]"
-				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DashboardAgenda, {
-					"data-uid": "src/pages/Dashboard/Index.tsx:15:9",
-					"data-prohibitions": "[editContent]"
+					className: "hidden sm:inline",
+					children: "Configurações"
 				})]
 			})
-		]
+		}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogContent, {
+			"data-uid": "src/pages/Dashboard/HeatmapSettingsDialog.tsx:39:7",
+			"data-prohibitions": "[]",
+			children: [
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DialogHeader, {
+					"data-uid": "src/pages/Dashboard/HeatmapSettingsDialog.tsx:40:9",
+					"data-prohibitions": "[]",
+					children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DialogTitle, {
+						"data-uid": "src/pages/Dashboard/HeatmapSettingsDialog.tsx:41:11",
+						"data-prohibitions": "[]",
+						children: "Configurações do Mapa de Calor"
+					})
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					"data-uid": "src/pages/Dashboard/HeatmapSettingsDialog.tsx:43:9",
+					"data-prohibitions": "[]",
+					className: "grid gap-6 py-4",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						"data-uid": "src/pages/Dashboard/HeatmapSettingsDialog.tsx:44:11",
+						"data-prohibitions": "[]",
+						className: "grid grid-cols-2 gap-4",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							"data-uid": "src/pages/Dashboard/HeatmapSettingsDialog.tsx:45:13",
+							"data-prohibitions": "[]",
+							className: "space-y-2",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label$2, {
+								"data-uid": "src/pages/Dashboard/HeatmapSettingsDialog.tsx:46:15",
+								"data-prohibitions": "[]",
+								children: "Cor (Mínima densidade)"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								"data-uid": "src/pages/Dashboard/HeatmapSettingsDialog.tsx:47:15",
+								"data-prohibitions": "[]",
+								className: "flex gap-2 items-center",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+									"data-uid": "src/pages/Dashboard/HeatmapSettingsDialog.tsx:48:17",
+									"data-prohibitions": "[editContent]",
+									type: "color",
+									value: config.lowColor,
+									onChange: (e) => setConfig({
+										...config,
+										lowColor: e.target.value
+									}),
+									className: "w-12 h-10 p-1 cursor-pointer"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+									"data-uid": "src/pages/Dashboard/HeatmapSettingsDialog.tsx:54:17",
+									"data-prohibitions": "[editContent]",
+									type: "text",
+									value: config.lowColor,
+									onChange: (e) => setConfig({
+										...config,
+										lowColor: e.target.value
+									}),
+									className: "flex-1 uppercase"
+								})]
+							})]
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							"data-uid": "src/pages/Dashboard/HeatmapSettingsDialog.tsx:62:13",
+							"data-prohibitions": "[]",
+							className: "space-y-2",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label$2, {
+								"data-uid": "src/pages/Dashboard/HeatmapSettingsDialog.tsx:63:15",
+								"data-prohibitions": "[]",
+								children: "Cor (Máxima densidade)"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								"data-uid": "src/pages/Dashboard/HeatmapSettingsDialog.tsx:64:15",
+								"data-prohibitions": "[]",
+								className: "flex gap-2 items-center",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+									"data-uid": "src/pages/Dashboard/HeatmapSettingsDialog.tsx:65:17",
+									"data-prohibitions": "[editContent]",
+									type: "color",
+									value: config.highColor,
+									onChange: (e) => setConfig({
+										...config,
+										highColor: e.target.value
+									}),
+									className: "w-12 h-10 p-1 cursor-pointer"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+									"data-uid": "src/pages/Dashboard/HeatmapSettingsDialog.tsx:71:17",
+									"data-prohibitions": "[editContent]",
+									type: "text",
+									value: config.highColor,
+									onChange: (e) => setConfig({
+										...config,
+										highColor: e.target.value
+									}),
+									className: "flex-1 uppercase"
+								})]
+							})]
+						})]
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						"data-uid": "src/pages/Dashboard/HeatmapSettingsDialog.tsx:80:11",
+						"data-prohibitions": "[]",
+						className: "grid grid-cols-2 gap-4",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							"data-uid": "src/pages/Dashboard/HeatmapSettingsDialog.tsx:81:13",
+							"data-prohibitions": "[]",
+							className: "space-y-2",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label$2, {
+								"data-uid": "src/pages/Dashboard/HeatmapSettingsDialog.tsx:82:15",
+								"data-prohibitions": "[]",
+								children: "Limite Mínimo (Visitas)"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+								"data-uid": "src/pages/Dashboard/HeatmapSettingsDialog.tsx:83:15",
+								"data-prohibitions": "[editContent]",
+								type: "number",
+								min: "0",
+								value: config.minThreshold,
+								onChange: (e) => setConfig({
+									...config,
+									minThreshold: parseInt(e.target.value) || 0
+								})
+							})]
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							"data-uid": "src/pages/Dashboard/HeatmapSettingsDialog.tsx:92:13",
+							"data-prohibitions": "[]",
+							className: "space-y-2",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label$2, {
+								"data-uid": "src/pages/Dashboard/HeatmapSettingsDialog.tsx:93:15",
+								"data-prohibitions": "[]",
+								children: "Limite Máximo (Visitas)"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+								"data-uid": "src/pages/Dashboard/HeatmapSettingsDialog.tsx:94:15",
+								"data-prohibitions": "[editContent]",
+								type: "number",
+								min: "1",
+								value: config.maxThreshold,
+								onChange: (e) => setConfig({
+									...config,
+									maxThreshold: parseInt(e.target.value) || 1
+								})
+							})]
+						})]
+					})]
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+					"data-uid": "src/pages/Dashboard/HeatmapSettingsDialog.tsx:105:9",
+					"data-prohibitions": "[]",
+					className: "flex justify-end pt-2 border-t",
+					children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button$1, {
+						"data-uid": "src/pages/Dashboard/HeatmapSettingsDialog.tsx:106:11",
+						"data-prohibitions": "[]",
+						onClick: handleSave,
+						children: "Salvar Alterações"
+					})
+				})
+			]
+		})]
 	});
 }
+//#endregion
+//#region src/pages/Dashboard/BrazilMap.tsx
+function BrazilMapDashboard({ dateRange }) {
+	const { state } = useMainStore();
+	const stateVisits = (0, import_react.useMemo)(() => {
+		const counts = {};
+		state.appointments.forEach((apt) => {
+			if (!isDateInRange(apt.date, dateRange)) return;
+			const lead = state.leads.find((l) => l.id === apt.leadId);
+			if (lead?.state) counts[lead.state] = (counts[lead.state] || 0) + 1;
+		});
+		return counts;
+	}, [
+		state.appointments,
+		state.leads,
+		dateRange
+	]);
+	const { minThreshold, maxThreshold, lowColor, highColor } = state.heatmapConfig;
+	const getStateColor = (uf) => {
+		const count = stateVisits[uf] || 0;
+		if (count <= 0) return "#f1f5f9";
+		const range = maxThreshold - minThreshold || 1;
+		return interpolateColor(lowColor, highColor, (count - minThreshold) / range);
+	};
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
+		"data-uid": "src/pages/Dashboard/BrazilMap.tsx:37:5",
+		"data-prohibitions": "[editContent]",
+		className: "shadow-subtle h-full flex flex-col",
+		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, {
+			"data-uid": "src/pages/Dashboard/BrazilMap.tsx:38:7",
+			"data-prohibitions": "[]",
+			className: "flex flex-row items-center justify-between pb-2 border-b border-border/50",
+			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardTitle, {
+				"data-uid": "src/pages/Dashboard/BrazilMap.tsx:39:9",
+				"data-prohibitions": "[]",
+				className: "text-lg flex items-center gap-2",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Map$1, {
+					"data-uid": "src/pages/Dashboard/BrazilMap.tsx:40:11",
+					"data-prohibitions": "[editContent]",
+					className: "h-5 w-5 text-muted-foreground"
+				}), "Mapa de Visitas (Heatmap)"]
+			}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(HeatmapSettingsDialog, {
+				"data-uid": "src/pages/Dashboard/BrazilMap.tsx:43:9",
+				"data-prohibitions": "[editContent]"
+			})]
+		}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardContent, {
+			"data-uid": "src/pages/Dashboard/BrazilMap.tsx:45:7",
+			"data-prohibitions": "[editContent]",
+			className: "flex-1 flex flex-col items-center justify-center p-6 relative",
+			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				"data-uid": "src/pages/Dashboard/BrazilMap.tsx:46:9",
+				"data-prohibitions": "[editContent]",
+				className: "w-full max-w-[450px] aspect-[1/1] relative",
+				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("svg", {
+					"data-uid": "src/pages/Dashboard/BrazilMap.tsx:47:11",
+					"data-prohibitions": "[editContent]",
+					viewBox: "150 50 850 850",
+					className: "w-full h-full drop-shadow-sm filter",
+					children: BRAZIL_STATES.map((brState) => {
+						const count = stateVisits[brState.id] || 0;
+						return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Tooltip$1, {
+							"data-uid": "src/pages/Dashboard/BrazilMap.tsx:51:17",
+							"data-prohibitions": "[editContent]",
+							delayDuration: 100,
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TooltipTrigger, {
+								"data-uid": "src/pages/Dashboard/BrazilMap.tsx:52:19",
+								"data-prohibitions": "[]",
+								asChild: true,
+								children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", {
+									"data-uid": "src/pages/Dashboard/BrazilMap.tsx:53:21",
+									"data-prohibitions": "[editContent]",
+									d: brState.path,
+									fill: getStateColor(brState.id),
+									stroke: "#ffffff",
+									strokeWidth: "3",
+									strokeLinejoin: "round",
+									className: "transition-colors duration-300 hover:opacity-75 hover:stroke-foreground cursor-pointer outline-none"
+								})
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TooltipContent, {
+								"data-uid": "src/pages/Dashboard/BrazilMap.tsx:62:19",
+								"data-prohibitions": "[editContent]",
+								side: "top",
+								children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									"data-uid": "src/pages/Dashboard/BrazilMap.tsx:63:21",
+									"data-prohibitions": "[editContent]",
+									className: "text-center",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										"data-uid": "src/pages/Dashboard/BrazilMap.tsx:64:23",
+										"data-prohibitions": "[editContent]",
+										className: "font-semibold text-sm",
+										children: brState.name
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+										"data-uid": "src/pages/Dashboard/BrazilMap.tsx:65:23",
+										"data-prohibitions": "[editContent]",
+										className: "text-xs text-muted-foreground",
+										children: [
+											count,
+											" visita",
+											count !== 1 ? "s" : ""
+										]
+									})]
+								})
+							})]
+						}, brState.id);
+					})
+				})
+			}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				"data-uid": "src/pages/Dashboard/BrazilMap.tsx:76:9",
+				"data-prohibitions": "[editContent]",
+				className: "flex items-center gap-2 mt-6 text-xs text-muted-foreground w-full max-w-[300px] bg-slate-50 p-3 rounded-lg border border-border/50",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+						"data-uid": "src/pages/Dashboard/BrazilMap.tsx:77:11",
+						"data-prohibitions": "[editContent]",
+						className: "font-medium whitespace-nowrap",
+						children: minThreshold
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						"data-uid": "src/pages/Dashboard/BrazilMap.tsx:78:11",
+						"data-prohibitions": "[editContent]",
+						className: "flex-1 h-2 rounded-full border border-border/50",
+						style: { background: `linear-gradient(to right, ${lowColor}, ${highColor})` }
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+						"data-uid": "src/pages/Dashboard/BrazilMap.tsx:84:11",
+						"data-prohibitions": "[editContent]",
+						className: "font-medium whitespace-nowrap",
+						children: [maxThreshold, "+ Visitas"]
+					})
+				]
+			})]
+		})]
+	});
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/@radix-ui+react-popover@1.1.15_@types+react-dom@19.2.3_@types+react@19.2.14__@types+rea_8b5332f8e883134e9d9ab2856fc4395d/node_modules/@radix-ui/react-popover/dist/index.mjs
+var POPOVER_NAME = "Popover";
+var [createPopoverContext, createPopoverScope] = createContextScope$1(POPOVER_NAME, [createPopperScope]);
+var usePopperScope$2 = createPopperScope();
+var [PopoverProvider, usePopoverContext] = createPopoverContext(POPOVER_NAME);
+var Popover$1 = (props) => {
+	const { __scopePopover, children, open: openProp, defaultOpen, onOpenChange, modal = false } = props;
+	const popperScope = usePopperScope$2(__scopePopover);
+	const triggerRef = import_react.useRef(null);
+	const [hasCustomAnchor, setHasCustomAnchor] = import_react.useState(false);
+	const [open, setOpen] = useControllableState({
+		prop: openProp,
+		defaultProp: defaultOpen ?? false,
+		onChange: onOpenChange,
+		caller: POPOVER_NAME
+	});
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Root2$4, {
+		...popperScope,
+		children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PopoverProvider, {
+			scope: __scopePopover,
+			contentId: useId(),
+			triggerRef,
+			open,
+			onOpenChange: setOpen,
+			onOpenToggle: import_react.useCallback(() => setOpen((prevOpen) => !prevOpen), [setOpen]),
+			hasCustomAnchor,
+			onCustomAnchorAdd: import_react.useCallback(() => setHasCustomAnchor(true), []),
+			onCustomAnchorRemove: import_react.useCallback(() => setHasCustomAnchor(false), []),
+			modal,
+			children
+		})
+	});
+};
+Popover$1.displayName = POPOVER_NAME;
+var ANCHOR_NAME$1 = "PopoverAnchor";
+var PopoverAnchor = import_react.forwardRef((props, forwardedRef) => {
+	const { __scopePopover, ...anchorProps } = props;
+	const context = usePopoverContext(ANCHOR_NAME$1, __scopePopover);
+	const popperScope = usePopperScope$2(__scopePopover);
+	const { onCustomAnchorAdd, onCustomAnchorRemove } = context;
+	import_react.useEffect(() => {
+		onCustomAnchorAdd();
+		return () => onCustomAnchorRemove();
+	}, [onCustomAnchorAdd, onCustomAnchorRemove]);
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Anchor, {
+		...popperScope,
+		...anchorProps,
+		ref: forwardedRef
+	});
+});
+PopoverAnchor.displayName = ANCHOR_NAME$1;
+var TRIGGER_NAME$4 = "PopoverTrigger";
+var PopoverTrigger$1 = import_react.forwardRef((props, forwardedRef) => {
+	const { __scopePopover, ...triggerProps } = props;
+	const context = usePopoverContext(TRIGGER_NAME$4, __scopePopover);
+	const popperScope = usePopperScope$2(__scopePopover);
+	const composedTriggerRef = useComposedRefs(forwardedRef, context.triggerRef);
+	const trigger = /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Primitive$1.button, {
+		type: "button",
+		"aria-haspopup": "dialog",
+		"aria-expanded": context.open,
+		"aria-controls": context.contentId,
+		"data-state": getState$1(context.open),
+		...triggerProps,
+		ref: composedTriggerRef,
+		onClick: composeEventHandlers(props.onClick, context.onOpenToggle)
+	});
+	return context.hasCustomAnchor ? trigger : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Anchor, {
+		asChild: true,
+		...popperScope,
+		children: trigger
+	});
+});
+PopoverTrigger$1.displayName = TRIGGER_NAME$4;
+var PORTAL_NAME$3 = "PopoverPortal";
+var [PortalProvider$1, usePortalContext$1] = createPopoverContext(PORTAL_NAME$3, { forceMount: void 0 });
+var PopoverPortal = (props) => {
+	const { __scopePopover, forceMount, children, container } = props;
+	const context = usePopoverContext(PORTAL_NAME$3, __scopePopover);
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PortalProvider$1, {
+		scope: __scopePopover,
+		forceMount,
+		children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Presence, {
+			present: forceMount || context.open,
+			children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Portal$4, {
+				asChild: true,
+				container,
+				children
+			})
+		})
+	});
+};
+PopoverPortal.displayName = PORTAL_NAME$3;
+var CONTENT_NAME$4 = "PopoverContent";
+var PopoverContent$1 = import_react.forwardRef((props, forwardedRef) => {
+	const portalContext = usePortalContext$1(CONTENT_NAME$4, props.__scopePopover);
+	const { forceMount = portalContext.forceMount, ...contentProps } = props;
+	const context = usePopoverContext(CONTENT_NAME$4, props.__scopePopover);
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Presence, {
+		present: forceMount || context.open,
+		children: context.modal ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PopoverContentModal, {
+			...contentProps,
+			ref: forwardedRef
+		}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PopoverContentNonModal, {
+			...contentProps,
+			ref: forwardedRef
+		})
+	});
+});
+PopoverContent$1.displayName = CONTENT_NAME$4;
+var Slot$2 = /* @__PURE__ */ createSlot$1("PopoverContent.RemoveScroll");
+var PopoverContentModal = import_react.forwardRef((props, forwardedRef) => {
+	const context = usePopoverContext(CONTENT_NAME$4, props.__scopePopover);
+	const contentRef = import_react.useRef(null);
+	const composedRefs = useComposedRefs(forwardedRef, contentRef);
+	const isRightClickOutsideRef = import_react.useRef(false);
+	import_react.useEffect(() => {
+		const content = contentRef.current;
+		if (content) return hideOthers(content);
+	}, []);
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ReactRemoveScroll, {
+		as: Slot$2,
+		allowPinchZoom: true,
+		children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PopoverContentImpl, {
+			...props,
+			ref: composedRefs,
+			trapFocus: context.open,
+			disableOutsidePointerEvents: true,
+			onCloseAutoFocus: composeEventHandlers(props.onCloseAutoFocus, (event) => {
+				event.preventDefault();
+				if (!isRightClickOutsideRef.current) context.triggerRef.current?.focus();
+			}),
+			onPointerDownOutside: composeEventHandlers(props.onPointerDownOutside, (event) => {
+				const originalEvent = event.detail.originalEvent;
+				const ctrlLeftClick = originalEvent.button === 0 && originalEvent.ctrlKey === true;
+				isRightClickOutsideRef.current = originalEvent.button === 2 || ctrlLeftClick;
+			}, { checkForDefaultPrevented: false }),
+			onFocusOutside: composeEventHandlers(props.onFocusOutside, (event) => event.preventDefault(), { checkForDefaultPrevented: false })
+		})
+	});
+});
+var PopoverContentNonModal = import_react.forwardRef((props, forwardedRef) => {
+	const context = usePopoverContext(CONTENT_NAME$4, props.__scopePopover);
+	const hasInteractedOutsideRef = import_react.useRef(false);
+	const hasPointerDownOutsideRef = import_react.useRef(false);
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PopoverContentImpl, {
+		...props,
+		ref: forwardedRef,
+		trapFocus: false,
+		disableOutsidePointerEvents: false,
+		onCloseAutoFocus: (event) => {
+			props.onCloseAutoFocus?.(event);
+			if (!event.defaultPrevented) {
+				if (!hasInteractedOutsideRef.current) context.triggerRef.current?.focus();
+				event.preventDefault();
+			}
+			hasInteractedOutsideRef.current = false;
+			hasPointerDownOutsideRef.current = false;
+		},
+		onInteractOutside: (event) => {
+			props.onInteractOutside?.(event);
+			if (!event.defaultPrevented) {
+				hasInteractedOutsideRef.current = true;
+				if (event.detail.originalEvent.type === "pointerdown") hasPointerDownOutsideRef.current = true;
+			}
+			const target = event.target;
+			if (context.triggerRef.current?.contains(target)) event.preventDefault();
+			if (event.detail.originalEvent.type === "focusin" && hasPointerDownOutsideRef.current) event.preventDefault();
+		}
+	});
+});
+var PopoverContentImpl = import_react.forwardRef((props, forwardedRef) => {
+	const { __scopePopover, trapFocus, onOpenAutoFocus, onCloseAutoFocus, disableOutsidePointerEvents, onEscapeKeyDown, onPointerDownOutside, onFocusOutside, onInteractOutside, ...contentProps } = props;
+	const context = usePopoverContext(CONTENT_NAME$4, __scopePopover);
+	const popperScope = usePopperScope$2(__scopePopover);
+	useFocusGuards();
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(FocusScope, {
+		asChild: true,
+		loop: true,
+		trapped: trapFocus,
+		onMountAutoFocus: onOpenAutoFocus,
+		onUnmountAutoFocus: onCloseAutoFocus,
+		children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DismissableLayer, {
+			asChild: true,
+			disableOutsidePointerEvents,
+			onInteractOutside,
+			onEscapeKeyDown,
+			onPointerDownOutside,
+			onFocusOutside,
+			onDismiss: () => context.onOpenChange(false),
+			children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Content$2, {
+				"data-state": getState$1(context.open),
+				role: "dialog",
+				id: context.contentId,
+				...popperScope,
+				...contentProps,
+				ref: forwardedRef,
+				style: {
+					...contentProps.style,
+					"--radix-popover-content-transform-origin": "var(--radix-popper-transform-origin)",
+					"--radix-popover-content-available-width": "var(--radix-popper-available-width)",
+					"--radix-popover-content-available-height": "var(--radix-popper-available-height)",
+					"--radix-popover-trigger-width": "var(--radix-popper-anchor-width)",
+					"--radix-popover-trigger-height": "var(--radix-popper-anchor-height)"
+				}
+			})
+		})
+	});
+});
+var CLOSE_NAME = "PopoverClose";
+var PopoverClose = import_react.forwardRef((props, forwardedRef) => {
+	const { __scopePopover, ...closeProps } = props;
+	const context = usePopoverContext(CLOSE_NAME, __scopePopover);
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Primitive$1.button, {
+		type: "button",
+		...closeProps,
+		ref: forwardedRef,
+		onClick: composeEventHandlers(props.onClick, () => context.onOpenChange(false))
+	});
+});
+PopoverClose.displayName = CLOSE_NAME;
+var ARROW_NAME$3 = "PopoverArrow";
+var PopoverArrow = import_react.forwardRef((props, forwardedRef) => {
+	const { __scopePopover, ...arrowProps } = props;
+	const popperScope = usePopperScope$2(__scopePopover);
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Arrow, {
+		...popperScope,
+		...arrowProps,
+		ref: forwardedRef
+	});
+});
+PopoverArrow.displayName = ARROW_NAME$3;
+function getState$1(open) {
+	return open ? "open" : "closed";
+}
+var Root2$3 = Popover$1;
+var Trigger$3 = PopoverTrigger$1;
+var Portal$2 = PopoverPortal;
+var Content2$3 = PopoverContent$1;
+//#endregion
+//#region src/components/ui/popover.tsx
+var Popover = Root2$3;
+var PopoverTrigger = Trigger$3;
+var PopoverContent = import_react.forwardRef(({ className, align = "center", sideOffset = 4, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Portal$2, {
+	"data-uid": "src/components/ui/popover.tsx:14:3",
+	"data-prohibitions": "[editContent]",
+	children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Content2$3, {
+		"data-uid": "src/components/ui/popover.tsx:15:5",
+		"data-prohibitions": "[editContent]",
+		ref,
+		align,
+		sideOffset,
+		className: cn$1("z-50 w-72 rounded-md border bg-popover p-4 text-popover-foreground shadow-md outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2", className),
+		...props
+	})
+}));
+PopoverContent.displayName = Content2$3.displayName;
 //#endregion
 //#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/@date-fns+tz@1.4.1/node_modules/@date-fns/tz/tzName/index.js
 /**
@@ -55744,7 +56651,7 @@ var DateLib = class DateLib {
 		* @returns The latest date.
 		*/
 		this.max = (dates) => {
-			return this.overrides?.max ? this.overrides.max(dates) : max$2(dates);
+			return this.overrides?.max ? this.overrides.max(dates) : max$3(dates);
 		};
 		/**
 		* Returns the earliest date in the given array of dates.
@@ -55753,7 +56660,7 @@ var DateLib = class DateLib {
 		* @returns The earliest date.
 		*/
 		this.min = (dates) => {
-			return this.overrides?.min ? this.overrides.min(dates) : min$2(dates);
+			return this.overrides?.min ? this.overrides.min(dates) : min$3(dates);
 		};
 		/**
 		* Sets the month of the given date.
@@ -56394,7 +57301,7 @@ function PreviousMonthButton(props) {
 * @group Components
 * @see https://daypicker.dev/guides/custom-components
 */
-function Root$3(props) {
+function Root$2(props) {
 	const { rootRef, ...rest } = props;
 	return import_react.createElement("div", {
 		...rest,
@@ -56512,7 +57419,7 @@ var custom_components_exports = /* @__PURE__ */ __exportAll({
 	NextMonthButton: () => NextMonthButton,
 	Option: () => Option,
 	PreviousMonthButton: () => PreviousMonthButton,
-	Root: () => Root$3,
+	Root: () => Root$2,
 	Select: () => Select$2,
 	Week: () => Week,
 	WeekNumber: () => WeekNumber,
@@ -58947,6 +59854,132 @@ function CalendarDayButton({ className, day, modifiers, ...props }) {
 		"data-range-middle": modifiers.range_middle,
 		className: cn$1("data-[selected-single=true]:bg-primary data-[selected-single=true]:text-primary-foreground data-[range-middle=true]:bg-accent data-[range-middle=true]:text-accent-foreground data-[range-start=true]:bg-primary data-[range-start=true]:text-primary-foreground data-[range-end=true]:bg-primary data-[range-end=true]:text-primary-foreground group-data-[focused=true]/day:border-ring group-data-[focused=true]/day:ring-ring/50 flex aspect-square h-auto w-full min-w-[--cell-size] flex-col gap-1 font-normal leading-none data-[range-end=true]:rounded-md data-[range-middle=true]:rounded-none data-[range-start=true]:rounded-md group-data-[focused=true]/day:relative group-data-[focused=true]/day:z-10 group-data-[focused=true]/day:ring-[3px] [&>span]:text-xs [&>span]:opacity-70", defaultClassNames.day, className),
 		...props
+	});
+}
+//#endregion
+//#region src/pages/Dashboard/Index.tsx
+function DashboardPage() {
+	const [dateRange, setDateRange] = (0, import_react.useState)();
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		"data-uid": "src/pages/Dashboard/Index.tsx:18:5",
+		"data-prohibitions": "[editContent]",
+		className: "space-y-6 animate-slide-up pb-8",
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				"data-uid": "src/pages/Dashboard/Index.tsx:19:7",
+				"data-prohibitions": "[editContent]",
+				className: "flex flex-col sm:flex-row sm:items-center justify-between gap-4",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					"data-uid": "src/pages/Dashboard/Index.tsx:20:9",
+					"data-prohibitions": "[]",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", {
+						"data-uid": "src/pages/Dashboard/Index.tsx:21:11",
+						"data-prohibitions": "[]",
+						className: "text-2xl font-bold tracking-tight",
+						children: "Visão Geral"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						"data-uid": "src/pages/Dashboard/Index.tsx:22:11",
+						"data-prohibitions": "[]",
+						className: "text-muted-foreground",
+						children: "Acompanhe seus agendamentos, funil e logística."
+					})]
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					"data-uid": "src/pages/Dashboard/Index.tsx:25:9",
+					"data-prohibitions": "[editContent]",
+					className: "flex items-center gap-2",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Popover, {
+						"data-uid": "src/pages/Dashboard/Index.tsx:26:11",
+						"data-prohibitions": "[editContent]",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PopoverTrigger, {
+							"data-uid": "src/pages/Dashboard/Index.tsx:27:13",
+							"data-prohibitions": "[editContent]",
+							asChild: true,
+							children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button$1, {
+								"data-uid": "src/pages/Dashboard/Index.tsx:28:15",
+								"data-prohibitions": "[editContent]",
+								variant: "outline",
+								className: `w-full sm:w-[280px] justify-start text-left font-normal ${!dateRange ? "text-muted-foreground" : ""}`,
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Calendar$1, {
+									"data-uid": "src/pages/Dashboard/Index.tsx:32:17",
+									"data-prohibitions": "[editContent]",
+									className: "mr-2 h-4 w-4"
+								}), dateRange?.from ? dateRange.to ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+									format$1(dateRange.from, "dd 'de' MMM, yyyy", { locale: ptBR }),
+									" -",
+									" ",
+									format$1(dateRange.to, "dd 'de' MMM, yyyy", { locale: ptBR })
+								] }) : format$1(dateRange.from, "dd 'de' MMM, yyyy", { locale: ptBR }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+									"data-uid": "src/pages/Dashboard/Index.tsx:43:19",
+									"data-prohibitions": "[]",
+									children: "Filtrar por data..."
+								})]
+							})
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PopoverContent, {
+							"data-uid": "src/pages/Dashboard/Index.tsx:47:13",
+							"data-prohibitions": "[]",
+							className: "w-auto p-0",
+							align: "end",
+							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Calendar, {
+								"data-uid": "src/pages/Dashboard/Index.tsx:48:15",
+								"data-prohibitions": "[editContent]",
+								initialFocus: true,
+								mode: "range",
+								defaultMonth: dateRange?.from,
+								selected: dateRange,
+								onSelect: setDateRange,
+								numberOfMonths: 2,
+								locale: ptBR
+							})
+						})]
+					}), dateRange && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button$1, {
+						"data-uid": "src/pages/Dashboard/Index.tsx:60:13",
+						"data-prohibitions": "[]",
+						variant: "ghost",
+						size: "icon",
+						onClick: () => setDateRange(void 0),
+						title: "Limpar filtro",
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(X, {
+							"data-uid": "src/pages/Dashboard/Index.tsx:66:15",
+							"data-prohibitions": "[editContent]",
+							className: "h-4 w-4"
+						})
+					})]
+				})]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(KpiCards, {
+				"data-uid": "src/pages/Dashboard/Index.tsx:72:7",
+				"data-prohibitions": "[editContent]",
+				dateRange
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				"data-uid": "src/pages/Dashboard/Index.tsx:74:7",
+				"data-prohibitions": "[]",
+				className: "grid gap-4 lg:grid-cols-3",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+					"data-uid": "src/pages/Dashboard/Index.tsx:75:9",
+					"data-prohibitions": "[]",
+					className: "lg:col-span-2",
+					children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(BrazilMapDashboard, {
+						"data-uid": "src/pages/Dashboard/Index.tsx:76:11",
+						"data-prohibitions": "[editContent]",
+						dateRange
+					})
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					"data-uid": "src/pages/Dashboard/Index.tsx:78:9",
+					"data-prohibitions": "[]",
+					className: "space-y-4 flex flex-col h-full",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PerformancePanel, {
+						"data-uid": "src/pages/Dashboard/Index.tsx:79:11",
+						"data-prohibitions": "[editContent]",
+						dateRange
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DashboardAgenda, {
+						"data-uid": "src/pages/Dashboard/Index.tsx:80:11",
+						"data-prohibitions": "[editContent]",
+						dateRange
+					})]
+				})]
+			})
+		]
 	});
 }
 //#endregion
@@ -64340,33 +65373,6 @@ function superRefine(fn) {
 	return /* @__PURE__ */ _superRefine(fn);
 }
 //#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/@radix-ui+react-label@2.1.8_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@_55fa612a976b7bdfbf4dcdd93d861aab/node_modules/@radix-ui/react-label/dist/index.mjs
-var NAME = "Label";
-var Label$3 = import_react.forwardRef((props, forwardedRef) => {
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Primitive.label, {
-		...props,
-		ref: forwardedRef,
-		onMouseDown: (event) => {
-			if (event.target.closest("button, input, select, textarea")) return;
-			props.onMouseDown?.(event);
-			if (!event.defaultPrevented && event.detail > 1) event.preventDefault();
-		}
-	});
-});
-Label$3.displayName = NAME;
-var Root$2 = Label$3;
-//#endregion
-//#region src/components/ui/label.tsx
-var labelVariants = cva("text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70");
-var Label$2 = import_react.forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Root$2, {
-	"data-uid": "src/components/ui/label.tsx:16:3",
-	"data-prohibitions": "[editContent]",
-	ref,
-	className: cn$1(labelVariants(), className),
-	...props
-}));
-Label$2.displayName = Root$2.displayName;
-//#endregion
 //#region src/components/ui/form.tsx
 var Form = FormProvider;
 var FormFieldContext = import_react.createContext({});
@@ -64506,12 +65512,12 @@ var SELECTION_KEYS$1 = [" ", "Enter"];
 var SELECT_NAME = "Select";
 var [Collection$2, useCollection$2, createCollectionScope$2] = createCollection(SELECT_NAME);
 var [createSelectContext, createSelectScope] = createContextScope$1(SELECT_NAME, [createCollectionScope$2, createPopperScope]);
-var usePopperScope$2 = createPopperScope();
+var usePopperScope$1 = createPopperScope();
 var [SelectProvider, useSelectContext] = createSelectContext(SELECT_NAME);
 var [SelectNativeOptionsProvider, useSelectNativeOptionsContext] = createSelectContext(SELECT_NAME);
 var Select$1 = (props) => {
 	const { __scopeSelect, children, open: openProp, defaultOpen, onOpenChange, value: valueProp, defaultValue, onValueChange, dir, name, autoComplete, disabled, required, form } = props;
-	const popperScope = usePopperScope$2(__scopeSelect);
+	const popperScope = usePopperScope$1(__scopeSelect);
 	const [trigger, setTrigger] = import_react.useState(null);
 	const [valueNode, setValueNode] = import_react.useState(null);
 	const [valueNodeHasChildren, setValueNodeHasChildren] = import_react.useState(false);
@@ -64583,11 +65589,11 @@ var Select$1 = (props) => {
 	});
 };
 Select$1.displayName = SELECT_NAME;
-var TRIGGER_NAME$4 = "SelectTrigger";
+var TRIGGER_NAME$3 = "SelectTrigger";
 var SelectTrigger$1 = import_react.forwardRef((props, forwardedRef) => {
 	const { __scopeSelect, disabled = false, ...triggerProps } = props;
-	const popperScope = usePopperScope$2(__scopeSelect);
-	const context = useSelectContext(TRIGGER_NAME$4, __scopeSelect);
+	const popperScope = usePopperScope$1(__scopeSelect);
+	const context = useSelectContext(TRIGGER_NAME$3, __scopeSelect);
 	const isDisabled = context.disabled || disabled;
 	const composedRefs = useComposedRefs(forwardedRef, context.onTriggerChange);
 	const getItems = useCollection$2(__scopeSelect);
@@ -64649,7 +65655,7 @@ var SelectTrigger$1 = import_react.forwardRef((props, forwardedRef) => {
 		})
 	});
 });
-SelectTrigger$1.displayName = TRIGGER_NAME$4;
+SelectTrigger$1.displayName = TRIGGER_NAME$3;
 var VALUE_NAME = "SelectValue";
 var SelectValue$1 = import_react.forwardRef((props, forwardedRef) => {
 	const { __scopeSelect, className, style, children, placeholder = "", ...valueProps } = props;
@@ -64679,17 +65685,17 @@ var SelectIcon = import_react.forwardRef((props, forwardedRef) => {
 	});
 });
 SelectIcon.displayName = ICON_NAME;
-var PORTAL_NAME$3 = "SelectPortal";
+var PORTAL_NAME$2 = "SelectPortal";
 var SelectPortal = (props) => {
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Portal$4, {
 		asChild: true,
 		...props
 	});
 };
-SelectPortal.displayName = PORTAL_NAME$3;
-var CONTENT_NAME$4 = "SelectContent";
+SelectPortal.displayName = PORTAL_NAME$2;
+var CONTENT_NAME$3 = "SelectContent";
 var SelectContent$1 = import_react.forwardRef((props, forwardedRef) => {
-	const context = useSelectContext(CONTENT_NAME$4, props.__scopeSelect);
+	const context = useSelectContext(CONTENT_NAME$3, props.__scopeSelect);
 	const [fragment, setFragment] = import_react.useState();
 	useLayoutEffect2(() => {
 		setFragment(new DocumentFragment());
@@ -64709,14 +65715,14 @@ var SelectContent$1 = import_react.forwardRef((props, forwardedRef) => {
 		ref: forwardedRef
 	});
 });
-SelectContent$1.displayName = CONTENT_NAME$4;
+SelectContent$1.displayName = CONTENT_NAME$3;
 var CONTENT_MARGIN = 10;
-var [SelectContentProvider, useSelectContentContext] = createSelectContext(CONTENT_NAME$4);
+var [SelectContentProvider, useSelectContentContext] = createSelectContext(CONTENT_NAME$3);
 var CONTENT_IMPL_NAME = "SelectContentImpl";
-var Slot$2 = /* @__PURE__ */ createSlot$1("SelectContent.RemoveScroll");
+var Slot$1 = /* @__PURE__ */ createSlot$1("SelectContent.RemoveScroll");
 var SelectContentImpl = import_react.forwardRef((props, forwardedRef) => {
 	const { __scopeSelect, position = "item-aligned", onCloseAutoFocus, onEscapeKeyDown, onPointerDownOutside, side, sideOffset, align, alignOffset, arrowPadding, collisionBoundary, collisionPadding, sticky, hideWhenDetached, avoidCollisions, ...contentProps } = props;
-	const context = useSelectContext(CONTENT_NAME$4, __scopeSelect);
+	const context = useSelectContext(CONTENT_NAME$3, __scopeSelect);
 	const [content, setContent] = import_react.useState(null);
 	const [viewport, setViewport] = import_react.useState(null);
 	const composedRefs = useComposedRefs(forwardedRef, (node) => setContent(node));
@@ -64840,7 +65846,7 @@ var SelectContentImpl = import_react.forwardRef((props, forwardedRef) => {
 		isPositioned,
 		searchRef,
 		children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ReactRemoveScroll, {
-			as: Slot$2,
+			as: Slot$1,
 			allowPinchZoom: true,
 			children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(FocusScope, {
 				asChild: true,
@@ -64906,8 +65912,8 @@ SelectContentImpl.displayName = CONTENT_IMPL_NAME;
 var ITEM_ALIGNED_POSITION_NAME = "SelectItemAlignedPosition";
 var SelectItemAlignedPosition = import_react.forwardRef((props, forwardedRef) => {
 	const { __scopeSelect, onPlaced, ...popperProps } = props;
-	const context = useSelectContext(CONTENT_NAME$4, __scopeSelect);
-	const contentContext = useSelectContentContext(CONTENT_NAME$4, __scopeSelect);
+	const context = useSelectContext(CONTENT_NAME$3, __scopeSelect);
+	const contentContext = useSelectContentContext(CONTENT_NAME$3, __scopeSelect);
 	const [contentWrapper, setContentWrapper] = import_react.useState(null);
 	const [content, setContent] = import_react.useState(null);
 	const composedRefs = useComposedRefs(forwardedRef, (node) => setContent(node));
@@ -65032,7 +66038,7 @@ SelectItemAlignedPosition.displayName = ITEM_ALIGNED_POSITION_NAME;
 var POPPER_POSITION_NAME = "SelectPopperPosition";
 var SelectPopperPosition = import_react.forwardRef((props, forwardedRef) => {
 	const { __scopeSelect, align = "start", collisionPadding = CONTENT_MARGIN, ...popperProps } = props;
-	const popperScope = usePopperScope$2(__scopeSelect);
+	const popperScope = usePopperScope$1(__scopeSelect);
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Content$2, {
 		...popperScope,
 		...popperProps,
@@ -65051,7 +66057,7 @@ var SelectPopperPosition = import_react.forwardRef((props, forwardedRef) => {
 	});
 });
 SelectPopperPosition.displayName = POPPER_POSITION_NAME;
-var [SelectViewportProvider, useSelectViewportContext] = createSelectContext(CONTENT_NAME$4, {});
+var [SelectViewportProvider, useSelectViewportContext] = createSelectContext(CONTENT_NAME$3, {});
 var VIEWPORT_NAME = "SelectViewport";
 var SelectViewport = import_react.forwardRef((props, forwardedRef) => {
 	const { __scopeSelect, nonce, ...viewportProps } = props;
@@ -65351,19 +66357,19 @@ var SelectSeparator$1 = import_react.forwardRef((props, forwardedRef) => {
 	});
 });
 SelectSeparator$1.displayName = SEPARATOR_NAME$2;
-var ARROW_NAME$3 = "SelectArrow";
+var ARROW_NAME$2 = "SelectArrow";
 var SelectArrow = import_react.forwardRef((props, forwardedRef) => {
 	const { __scopeSelect, ...arrowProps } = props;
-	const popperScope = usePopperScope$2(__scopeSelect);
-	const context = useSelectContext(ARROW_NAME$3, __scopeSelect);
-	const contentContext = useSelectContentContext(ARROW_NAME$3, __scopeSelect);
+	const popperScope = usePopperScope$1(__scopeSelect);
+	const context = useSelectContext(ARROW_NAME$2, __scopeSelect);
+	const contentContext = useSelectContentContext(ARROW_NAME$2, __scopeSelect);
 	return context.open && contentContext.position === "popper" ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Arrow, {
 		...popperScope,
 		...arrowProps,
 		ref: forwardedRef
 	}) : null;
 });
-SelectArrow.displayName = ARROW_NAME$3;
+SelectArrow.displayName = ARROW_NAME$2;
 var BUBBLE_INPUT_NAME$1 = "SelectBubbleInput";
 var SelectBubbleInput = import_react.forwardRef(({ __scopeSelect, value, ...props }, forwardedRef) => {
 	const ref = import_react.useRef(null);
@@ -65431,12 +66437,12 @@ function findNextItem(items, search, currentItem) {
 function wrapArray$2(array, startIndex) {
 	return array.map((_, index) => array[(startIndex + index) % array.length]);
 }
-var Root2$3 = Select$1;
-var Trigger$3 = SelectTrigger$1;
+var Root2$2 = Select$1;
+var Trigger$2 = SelectTrigger$1;
 var Value = SelectValue$1;
 var Icon = SelectIcon;
-var Portal$2 = SelectPortal;
-var Content2$3 = SelectContent$1;
+var Portal$1 = SelectPortal;
+var Content2$2 = SelectContent$1;
 var Viewport = SelectViewport;
 var Label$1 = SelectLabel$1;
 var Item$1 = SelectItem$1;
@@ -65447,9 +66453,9 @@ var ScrollDownButton = SelectScrollDownButton$1;
 var Separator$1 = SelectSeparator$1;
 //#endregion
 //#region src/components/ui/select.tsx
-var Select = Root2$3;
+var Select = Root2$2;
 var SelectValue = Value;
-var SelectTrigger = import_react.forwardRef(({ className, children, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Trigger$3, {
+var SelectTrigger = import_react.forwardRef(({ className, children, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Trigger$2, {
 	"data-uid": "src/components/ui/select.tsx:18:3",
 	"data-prohibitions": "[editContent]",
 	ref,
@@ -65466,7 +66472,7 @@ var SelectTrigger = import_react.forwardRef(({ className, children, ...props }, 
 		})
 	})]
 }));
-SelectTrigger.displayName = Trigger$3.displayName;
+SelectTrigger.displayName = Trigger$2.displayName;
 var SelectScrollUpButton = import_react.forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ScrollUpButton, {
 	"data-uid": "src/components/ui/select.tsx:38:3",
 	"data-prohibitions": "[editContent]",
@@ -65493,10 +66499,10 @@ var SelectScrollDownButton = import_react.forwardRef(({ className, ...props }, r
 	})
 }));
 SelectScrollDownButton.displayName = ScrollDownButton.displayName;
-var SelectContent = import_react.forwardRef(({ className, children, position = "popper", ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Portal$2, {
+var SelectContent = import_react.forwardRef(({ className, children, position = "popper", ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Portal$1, {
 	"data-uid": "src/components/ui/select.tsx:66:3",
 	"data-prohibitions": "[editContent]",
-	children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Content2$3, {
+	children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Content2$2, {
 		"data-uid": "src/components/ui/select.tsx:67:5",
 		"data-prohibitions": "[editContent]",
 		ref,
@@ -65521,7 +66527,7 @@ var SelectContent = import_react.forwardRef(({ className, children, position = "
 		]
 	})
 }));
-SelectContent.displayName = Content2$3.displayName;
+SelectContent.displayName = Content2$2.displayName;
 var SelectLabel = import_react.forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label$1, {
 	"data-uid": "src/components/ui/select.tsx:98:3",
 	"data-prohibitions": "[editContent]",
@@ -65603,9 +66609,9 @@ function CheckboxProvider(props) {
 		children: isFunction(internal_do_not_use_render) ? internal_do_not_use_render(context) : children
 	});
 }
-var TRIGGER_NAME$3 = "CheckboxTrigger";
+var TRIGGER_NAME$2 = "CheckboxTrigger";
 var CheckboxTrigger = import_react.forwardRef(({ __scopeCheckbox, onKeyDown, onClick, ...checkboxProps }, forwardedRef) => {
-	const { control, value, disabled, checked, required, setControl, setChecked, hasConsumerStoppedPropagationRef, isFormControl, bubbleInput } = useCheckboxContext(TRIGGER_NAME$3, __scopeCheckbox);
+	const { control, value, disabled, checked, required, setControl, setChecked, hasConsumerStoppedPropagationRef, isFormControl, bubbleInput } = useCheckboxContext(TRIGGER_NAME$2, __scopeCheckbox);
 	const composedRefs = useComposedRefs(forwardedRef, setControl);
 	const initialCheckedStateRef = import_react.useRef(checked);
 	import_react.useEffect(() => {
@@ -65621,7 +66627,7 @@ var CheckboxTrigger = import_react.forwardRef(({ __scopeCheckbox, onKeyDown, onC
 		role: "checkbox",
 		"aria-checked": isIndeterminate$1(checked) ? "mixed" : checked,
 		"aria-required": required,
-		"data-state": getState$1(checked),
+		"data-state": getState(checked),
 		"data-disabled": disabled ? "" : void 0,
 		disabled,
 		value,
@@ -65639,7 +66645,7 @@ var CheckboxTrigger = import_react.forwardRef(({ __scopeCheckbox, onKeyDown, onC
 		})
 	});
 });
-CheckboxTrigger.displayName = TRIGGER_NAME$3;
+CheckboxTrigger.displayName = TRIGGER_NAME$2;
 var Checkbox$1 = import_react.forwardRef((props, forwardedRef) => {
 	const { __scopeCheckbox, name, checked, defaultChecked, required, disabled, value, onCheckedChange, form, ...checkboxProps } = props;
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CheckboxProvider, {
@@ -65667,7 +66673,7 @@ var CheckboxIndicator = import_react.forwardRef((props, forwardedRef) => {
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Presence, {
 		present: forceMount || isIndeterminate$1(context.checked) || context.checked === true,
 		children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Primitive$1.span, {
-			"data-state": getState$1(context.checked),
+			"data-state": getState(context.checked),
 			"data-disabled": context.disabled ? "" : void 0,
 			...indicatorProps,
 			ref: forwardedRef,
@@ -65734,7 +66740,7 @@ function isFunction(value) {
 function isIndeterminate$1(checked) {
 	return checked === "indeterminate";
 }
-function getState$1(checked) {
+function getState(checked) {
 	return isIndeterminate$1(checked) ? "indeterminate" : checked ? "checked" : "unchecked";
 }
 //#endregion
@@ -66966,10 +67972,10 @@ var TabsList$1 = import_react.forwardRef((props, forwardedRef) => {
 	});
 });
 TabsList$1.displayName = TAB_LIST_NAME;
-var TRIGGER_NAME$2 = "TabsTrigger";
+var TRIGGER_NAME$1 = "TabsTrigger";
 var TabsTrigger$1 = import_react.forwardRef((props, forwardedRef) => {
 	const { __scopeTabs, value, disabled = false, ...triggerProps } = props;
-	const context = useTabsContext(TRIGGER_NAME$2, __scopeTabs);
+	const context = useTabsContext(TRIGGER_NAME$1, __scopeTabs);
 	const rovingFocusGroupScope = useRovingFocusGroupScope$1(__scopeTabs);
 	const triggerId = makeTriggerId(context.baseId, value);
 	const contentId = makeContentId(context.baseId, value);
@@ -67004,11 +68010,11 @@ var TabsTrigger$1 = import_react.forwardRef((props, forwardedRef) => {
 		})
 	});
 });
-TabsTrigger$1.displayName = TRIGGER_NAME$2;
-var CONTENT_NAME$3 = "TabsContent";
+TabsTrigger$1.displayName = TRIGGER_NAME$1;
+var CONTENT_NAME$2 = "TabsContent";
 var TabsContent$1 = import_react.forwardRef((props, forwardedRef) => {
 	const { __scopeTabs, value, forceMount, children, ...contentProps } = props;
-	const context = useTabsContext(CONTENT_NAME$3, __scopeTabs);
+	const context = useTabsContext(CONTENT_NAME$2, __scopeTabs);
 	const triggerId = makeTriggerId(context.baseId, value);
 	const contentId = makeContentId(context.baseId, value);
 	const isSelected = value === context.value;
@@ -67037,20 +68043,20 @@ var TabsContent$1 = import_react.forwardRef((props, forwardedRef) => {
 		})
 	});
 });
-TabsContent$1.displayName = CONTENT_NAME$3;
+TabsContent$1.displayName = CONTENT_NAME$2;
 function makeTriggerId(baseId, value) {
 	return `${baseId}-trigger-${value}`;
 }
 function makeContentId(baseId, value) {
 	return `${baseId}-content-${value}`;
 }
-var Root2$2 = Tabs$1;
+var Root2$1 = Tabs$1;
 var List = TabsList$1;
-var Trigger$2 = TabsTrigger$1;
+var Trigger$1 = TabsTrigger$1;
 var Content = TabsContent$1;
 //#endregion
 //#region src/components/ui/tabs.tsx
-var Tabs = Root2$2;
+var Tabs = Root2$1;
 var TabsList = import_react.forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(List, {
 	"data-uid": "src/components/ui/tabs.tsx:13:3",
 	"data-prohibitions": "[editContent]",
@@ -67059,14 +68065,14 @@ var TabsList = import_react.forwardRef(({ className, ...props }, ref) => /* @__P
 	...props
 }));
 TabsList.displayName = List.displayName;
-var TabsTrigger = import_react.forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Trigger$2, {
+var TabsTrigger = import_react.forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Trigger$1, {
 	"data-uid": "src/components/ui/tabs.tsx:28:3",
 	"data-prohibitions": "[editContent]",
 	ref,
 	className: cn$1("inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm", className),
 	...props
 }));
-TabsTrigger.displayName = Trigger$2.displayName;
+TabsTrigger.displayName = Trigger$1.displayName;
 var TabsContent = import_react.forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Content, {
 	"data-uid": "src/components/ui/tabs.tsx:43:3",
 	"data-prohibitions": "[editContent]",
@@ -67075,264 +68081,6 @@ var TabsContent = import_react.forwardRef(({ className, ...props }, ref) => /* @
 	...props
 }));
 TabsContent.displayName = Content.displayName;
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/@radix-ui+react-popover@1.1.15_@types+react-dom@19.2.3_@types+react@19.2.14__@types+rea_8b5332f8e883134e9d9ab2856fc4395d/node_modules/@radix-ui/react-popover/dist/index.mjs
-var POPOVER_NAME = "Popover";
-var [createPopoverContext, createPopoverScope] = createContextScope$1(POPOVER_NAME, [createPopperScope]);
-var usePopperScope$1 = createPopperScope();
-var [PopoverProvider, usePopoverContext] = createPopoverContext(POPOVER_NAME);
-var Popover$1 = (props) => {
-	const { __scopePopover, children, open: openProp, defaultOpen, onOpenChange, modal = false } = props;
-	const popperScope = usePopperScope$1(__scopePopover);
-	const triggerRef = import_react.useRef(null);
-	const [hasCustomAnchor, setHasCustomAnchor] = import_react.useState(false);
-	const [open, setOpen] = useControllableState({
-		prop: openProp,
-		defaultProp: defaultOpen ?? false,
-		onChange: onOpenChange,
-		caller: POPOVER_NAME
-	});
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Root2$4, {
-		...popperScope,
-		children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PopoverProvider, {
-			scope: __scopePopover,
-			contentId: useId(),
-			triggerRef,
-			open,
-			onOpenChange: setOpen,
-			onOpenToggle: import_react.useCallback(() => setOpen((prevOpen) => !prevOpen), [setOpen]),
-			hasCustomAnchor,
-			onCustomAnchorAdd: import_react.useCallback(() => setHasCustomAnchor(true), []),
-			onCustomAnchorRemove: import_react.useCallback(() => setHasCustomAnchor(false), []),
-			modal,
-			children
-		})
-	});
-};
-Popover$1.displayName = POPOVER_NAME;
-var ANCHOR_NAME$1 = "PopoverAnchor";
-var PopoverAnchor = import_react.forwardRef((props, forwardedRef) => {
-	const { __scopePopover, ...anchorProps } = props;
-	const context = usePopoverContext(ANCHOR_NAME$1, __scopePopover);
-	const popperScope = usePopperScope$1(__scopePopover);
-	const { onCustomAnchorAdd, onCustomAnchorRemove } = context;
-	import_react.useEffect(() => {
-		onCustomAnchorAdd();
-		return () => onCustomAnchorRemove();
-	}, [onCustomAnchorAdd, onCustomAnchorRemove]);
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Anchor, {
-		...popperScope,
-		...anchorProps,
-		ref: forwardedRef
-	});
-});
-PopoverAnchor.displayName = ANCHOR_NAME$1;
-var TRIGGER_NAME$1 = "PopoverTrigger";
-var PopoverTrigger$1 = import_react.forwardRef((props, forwardedRef) => {
-	const { __scopePopover, ...triggerProps } = props;
-	const context = usePopoverContext(TRIGGER_NAME$1, __scopePopover);
-	const popperScope = usePopperScope$1(__scopePopover);
-	const composedTriggerRef = useComposedRefs(forwardedRef, context.triggerRef);
-	const trigger = /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Primitive$1.button, {
-		type: "button",
-		"aria-haspopup": "dialog",
-		"aria-expanded": context.open,
-		"aria-controls": context.contentId,
-		"data-state": getState(context.open),
-		...triggerProps,
-		ref: composedTriggerRef,
-		onClick: composeEventHandlers(props.onClick, context.onOpenToggle)
-	});
-	return context.hasCustomAnchor ? trigger : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Anchor, {
-		asChild: true,
-		...popperScope,
-		children: trigger
-	});
-});
-PopoverTrigger$1.displayName = TRIGGER_NAME$1;
-var PORTAL_NAME$2 = "PopoverPortal";
-var [PortalProvider$1, usePortalContext$1] = createPopoverContext(PORTAL_NAME$2, { forceMount: void 0 });
-var PopoverPortal = (props) => {
-	const { __scopePopover, forceMount, children, container } = props;
-	const context = usePopoverContext(PORTAL_NAME$2, __scopePopover);
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PortalProvider$1, {
-		scope: __scopePopover,
-		forceMount,
-		children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Presence, {
-			present: forceMount || context.open,
-			children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Portal$4, {
-				asChild: true,
-				container,
-				children
-			})
-		})
-	});
-};
-PopoverPortal.displayName = PORTAL_NAME$2;
-var CONTENT_NAME$2 = "PopoverContent";
-var PopoverContent$1 = import_react.forwardRef((props, forwardedRef) => {
-	const portalContext = usePortalContext$1(CONTENT_NAME$2, props.__scopePopover);
-	const { forceMount = portalContext.forceMount, ...contentProps } = props;
-	const context = usePopoverContext(CONTENT_NAME$2, props.__scopePopover);
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Presence, {
-		present: forceMount || context.open,
-		children: context.modal ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PopoverContentModal, {
-			...contentProps,
-			ref: forwardedRef
-		}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PopoverContentNonModal, {
-			...contentProps,
-			ref: forwardedRef
-		})
-	});
-});
-PopoverContent$1.displayName = CONTENT_NAME$2;
-var Slot$1 = /* @__PURE__ */ createSlot$1("PopoverContent.RemoveScroll");
-var PopoverContentModal = import_react.forwardRef((props, forwardedRef) => {
-	const context = usePopoverContext(CONTENT_NAME$2, props.__scopePopover);
-	const contentRef = import_react.useRef(null);
-	const composedRefs = useComposedRefs(forwardedRef, contentRef);
-	const isRightClickOutsideRef = import_react.useRef(false);
-	import_react.useEffect(() => {
-		const content = contentRef.current;
-		if (content) return hideOthers(content);
-	}, []);
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ReactRemoveScroll, {
-		as: Slot$1,
-		allowPinchZoom: true,
-		children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PopoverContentImpl, {
-			...props,
-			ref: composedRefs,
-			trapFocus: context.open,
-			disableOutsidePointerEvents: true,
-			onCloseAutoFocus: composeEventHandlers(props.onCloseAutoFocus, (event) => {
-				event.preventDefault();
-				if (!isRightClickOutsideRef.current) context.triggerRef.current?.focus();
-			}),
-			onPointerDownOutside: composeEventHandlers(props.onPointerDownOutside, (event) => {
-				const originalEvent = event.detail.originalEvent;
-				const ctrlLeftClick = originalEvent.button === 0 && originalEvent.ctrlKey === true;
-				isRightClickOutsideRef.current = originalEvent.button === 2 || ctrlLeftClick;
-			}, { checkForDefaultPrevented: false }),
-			onFocusOutside: composeEventHandlers(props.onFocusOutside, (event) => event.preventDefault(), { checkForDefaultPrevented: false })
-		})
-	});
-});
-var PopoverContentNonModal = import_react.forwardRef((props, forwardedRef) => {
-	const context = usePopoverContext(CONTENT_NAME$2, props.__scopePopover);
-	const hasInteractedOutsideRef = import_react.useRef(false);
-	const hasPointerDownOutsideRef = import_react.useRef(false);
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PopoverContentImpl, {
-		...props,
-		ref: forwardedRef,
-		trapFocus: false,
-		disableOutsidePointerEvents: false,
-		onCloseAutoFocus: (event) => {
-			props.onCloseAutoFocus?.(event);
-			if (!event.defaultPrevented) {
-				if (!hasInteractedOutsideRef.current) context.triggerRef.current?.focus();
-				event.preventDefault();
-			}
-			hasInteractedOutsideRef.current = false;
-			hasPointerDownOutsideRef.current = false;
-		},
-		onInteractOutside: (event) => {
-			props.onInteractOutside?.(event);
-			if (!event.defaultPrevented) {
-				hasInteractedOutsideRef.current = true;
-				if (event.detail.originalEvent.type === "pointerdown") hasPointerDownOutsideRef.current = true;
-			}
-			const target = event.target;
-			if (context.triggerRef.current?.contains(target)) event.preventDefault();
-			if (event.detail.originalEvent.type === "focusin" && hasPointerDownOutsideRef.current) event.preventDefault();
-		}
-	});
-});
-var PopoverContentImpl = import_react.forwardRef((props, forwardedRef) => {
-	const { __scopePopover, trapFocus, onOpenAutoFocus, onCloseAutoFocus, disableOutsidePointerEvents, onEscapeKeyDown, onPointerDownOutside, onFocusOutside, onInteractOutside, ...contentProps } = props;
-	const context = usePopoverContext(CONTENT_NAME$2, __scopePopover);
-	const popperScope = usePopperScope$1(__scopePopover);
-	useFocusGuards();
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(FocusScope, {
-		asChild: true,
-		loop: true,
-		trapped: trapFocus,
-		onMountAutoFocus: onOpenAutoFocus,
-		onUnmountAutoFocus: onCloseAutoFocus,
-		children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DismissableLayer, {
-			asChild: true,
-			disableOutsidePointerEvents,
-			onInteractOutside,
-			onEscapeKeyDown,
-			onPointerDownOutside,
-			onFocusOutside,
-			onDismiss: () => context.onOpenChange(false),
-			children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Content$2, {
-				"data-state": getState(context.open),
-				role: "dialog",
-				id: context.contentId,
-				...popperScope,
-				...contentProps,
-				ref: forwardedRef,
-				style: {
-					...contentProps.style,
-					"--radix-popover-content-transform-origin": "var(--radix-popper-transform-origin)",
-					"--radix-popover-content-available-width": "var(--radix-popper-available-width)",
-					"--radix-popover-content-available-height": "var(--radix-popper-available-height)",
-					"--radix-popover-trigger-width": "var(--radix-popper-anchor-width)",
-					"--radix-popover-trigger-height": "var(--radix-popper-anchor-height)"
-				}
-			})
-		})
-	});
-});
-var CLOSE_NAME = "PopoverClose";
-var PopoverClose = import_react.forwardRef((props, forwardedRef) => {
-	const { __scopePopover, ...closeProps } = props;
-	const context = usePopoverContext(CLOSE_NAME, __scopePopover);
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Primitive$1.button, {
-		type: "button",
-		...closeProps,
-		ref: forwardedRef,
-		onClick: composeEventHandlers(props.onClick, () => context.onOpenChange(false))
-	});
-});
-PopoverClose.displayName = CLOSE_NAME;
-var ARROW_NAME$2 = "PopoverArrow";
-var PopoverArrow = import_react.forwardRef((props, forwardedRef) => {
-	const { __scopePopover, ...arrowProps } = props;
-	const popperScope = usePopperScope$1(__scopePopover);
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Arrow, {
-		...popperScope,
-		...arrowProps,
-		ref: forwardedRef
-	});
-});
-PopoverArrow.displayName = ARROW_NAME$2;
-function getState(open) {
-	return open ? "open" : "closed";
-}
-var Root2$1 = Popover$1;
-var Trigger$1 = PopoverTrigger$1;
-var Portal$1 = PopoverPortal;
-var Content2$2 = PopoverContent$1;
-//#endregion
-//#region src/components/ui/popover.tsx
-var Popover = Root2$1;
-var PopoverTrigger = Trigger$1;
-var PopoverContent = import_react.forwardRef(({ className, align = "center", sideOffset = 4, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Portal$1, {
-	"data-uid": "src/components/ui/popover.tsx:14:3",
-	"data-prohibitions": "[editContent]",
-	children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Content2$2, {
-		"data-uid": "src/components/ui/popover.tsx:15:5",
-		"data-prohibitions": "[editContent]",
-		ref,
-		align,
-		sideOffset,
-		className: cn$1("z-50 w-72 rounded-md border bg-popover p-4 text-popover-foreground shadow-md outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2", className),
-		...props
-	})
-}));
-PopoverContent.displayName = Content2$2.displayName;
 //#endregion
 //#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/@radix-ui+react-menu@2.1.16_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@_73ff7391b7be14d4dbff03af4dbac090/node_modules/@radix-ui/react-menu/dist/index.mjs
 var SELECTION_KEYS = ["Enter", " "];
@@ -68374,81 +69122,91 @@ DropdownMenuItem.displayName = Item2.displayName;
 function LeadCard({ lead, onDragStart }) {
 	const { state, dispatch } = useMainStore();
 	const kit = lead.assignedKitId ? state.kits.find((k) => k.id === lead.assignedKitId) : null;
+	const locationStr = lead.state ? `${lead.neighborhood ? lead.neighborhood + ", " : ""}${lead.state}` : lead.neighborhood || (lead.type === "B2B" ? lead.company : "Consumidor");
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Card, {
-		"data-uid": "src/pages/Crm/LeadCard.tsx:27:5",
+		"data-uid": "src/pages/Crm/LeadCard.tsx:31:5",
 		"data-prohibitions": "[editContent]",
 		draggable: true,
 		onDragStart: (e) => onDragStart(e, lead.id),
 		className: "cursor-grab active:cursor-grabbing shadow-sm hover:shadow-md transition-shadow border-border/60",
 		children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardContent, {
-			"data-uid": "src/pages/Crm/LeadCard.tsx:32:7",
+			"data-uid": "src/pages/Crm/LeadCard.tsx:36:7",
 			"data-prohibitions": "[editContent]",
 			className: "p-3",
 			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				"data-uid": "src/pages/Crm/LeadCard.tsx:33:9",
+				"data-uid": "src/pages/Crm/LeadCard.tsx:37:9",
 				"data-prohibitions": "[editContent]",
 				className: "flex justify-between items-start mb-2",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					"data-uid": "src/pages/Crm/LeadCard.tsx:34:11",
+					"data-uid": "src/pages/Crm/LeadCard.tsx:38:11",
 					"data-prohibitions": "[editContent]",
 					className: "flex items-center gap-2",
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Avatar, {
-						"data-uid": "src/pages/Crm/LeadCard.tsx:35:13",
+						"data-uid": "src/pages/Crm/LeadCard.tsx:39:13",
 						"data-prohibitions": "[editContent]",
 						className: "h-8 w-8",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(AvatarImage, {
-							"data-uid": "src/pages/Crm/LeadCard.tsx:36:15",
+							"data-uid": "src/pages/Crm/LeadCard.tsx:40:15",
 							"data-prohibitions": "[editContent]",
 							src: `https://img.usecurling.com/ppl/thumbnail?gender=female&seed=${lead.avatarSeed || 1}`
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AvatarFallback, {
-							"data-uid": "src/pages/Crm/LeadCard.tsx:39:15",
+							"data-uid": "src/pages/Crm/LeadCard.tsx:43:15",
 							"data-prohibitions": "[editContent]",
 							children: lead.name.charAt(0)
 						})]
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						"data-uid": "src/pages/Crm/LeadCard.tsx:41:13",
+						"data-uid": "src/pages/Crm/LeadCard.tsx:45:13",
 						"data-prohibitions": "[editContent]",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-							"data-uid": "src/pages/Crm/LeadCard.tsx:42:15",
+							"data-uid": "src/pages/Crm/LeadCard.tsx:46:15",
 							"data-prohibitions": "[editContent]",
 							className: "text-sm font-medium leading-none truncate w-[140px]",
 							children: lead.name
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-							"data-uid": "src/pages/Crm/LeadCard.tsx:43:15",
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+							"data-uid": "src/pages/Crm/LeadCard.tsx:47:15",
 							"data-prohibitions": "[editContent]",
-							className: "text-[10px] text-muted-foreground mt-0.5",
-							children: lead.neighborhood || (lead.type === "B2B" ? lead.company : "Consumidor")
+							className: "text-[10px] text-muted-foreground mt-1 flex items-center gap-1",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(MapPin, {
+								"data-uid": "src/pages/Crm/LeadCard.tsx:48:17",
+								"data-prohibitions": "[editContent]",
+								className: "h-3 w-3"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+								"data-uid": "src/pages/Crm/LeadCard.tsx:49:17",
+								"data-prohibitions": "[editContent]",
+								className: "truncate w-[120px]",
+								children: locationStr
+							})]
 						})]
 					})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DropdownMenu, {
-					"data-uid": "src/pages/Crm/LeadCard.tsx:49:11",
+					"data-uid": "src/pages/Crm/LeadCard.tsx:54:11",
 					"data-prohibitions": "[]",
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DropdownMenuTrigger, {
-						"data-uid": "src/pages/Crm/LeadCard.tsx:50:13",
+						"data-uid": "src/pages/Crm/LeadCard.tsx:55:13",
 						"data-prohibitions": "[]",
 						asChild: true,
 						children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button$1, {
-							"data-uid": "src/pages/Crm/LeadCard.tsx:51:15",
+							"data-uid": "src/pages/Crm/LeadCard.tsx:56:15",
 							"data-prohibitions": "[]",
 							variant: "ghost",
 							className: "h-6 w-6 p-0 -mr-1",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-								"data-uid": "src/pages/Crm/LeadCard.tsx:52:17",
+								"data-uid": "src/pages/Crm/LeadCard.tsx:57:17",
 								"data-prohibitions": "[]",
 								className: "sr-only",
 								children: "Ações"
 							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Ellipsis, {
-								"data-uid": "src/pages/Crm/LeadCard.tsx:53:17",
+								"data-uid": "src/pages/Crm/LeadCard.tsx:58:17",
 								"data-prohibitions": "[editContent]",
 								className: "h-4 w-4 text-muted-foreground"
 							})]
 						})
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DropdownMenuContent, {
-						"data-uid": "src/pages/Crm/LeadCard.tsx:56:13",
+						"data-uid": "src/pages/Crm/LeadCard.tsx:61:13",
 						"data-prohibitions": "[]",
 						align: "end",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DropdownMenuItem, {
-							"data-uid": "src/pages/Crm/LeadCard.tsx:57:15",
+							"data-uid": "src/pages/Crm/LeadCard.tsx:62:15",
 							"data-prohibitions": "[]",
 							onClick: () => dispatch({
 								type: "ADD_TAG",
@@ -68458,12 +69216,12 @@ function LeadCard({ lead, onDragStart }) {
 								}
 							}),
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Tag, {
-								"data-uid": "src/pages/Crm/LeadCard.tsx:62:17",
+								"data-uid": "src/pages/Crm/LeadCard.tsx:67:17",
 								"data-prohibitions": "[editContent]",
 								className: "mr-2 h-4 w-4"
 							}), " Revisitar 30 dias"]
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DropdownMenuItem, {
-							"data-uid": "src/pages/Crm/LeadCard.tsx:64:15",
+							"data-uid": "src/pages/Crm/LeadCard.tsx:69:15",
 							"data-prohibitions": "[]",
 							onClick: () => dispatch({
 								type: "ADD_TAG",
@@ -68473,7 +69231,7 @@ function LeadCard({ lead, onDragStart }) {
 								}
 							}),
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Tag, {
-								"data-uid": "src/pages/Crm/LeadCard.tsx:69:17",
+								"data-uid": "src/pages/Crm/LeadCard.tsx:74:17",
 								"data-prohibitions": "[editContent]",
 								className: "mr-2 h-4 w-4"
 							}), " Revisitar 90 dias"]
@@ -68481,45 +69239,45 @@ function LeadCard({ lead, onDragStart }) {
 					})]
 				})]
 			}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				"data-uid": "src/pages/Crm/LeadCard.tsx:75:9",
+				"data-uid": "src/pages/Crm/LeadCard.tsx:80:9",
 				"data-prohibitions": "[editContent]",
 				className: "mt-3 flex flex-col gap-2",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					"data-uid": "src/pages/Crm/LeadCard.tsx:76:11",
+					"data-uid": "src/pages/Crm/LeadCard.tsx:81:11",
 					"data-prohibitions": "[editContent]",
 					className: "text-xs text-muted-foreground flex justify-between items-center w-full",
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-						"data-uid": "src/pages/Crm/LeadCard.tsx:77:13",
+						"data-uid": "src/pages/Crm/LeadCard.tsx:82:13",
 						"data-prohibitions": "[editContent]",
 						children: format$1(new Date(lead.lastInteraction), "dd/MM/yyyy")
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Badge, {
-						"data-uid": "src/pages/Crm/LeadCard.tsx:78:13",
+						"data-uid": "src/pages/Crm/LeadCard.tsx:83:13",
 						"data-prohibitions": "[editContent]",
 						variant: "outline",
 						className: "text-[10px] px-1 h-4",
 						children: [lead.score, " ⭐"]
 					})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					"data-uid": "src/pages/Crm/LeadCard.tsx:83:11",
+					"data-uid": "src/pages/Crm/LeadCard.tsx:88:11",
 					"data-prohibitions": "[editContent]",
 					className: "flex flex-col gap-1.5",
 					children: [kit && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Badge, {
-						"data-uid": "src/pages/Crm/LeadCard.tsx:85:15",
+						"data-uid": "src/pages/Crm/LeadCard.tsx:90:15",
 						"data-prohibitions": "[editContent]",
 						variant: "secondary",
 						className: "w-fit text-[10px] bg-primary/10 text-primary hover:bg-primary/20 pointer-events-none",
 						children: ["Kit: ", kit.name]
 					}), lead.tags && lead.tags.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						"data-uid": "src/pages/Crm/LeadCard.tsx:94:15",
+						"data-uid": "src/pages/Crm/LeadCard.tsx:99:15",
 						"data-prohibitions": "[editContent]",
 						className: "flex flex-wrap gap-1",
 						children: lead.tags.map((tag) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Badge, {
-							"data-uid": "src/pages/Crm/LeadCard.tsx:96:19",
+							"data-uid": "src/pages/Crm/LeadCard.tsx:101:19",
 							"data-prohibitions": "[editContent]",
 							variant: "outline",
 							className: "text-[10px] bg-orange-50 text-orange-700 border-orange-200 gap-1 pr-1 pointer-events-none",
 							children: [tag, /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-								"data-uid": "src/pages/Crm/LeadCard.tsx:102:21",
+								"data-uid": "src/pages/Crm/LeadCard.tsx:107:21",
 								"data-prohibitions": "[]",
 								onClick: (e) => {
 									e.stopPropagation();
@@ -68533,7 +69291,7 @@ function LeadCard({ lead, onDragStart }) {
 								},
 								className: "hover:bg-orange-200 hover:text-orange-900 rounded-full p-0.5 ml-0.5 pointer-events-auto cursor-pointer transition-colors",
 								children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(X, {
-									"data-uid": "src/pages/Crm/LeadCard.tsx:109:23",
+									"data-uid": "src/pages/Crm/LeadCard.tsx:114:23",
 									"data-prohibitions": "[editContent]",
 									className: "h-3 w-3"
 								})
@@ -68567,8 +69325,8 @@ var STAGES = [
 function KanbanBoard() {
 	const { state, dispatch } = useMainStore();
 	const [dateRange, setDateRange] = (0, import_react.useState)();
-	const [selectedNeighborhood, setSelectedNeighborhood] = (0, import_react.useState)("all");
-	const neighborhoods = Array.from(new Set(state.leads.map((l) => l.neighborhood).filter(Boolean)));
+	const [selectedStateFilter, setSelectedStateFilter] = (0, import_react.useState)("all");
+	const availableStates = Array.from(new Set(state.leads.map((l) => l.state).filter(Boolean)));
 	const onDragStart = (e, leadId) => {
 		e.dataTransfer.setData("leadId", leadId);
 	};
@@ -68586,8 +69344,8 @@ function KanbanBoard() {
 		e.preventDefault();
 	};
 	const filteredLeads = state.leads.filter((lead) => {
-		let matchesLocation = true;
-		if (selectedNeighborhood && selectedNeighborhood !== "all") matchesLocation = lead.neighborhood === selectedNeighborhood;
+		let matchesState = true;
+		if (selectedStateFilter && selectedStateFilter !== "all") matchesState = lead.state === selectedStateFilter;
 		let matchesDate = true;
 		if (dateRange?.from) {
 			const leadDate = startOfDay(new Date(lead.lastInteraction));
@@ -68597,7 +69355,7 @@ function KanbanBoard() {
 			});
 			else matchesDate = isSameDay(leadDate, dateRange.from);
 		}
-		return matchesLocation && matchesDate;
+		return matchesState && matchesDate;
 	});
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 		"data-uid": "src/pages/Crm/KanbanBoard.tsx:75:5",
@@ -68666,8 +69424,8 @@ function KanbanBoard() {
 				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Select, {
 					"data-uid": "src/pages/Crm/KanbanBoard.tsx:115:9",
 					"data-prohibitions": "[editContent]",
-					value: selectedNeighborhood,
-					onValueChange: setSelectedNeighborhood,
+					value: selectedStateFilter,
+					onValueChange: setSelectedStateFilter,
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectTrigger, {
 						"data-uid": "src/pages/Crm/KanbanBoard.tsx:116:11",
 						"data-prohibitions": "[]",
@@ -68675,7 +69433,7 @@ function KanbanBoard() {
 						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectValue, {
 							"data-uid": "src/pages/Crm/KanbanBoard.tsx:117:13",
 							"data-prohibitions": "[editContent]",
-							placeholder: "Bairro / Região"
+							placeholder: "Estado / Região"
 						})
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(SelectContent, {
 						"data-uid": "src/pages/Crm/KanbanBoard.tsx:119:11",
@@ -68684,23 +69442,23 @@ function KanbanBoard() {
 							"data-uid": "src/pages/Crm/KanbanBoard.tsx:120:13",
 							"data-prohibitions": "[]",
 							value: "all",
-							children: "Todas as Regiões"
-						}), neighborhoods.map((n) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectItem, {
+							children: "Todos os Estados"
+						}), availableStates.map((uf) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectItem, {
 							"data-uid": "src/pages/Crm/KanbanBoard.tsx:122:15",
 							"data-prohibitions": "[editContent]",
-							value: n,
-							children: n
-						}, n))]
+							value: uf,
+							children: uf
+						}, uf))]
 					})]
 				}),
-				(dateRange || selectedNeighborhood !== "all") && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button$1, {
+				(dateRange || selectedStateFilter !== "all") && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button$1, {
 					"data-uid": "src/pages/Crm/KanbanBoard.tsx:130:11",
 					"data-prohibitions": "[]",
 					variant: "ghost",
 					size: "sm",
 					onClick: () => {
 						setDateRange(void 0);
-						setSelectedNeighborhood("all");
+						setSelectedStateFilter("all");
 					},
 					className: "text-muted-foreground hover:text-foreground w-full sm:w-auto mt-2 sm:mt-0",
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(X, {
@@ -69493,4 +70251,4 @@ var App = () => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AppProvider, {
 }));
 //#endregion
 
-//# sourceMappingURL=index-MGSLZws1.js.map
+//# sourceMappingURL=index-ilY6DqNo.js.map

@@ -2,16 +2,28 @@ import { useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Users, CalendarCheck, Truck, AlertTriangle } from 'lucide-react'
 import { useMainStore } from '@/stores/main'
+import { DateRange } from 'react-day-picker'
+import { isDateInRange } from '@/lib/utils'
 
-export function KpiCards() {
+export function KpiCards({ dateRange }: { dateRange?: DateRange }) {
   const { state } = useMainStore()
 
   const kpis = useMemo(() => {
-    const scheduled = state.appointments.filter((a) => a.status === 'Scheduled').length
-    const newLeads = state.leads.filter((l) => l.stage === 'Prospect' || l.stage === 'Lead').length
-    const activeShipments = state.shipments.filter(
-      (s) => s.status === 'Requested' || s.status === 'In Transit',
+    const scheduled = state.appointments.filter(
+      (a) => a.status === 'Scheduled' && isDateInRange(a.date, dateRange),
     ).length
+
+    const newLeads = state.leads.filter(
+      (l) =>
+        (l.stage === 'Prospect' || l.stage === 'Lead') &&
+        isDateInRange(l.lastInteraction, dateRange),
+    ).length
+
+    const activeShipments = state.shipments.filter(
+      (s) =>
+        (s.status === 'Requested' || s.status === 'In Transit') && isDateInRange(s.date, dateRange),
+    ).length
+
     const lowStock = state.kits.filter((k) => k.stock <= k.threshold).length
 
     return [
@@ -19,21 +31,21 @@ export function KpiCards() {
         title: 'Visitas Agendadas',
         value: scheduled,
         icon: CalendarCheck,
-        trend: '+2 esta semana',
+        trend: 'No período',
         color: 'text-primary',
       },
       {
         title: 'Novos Leads',
         value: newLeads,
         icon: Users,
-        trend: '+15% vs mês anterior',
+        trend: 'No período',
         color: 'text-success',
       },
       {
         title: 'Kits em Trânsito',
         value: activeShipments,
         icon: Truck,
-        trend: '4 entregues hoje',
+        trend: 'No período',
         color: 'text-blue-500',
       },
       {
@@ -44,7 +56,7 @@ export function KpiCards() {
         color: lowStock > 0 ? 'text-destructive' : 'text-muted-foreground',
       },
     ]
-  }, [state])
+  }, [state, dateRange])
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

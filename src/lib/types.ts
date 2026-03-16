@@ -11,6 +11,7 @@ export interface Lead {
   company?: string
   address: string
   neighborhood?: string
+  state?: string // UF
   tags?: string[]
   lastInteraction: string
   assignedKitId?: string
@@ -49,9 +50,17 @@ export interface Shipment {
   trackingNumber: string
 }
 
+export interface HeatmapConfig {
+  lowColor: string
+  highColor: string
+  minThreshold: number
+  maxThreshold: number
+}
+
 export interface AppState {
   leads: Lead[]
   appointments: Appointment[]
   kits: Kit[]
   shipments: Shipment[]
+  heatmapConfig: HeatmapConfig
 }

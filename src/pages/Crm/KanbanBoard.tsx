@@ -28,10 +28,10 @@ export function KanbanBoard() {
   const { state, dispatch } = useMainStore()
 
   const [dateRange, setDateRange] = useState<DateRange | undefined>()
-  const [selectedNeighborhood, setSelectedNeighborhood] = useState<string>('all')
+  const [selectedStateFilter, setSelectedStateFilter] = useState<string>('all')
 
-  const neighborhoods = Array.from(
-    new Set(state.leads.map((l) => l.neighborhood).filter(Boolean)),
+  const availableStates = Array.from(
+    new Set(state.leads.map((l) => l.state).filter(Boolean)),
   ) as string[]
 
   const onDragStart = (e: React.DragEvent, leadId: string) => {
@@ -50,9 +50,9 @@ export function KanbanBoard() {
   }
 
   const filteredLeads = state.leads.filter((lead) => {
-    let matchesLocation = true
-    if (selectedNeighborhood && selectedNeighborhood !== 'all') {
-      matchesLocation = lead.neighborhood === selectedNeighborhood
+    let matchesState = true
+    if (selectedStateFilter && selectedStateFilter !== 'all') {
+      matchesState = lead.state === selectedStateFilter
     }
 
     let matchesDate = true
@@ -68,7 +68,7 @@ export function KanbanBoard() {
       }
     }
 
-    return matchesLocation && matchesDate
+    return matchesState && matchesDate
   })
 
   return (
@@ -112,27 +112,27 @@ export function KanbanBoard() {
           </PopoverContent>
         </Popover>
 
-        <Select value={selectedNeighborhood} onValueChange={setSelectedNeighborhood}>
+        <Select value={selectedStateFilter} onValueChange={setSelectedStateFilter}>
           <SelectTrigger className="w-full sm:w-[200px]">
-            <SelectValue placeholder="Bairro / Região" />
+            <SelectValue placeholder="Estado / Região" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todas as Regiões</SelectItem>
-            {neighborhoods.map((n) => (
-              <SelectItem key={n} value={n}>
-                {n}
+            <SelectItem value="all">Todos os Estados</SelectItem>
+            {availableStates.map((uf) => (
+              <SelectItem key={uf} value={uf}>
+                {uf}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
 
-        {(dateRange || selectedNeighborhood !== 'all') && (
+        {(dateRange || selectedStateFilter !== 'all') && (
           <Button
             variant="ghost"
             size="sm"
             onClick={() => {
               setDateRange(undefined)
-              setSelectedNeighborhood('all')
+              setSelectedStateFilter('all')
             }}
             className="text-muted-foreground hover:text-foreground w-full sm:w-auto mt-2 sm:mt-0"
           >
