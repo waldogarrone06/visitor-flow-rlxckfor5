@@ -1446,6 +1446,10 @@ section[aria-label='Notifications alt+T'] {
   list-style-type: none;
 }
 
+.grid-cols-1{
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
 .flex-row{
   flex-direction: row;
 }
@@ -1831,6 +1835,10 @@ section[aria-label='Notifications alt+T'] {
   background-color: hsl(var(--muted));
 }
 
+.bg-muted\/20{
+  background-color: hsl(var(--muted) / 0.2);
+}
+
 .bg-muted\/30{
   background-color: hsl(var(--muted) / 0.3);
 }
@@ -2183,6 +2191,10 @@ section[aria-label='Notifications alt+T'] {
 
 .leading-none{
   line-height: 1;
+}
+
+.leading-relaxed{
+  line-height: 1.625;
 }
 
 .tracking-tight{

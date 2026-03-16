@@ -13,6 +13,8 @@ export interface Lead {
   lastInteraction: string
   assignedKitId?: string
   avatarSeed?: number
+  profession?: string
+  registrationNumber?: string
 }
 
 export interface Appointment {

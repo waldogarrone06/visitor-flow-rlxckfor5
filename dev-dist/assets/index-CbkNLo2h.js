@@ -65503,6 +65503,18 @@ function superRefine(fn) {
 	return /* @__PURE__ */ _superRefine(fn);
 }
 //#endregion
+//#region src/components/ui/textarea.tsx
+var Textarea = import_react.forwardRef(({ className, ...props }, ref) => {
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("textarea", {
+		"data-uid": "src/components/ui/textarea.tsx:9:7",
+		"data-prohibitions": "[editContent]",
+		className: cn$1("flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm", className),
+		ref,
+		...props
+	});
+});
+Textarea.displayName = "Textarea";
+//#endregion
 //#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/@radix-ui+react-label@2.1.8_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@_55fa612a976b7bdfbf4dcdd93d861aab/node_modules/@radix-ui/react-label/dist/index.mjs
 var NAME = "Label";
 var Label$2 = import_react.forwardRef((props, forwardedRef) => {
@@ -66923,12 +66935,16 @@ Checkbox.displayName = Checkbox$1.displayName;
 //#endregion
 //#region src/pages/Scheduling/ScheduleForm.tsx
 var formSchema = object({
-	type: _enum(["B2C", "B2B"]),
 	name: string().min(2, "Nome muito curto"),
-	document: string().min(11, "Documento inválido"),
-	company: string().optional(),
+	cpf: string().min(14, "CPF inválido"),
+	profession: _enum([
+		"médico",
+		"nutricionista",
+		"treinador"
+	], { required_error: "Selecione uma profissão" }),
+	registrationNumber: string().min(2, "Registro inválido"),
 	address: string().min(5, "Endereço obrigatório"),
-	sync: boolean().default(true)
+	authorizeInfo: boolean().default(false).refine((val) => val === true, { message: "É necessário autorizar o uso dos dados para prosseguir." })
 });
 function ScheduleForm({ selectedDate, onSuccess }) {
 	const { dispatch } = useMainStore();
@@ -66936,15 +66952,14 @@ function ScheduleForm({ selectedDate, onSuccess }) {
 	const form = useForm({
 		resolver: a(formSchema),
 		defaultValues: {
-			type: "B2C",
 			name: "",
-			document: "",
-			company: "",
+			cpf: "",
+			profession: void 0,
+			registrationNumber: "",
 			address: "",
-			sync: true
+			authorizeInfo: false
 		}
 	});
-	const type = form.watch("type");
 	const onSubmit = (values) => {
 		if (!selectedDate) {
 			toast$1({
@@ -66959,12 +66974,13 @@ function ScheduleForm({ selectedDate, onSuccess }) {
 			const newLead = {
 				id: `l-${Date.now()}`,
 				name: values.name,
-				type: values.type,
+				type: "B2B",
 				stage: "Agendado",
 				score: 3,
-				document: values.document,
-				company: values.company,
+				document: values.cpf,
 				address: values.address,
+				profession: values.profession,
+				registrationNumber: values.registrationNumber,
 				lastInteraction: (/* @__PURE__ */ new Date()).toISOString(),
 				avatarSeed: Math.floor(Math.random() * 100)
 			};
@@ -66983,7 +66999,7 @@ function ScheduleForm({ selectedDate, onSuccess }) {
 			});
 			toast$1({
 				title: "Agendamento Confirmado!",
-				description: `Visita para ${values.name} agendada.`
+				description: `Visita para ${values.name} agendada com sucesso.`
 			});
 			form.reset();
 			setLoading(false);
@@ -66991,235 +67007,275 @@ function ScheduleForm({ selectedDate, onSuccess }) {
 		}, 600);
 	};
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Form, {
-		"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:105:5",
+		"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:120:5",
 		"data-prohibitions": "[editContent]",
 		...form,
 		children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("form", {
-			"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:106:7",
+			"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:121:7",
 			"data-prohibitions": "[editContent]",
 			onSubmit: form.handleSubmit(onSubmit),
 			className: "space-y-4",
 			children: [
 				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:107:9",
+					"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:122:9",
 					"data-prohibitions": "[editContent]",
-					className: "bg-muted/30 p-3 rounded-md mb-4 border border-border",
+					className: "bg-muted/30 p-3 rounded-md mb-4 border border-border flex items-center justify-between",
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-						"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:108:11",
+						"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:123:11",
 						"data-prohibitions": "[]",
 						className: "text-sm font-medium",
-						children: "Data Selecionada:"
+						children: "Data Visita:"
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-						"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:109:11",
+						"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:124:11",
 						"data-prohibitions": "[editContent]",
 						className: "text-primary font-bold",
-						children: selectedDate ? format(selectedDate, "dd/MM/yyyy") : "Nenhuma"
+						children: selectedDate ? format(selectedDate, "dd/MM/yyyy") : "Selecione no calendário"
 					})]
 				}),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormField, {
-					"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:114:9",
-					"data-prohibitions": "[editContent]",
-					control: form.control,
-					name: "type",
-					render: ({ field }) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(FormItem, {
-						"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:118:13",
-						"data-prohibitions": "[]",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormLabel, {
-							"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:119:15",
-							"data-prohibitions": "[]",
-							children: "Tipo de Cliente"
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Select, {
-							"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:120:15",
-							"data-prohibitions": "[]",
-							onValueChange: field.onChange,
-							defaultValue: field.value,
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormControl, {
-								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:121:17",
-								"data-prohibitions": "[]",
-								children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectTrigger, {
-									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:122:19",
-									"data-prohibitions": "[]",
-									children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectValue, {
-										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:123:21",
-										"data-prohibitions": "[editContent]",
-										placeholder: "Selecione..."
-									})
-								})
-							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(SelectContent, {
-								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:126:17",
-								"data-prohibitions": "[]",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectItem, {
-									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:127:19",
-									"data-prohibitions": "[]",
-									value: "B2C",
-									children: "B2C (Consumidor)"
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectItem, {
-									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:128:19",
-									"data-prohibitions": "[]",
-									value: "B2B",
-									children: "B2B (Lojista)"
-								})]
-							})]
-						})]
-					})
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormField, {
-					"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:135:9",
+					"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:129:9",
 					"data-prohibitions": "[editContent]",
 					control: form.control,
 					name: "name",
 					render: ({ field }) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(FormItem, {
-						"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:139:13",
+						"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:133:13",
 						"data-prohibitions": "[]",
 						children: [
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormLabel, {
-								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:140:15",
+								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:134:15",
 								"data-prohibitions": "[]",
-								children: "Nome Completo / Contato"
+								children: "Nome completo"
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormControl, {
-								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:141:15",
+								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:135:15",
 								"data-prohibitions": "[]",
 								children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:142:17",
+									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:136:17",
 									"data-prohibitions": "[editContent]",
-									...field
+									...field,
+									placeholder: "Digite o nome do profissional"
 								})
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormMessage, {
-								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:144:15",
-								"data-prohibitions": "[editContent]"
-							})
-						]
-					})
-				}),
-				type === "B2B" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormField, {
-					"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:150:11",
-					"data-prohibitions": "[editContent]",
-					control: form.control,
-					name: "company",
-					render: ({ field }) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(FormItem, {
-						"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:154:15",
-						"data-prohibitions": "[]",
-						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormLabel, {
-								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:155:17",
-								"data-prohibitions": "[]",
-								children: "Razão Social"
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormControl, {
-								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:156:17",
-								"data-prohibitions": "[]",
-								children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:157:19",
-									"data-prohibitions": "[editContent]",
-									...field
-								})
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormMessage, {
-								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:159:17",
+								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:138:15",
 								"data-prohibitions": "[editContent]"
 							})
 						]
 					})
 				}),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormField, {
-					"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:165:9",
+					"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:143:9",
 					"data-prohibitions": "[editContent]",
 					control: form.control,
-					name: "document",
+					name: "cpf",
 					render: ({ field }) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(FormItem, {
-						"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:169:13",
+						"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:147:13",
+						"data-prohibitions": "[]",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormLabel, {
+								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:148:15",
+								"data-prohibitions": "[]",
+								children: "CPF"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormControl, {
+								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:149:15",
+								"data-prohibitions": "[]",
+								children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:150:17",
+									"data-prohibitions": "[editContent]",
+									...field,
+									placeholder: "000.000.000-00",
+									onChange: (e) => {
+										let value = e.target.value.replace(/\D/g, "");
+										if (value.length > 11) value = value.slice(0, 11);
+										value = value.replace(/(\d{3})(\d)/, "$1.$2");
+										value = value.replace(/(\d{3})(\d)/, "$1.$2");
+										value = value.replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+										field.onChange(value);
+									},
+									maxLength: 14
+								})
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormMessage, {
+								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:164:15",
+								"data-prohibitions": "[editContent]"
+							})
+						]
+					})
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:169:9",
+					"data-prohibitions": "[]",
+					className: "grid grid-cols-1 md:grid-cols-2 gap-4",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormField, {
+						"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:170:11",
 						"data-prohibitions": "[editContent]",
-						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormLabel, {
-								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:170:15",
-								"data-prohibitions": "[editContent]",
-								children: type === "B2B" ? "CNPJ" : "CPF"
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormControl, {
-								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:171:15",
-								"data-prohibitions": "[]",
-								children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:172:17",
-									"data-prohibitions": "[editContent]",
-									...field
+						control: form.control,
+						name: "profession",
+						render: ({ field }) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(FormItem, {
+							"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:174:15",
+							"data-prohibitions": "[]",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormLabel, {
+									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:175:17",
+									"data-prohibitions": "[]",
+									children: "Profissão"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Select, {
+									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:176:17",
+									"data-prohibitions": "[]",
+									onValueChange: field.onChange,
+									value: field.value,
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormControl, {
+										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:177:19",
+										"data-prohibitions": "[]",
+										children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectTrigger, {
+											"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:178:21",
+											"data-prohibitions": "[]",
+											children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectValue, {
+												"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:179:23",
+												"data-prohibitions": "[editContent]",
+												placeholder: "Selecione..."
+											})
+										})
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(SelectContent, {
+										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:182:19",
+										"data-prohibitions": "[]",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectItem, {
+												"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:183:21",
+												"data-prohibitions": "[]",
+												value: "médico",
+												children: "Médico(a)"
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectItem, {
+												"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:184:21",
+												"data-prohibitions": "[]",
+												value: "nutricionista",
+												children: "Nutricionista"
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectItem, {
+												"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:185:21",
+												"data-prohibitions": "[]",
+												value: "treinador",
+												children: "Treinador(a)"
+											})
+										]
+									})]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormMessage, {
+									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:188:17",
+									"data-prohibitions": "[editContent]"
 								})
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormMessage, {
-								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:174:15",
-								"data-prohibitions": "[editContent]"
-							})
-						]
-					})
+							]
+						})
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormField, {
+						"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:193:11",
+						"data-prohibitions": "[editContent]",
+						control: form.control,
+						name: "registrationNumber",
+						render: ({ field }) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(FormItem, {
+							"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:197:15",
+							"data-prohibitions": "[]",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormLabel, {
+									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:198:17",
+									"data-prohibitions": "[]",
+									children: "Número do Registro no Conselho Profissional"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormControl, {
+									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:199:17",
+									"data-prohibitions": "[]",
+									children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:200:19",
+										"data-prohibitions": "[editContent]",
+										...field,
+										placeholder: "CRM, CRN, CREF..."
+									})
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormMessage, {
+									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:202:17",
+									"data-prohibitions": "[editContent]"
+								})
+							]
+						})
+					})]
 				}),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormField, {
-					"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:179:9",
+					"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:208:9",
 					"data-prohibitions": "[editContent]",
 					control: form.control,
 					name: "address",
 					render: ({ field }) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(FormItem, {
-						"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:183:13",
+						"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:212:13",
 						"data-prohibitions": "[]",
 						children: [
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormLabel, {
-								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:184:15",
+								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:213:15",
 								"data-prohibitions": "[]",
-								children: "Endereço da Visita"
+								children: "Endereço para Envio de produto"
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormControl, {
-								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:185:15",
+								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:214:15",
 								"data-prohibitions": "[]",
-								children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:186:17",
+								children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Textarea, {
+									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:215:17",
 									"data-prohibitions": "[editContent]",
-									...field
+									...field,
+									placeholder: "Rua, Número, Complemento, Bairro, Cidade - Estado, CEP"
 								})
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormMessage, {
-								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:188:15",
+								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:220:15",
 								"data-prohibitions": "[editContent]"
 							})
 						]
 					})
 				}),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormField, {
-					"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:193:9",
+					"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:225:9",
 					"data-prohibitions": "[editContent]",
 					control: form.control,
-					name: "sync",
+					name: "authorizeInfo",
 					render: ({ field }) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(FormItem, {
-						"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:197:13",
+						"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:229:13",
 						"data-prohibitions": "[]",
-						className: "flex flex-row items-start space-x-3 space-y-0 p-4 border rounded-md",
+						className: "flex flex-row items-start space-x-3 space-y-0 p-4 border rounded-md bg-muted/20",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormControl, {
-							"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:198:15",
+							"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:230:15",
 							"data-prohibitions": "[]",
 							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Checkbox, {
-								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:199:17",
+								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:231:17",
 								"data-prohibitions": "[editContent]",
 								checked: field.value,
 								onCheckedChange: field.onChange
 							})
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:201:15",
+							"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:233:15",
 							"data-prohibitions": "[]",
 							className: "space-y-1 leading-none",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormLabel, {
-								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:202:17",
-								"data-prohibitions": "[]",
-								children: "Sincronizar Calendário"
-							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:203:17",
-								"data-prohibitions": "[]",
-								className: "text-xs text-muted-foreground",
-								children: "Adicionar automaticamente ao Google Calendar"
-							})]
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormLabel, {
+									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:234:17",
+									"data-prohibitions": "[]",
+									children: "Autoriza envio de informações"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormDescription, {
+									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:235:17",
+									"data-prohibitions": "[]",
+									className: "text-xs text-muted-foreground mt-1.5 leading-relaxed",
+									children: "Ao marcar esta opção, você autoriza o uso de seus dados para contato e envio de informações e kits de produtos, em total conformidade com a Lei Geral de Proteção de Dados (LGPD)."
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormMessage, {
+									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:240:17",
+									"data-prohibitions": "[editContent]"
+								})
+							]
 						})]
 					})
 				}),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button$1, {
-					"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:211:9",
+					"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:246:9",
 					"data-prohibitions": "[editContent]",
 					type: "submit",
 					className: "w-full",
@@ -68602,4 +68658,4 @@ var App = () => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AppProvider, {
 }));
 //#endregion
 
-//# sourceMappingURL=index-CSYpOWL7.js.map
+//# sourceMappingURL=index-CbkNLo2h.js.map
