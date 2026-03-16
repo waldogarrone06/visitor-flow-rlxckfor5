@@ -1,4 +1,4 @@
-export type LeadStage = 'Prospect' | 'Lead' | 'Agendado' | 'Visitado' | 'Cliente'
+export type LeadStage = 'Prospect' | 'Lead' | 'Agendado' | 'Visitado' | 'Revisitar' | 'Cliente'
 export type LeadType = 'B2C' | 'B2B'
 
 export interface Lead {
@@ -10,6 +10,8 @@ export interface Lead {
   document: string // CPF or CNPJ
   company?: string
   address: string
+  neighborhood?: string
+  tags?: string[]
   lastInteraction: string
   assignedKitId?: string
   avatarSeed?: number

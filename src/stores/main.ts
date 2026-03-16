@@ -8,6 +8,8 @@ type Action =
   | { type: 'SCHEDULE_APPOINTMENT'; payload: { lead: Lead; appointment: Appointment } }
   | { type: 'MARK_VISITED'; payload: { appointmentId: string } }
   | { type: 'UPDATE_KIT_STOCK'; payload: { kitId: string; amount: number } }
+  | { type: 'ADD_TAG'; payload: { id: string; tag: string } }
+  | { type: 'REMOVE_TAG'; payload: { id: string; tag: string } }
 
 const AppContext = createContext<{ state: AppState; dispatch: React.Dispatch<Action> } | undefined>(
   undefined,
@@ -84,6 +86,42 @@ function appReducer(state: AppState, action: Action): AppState {
           k.id === action.payload.kitId ? { ...k, stock: k.stock + action.payload.amount } : k,
         ),
       }
+
+    case 'ADD_TAG': {
+      const { id, tag } = action.payload
+      return {
+        ...state,
+        leads: state.leads.map((l) => {
+          if (l.id === id) {
+            const currentTags = l.tags || []
+            if (currentTags.includes(tag)) return l
+            const newTags = currentTags.filter((t) => !t.startsWith('Revisitar')).concat(tag)
+            return {
+              ...l,
+              tags: newTags,
+              stage: tag.startsWith('Revisitar') ? 'Revisitar' : l.stage,
+            }
+          }
+          return l
+        }),
+      }
+    }
+
+    case 'REMOVE_TAG': {
+      const { id, tag } = action.payload
+      return {
+        ...state,
+        leads: state.leads.map((l) => {
+          if (l.id === id) {
+            return {
+              ...l,
+              tags: (l.tags || []).filter((t) => t !== tag),
+            }
+          }
+          return l
+        }),
+      }
+    }
 
     default:
       return state

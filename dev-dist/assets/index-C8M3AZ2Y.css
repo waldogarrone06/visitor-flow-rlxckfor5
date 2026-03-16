@@ -864,6 +864,10 @@ section[aria-label='Notifications alt+T'] {
   margin-left: -1rem;
 }
 
+.-mr-1{
+  margin-right: -0.25rem;
+}
+
 .-mt-4{
   margin-top: -1rem;
 }
@@ -886,6 +890,10 @@ section[aria-label='Notifications alt+T'] {
 
 .mb-6{
   margin-bottom: 1.5rem;
+}
+
+.ml-0\.5{
+  margin-left: 0.125rem;
 }
 
 .ml-1{
@@ -1053,10 +1061,6 @@ section[aria-label='Notifications alt+T'] {
   height: 200px;
 }
 
-.h-\[calc\(100vh-220px\)\]{
-  height: calc(100vh - 220px);
-}
-
 .h-\[var\(--radix-navigation-menu-viewport-height\)\]{
   height: var(--radix-navigation-menu-viewport-height);
 }
@@ -1091,10 +1095,6 @@ section[aria-label='Notifications alt+T'] {
 
 .max-h-\[300px\]{
   max-height: 300px;
-}
-
-.max-h-\[var\(--radix-dropdown-menu-content-available-height\)\]{
-  max-height: var(--radix-dropdown-menu-content-available-height);
 }
 
 .max-h-screen{
@@ -1336,20 +1336,12 @@ section[aria-label='Notifications alt+T'] {
   transform-origin: var(--radix-context-menu-content-transform-origin);
 }
 
-.origin-\[--radix-dropdown-menu-content-transform-origin\]{
-  transform-origin: var(--radix-dropdown-menu-content-transform-origin);
-}
-
 .origin-\[--radix-hover-card-content-transform-origin\]{
   transform-origin: var(--radix-hover-card-content-transform-origin);
 }
 
 .origin-\[--radix-menubar-content-transform-origin\]{
   transform-origin: var(--radix-menubar-content-transform-origin);
-}
-
-.origin-\[--radix-popover-content-transform-origin\]{
-  transform-origin: var(--radix-popover-content-transform-origin);
 }
 
 .origin-\[--radix-select-content-transform-origin\]{
@@ -1483,6 +1475,10 @@ section[aria-label='Notifications alt+T'] {
 
 .items-stretch{
   align-items: stretch;
+}
+
+.justify-start{
+  justify-content: flex-start;
 }
 
 .justify-center{
@@ -1740,6 +1736,11 @@ section[aria-label='Notifications alt+T'] {
   border-color: hsl(var(--input));
 }
 
+.border-orange-200{
+  --tw-border-opacity: 1;
+  border-color: rgb(254 215 170 / var(--tw-border-opacity, 1));
+}
+
 .border-primary{
   border-color: hsl(var(--primary));
 }
@@ -1832,6 +1833,16 @@ section[aria-label='Notifications alt+T'] {
   background-color: hsl(var(--muted) / 0.5);
 }
 
+.bg-orange-100{
+  --tw-bg-opacity: 1;
+  background-color: rgb(255 237 213 / var(--tw-bg-opacity, 1));
+}
+
+.bg-orange-50{
+  --tw-bg-opacity: 1;
+  background-color: rgb(255 247 237 / var(--tw-bg-opacity, 1));
+}
+
 .bg-popover{
   background-color: hsl(var(--popover));
 }
@@ -1892,6 +1903,10 @@ section[aria-label='Notifications alt+T'] {
 
 .p-0{
   padding: 0px;
+}
+
+.p-0\.5{
+  padding: 0.125rem;
 }
 
 .p-1{
@@ -2072,10 +2087,6 @@ section[aria-label='Notifications alt+T'] {
   padding-top: 0px;
 }
 
-.pt-2{
-  padding-top: 0.5rem;
-}
-
 .pt-3{
   padding-top: 0.75rem;
 }
@@ -2241,6 +2252,11 @@ section[aria-label='Notifications alt+T'] {
   color: hsl(var(--muted-foreground));
 }
 
+.text-orange-700{
+  --tw-text-opacity: 1;
+  color: rgb(194 65 12 / var(--tw-text-opacity, 1));
+}
+
 .text-popover-foreground{
   color: hsl(var(--popover-foreground));
 }
@@ -2283,10 +2299,6 @@ section[aria-label='Notifications alt+T'] {
 
 .opacity-50{
   opacity: 0.5;
-}
-
-.opacity-60{
-  opacity: 0.6;
 }
 
 .opacity-70{
@@ -2685,6 +2697,11 @@ section[aria-label='Notifications alt+T'] {
   background-color: hsl(var(--muted) / 0.5);
 }
 
+.hover\:bg-orange-200:hover{
+  --tw-bg-opacity: 1;
+  background-color: rgb(254 215 170 / var(--tw-bg-opacity, 1));
+}
+
 .hover\:bg-primary\/20:hover{
   background-color: hsl(var(--primary) / 0.2);
 }
@@ -2733,6 +2750,11 @@ section[aria-label='Notifications alt+T'] {
 
 .hover\:text-muted-foreground:hover{
   color: hsl(var(--muted-foreground));
+}
+
+.hover\:text-orange-900:hover{
+  --tw-text-opacity: 1;
+  color: rgb(124 45 18 / var(--tw-text-opacity, 1));
 }
 
 .hover\:text-sidebar-accent-foreground:hover{
@@ -3641,6 +3663,18 @@ section[aria-label='Notifications alt+T'] {
 
   .sm\:w-64{
     width: 16rem;
+  }
+
+  .sm\:w-\[200px\]{
+    width: 200px;
+  }
+
+  .sm\:w-\[260px\]{
+    width: 260px;
+  }
+
+  .sm\:w-auto{
+    width: auto;
   }
 
   .sm\:max-w-sm{

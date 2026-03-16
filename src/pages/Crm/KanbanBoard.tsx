@@ -1,17 +1,38 @@
+import { useState } from 'react'
 import { useMainStore } from '@/stores/main'
-import { LeadStage, Lead } from '@/lib/types'
-import { Card, CardContent } from '@/components/ui/card'
+import { LeadStage } from '@/lib/types'
 import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { format } from 'date-fns'
+import { format, isSameDay, isWithinInterval, startOfDay } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Calendar } from '@/components/ui/calendar'
+import { Button } from '@/components/ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Calendar as CalendarIcon, Filter, X } from 'lucide-react'
+import { DateRange } from 'react-day-picker'
+import { LeadCard } from './LeadCard'
 
 const STAGES: { id: LeadStage; label: string; color: string }[] = [
   { id: 'Agendado', label: 'Agendados', color: 'bg-blue-100 text-blue-700' },
   { id: 'Visitado', label: 'Visitados', color: 'bg-indigo-100 text-indigo-700' },
+  { id: 'Revisitar', label: 'Revisitar', color: 'bg-orange-100 text-orange-700' },
 ]
 
 export function KanbanBoard() {
   const { state, dispatch } = useMainStore()
+
+  const [dateRange, setDateRange] = useState<DateRange | undefined>()
+  const [selectedNeighborhood, setSelectedNeighborhood] = useState<string>('all')
+
+  const neighborhoods = Array.from(
+    new Set(state.leads.map((l) => l.neighborhood).filter(Boolean)),
+  ) as string[]
 
   const onDragStart = (e: React.DragEvent, leadId: string) => {
     e.dataTransfer.setData('leadId', leadId)
@@ -28,86 +49,124 @@ export function KanbanBoard() {
     e.preventDefault()
   }
 
-  return (
-    <div className="flex gap-4 overflow-x-auto pb-4 pt-2 h-[calc(100vh-220px)] min-h-[500px]">
-      {STAGES.map((stage) => {
-        const columnLeads = state.leads.filter((l) => l.stage === stage.id)
+  const filteredLeads = state.leads.filter((lead) => {
+    let matchesLocation = true
+    if (selectedNeighborhood && selectedNeighborhood !== 'all') {
+      matchesLocation = lead.neighborhood === selectedNeighborhood
+    }
 
-        return (
-          <div
-            key={stage.id}
-            className="flex-shrink-0 w-80 bg-slate-100/50 border border-border rounded-xl flex flex-col"
-            onDrop={(e) => onDrop(e, stage.id)}
-            onDragOver={onDragOver}
-          >
-            <div className="p-3 border-b border-border/50 flex justify-between items-center bg-slate-100/80 rounded-t-xl">
-              <h3 className="font-semibold text-sm">{stage.label}</h3>
-              <Badge variant="secondary" className={`${stage.color} border-none`}>
-                {columnLeads.length}
-              </Badge>
-            </div>
-            <div className="p-3 flex-1 overflow-y-auto space-y-3">
-              {columnLeads.map((lead) => (
-                <LeadCard key={lead.id} lead={lead} onDragStart={onDragStart} />
-              ))}
-            </div>
-          </div>
-        )
-      })}
-    </div>
-  )
-}
+    let matchesDate = true
+    if (dateRange?.from) {
+      const leadDate = startOfDay(new Date(lead.lastInteraction))
+      if (dateRange.to) {
+        matchesDate = isWithinInterval(leadDate, {
+          start: startOfDay(dateRange.from),
+          end: startOfDay(dateRange.to),
+        })
+      } else {
+        matchesDate = isSameDay(leadDate, dateRange.from)
+      }
+    }
 
-function LeadCard({
-  lead,
-  onDragStart,
-}: {
-  lead: Lead
-  onDragStart: (e: React.DragEvent, id: string) => void
-}) {
-  const { state } = useMainStore()
-  const kit = lead.assignedKitId ? state.kits.find((k) => k.id === lead.assignedKitId) : null
+    return matchesLocation && matchesDate
+  })
 
   return (
-    <Card
-      draggable
-      onDragStart={(e) => onDragStart(e, lead.id)}
-      className="cursor-grab active:cursor-grabbing shadow-sm hover:shadow-md transition-shadow border-border/60"
-    >
-      <CardContent className="p-3">
-        <div className="flex justify-between items-start mb-2">
-          <div className="flex items-center gap-2">
-            <Avatar className="h-8 w-8">
-              <AvatarImage
-                src={`https://img.usecurling.com/ppl/thumbnail?gender=female&seed=${lead.avatarSeed || 1}`}
-              />
-              <AvatarFallback>{lead.name.charAt(0)}</AvatarFallback>
-            </Avatar>
-            <div>
-              <p className="text-sm font-medium leading-none truncate w-[140px]">{lead.name}</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">
-                {lead.type === 'B2B' ? lead.company : 'Consumidor'}
-              </p>
-            </div>
-          </div>
-          <Badge variant="outline" className="text-[10px] px-1 h-4">
-            {lead.score} ⭐
-          </Badge>
+    <div className="flex flex-col h-full animate-fade-in">
+      <div className="flex flex-col sm:flex-row gap-4 items-center mb-6 p-4 bg-white border border-border/60 rounded-lg shadow-sm">
+        <div className="flex items-center gap-2 font-medium text-sm text-muted-foreground mr-2 shrink-0">
+          <Filter className="h-4 w-4" /> Filtros:
         </div>
-        <div className="mt-3 flex flex-col gap-2">
-          <div className="text-xs text-muted-foreground flex justify-between items-center w-full">
-            <span>{format(new Date(lead.lastInteraction), 'dd/MM/yyyy')}</span>
-          </div>
-          {kit && (
-            <Badge
-              variant="secondary"
-              className="w-fit text-[10px] bg-primary/10 text-primary hover:bg-primary/20 pointer-events-none"
+
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              className={`w-full sm:w-[260px] justify-start text-left font-normal ${!dateRange ? 'text-muted-foreground' : ''}`}
             >
-              Kit Atribuído: {kit.name}
-            </Badge>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {dateRange?.from ? (
+                dateRange.to ? (
+                  <>
+                    {format(dateRange.from, "dd 'de' MMM", { locale: ptBR })} -{' '}
+                    {format(dateRange.to, "dd 'de' MMM", { locale: ptBR })}
+                  </>
+                ) : (
+                  format(dateRange.from, "dd 'de' MMM", { locale: ptBR })
+                )
+              ) : (
+                <span>Filtrar por data</span>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              initialFocus
+              mode="range"
+              defaultMonth={dateRange?.from}
+              selected={dateRange}
+              onSelect={setDateRange}
+              numberOfMonths={1}
+              locale={ptBR}
+            />
+          </PopoverContent>
+        </Popover>
+
+        <Select value={selectedNeighborhood} onValueChange={setSelectedNeighborhood}>
+          <SelectTrigger className="w-full sm:w-[200px]">
+            <SelectValue placeholder="Bairro / Região" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas as Regiões</SelectItem>
+            {neighborhoods.map((n) => (
+              <SelectItem key={n} value={n}>
+                {n}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {(dateRange || selectedNeighborhood !== 'all') && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setDateRange(undefined)
+              setSelectedNeighborhood('all')
+            }}
+            className="text-muted-foreground hover:text-foreground w-full sm:w-auto mt-2 sm:mt-0"
+          >
+            <X className="h-4 w-4 mr-2" /> Limpar
+          </Button>
+        )}
+      </div>
+
+      <div className="flex gap-4 overflow-x-auto pb-4 h-full min-h-[500px] items-stretch">
+        {STAGES.map((stage) => {
+          const columnLeads = filteredLeads.filter((l) => l.stage === stage.id)
+
+          return (
+            <div
+              key={stage.id}
+              className="flex-shrink-0 w-80 bg-slate-100/50 border border-border rounded-xl flex flex-col"
+              onDrop={(e) => onDrop(e, stage.id)}
+              onDragOver={onDragOver}
+            >
+              <div className="p-3 border-b border-border/50 flex justify-between items-center bg-slate-100/80 rounded-t-xl">
+                <h3 className="font-semibold text-sm">{stage.label}</h3>
+                <Badge variant="secondary" className={`${stage.color} border-none`}>
+                  {columnLeads.length}
+                </Badge>
+              </div>
+              <div className="p-3 flex-1 overflow-y-auto space-y-3">
+                {columnLeads.map((lead) => (
+                  <LeadCard key={lead.id} lead={lead} onDragStart={onDragStart} />
+                ))}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
   )
 }
