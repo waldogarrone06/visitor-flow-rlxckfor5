@@ -1,6 +1,12 @@
 export type LeadStage = 'Prospect' | 'Lead' | 'Agendado' | 'Visitado' | 'Revisitar' | 'Cliente'
 export type LeadType = 'B2C' | 'B2B'
 
+export interface ConversionHistory {
+  month: string
+  year: number
+  count: number
+}
+
 export interface Lead {
   id: string
   name: string
@@ -22,6 +28,8 @@ export interface Lead {
   email?: string
   couponCode?: string
   couponUsage?: number
+  conversionsHistory?: ConversionHistory[]
+  targetConversionGoal?: number
 }
 
 export interface Appointment {

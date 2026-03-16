@@ -10,6 +10,8 @@ import DashboardPage from './pages/Dashboard/Index'
 import SchedulingPage from './pages/Scheduling/Index'
 import CrmPage from './pages/Crm/Index'
 import KitsPage from './pages/Kits/Index'
+import SettingsPage from './pages/Settings/Index'
+import LeadDetailPage from './pages/Crm/LeadDetail'
 import NotFound from './pages/NotFound'
 
 const App = () => (
@@ -23,7 +25,9 @@ const App = () => (
             <Route path="/" element={<DashboardPage />} />
             <Route path="/agendamento" element={<SchedulingPage />} />
             <Route path="/crm" element={<CrmPage />} />
+            <Route path="/crm/prescritor/:id" element={<LeadDetailPage />} />
             <Route path="/kits" element={<KitsPage />} />
+            <Route path="/config" element={<SettingsPage />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

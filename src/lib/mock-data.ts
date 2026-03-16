@@ -1,5 +1,7 @@
 import { AppState } from './types'
 
+const currentYear = new Date().getFullYear()
+
 export const initialData: AppState = {
   leads: [
     {
@@ -18,6 +20,10 @@ export const initialData: AppState = {
       email: 'joao.silva@exemplo.com',
       couponCode: 'JOAO10',
       couponUsage: 5,
+      conversionsHistory: [
+        { month: 'Out', year: currentYear, count: 2 },
+        { month: 'Nov', year: currentYear, count: 3 },
+      ],
     },
     {
       id: 'l2',
@@ -37,6 +43,14 @@ export const initialData: AppState = {
       email: 'contato@corpoforte.com.br',
       couponCode: 'CORPOFORTE20',
       couponUsage: 145,
+      targetConversionGoal: 100,
+      conversionsHistory: [
+        { month: 'Jul', year: currentYear, count: 10 },
+        { month: 'Ago', year: currentYear, count: 15 },
+        { month: 'Set', year: currentYear, count: 20 },
+        { month: 'Out', year: currentYear, count: 40 },
+        { month: 'Nov', year: currentYear, count: 60 },
+      ],
     },
     {
       id: 'l3',
@@ -108,6 +122,11 @@ export const initialData: AppState = {
       avatarSeed: 6,
       couponCode: 'SAUDE5',
       couponUsage: 89,
+      conversionsHistory: [
+        { month: 'Set', year: currentYear, count: 20 },
+        { month: 'Out', year: currentYear, count: 30 },
+        { month: 'Nov', year: currentYear, count: 39 },
+      ],
     },
   ],
   appointments: [

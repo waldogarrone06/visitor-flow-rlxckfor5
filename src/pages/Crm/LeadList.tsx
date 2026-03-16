@@ -11,6 +11,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { ArrowDown, ArrowUp, Tag } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Link } from 'react-router-dom'
 
 export function LeadList() {
   const { state } = useMainStore()
@@ -65,7 +66,14 @@ export function LeadList() {
             ) : (
               sortedLeads.map((lead) => (
                 <TableRow key={lead.id} className="hover:bg-slate-50/50">
-                  <TableCell className="font-medium">{lead.name}</TableCell>
+                  <TableCell className="font-medium">
+                    <Link
+                      to={`/crm/prescritor/${lead.id}`}
+                      className="hover:underline hover:text-primary transition-colors"
+                    >
+                      {lead.name}
+                    </Link>
+                  </TableCell>
                   <TableCell>
                     <Badge variant="secondary" className="font-normal bg-slate-100">
                       {lead.stage}
