@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Calendar } from '@/components/ui/calendar'
 import { ScheduleForm } from './ScheduleForm'
+import { FourLabLogo } from '@/components/FourLabLogo'
+import { ptBR } from 'date-fns/locale'
 import {
   Select,
   SelectContent,
@@ -16,13 +18,16 @@ export default function SchedulingPage() {
   return (
     <div className="space-y-6 animate-slide-up">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Agendamento de Visitas</h1>
-          <p className="text-muted-foreground">
-            Selecione uma data e cadastre um novo compromisso.
-          </p>
+        <div className="space-y-2">
+          <FourLabLogo className="h-16 w-auto text-foreground" />
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Agendamento de Visitas</h1>
+            <p className="text-muted-foreground">
+              Selecione uma data e cadastre um novo compromisso.
+            </p>
+          </div>
         </div>
-        <div className="w-full sm:w-64">
+        <div className="w-full sm:w-64 pt-4 sm:pt-0">
           <Select defaultValue="v1">
             <SelectTrigger>
               <SelectValue placeholder="Selecione o Vendedor" />
@@ -46,6 +51,7 @@ export default function SchedulingPage() {
               mode="single"
               selected={date}
               onSelect={setDate}
+              locale={ptBR}
               className="rounded-md border shadow-sm p-4 w-full max-w-lg scale-110 origin-top mt-4"
               disabled={(d) => d < new Date(new Date().setHours(0, 0, 0, 0))}
             />

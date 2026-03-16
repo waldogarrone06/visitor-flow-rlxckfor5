@@ -855,6 +855,11 @@ section[aria-label='Notifications alt+T'] {
   margin-bottom: 0.25rem;
 }
 
+.my-4{
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+}
+
 .-ml-4{
   margin-left: -1rem;
 }
@@ -1044,6 +1049,14 @@ section[aria-label='Notifications alt+T'] {
   height: 1px;
 }
 
+.h-\[200px\]{
+  height: 200px;
+}
+
+.h-\[240px\]{
+  height: 240px;
+}
+
 .h-\[250px\]{
   height: 250px;
 }
@@ -1098,10 +1111,6 @@ section[aria-label='Notifications alt+T'] {
 
 .min-h-0{
   min-height: 0px;
-}
-
-.min-h-\[300px\]{
-  min-height: 300px;
 }
 
 .min-h-\[500px\]{
@@ -1448,6 +1457,10 @@ section[aria-label='Notifications alt+T'] {
 
 .grid-cols-1{
   grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
+.grid-cols-2{
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .flex-row{
@@ -1897,6 +1910,10 @@ section[aria-label='Notifications alt+T'] {
   background-color: hsl(var(--success));
 }
 
+.bg-success\/10{
+  background-color: hsl(var(--success) / 0.1);
+}
+
 .bg-transparent{
   background-color: transparent;
 }
@@ -2042,6 +2059,10 @@ section[aria-label='Notifications alt+T'] {
 
 .pb-4{
   padding-bottom: 1rem;
+}
+
+.pb-6{
+  padding-bottom: 1.5rem;
 }
 
 .pb-8{
@@ -3705,6 +3726,10 @@ section[aria-label='Notifications alt+T'] {
     padding-right: 1.5rem;
   }
 
+  .sm\:pt-0{
+    padding-top: 0px;
+  }
+
   .sm\:text-left{
     text-align: left;
   }
@@ -3718,6 +3743,10 @@ section[aria-label='Notifications alt+T'] {
 
   .md\:absolute{
     position: absolute;
+  }
+
+  .md\:col-span-2{
+    grid-column: span 2 / span 2;
   }
 
   .md\:block{
@@ -3746,6 +3775,14 @@ section[aria-label='Notifications alt+T'] {
 
   .md\:grid-cols-2{
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .md\:grid-cols-3{
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .md\:grid-cols-4{
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .md\:flex-row{
@@ -3794,6 +3831,10 @@ section[aria-label='Notifications alt+T'] {
 }
 
 @media (min-width: 1024px){
+
+  .lg\:col-span-1{
+    grid-column: span 1 / span 1;
+  }
 
   .lg\:col-span-2{
     grid-column: span 2 / span 2;

@@ -3,9 +3,9 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { format } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 import {
   Form,
   FormControl,
@@ -26,6 +26,43 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { useMainStore } from '@/stores/main'
 import { toast } from '@/hooks/use-toast'
 import { Lead } from '@/lib/types'
+import { Separator } from '@/components/ui/separator'
+
+const UF_OPTIONS = [
+  'AC',
+  'AL',
+  'AP',
+  'AM',
+  'BA',
+  'CE',
+  'DF',
+  'ES',
+  'GO',
+  'MA',
+  'MT',
+  'MS',
+  'MG',
+  'PA',
+  'PB',
+  'PR',
+  'PE',
+  'PI',
+  'RJ',
+  'RN',
+  'RS',
+  'RO',
+  'RR',
+  'SC',
+  'SP',
+  'SE',
+  'TO',
+]
+
+const timeOptions = Array.from({ length: 21 }, (_, i) => {
+  const hour = Math.floor(i / 2) + 8
+  const minute = i % 2 === 0 ? '00' : '30'
+  return `${hour.toString().padStart(2, '0')}:${minute}`
+})
 
 const formSchema = z.object({
   name: z.string().min(2, 'Nome muito curto'),
@@ -36,7 +73,14 @@ const formSchema = z.object({
     required_error: 'Selecione uma profissão',
   }),
   registrationNumber: z.string().min(2, 'Registro inválido'),
-  address: z.string().min(5, 'Endereço obrigatório'),
+  time: z.string().min(4, 'Selecione um horário'),
+  cep: z.string().min(9, 'CEP inválido'),
+  street: z.string().min(2, 'Rua obrigatória'),
+  number: z.string().min(1, 'Número obrigatório'),
+  complement: z.string().optional(),
+  neighborhood: z.string().min(2, 'Bairro obrigatório'),
+  city: z.string().min(2, 'Cidade obrigatória'),
+  state: z.string().length(2, 'UF obrigatória'),
   authorizeInfo: z.boolean().refine((val) => val === true, 'Autorização necessária.'),
 })
 
@@ -60,12 +104,20 @@ export function ScheduleForm({
       phone: '',
       email: '',
       registrationNumber: '',
-      address: '',
+      time: '',
+      cep: '',
+      street: '',
+      number: '',
+      complement: '',
+      neighborhood: '',
+      city: '',
+      state: '',
       authorizeInfo: false,
     },
   })
 
   const cpfValue = form.watch('cpf')
+  const cepValue = form.watch('cep')
 
   useEffect(() => {
     if (cpfValue && cpfValue.length === 14) {
@@ -76,17 +128,34 @@ export function ScheduleForm({
           name: existing.name || '',
           email: existing.email || '',
           phone: existing.phone || '',
-          address: existing.address || '',
           profession: (existing.profession as any) || undefined,
           registrationNumber: existing.registrationNumber || '',
         })
         toast({
           title: 'Profissional Encontrado',
-          description: 'Dados preenchidos automaticamente pelo CRM.',
+          description: 'Dados base preenchidos automaticamente pelo CRM.',
         })
       }
     }
   }, [cpfValue, state.leads, form])
+
+  useEffect(() => {
+    const cleanCep = cepValue?.replace(/\D/g, '')
+    if (cleanCep?.length === 8) {
+      fetch(`https://viacep.com.br/ws/${cleanCep}/json/`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (!data.erro) {
+            form.setValue('street', data.logradouro)
+            form.setValue('neighborhood', data.bairro)
+            form.setValue('city', data.localidade)
+            form.setValue('state', data.uf)
+            toast({ title: 'Endereço encontrado', description: 'Campos preenchidos via CEP.' })
+          }
+        })
+        .catch(() => {})
+    }
+  }, [cepValue, form])
 
   const onSubmit = (values: FormValues) => {
     if (!selectedDate)
@@ -94,6 +163,14 @@ export function ScheduleForm({
     setLoading(true)
 
     setTimeout(() => {
+      const fullAddress = `${values.street}, ${values.number}${
+        values.complement ? ` - ${values.complement}` : ''
+      }, ${values.neighborhood}, ${values.city} - ${values.state}, CEP: ${values.cep}`
+
+      const timeParts = values.time.split(':')
+      const appointmentDate = new Date(selectedDate)
+      appointmentDate.setHours(parseInt(timeParts[0], 10), parseInt(timeParts[1], 10))
+
       const existingLead = state.leads.find((l) => l.document === values.cpf)
       const newLead: Lead = {
         id: existingLead ? existingLead.id : `l-${Date.now()}`,
@@ -102,7 +179,7 @@ export function ScheduleForm({
         stage: 'Agendado',
         score: existingLead?.score || 3,
         document: values.cpf,
-        address: values.address,
+        address: fullAddress,
         profession: values.profession,
         registrationNumber: values.registrationNumber,
         phone: values.phone,
@@ -118,7 +195,7 @@ export function ScheduleForm({
           appointment: {
             id: `a-${Date.now()}`,
             leadId: newLead.id,
-            date: selectedDate.toISOString(),
+            date: appointmentDate.toISOString(),
             vendor: 'Ana Vendedora',
             status: 'Scheduled',
           },
@@ -126,16 +203,12 @@ export function ScheduleForm({
       })
 
       toast({
-        title: 'Sincronizado com Google Calendar',
-        description: `Evento criado para ${format(selectedDate, 'dd/MM/yyyy')}.`,
-      })
-      toast({
-        title: 'Confirmação Enviada',
-        description: `E-mail automático enviado para ${values.email}.`,
+        title: 'Integração WhatsApp (Evolution API)',
+        description: `Lembretes automáticos configurados para 48h, 24h e 2h antes de ${format(appointmentDate, "dd/MM 'às' HH:mm")}.`,
       })
       toast({
         title: 'Agendamento Confirmado!',
-        description: `Visita para ${values.name} agendada.`,
+        description: `Visita para ${values.name} agendada com sucesso.`,
       })
 
       form.reset()
@@ -144,25 +217,64 @@ export function ScheduleForm({
     }, 1200)
   }
 
-  const applyMask = (v: string, type: 'cpf' | 'phone') => {
-    let val = v.replace(/\D/g, '').slice(0, 11)
-    if (type === 'cpf')
+  const applyMask = (v: string, type: 'cpf' | 'phone' | 'cep') => {
+    let val = v.replace(/\D/g, '')
+    if (type === 'cpf') {
+      val = val.slice(0, 11)
       return val
         .replace(/(\d{3})(\d)/, '$1.$2')
         .replace(/(\d{3})(\d)/, '$1.$2')
         .replace(/(\d{3})(\d{1,2})$/, '$1-$2')
-    val = val.replace(/^(\d{2})(\d)/g, '($1) $2')
-    return val.replace(/(\d)(\d{4})$/, '$1-$2')
+    }
+    if (type === 'phone') {
+      val = val.slice(0, 11)
+      val = val.replace(/^(\d{2})(\d)/g, '($1) $2')
+      return val.replace(/(\d)(\d{4})$/, '$1-$2')
+    }
+    if (type === 'cep') {
+      val = val.slice(0, 8)
+      return val.replace(/(\d{5})(\d)/, '$1-$2')
+    }
+    return val
   }
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <div className="bg-muted/30 p-3 rounded-md mb-4 border border-border flex items-center justify-between">
-          <p className="text-sm font-medium">Data Visita:</p>
-          <p className="text-primary font-bold">
-            {selectedDate ? format(selectedDate, 'dd/MM/yyyy') : 'Selecione no calendário'}
-          </p>
+        <div className="bg-muted/30 p-4 rounded-md mb-4 border border-border">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-medium">Data Visita:</p>
+            <p className="text-primary font-bold">
+              {selectedDate
+                ? format(selectedDate, "dd 'de' MMMM, yyyy", { locale: ptBR })
+                : 'Selecione no calendário'}
+            </p>
+          </div>
+          <FormField
+            control={form.control}
+            name="time"
+            render={({ field }) => (
+              <FormItem className="flex items-center justify-between space-y-0">
+                <FormLabel className="text-sm font-medium">Horário da Visita:</FormLabel>
+                <div className="w-[140px]">
+                  <Select onValueChange={field.onChange} value={field.value || ''}>
+                    <FormControl>
+                      <SelectTrigger className="bg-white">
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {timeOptions.map((t) => (
+                        <SelectItem key={t} value={t}>
+                          {t}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </FormItem>
+            )}
+          />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -205,7 +317,7 @@ export function ScheduleForm({
             name="phone"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Telefone</FormLabel>
+                <FormLabel>Telefone (WhatsApp)</FormLabel>
                 <FormControl>
                   <Input
                     {...field}
@@ -271,38 +383,144 @@ export function ScheduleForm({
           />
         </div>
 
-        <FormField
-          control={form.control}
-          name="address"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Endereço para Envio de produto</FormLabel>
-              <FormControl>
-                <Textarea
-                  {...field}
-                  placeholder="Rua, Número, Complemento, Bairro, Cidade - Estado, CEP"
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <Separator className="my-4" />
+        <h3 className="text-sm font-semibold mb-2">Endereço de Visita / Envio de Kit</h3>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <FormField
+            control={form.control}
+            name="cep"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>CEP</FormLabel>
+                <FormControl>
+                  <Input
+                    {...field}
+                    placeholder="00000-000"
+                    onChange={(e) => field.onChange(applyMask(e.target.value, 'cep'))}
+                    maxLength={9}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <div className="md:col-span-2">
+            <FormField
+              control={form.control}
+              name="street"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Logradouro</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder="Rua, Avenida..." />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <FormField
+            control={form.control}
+            name="number"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Número</FormLabel>
+                <FormControl>
+                  <Input {...field} placeholder="123" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="complement"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Complemento</FormLabel>
+                <FormControl>
+                  <Input {...field} placeholder="Sala 2" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <div className="md:col-span-2">
+            <FormField
+              control={form.control}
+              name="neighborhood"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Bairro</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder="Centro" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="md:col-span-2">
+            <FormField
+              control={form.control}
+              name="city"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Cidade</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder="São Paulo" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+          <FormField
+            control={form.control}
+            name="state"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Estado</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value || ''}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="UF" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {UF_OPTIONS.map((uf) => (
+                      <SelectItem key={uf} value={uf}>
+                        {uf}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
 
         <FormField
           control={form.control}
           name="authorizeInfo"
           render={({ field }) => (
-            <FormItem className="flex flex-row items-start space-x-3 space-y-0 p-4 border rounded-md bg-muted/20">
+            <FormItem className="flex flex-row items-start space-x-3 space-y-0 p-4 mt-4 border rounded-md bg-muted/20">
               <FormControl>
                 <Checkbox checked={field.value} onCheckedChange={field.onChange} />
               </FormControl>
               <div className="space-y-1 leading-none">
                 <FormLabel>Autoriza envio de informações</FormLabel>
                 <FormDescription className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
-                  Ao marcar esta opção, você autoriza o uso de seus dados para contato, envio de
-                  informações e kits de produtos, em total conformidade com a Lei Geral de Proteção
-                  de Dados (LGPD). Seus dados serão sincronizados e armazenados de forma segura em
-                  nosso CRM.
+                  Ao marcar, você autoriza o contato via WhatsApp e envio de kits em conformidade
+                  com a LGPD.
                 </FormDescription>
                 <FormMessage />
               </div>
@@ -310,8 +528,12 @@ export function ScheduleForm({
           )}
         />
 
-        <Button type="submit" className="w-full" disabled={loading || !selectedDate}>
-          {loading ? 'Processando Integrações...' : 'Confirmar Agendamento'}
+        <Button
+          type="submit"
+          className="w-full h-12 text-lg mt-2"
+          disabled={loading || !selectedDate}
+        >
+          {loading ? 'Sincronizando...' : 'Confirmar Agendamento'}
         </Button>
       </form>
     </Form>
