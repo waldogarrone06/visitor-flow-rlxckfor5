@@ -1,5 +1,4 @@
 import { KpiCards } from './KpiCards'
-import { DashboardCharts } from './Charts'
 import { DashboardAgenda } from './Agenda'
 import { PerformancePanel } from './PerformancePanel'
 
@@ -11,10 +10,9 @@ export default function DashboardPage() {
         <p className="text-muted-foreground">Acompanhe seus agendamentos, funil e logística.</p>
       </div>
       <KpiCards />
-      <PerformancePanel />
       <div className="grid gap-4 md:grid-cols-2">
+        <PerformancePanel />
         <DashboardAgenda />
-        <DashboardCharts />
       </div>
     </div>
   )

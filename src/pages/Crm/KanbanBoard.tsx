@@ -1,16 +1,13 @@
 import { useMainStore } from '@/stores/main'
 import { LeadStage, Lead } from '@/lib/types'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { format } from 'date-fns'
 
 const STAGES: { id: LeadStage; label: string; color: string }[] = [
-  { id: 'Prospect', label: 'Prospects', color: 'bg-slate-200 text-slate-700' },
-  { id: 'Lead', label: 'Leads', color: 'bg-amber-100 text-amber-700' },
   { id: 'Agendado', label: 'Agendados', color: 'bg-blue-100 text-blue-700' },
   { id: 'Visitado', label: 'Visitados', color: 'bg-indigo-100 text-indigo-700' },
-  { id: 'Cliente', label: 'Clientes', color: 'bg-emerald-100 text-emerald-700' },
 ]
 
 export function KanbanBoard() {
@@ -68,6 +65,9 @@ function LeadCard({
   lead: Lead
   onDragStart: (e: React.DragEvent, id: string) => void
 }) {
+  const { state } = useMainStore()
+  const kit = lead.assignedKitId ? state.kits.find((k) => k.id === lead.assignedKitId) : null
+
   return (
     <Card
       draggable
@@ -94,12 +94,17 @@ function LeadCard({
             {lead.score} ⭐
           </Badge>
         </div>
-        <div className="text-xs text-muted-foreground mt-3 flex justify-between items-center">
-          <span>{format(new Date(lead.lastInteraction), 'dd/MM/yyyy')}</span>
-          {lead.assignedKitId && (
-            <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded">
-              Kit Atribuído
-            </span>
+        <div className="mt-3 flex flex-col gap-2">
+          <div className="text-xs text-muted-foreground flex justify-between items-center w-full">
+            <span>{format(new Date(lead.lastInteraction), 'dd/MM/yyyy')}</span>
+          </div>
+          {kit && (
+            <Badge
+              variant="secondary"
+              className="w-fit text-[10px] bg-primary/10 text-primary hover:bg-primary/20 pointer-events-none"
+            >
+              Kit Atribuído: {kit.name}
+            </Badge>
           )}
         </div>
       </CardContent>

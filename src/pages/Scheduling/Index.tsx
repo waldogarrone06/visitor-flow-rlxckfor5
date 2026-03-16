@@ -41,18 +41,18 @@ export default function SchedulingPage() {
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2 shadow-subtle border-border/50">
+      <div className="flex flex-col gap-6">
+        <Card className="shadow-subtle border-border/50">
           <CardHeader>
             <CardTitle className="text-lg">Calendário de Disponibilidade</CardTitle>
           </CardHeader>
-          <CardContent className="flex justify-center pb-8">
+          <CardContent className="flex justify-center pb-8 w-full overflow-x-auto">
             <Calendar
               mode="single"
               selected={date}
               onSelect={setDate}
               locale={ptBR}
-              className="rounded-md border shadow-sm p-4 w-full max-w-lg scale-110 origin-top mt-4"
+              className="rounded-md border shadow-sm p-4 sm:p-6 w-full max-w-4xl flex justify-center [--cell-size:2.5rem] sm:[--cell-size:4rem] md:[--cell-size:5rem] bg-white"
               disabled={(d) => d < new Date(new Date().setHours(0, 0, 0, 0))}
             />
           </CardContent>
