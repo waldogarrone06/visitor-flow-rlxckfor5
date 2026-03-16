@@ -68,10 +68,21 @@ export interface Message {
   sender: 'me' | 'them'
   timestamp: string
   status: 'sent' | 'delivered' | 'read'
+  type?: 'text' | 'image' | 'pdf'
+  mediaUrl?: string
+  mediaName?: string
 }
 
 export interface AppSettings {
   whatsappConnected: boolean
+}
+
+export interface TeamMember {
+  id: string
+  name: string
+  email: string
+  role: 'Admin' | 'Agent' | 'Viewer'
+  avatarUrl?: string
 }
 
 export interface AppState {
@@ -81,4 +92,5 @@ export interface AppState {
   shipments: Shipment[]
   messages: Message[]
   settings: AppSettings
+  teamMembers: TeamMember[]
 }

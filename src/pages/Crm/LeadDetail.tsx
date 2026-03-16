@@ -2,7 +2,7 @@ import { useParams, Link } from 'react-router-dom'
 import { useMainStore } from '@/stores/main'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, User, MapPin, Tag, MessageCircle } from 'lucide-react'
+import { ArrowLeft, User, MapPin, Tag, MessageCircle, Paperclip, FileText } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { ConversionEvolutionChart } from './ConversionEvolutionChart'
 
@@ -11,6 +11,10 @@ export default function LeadDetailPage() {
   const { state } = useMainStore()
 
   const lead = state.leads.find((l) => l.id === id)
+
+  const messages = state.messages
+    .filter((m) => m.leadId === id)
+    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
 
   if (!lead) {
     return (
@@ -98,6 +102,77 @@ export default function LeadDetailPage() {
           </CardHeader>
           <CardContent>
             <ConversionEvolutionChart data={lead.conversionsHistory || []} />
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-3 mt-6">
+        <Card className="md:col-span-3 shadow-subtle">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="text-lg">Histórico de Comunicação</CardTitle>
+              <CardDescription>Últimas mensagens trocadas via WhatsApp integrado.</CardDescription>
+            </div>
+            <Link to={`/chat?contactId=${lead.id}`}>
+              <Button variant="outline" size="sm" className="gap-2 shrink-0">
+                <MessageCircle className="h-4 w-4" /> Abrir Chat
+              </Button>
+            </Link>
+          </CardHeader>
+          <CardContent>
+            {messages.length === 0 ? (
+              <div className="text-center text-muted-foreground py-8 border rounded-md border-dashed">
+                Nenhuma mensagem registrada.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {messages.slice(-5).map((msg) => (
+                  <div key={msg.id} className="flex flex-col gap-1">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span className="font-medium text-foreground">
+                        {msg.sender === 'me' ? 'Você' : lead.name}
+                      </span>
+                      <span>•</span>
+                      <span>
+                        {new Date(msg.timestamp).toLocaleString('pt-BR', {
+                          dateStyle: 'short',
+                          timeStyle: 'short',
+                        })}
+                      </span>
+                      {msg.sender === 'me' && (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] py-0 h-4 bg-muted/50 border-border/50 text-muted-foreground font-normal px-1.5"
+                        >
+                          {msg.status === 'read'
+                            ? 'Lido'
+                            : msg.status === 'delivered'
+                              ? 'Entregue'
+                              : 'Enviado'}
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="p-3 bg-muted/30 border border-border/50 rounded-md text-sm">
+                      {msg.type === 'image' && (
+                        <div className="flex items-center gap-2 mb-2 text-blue-600">
+                          <Paperclip className="h-4 w-4" />
+                          <span className="text-xs font-medium">Imagem Anexada</span>
+                        </div>
+                      )}
+                      {msg.type === 'pdf' && (
+                        <div className="flex items-center gap-2 mb-2 text-red-600">
+                          <FileText className="h-4 w-4" />
+                          <span className="text-xs font-medium">
+                            {msg.mediaName || 'Documento PDF'}
+                          </span>
+                        </div>
+                      )}
+                      {msg.text && <p className="whitespace-pre-wrap">{msg.text}</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
