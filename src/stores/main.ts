@@ -22,7 +22,6 @@ function appReducer(state: AppState, action: Action): AppState {
       let newShipments = [...state.shipments]
       const lead = state.leads.find((l) => l.id === action.payload.id)
 
-      // Auto-dispatch kit logic when moving to 'Visitado'
       if (lead && action.payload.stage === 'Visitado' && lead.stage !== 'Visitado') {
         const kitId = lead.assignedKitId || state.kits[0].id
         const newShipment: Shipment = {
@@ -49,7 +48,9 @@ function appReducer(state: AppState, action: Action): AppState {
       const { lead, appointment } = action.payload
       const existingLead = state.leads.find((l) => l.id === lead.id)
       const leads = existingLead
-        ? state.leads.map((l) => (l.id === lead.id ? { ...l, stage: 'Agendado' as LeadStage } : l))
+        ? state.leads.map((l) =>
+            l.id === lead.id ? { ...l, ...lead, stage: 'Agendado' as LeadStage } : l,
+          )
         : [...state.leads, { ...lead, stage: 'Agendado' as LeadStage }]
 
       return {
