@@ -23,7 +23,7 @@ import { getSchedule, saveSchedule, clearSchedule } from '@/services/settings'
 import { toast } from '@/hooks/use-toast'
 
 const DAYS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
-const SLOT_TYPES = ['Prescritor Exclusivo', 'Grupo']
+const SLOT_TYPES = ['Prescritor Exclusivo']
 
 export function PersonalScheduleCard() {
   const [slots, setSlots] = useState<any[]>([])
@@ -92,8 +92,8 @@ export function PersonalScheduleCard() {
         </div>
         <CardTitle>Agenda Pessoal & Disponibilidade</CardTitle>
         <CardDescription>
-          Gerencie seus horários de atendimento exclusivos ou em grupo para sincronização com o
-          agendador.
+          Gerencie seus horários de atendimento exclusivos para sincronização com o agendador
+          público.
         </CardDescription>
       </CardHeader>
 
@@ -180,7 +180,7 @@ export function PersonalScheduleCard() {
                     </div>
                     <Badge
                       variant="outline"
-                      className={`mt-2 text-[10px] ${slot.slot_type === 'Grupo' ? 'bg-teal-50 text-teal-700' : 'bg-orange-50 text-orange-700'}`}
+                      className={`mt-2 text-[10px] bg-orange-50 text-orange-700`}
                     >
                       {slot.slot_type}
                     </Badge>

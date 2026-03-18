@@ -5,8 +5,11 @@ import { ScheduleForm } from './ScheduleForm'
 import { FourLabLogo } from '@/components/FourLabLogo'
 import { ptBR } from 'date-fns/locale'
 import { isSameDay, format } from 'date-fns'
-import { Video, MapPin, ExternalLink } from 'lucide-react'
+import { Video, MapPin, ExternalLink, Copy } from 'lucide-react'
 import { useMainStore } from '@/stores/main'
+import { useAuth } from '@/hooks/use-auth'
+import { Button } from '@/components/ui/button'
+import { toast } from '@/hooks/use-toast'
 import {
   Select,
   SelectContent,
@@ -18,10 +21,21 @@ import {
 export default function SchedulingPage() {
   const [date, setDate] = useState<Date | undefined>(new Date())
   const { state } = useMainStore()
+  const { user } = useAuth()
 
   const dayAppointments = state.appointments
     .filter((a) => date && isSameDay(new Date(a.date), date))
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+
+  const handleCopyLink = () => {
+    if (!user?.id) return
+    const url = `${window.location.origin}/agendar/${user.id}`
+    navigator.clipboard.writeText(url)
+    toast({
+      title: 'Link copiado!',
+      description: 'O link de agendamento público foi copiado para a área de transferência.',
+    })
+  }
 
   return (
     <div className="space-y-6 animate-slide-up">
@@ -35,9 +49,9 @@ export default function SchedulingPage() {
             </p>
           </div>
         </div>
-        <div className="w-full sm:w-64 pt-4 sm:pt-0">
+        <div className="flex flex-col sm:flex-row gap-3 pt-4 sm:pt-0 w-full sm:w-auto">
           <Select defaultValue="v1">
-            <SelectTrigger>
+            <SelectTrigger className="w-full sm:w-64">
               <SelectValue placeholder="Selecione o Vendedor" />
             </SelectTrigger>
             <SelectContent>
@@ -46,6 +60,9 @@ export default function SchedulingPage() {
               <SelectItem value="v3">Todos</SelectItem>
             </SelectContent>
           </Select>
+          <Button variant="outline" onClick={handleCopyLink} className="gap-2">
+            <Copy className="h-4 w-4" /> Link Público
+          </Button>
         </div>
       </div>
 

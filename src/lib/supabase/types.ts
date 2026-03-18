@@ -9,7 +9,78 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      schedule_settings: {
+        Row: {
+          created_at: string
+          day_of_week: number
+          end_time: string
+          id: string
+          slot_type: string
+          start_time: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          day_of_week: number
+          end_time: string
+          id?: string
+          slot_type: string
+          start_time: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          day_of_week?: number
+          end_time?: string
+          id?: string
+          slot_type?: string
+          start_time?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_integrations: {
+        Row: {
+          created_at: string
+          google_access_token: string | null
+          google_email: string | null
+          google_refresh_token: string | null
+          id: string
+          updated_at: string
+          user_id: string
+          whatsapp_api_token: string | null
+          whatsapp_connected: boolean | null
+          whatsapp_instance_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          google_access_token?: string | null
+          google_email?: string | null
+          google_refresh_token?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+          whatsapp_api_token?: string | null
+          whatsapp_connected?: boolean | null
+          whatsapp_instance_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          google_access_token?: string | null
+          google_email?: string | null
+          google_refresh_token?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+          whatsapp_api_token?: string | null
+          whatsapp_connected?: boolean | null
+          whatsapp_instance_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -153,3 +224,52 @@ export const Constants = {
 // IMPORTANT: The TypeScript types above map UUID, TEXT, VARCHAR all to "string".
 // Use the COLUMN TYPES section below to know the real PostgreSQL type for each column.
 // Always use the correct PostgreSQL type when writing SQL migrations.
+
+// --- COLUMN TYPES (actual PostgreSQL types) ---
+// Use this to know the real database type when writing migrations.
+// "string" in TypeScript types above may be uuid, text, varchar, timestamptz, etc.
+// Table: schedule_settings
+//   id: uuid (not null, default: gen_random_uuid())
+//   user_id: uuid (not null)
+//   day_of_week: integer (not null)
+//   start_time: text (not null)
+//   end_time: text (not null)
+//   slot_type: text (not null)
+//   created_at: timestamp with time zone (not null, default: now())
+//   updated_at: timestamp with time zone (not null, default: now())
+// Table: user_integrations
+//   id: uuid (not null, default: gen_random_uuid())
+//   user_id: uuid (not null)
+//   google_access_token: text (nullable)
+//   google_refresh_token: text (nullable)
+//   google_email: text (nullable)
+//   whatsapp_instance_id: text (nullable)
+//   whatsapp_api_token: text (nullable)
+//   whatsapp_connected: boolean (nullable, default: false)
+//   created_at: timestamp with time zone (not null, default: now())
+//   updated_at: timestamp with time zone (not null, default: now())
+
+// --- CONSTRAINTS ---
+// Table: schedule_settings
+//   CHECK schedule_settings_day_of_week_check: CHECK (((day_of_week >= 0) AND (day_of_week <= 6)))
+//   PRIMARY KEY schedule_settings_pkey: PRIMARY KEY (id)
+//   CHECK schedule_settings_slot_type_check: CHECK ((slot_type = ANY (ARRAY['Prescritor Exclusivo'::text, 'Grupo'::text])))
+//   FOREIGN KEY schedule_settings_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+// Table: user_integrations
+//   PRIMARY KEY user_integrations_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY user_integrations_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+//   UNIQUE user_integrations_user_id_key: UNIQUE (user_id)
+
+// --- ROW LEVEL SECURITY POLICIES ---
+// Table: schedule_settings
+//   Policy "Users can manage their own schedule" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: (auth.uid() = user_id)
+//     WITH CHECK: (auth.uid() = user_id)
+// Table: user_integrations
+//   Policy "Users can manage their own integrations" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: (auth.uid() = user_id)
+//     WITH CHECK: (auth.uid() = user_id)
+
+// --- INDEXES ---
+// Table: user_integrations
+//   CREATE UNIQUE INDEX user_integrations_user_id_key ON public.user_integrations USING btree (user_id)

@@ -23,7 +23,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Switch } from '@/components/ui/switch'
 import { useMainStore } from '@/stores/main'
 import { toast } from '@/hooks/use-toast'
 import { Lead } from '@/lib/types'
@@ -82,7 +81,6 @@ const formSchema = z.object({
   neighborhood: z.string().min(2, 'Bairro obrigatório'),
   city: z.string().min(2, 'Cidade obrigatória'),
   state: z.string().length(2, 'UF obrigatória'),
-  isVirtual: z.boolean().default(false),
   authorizeInfo: z.boolean().refine((val) => val === true, 'Autorização necessária.'),
 })
 
@@ -114,7 +112,6 @@ export function ScheduleForm({
       neighborhood: '',
       city: '',
       state: '',
-      isVirtual: false,
       authorizeInfo: false,
     },
   })
@@ -171,37 +168,6 @@ export function ScheduleForm({
       appointmentDate.setHours(parseInt(timeParts[0], 10), parseInt(timeParts[1], 10), 0, 0)
       const dateIso = appointmentDate.toISOString()
 
-      let meetLink = undefined
-
-      if (values.isVirtual) {
-        const existingInSlot = state.appointments.filter(
-          (a) => a.isVirtual && a.status === 'Scheduled' && a.date === dateIso,
-        )
-
-        if (existingInSlot.length >= 30) {
-          toast({
-            title: 'Capacidade Excedida',
-            description: 'O limite de 30 participantes para este horário já foi atingido.',
-            variant: 'destructive',
-          })
-          setLoading(false)
-          return
-        }
-
-        if (existingInSlot.length > 0 && existingInSlot[0].meetLink) {
-          meetLink = existingInSlot[0].meetLink
-        } else if (state.settings?.googleMeetConnected) {
-          const randomString = () => Math.random().toString(36).substring(2, 6)
-          meetLink = `https://meet.google.com/${randomString()}-${randomString()}-${randomString()}`
-        } else {
-          toast({
-            title: 'Google Meet não conectado',
-            description: 'O agendamento foi salvo, mas não foi possível gerar o link da reunião.',
-            variant: 'destructive',
-          })
-        }
-      }
-
       const fullAddress = `${values.street}, ${values.number}${
         values.complement ? ` - ${values.complement}` : ''
       }, ${values.neighborhood}, ${values.city} - ${values.state}, CEP: ${values.cep}`
@@ -233,32 +199,17 @@ export function ScheduleForm({
             date: dateIso,
             vendor: 'Ana Vendedora',
             status: 'Scheduled',
-            isVirtual: values.isVirtual,
-            meetLink,
+            isVirtual: false,
           },
         },
       })
 
       const timeFormatted = format(appointmentDate, "dd/MM 'às' HH:mm")
 
-      if (values.isVirtual && meetLink) {
-        if (state.settings?.whatsappReminder1h) {
-          toast({
-            title: 'Lembrete Automático WhatsApp',
-            description: `Um lembrete será enviado 1 hora antes de ${timeFormatted} com o link do Meet.`,
-          })
-        } else {
-          toast({
-            title: 'Integração WhatsApp',
-            description: `Reunião agendada. Ative o lembrete de 1h nas configurações. Link: ${meetLink}`,
-          })
-        }
-      } else {
-        toast({
-          title: 'Integração WhatsApp',
-          description: `Lembretes configurados para 48h e 24h antes de ${timeFormatted}.`,
-        })
-      }
+      toast({
+        title: 'Integração WhatsApp',
+        description: `Lembretes configurados para 48h e 24h antes de ${timeFormatted}.`,
+      })
 
       if (state.settings?.googleCalendarSync) {
         toast({
@@ -568,24 +519,6 @@ export function ScheduleForm({
             )}
           />
         </div>
-
-        <FormField
-          control={form.control}
-          name="isVirtual"
-          render={({ field }) => (
-            <FormItem className="flex flex-row items-center justify-between p-4 mt-4 border rounded-md bg-muted/20">
-              <div className="space-y-0.5">
-                <FormLabel>Reunião Virtual (Google Meet em Grupo)</FormLabel>
-                <FormDescription className="text-xs text-muted-foreground">
-                  Aloca participantes no mesmo horário em um único link (máx 30).
-                </FormDescription>
-              </div>
-              <FormControl>
-                <Switch checked={field.value} onCheckedChange={field.onChange} />
-              </FormControl>
-            </FormItem>
-          )}
-        />
 
         <FormField
           control={form.control}

@@ -14,6 +14,7 @@ import KitsPage from './pages/Kits/Index'
 import SettingsPage from './pages/Settings/Index'
 import LeadDetailPage from './pages/Crm/LeadDetail'
 import ChatPage from './pages/Chat/Index'
+import PublicBookingPage from './pages/PublicBooking/Index'
 import NotFound from './pages/NotFound'
 
 const App = () => (
@@ -24,6 +25,8 @@ const App = () => (
           <Toaster />
           <Sonner />
           <Routes>
+            <Route path="/agendar/:userId" element={<PublicBookingPage />} />
+
             <Route element={<Layout />}>
               <Route path="/" element={<DashboardPage />} />
               <Route path="/agendamento" element={<SchedulingPage />} />
