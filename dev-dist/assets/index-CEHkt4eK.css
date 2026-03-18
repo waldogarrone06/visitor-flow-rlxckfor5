@@ -1895,6 +1895,11 @@ section[aria-label='Notifications alt+T'] {
   border-color: hsl(var(--sidebar-border));
 }
 
+.border-teal-200{
+  --tw-border-opacity: 1;
+  border-color: rgb(153 246 228 / var(--tw-border-opacity, 1));
+}
+
 .border-transparent{
   border-color: transparent;
 }
@@ -2091,9 +2096,17 @@ section[aria-label='Notifications alt+T'] {
   background-color: hsl(var(--success));
 }
 
+.bg-teal-100\/80{
+  background-color: rgb(204 251 241 / 0.8);
+}
+
 .bg-teal-50{
   --tw-bg-opacity: 1;
   background-color: rgb(240 253 250 / var(--tw-bg-opacity, 1));
+}
+
+.bg-teal-50\/40{
+  background-color: rgb(240 253 250 / 0.4);
 }
 
 .bg-teal-600{
@@ -2591,6 +2604,11 @@ section[aria-label='Notifications alt+T'] {
 .text-teal-600{
   --tw-text-opacity: 1;
   color: rgb(13 148 136 / var(--tw-text-opacity, 1));
+}
+
+.text-teal-800{
+  --tw-text-opacity: 1;
+  color: rgb(17 94 89 / var(--tw-text-opacity, 1));
 }
 
 .text-white{
@@ -3104,6 +3122,10 @@ section[aria-label='Notifications alt+T'] {
 
 .hover\:bg-success\/80:hover{
   background-color: hsl(var(--success) / 0.8);
+}
+
+.hover\:bg-teal-50\/60:hover{
+  background-color: rgb(240 253 250 / 0.6);
 }
 
 .hover\:bg-teal-700:hover{
@@ -4126,6 +4148,11 @@ section[aria-label='Notifications alt+T'] {
 
   .sm\:p-6{
     padding: 1.5rem;
+  }
+
+  .sm\:px-3{
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
   }
 
   .sm\:px-4{

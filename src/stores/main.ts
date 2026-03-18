@@ -16,6 +16,7 @@ type Action =
   | { type: 'UPDATE_LEAD_STAGE'; payload: { id: string; stage: LeadStage } }
   | { type: 'SCHEDULE_APPOINTMENT'; payload: { lead: Lead; appointment: Appointment } }
   | { type: 'MARK_VISITED'; payload: { appointmentId: string } }
+  | { type: 'RESCHEDULE_APPOINTMENT'; payload: { appointmentId: string; newDate: string } }
   | { type: 'UPDATE_KIT_STOCK'; payload: { kitId: string; amount: number } }
   | { type: 'ADD_TAG'; payload: { id: string; tag: string } }
   | { type: 'REMOVE_TAG'; payload: { id: string; tag: string } }
@@ -89,6 +90,15 @@ function appReducer(state: AppState, action: Action): AppState {
         ...nextState,
         appointments: nextState.appointments.map((a) =>
           a.id === action.payload.appointmentId ? { ...a, status: 'Visited' } : a,
+        ),
+      }
+    }
+
+    case 'RESCHEDULE_APPOINTMENT': {
+      return {
+        ...state,
+        appointments: state.appointments.map((a) =>
+          a.id === action.payload.appointmentId ? { ...a, date: action.payload.newDate } : a,
         ),
       }
     }

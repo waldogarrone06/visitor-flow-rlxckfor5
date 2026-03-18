@@ -30576,7 +30576,7 @@ var initialData = {
 		{
 			id: "l5",
 			name: "Carlos Santos",
-			stage: "Revisitar",
+			stage: "Agendado",
 			type: "B2C",
 			score: 5,
 			document: "111.222.333-44",
@@ -30628,6 +30628,15 @@ var initialData = {
 		{
 			id: "a1",
 			leadId: "l3",
+			date: new Date((/* @__PURE__ */ new Date()).setHours(14, 0, 0, 0)).toISOString(),
+			vendor: "Ana Vendedora",
+			status: "Scheduled",
+			isVirtual: true,
+			meetLink: "https://meet.google.com/abc-defg-hij"
+		},
+		{
+			id: "a6",
+			leadId: "l5",
 			date: new Date((/* @__PURE__ */ new Date()).setHours(14, 0, 0, 0)).toISOString(),
 			vendor: "Ana Vendedora",
 			status: "Scheduled",
@@ -30776,7 +30785,10 @@ var initialData = {
 	],
 	settings: {
 		whatsappConnected: true,
-		googleMeetConnected: false
+		whatsappReminder1h: true,
+		googleMeetConnected: true,
+		googleCalendarConnected: true,
+		googleCalendarSync: true
 	},
 	teamMembers: [{
 		id: "t1",
@@ -30859,6 +30871,13 @@ function appReducer(state, action) {
 				} : a)
 			};
 		}
+		case "RESCHEDULE_APPOINTMENT": return {
+			...state,
+			appointments: state.appointments.map((a) => a.id === action.payload.appointmentId ? {
+				...a,
+				date: action.payload.newDate
+			} : a)
+		};
 		case "UPDATE_KIT_STOCK": return {
 			...state,
 			kits: state.kits.map((k) => k.id === action.payload.kitId ? {
@@ -31571,9 +31590,110 @@ var ptBR = {
 	}
 };
 //#endregion
+//#region src/components/ui/dialog.tsx
+var Dialog = Root$6;
+var DialogTrigger = Trigger$4;
+var DialogPortal = Portal$3;
+var DialogOverlay = import_react.forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Overlay, {
+	"data-uid": "src/components/ui/dialog.tsx:20:3",
+	"data-prohibitions": "[editContent]",
+	ref,
+	className: cn$1("fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0", className),
+	...props
+}));
+DialogOverlay.displayName = Overlay.displayName;
+var DialogContent = import_react.forwardRef(({ className, children, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogPortal, {
+	"data-uid": "src/components/ui/dialog.tsx:35:3",
+	"data-prohibitions": "[editContent]",
+	children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DialogOverlay, {
+		"data-uid": "src/components/ui/dialog.tsx:36:5",
+		"data-prohibitions": "[editContent]"
+	}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Content$1, {
+		"data-uid": "src/components/ui/dialog.tsx:37:5",
+		"data-prohibitions": "[editContent]",
+		ref,
+		className: cn$1("fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg overflow-y-auto max-h-screen", className),
+		...props,
+		children: [children, /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Close, {
+			"data-uid": "src/components/ui/dialog.tsx:46:7",
+			"data-prohibitions": "[]",
+			className: "absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground",
+			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(X, {
+				"data-uid": "src/components/ui/dialog.tsx:47:9",
+				"data-prohibitions": "[editContent]",
+				className: "h-4 w-4"
+			}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+				"data-uid": "src/components/ui/dialog.tsx:48:9",
+				"data-prohibitions": "[]",
+				className: "sr-only",
+				children: "Close"
+			})]
+		})]
+	})]
+}));
+DialogContent.displayName = Content$1.displayName;
+var DialogHeader = ({ className, ...props }) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+	"data-uid": "src/components/ui/dialog.tsx:56:3",
+	"data-prohibitions": "[editContent]",
+	className: cn$1("flex flex-col space-y-1.5 text-center sm:text-left", className),
+	...props
+});
+DialogHeader.displayName = "DialogHeader";
+var DialogFooter = ({ className, ...props }) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+	"data-uid": "src/components/ui/dialog.tsx:61:3",
+	"data-prohibitions": "[editContent]",
+	className: cn$1("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2", className),
+	...props
+});
+DialogFooter.displayName = "DialogFooter";
+var DialogTitle = import_react.forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Title, {
+	"data-uid": "src/components/ui/dialog.tsx:72:3",
+	"data-prohibitions": "[editContent]",
+	ref,
+	className: cn$1("text-lg font-semibold leading-none tracking-tight", className),
+	...props
+}));
+DialogTitle.displayName = Title.displayName;
+var DialogDescription = import_react.forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Description, {
+	"data-uid": "src/components/ui/dialog.tsx:84:3",
+	"data-prohibitions": "[editContent]",
+	ref,
+	className: cn$1("text-sm text-muted-foreground", className),
+	...props
+}));
+DialogDescription.displayName = Description.displayName;
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/@radix-ui+react-label@2.1.8_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@_55fa612a976b7bdfbf4dcdd93d861aab/node_modules/@radix-ui/react-label/dist/index.mjs
+var NAME = "Label";
+var Label$4 = import_react.forwardRef((props, forwardedRef) => {
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Primitive.label, {
+		...props,
+		ref: forwardedRef,
+		onMouseDown: (event) => {
+			if (event.target.closest("button, input, select, textarea")) return;
+			props.onMouseDown?.(event);
+			if (!event.defaultPrevented && event.detail > 1) event.preventDefault();
+		}
+	});
+});
+Label$4.displayName = NAME;
+var Root$4 = Label$4;
+//#endregion
+//#region src/components/ui/label.tsx
+var labelVariants = cva("text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70");
+var Label$3 = import_react.forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Root$4, {
+	"data-uid": "src/components/ui/label.tsx:16:3",
+	"data-prohibitions": "[editContent]",
+	ref,
+	className: cn$1(labelVariants(), className),
+	...props
+}));
+Label$3.displayName = Root$4.displayName;
+//#endregion
 //#region src/pages/Dashboard/Agenda.tsx
 function DashboardAgenda({ dateRange }) {
 	const { state, dispatch } = useMainStore();
+	const [rescheduleData, setRescheduleData] = (0, import_react.useState)(null);
 	const upcoming = state.appointments.filter((a) => a.status === "Scheduled" && isDateInRange(a.date, dateRange)).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).slice(0, 5);
 	const handleMarkVisited = (id) => {
 		dispatch({
@@ -31585,6 +31705,27 @@ function DashboardAgenda({ dateRange }) {
 			description: "Contato movido para \"Visitado\" e kit agendado para envio."
 		});
 	};
+	const handleReschedule = (e) => {
+		e.preventDefault();
+		if (!rescheduleData) return;
+		const newDate = (/* @__PURE__ */ new Date(`${rescheduleData.date}T${rescheduleData.time}:00`)).toISOString();
+		dispatch({
+			type: "RESCHEDULE_APPOINTMENT",
+			payload: {
+				appointmentId: rescheduleData.id,
+				newDate
+			}
+		});
+		if (state.settings?.googleCalendarSync) toast$1({
+			title: "Google Calendar Atualizado",
+			description: "O evento sincronizado refletiu o novo horário."
+		});
+		toast$1({
+			title: "Notificação WhatsApp Enviada",
+			description: "O participante foi avisado sobre o reagendamento com os novos detalhes."
+		});
+		setRescheduleData(null);
+	};
 	const getDateLabel = (dateStr) => {
 		const d = new Date(dateStr);
 		if (isToday(d)) return "Hoje";
@@ -31592,73 +31733,74 @@ function DashboardAgenda({ dateRange }) {
 		return format$1(d, "dd 'de' MMM", { locale: ptBR });
 	};
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
-		"data-uid": "src/pages/Dashboard/Agenda.tsx:37:5",
+		"data-uid": "src/pages/Dashboard/Agenda.tsx:77:5",
 		"data-prohibitions": "[editContent]",
 		className: "shadow-subtle flex-1 flex flex-col",
 		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardHeader, {
-			"data-uid": "src/pages/Dashboard/Agenda.tsx:38:7",
+			"data-uid": "src/pages/Dashboard/Agenda.tsx:78:7",
 			"data-prohibitions": "[]",
+			className: "pb-3",
 			children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardTitle, {
-				"data-uid": "src/pages/Dashboard/Agenda.tsx:39:9",
+				"data-uid": "src/pages/Dashboard/Agenda.tsx:79:9",
 				"data-prohibitions": "[]",
 				className: "text-lg flex items-center gap-2",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Clock, {
-					"data-uid": "src/pages/Dashboard/Agenda.tsx:40:11",
+					"data-uid": "src/pages/Dashboard/Agenda.tsx:80:11",
 					"data-prohibitions": "[editContent]",
 					className: "h-5 w-5 text-muted-foreground"
-				}), "Próximas Visitas"]
+				}), "Próximas Visitas (Individual)"]
 			})
 		}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardContent, {
-			"data-uid": "src/pages/Dashboard/Agenda.tsx:44:7",
+			"data-uid": "src/pages/Dashboard/Agenda.tsx:84:7",
 			"data-prohibitions": "[editContent]",
 			className: "flex-1 overflow-y-auto min-h-[200px]",
 			children: upcoming.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-				"data-uid": "src/pages/Dashboard/Agenda.tsx:46:11",
+				"data-uid": "src/pages/Dashboard/Agenda.tsx:86:11",
 				"data-prohibitions": "[]",
 				className: "text-muted-foreground text-sm text-center py-4",
 				children: "Nenhuma visita no período."
 			}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-				"data-uid": "src/pages/Dashboard/Agenda.tsx:50:11",
+				"data-uid": "src/pages/Dashboard/Agenda.tsx:90:11",
 				"data-prohibitions": "[editContent]",
 				className: "space-y-4",
 				children: upcoming.map((apt) => {
 					const lead = state.leads.find((l) => l.id === apt.leadId);
 					if (!lead) return null;
 					return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						"data-uid": "src/pages/Dashboard/Agenda.tsx:55:17",
+						"data-uid": "src/pages/Dashboard/Agenda.tsx:95:17",
 						"data-prohibitions": "[editContent]",
 						className: "flex items-center justify-between p-3 rounded-lg border border-border/50 bg-slate-50/50 hover:bg-slate-50 transition-colors",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							"data-uid": "src/pages/Dashboard/Agenda.tsx:59:19",
+							"data-uid": "src/pages/Dashboard/Agenda.tsx:99:19",
 							"data-prohibitions": "[editContent]",
 							className: "flex items-center gap-3",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Avatar, {
-								"data-uid": "src/pages/Dashboard/Agenda.tsx:60:21",
+								"data-uid": "src/pages/Dashboard/Agenda.tsx:100:21",
 								"data-prohibitions": "[editContent]",
 								className: "h-10 w-10 border border-border",
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(AvatarImage, {
-									"data-uid": "src/pages/Dashboard/Agenda.tsx:61:23",
+									"data-uid": "src/pages/Dashboard/Agenda.tsx:101:23",
 									"data-prohibitions": "[editContent]",
 									src: `https://img.usecurling.com/ppl/thumbnail?gender=male&seed=${lead.avatarSeed || 1}`
 								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AvatarFallback, {
-									"data-uid": "src/pages/Dashboard/Agenda.tsx:64:23",
+									"data-uid": "src/pages/Dashboard/Agenda.tsx:104:23",
 									"data-prohibitions": "[editContent]",
 									children: lead.name.charAt(0)
 								})]
 							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								"data-uid": "src/pages/Dashboard/Agenda.tsx:66:21",
+								"data-uid": "src/pages/Dashboard/Agenda.tsx:106:21",
 								"data-prohibitions": "[editContent]",
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-									"data-uid": "src/pages/Dashboard/Agenda.tsx:67:23",
+									"data-uid": "src/pages/Dashboard/Agenda.tsx:107:23",
 									"data-prohibitions": "[editContent]",
 									className: "text-sm font-medium leading-none",
 									children: lead.name
 								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									"data-uid": "src/pages/Dashboard/Agenda.tsx:68:23",
+									"data-uid": "src/pages/Dashboard/Agenda.tsx:108:23",
 									"data-prohibitions": "[editContent]",
 									className: "flex items-center gap-2 mt-1",
 									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Badge, {
-										"data-uid": "src/pages/Dashboard/Agenda.tsx:69:25",
+										"data-uid": "src/pages/Dashboard/Agenda.tsx:109:25",
 										"data-prohibitions": "[editContent]",
 										variant: "secondary",
 										className: "text-[10px] h-4 px-1.5 font-normal",
@@ -31668,29 +31810,148 @@ function DashboardAgenda({ dateRange }) {
 											format$1(new Date(apt.date), "HH:mm")
 										]
 									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-										"data-uid": "src/pages/Dashboard/Agenda.tsx:72:25",
+										"data-uid": "src/pages/Dashboard/Agenda.tsx:112:25",
 										"data-prohibitions": "[editContent]",
 										className: "text-xs text-muted-foreground",
 										children: lead.type
 									})]
 								})]
 							})]
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button$1, {
-							"data-uid": "src/pages/Dashboard/Agenda.tsx:76:19",
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							"data-uid": "src/pages/Dashboard/Agenda.tsx:116:19",
 							"data-prohibitions": "[]",
-							size: "sm",
-							variant: "outline",
-							className: "gap-1 h-8",
-							onClick: () => handleMarkVisited(apt.id),
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CircleCheck, {
-								"data-uid": "src/pages/Dashboard/Agenda.tsx:82:21",
-								"data-prohibitions": "[editContent]",
-								className: "h-4 w-4 text-success"
-							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-								"data-uid": "src/pages/Dashboard/Agenda.tsx:83:21",
+							className: "flex items-center gap-1",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Dialog, {
+								"data-uid": "src/pages/Dashboard/Agenda.tsx:117:21",
 								"data-prohibitions": "[]",
-								className: "hidden sm:inline",
-								children: "Realizada"
+								open: rescheduleData?.id === apt.id,
+								onOpenChange: (open) => !open ? setRescheduleData(null) : null,
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DialogTrigger, {
+									"data-uid": "src/pages/Dashboard/Agenda.tsx:121:23",
+									"data-prohibitions": "[]",
+									asChild: true,
+									children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button$1, {
+										"data-uid": "src/pages/Dashboard/Agenda.tsx:122:25",
+										"data-prohibitions": "[]",
+										size: "sm",
+										variant: "ghost",
+										className: "h-8 w-8 p-0",
+										title: "Reagendar",
+										onClick: () => setRescheduleData({
+											id: apt.id,
+											date: apt.date.split("T")[0],
+											time: apt.date.split("T")[1].substring(0, 5)
+										}),
+										children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CalendarDays, {
+											"data-uid": "src/pages/Dashboard/Agenda.tsx:135:27",
+											"data-prohibitions": "[editContent]",
+											className: "h-4 w-4 text-muted-foreground"
+										})
+									})
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DialogContent, {
+									"data-uid": "src/pages/Dashboard/Agenda.tsx:138:23",
+									"data-prohibitions": "[]",
+									className: "sm:max-w-md",
+									children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("form", {
+										"data-uid": "src/pages/Dashboard/Agenda.tsx:139:25",
+										"data-prohibitions": "[]",
+										onSubmit: handleReschedule,
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DialogHeader, {
+												"data-uid": "src/pages/Dashboard/Agenda.tsx:140:27",
+												"data-prohibitions": "[]",
+												children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DialogTitle, {
+													"data-uid": "src/pages/Dashboard/Agenda.tsx:141:29",
+													"data-prohibitions": "[]",
+													children: "Reagendar Visita"
+												})
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+												"data-uid": "src/pages/Dashboard/Agenda.tsx:143:27",
+												"data-prohibitions": "[]",
+												className: "grid gap-4 py-4",
+												children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+													"data-uid": "src/pages/Dashboard/Agenda.tsx:144:29",
+													"data-prohibitions": "[]",
+													className: "grid grid-cols-2 gap-4",
+													children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+														"data-uid": "src/pages/Dashboard/Agenda.tsx:145:31",
+														"data-prohibitions": "[]",
+														className: "space-y-2",
+														children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label$3, {
+															"data-uid": "src/pages/Dashboard/Agenda.tsx:146:33",
+															"data-prohibitions": "[]",
+															children: "Data"
+														}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+															"data-uid": "src/pages/Dashboard/Agenda.tsx:147:33",
+															"data-prohibitions": "[editContent]",
+															type: "date",
+															required: true,
+															value: rescheduleData?.date || "",
+															onChange: (e) => setRescheduleData((prev) => prev ? {
+																...prev,
+																date: e.target.value
+															} : null)
+														})]
+													}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+														"data-uid": "src/pages/Dashboard/Agenda.tsx:158:31",
+														"data-prohibitions": "[]",
+														className: "space-y-2",
+														children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label$3, {
+															"data-uid": "src/pages/Dashboard/Agenda.tsx:159:33",
+															"data-prohibitions": "[]",
+															children: "Horário"
+														}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+															"data-uid": "src/pages/Dashboard/Agenda.tsx:160:33",
+															"data-prohibitions": "[editContent]",
+															type: "time",
+															required: true,
+															value: rescheduleData?.time || "",
+															onChange: (e) => setRescheduleData((prev) => prev ? {
+																...prev,
+																time: e.target.value
+															} : null)
+														})]
+													})]
+												})
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogFooter, {
+												"data-uid": "src/pages/Dashboard/Agenda.tsx:173:27",
+												"data-prohibitions": "[]",
+												children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button$1, {
+													"data-uid": "src/pages/Dashboard/Agenda.tsx:174:29",
+													"data-prohibitions": "[]",
+													type: "button",
+													variant: "outline",
+													onClick: () => setRescheduleData(null),
+													children: "Cancelar"
+												}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button$1, {
+													"data-uid": "src/pages/Dashboard/Agenda.tsx:181:29",
+													"data-prohibitions": "[]",
+													type: "submit",
+													children: "Salvar Alteração"
+												})]
+											})
+										]
+									})
+								})]
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button$1, {
+								"data-uid": "src/pages/Dashboard/Agenda.tsx:186:21",
+								"data-prohibitions": "[]",
+								size: "sm",
+								variant: "outline",
+								className: "gap-1 h-8 px-2 sm:px-3",
+								onClick: () => handleMarkVisited(apt.id),
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CircleCheck, {
+									"data-uid": "src/pages/Dashboard/Agenda.tsx:192:23",
+									"data-prohibitions": "[editContent]",
+									className: "h-4 w-4 text-success"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+									"data-uid": "src/pages/Dashboard/Agenda.tsx:193:23",
+									"data-prohibitions": "[]",
+									className: "hidden sm:inline",
+									children: "Realizada"
+								})]
 							})]
 						})]
 					}, apt.id);
@@ -46037,7 +46298,7 @@ var getAttrsOfCartesianLabel = function getAttrsOfCartesianLabel(props) {
 var isPolar = function isPolar(viewBox) {
 	return "cx" in viewBox && isNumber$1(viewBox.cx);
 };
-function Label$4(_ref4) {
+function Label$2(_ref4) {
 	var _ref4$offset = _ref4.offset, offset = _ref4$offset === void 0 ? 5 : _ref4$offset, restProps = _objectWithoutProperties$12(_ref4, _excluded$12);
 	var props = _objectSpread$27({ offset }, restProps);
 	var viewBox = props.viewBox, position = props.position, value = props.value, children = props.children, content = props.content, _props$className = props.className, className = _props$className === void 0 ? "" : _props$className, textBreakAll = props.textBreakAll;
@@ -46054,7 +46315,7 @@ function Label$4(_ref4) {
 	var positionAttrs = isPolarLabel ? getAttrsOfPolarLabel(props) : getAttrsOfCartesianLabel(props);
 	return /* @__PURE__ */ import_react.createElement(Text, _extends$23({ className: clsx("recharts-label", className) }, attrs, positionAttrs, { breakAll: textBreakAll }), label);
 }
-Label$4.displayName = "Label";
+Label$2.displayName = "Label";
 var parseViewBox = function parseViewBox(props) {
 	var cx = props.cx, cy = props.cy, angle = props.angle, startAngle = props.startAngle, endAngle = props.endAngle, r = props.r, radius = props.radius, innerRadius = props.innerRadius, outerRadius = props.outerRadius, x = props.x, y = props.y, top = props.top, left = props.left, width = props.width, height = props.height, clockWise = props.clockWise, labelViewBox = props.labelViewBox;
 	if (labelViewBox) return labelViewBox;
@@ -46092,32 +46353,32 @@ var parseViewBox = function parseViewBox(props) {
 };
 var parseLabel = function parseLabel(label, viewBox) {
 	if (!label) return null;
-	if (label === true) return /* @__PURE__ */ import_react.createElement(Label$4, {
+	if (label === true) return /* @__PURE__ */ import_react.createElement(Label$2, {
 		key: "label-implicit",
 		viewBox
 	});
-	if (isNumOrStr(label)) return /* @__PURE__ */ import_react.createElement(Label$4, {
+	if (isNumOrStr(label)) return /* @__PURE__ */ import_react.createElement(Label$2, {
 		key: "label-implicit",
 		viewBox,
 		value: label
 	});
 	if (/* @__PURE__ */ (0, import_react.isValidElement)(label)) {
-		if (label.type === Label$4) return /* @__PURE__ */ (0, import_react.cloneElement)(label, {
+		if (label.type === Label$2) return /* @__PURE__ */ (0, import_react.cloneElement)(label, {
 			key: "label-implicit",
 			viewBox
 		});
-		return /* @__PURE__ */ import_react.createElement(Label$4, {
+		return /* @__PURE__ */ import_react.createElement(Label$2, {
 			key: "label-implicit",
 			content: label,
 			viewBox
 		});
 	}
-	if ((0, import_isFunction.default)(label)) return /* @__PURE__ */ import_react.createElement(Label$4, {
+	if ((0, import_isFunction.default)(label)) return /* @__PURE__ */ import_react.createElement(Label$2, {
 		key: "label-implicit",
 		content: label,
 		viewBox
 	});
-	if ((0, import_isObject.default)(label)) return /* @__PURE__ */ import_react.createElement(Label$4, _extends$23({ viewBox }, label, { key: "label-implicit" }));
+	if ((0, import_isObject.default)(label)) return /* @__PURE__ */ import_react.createElement(Label$2, _extends$23({ viewBox }, label, { key: "label-implicit" }));
 	return null;
 };
 var renderCallByParent$1 = function renderCallByParent(parentProps, viewBox) {
@@ -46125,7 +46386,7 @@ var renderCallByParent$1 = function renderCallByParent(parentProps, viewBox) {
 	if (!parentProps || !parentProps.children && checkPropsLabel && !parentProps.label) return null;
 	var children = parentProps.children;
 	var parentViewBox = parseViewBox(parentProps);
-	var explicitChildren = findAllByType(children, Label$4).map(function(child, index) {
+	var explicitChildren = findAllByType(children, Label$2).map(function(child, index) {
 		return /* @__PURE__ */ (0, import_react.cloneElement)(child, {
 			viewBox: viewBox || parentViewBox,
 			key: "label-".concat(index)
@@ -46134,8 +46395,8 @@ var renderCallByParent$1 = function renderCallByParent(parentProps, viewBox) {
 	if (!checkPropsLabel) return explicitChildren;
 	return [parseLabel(parentProps.label, viewBox || parentViewBox)].concat(_toConsumableArray$8(explicitChildren));
 };
-Label$4.parseViewBox = parseViewBox;
-Label$4.renderCallByParent = renderCallByParent$1;
+Label$2.parseViewBox = parseViewBox;
+Label$2.renderCallByParent = renderCallByParent$1;
 //#endregion
 //#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/recharts@2.15.4_react-dom@19.2.4_react@19.2.4__react@19.2.4/node_modules/recharts/es6/component/LabelList.js
 var import_last = /* @__PURE__ */ __toESM((/* @__PURE__ */ __commonJSMin(((exports, module) => {
@@ -46289,11 +46550,11 @@ function LabelList(_ref) {
 	return /* @__PURE__ */ import_react.createElement(Layer, { className: "recharts-label-list" }, data.map(function(entry, index) {
 		var value = (0, import_isNil.default)(dataKey) ? valueAccessor(entry, index) : getValueByDataKey(entry && entry.payload, dataKey);
 		var idProps = (0, import_isNil.default)(id) ? {} : { id: "".concat(id, "-").concat(index) };
-		return /* @__PURE__ */ import_react.createElement(Label$4, _extends$22({}, filterProps(entry, true), others, idProps, {
+		return /* @__PURE__ */ import_react.createElement(Label$2, _extends$22({}, filterProps(entry, true), others, idProps, {
 			parentViewBox: entry.parentViewBox,
 			value,
 			textBreakAll,
-			viewBox: Label$4.parseViewBox((0, import_isNil.default)(clockWise) ? entry : _objectSpread$26(_objectSpread$26({}, entry), {}, { clockWise })),
+			viewBox: Label$2.parseViewBox((0, import_isNil.default)(clockWise) ? entry : _objectSpread$26(_objectSpread$26({}, entry), {}, { clockWise })),
 			key: "label-".concat(index),
 			index
 		}));
@@ -49629,7 +49890,7 @@ var PolarRadiusAxis = /* @__PURE__ */ function(_PureComponent) {
 			value: function render() {
 				var _this$props5 = this.props, ticks = _this$props5.ticks, axisLine = _this$props5.axisLine, tick = _this$props5.tick;
 				if (!ticks || !ticks.length) return null;
-				return /* @__PURE__ */ import_react.createElement(Layer, { className: clsx("recharts-polar-radius-axis", this.props.className) }, axisLine && this.renderAxisLine(), tick && this.renderTicks(), Label$4.renderCallByParent(this.props, this.getViewBox()));
+				return /* @__PURE__ */ import_react.createElement(Layer, { className: clsx("recharts-polar-radius-axis", this.props.className) }, axisLine && this.renderAxisLine(), tick && this.renderTicks(), Label$2.renderCallByParent(this.props, this.getViewBox()));
 			}
 		}
 	], [{
@@ -50731,7 +50992,7 @@ var Pie = /* @__PURE__ */ function(_PureComponent) {
 					ref: function ref(_ref3) {
 						_this5.pieRef = _ref3;
 					}
-				}, this.renderSectors(), label && this.renderLabels(sectors), Label$4.renderCallByParent(this.props, null, false), (!isAnimationActive || isAnimationFinished) && LabelList.renderCallByParent(this.props, sectors, false));
+				}, this.renderSectors(), label && this.renderLabels(sectors), Label$2.renderCallByParent(this.props, null, false), (!isAnimationActive || isAnimationFinished) && LabelList.renderCallByParent(this.props, sectors, false));
 			}
 		}
 	], [
@@ -53290,7 +53551,7 @@ function ReferenceLineImpl(props) {
 		x2,
 		y2
 	});
-	return /* @__PURE__ */ import_react.createElement(Layer, { className: clsx("recharts-reference-line", className) }, renderLine(shape, lineProps), Label$4.renderCallByParent(props, rectWithCoords({
+	return /* @__PURE__ */ import_react.createElement(Layer, { className: clsx("recharts-reference-line", className) }, renderLine(shape, lineProps), Label$2.renderCallByParent(props, rectWithCoords({
 		x1,
 		y1,
 		x2,
@@ -53487,7 +53748,7 @@ var ReferenceDot = /* @__PURE__ */ function(_React$Component) {
 				cx,
 				cy
 			});
-			return /* @__PURE__ */ import_react.createElement(Layer, { className: clsx("recharts-reference-dot", className) }, ReferenceDot.renderDot(shape, dotProps), Label$4.renderCallByParent(this.props, {
+			return /* @__PURE__ */ import_react.createElement(Layer, { className: clsx("recharts-reference-dot", className) }, ReferenceDot.renderDot(shape, dotProps), Label$2.renderCallByParent(this.props, {
 				x: cx - r,
 				y: cy - r,
 				width: 2 * r,
@@ -53687,7 +53948,7 @@ var ReferenceArea = /* @__PURE__ */ function(_React$Component) {
 			var rect = getRect(hasX1, hasX2, hasY1, hasY2, this.props);
 			if (!rect && !shape) return null;
 			var clipPath = ifOverflowMatches(this.props, "hidden") ? "url(#".concat(clipPathId, ")") : void 0;
-			return /* @__PURE__ */ import_react.createElement(Layer, { className: clsx("recharts-reference-area", className) }, ReferenceArea.renderRect(shape, _objectSpread$6(_objectSpread$6({ clipPath }, filterProps(this.props, true)), rect)), Label$4.renderCallByParent(this.props, rect));
+			return /* @__PURE__ */ import_react.createElement(Layer, { className: clsx("recharts-reference-area", className) }, ReferenceArea.renderRect(shape, _objectSpread$6(_objectSpread$6({ clipPath }, filterProps(this.props, true)), rect)), Label$2.renderCallByParent(this.props, rect));
 		}
 	}]);
 }(import_react.Component);
@@ -54295,7 +54556,7 @@ var CartesianAxis = /* @__PURE__ */ function(_Component) {
 					ref: function ref(_ref2) {
 						_this3.layerReference = _ref2;
 					}
-				}, axisLine && this.renderAxisLine(), this.renderTicks(finalTicks, this.state.fontSize, this.state.letterSpacing), Label$4.renderCallByParent(this.props));
+				}, axisLine && this.renderAxisLine(), this.renderTicks(finalTicks, this.state.fontSize, this.state.letterSpacing), Label$2.renderCallByParent(this.props));
 			}
 		}
 	], [{
@@ -58303,79 +58564,6 @@ function StateVisitsTrendChart({ dateRange }) {
 	});
 }
 //#endregion
-//#region src/components/ui/dialog.tsx
-var Dialog = Root$6;
-var DialogTrigger = Trigger$4;
-var DialogPortal = Portal$3;
-var DialogOverlay = import_react.forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Overlay, {
-	"data-uid": "src/components/ui/dialog.tsx:20:3",
-	"data-prohibitions": "[editContent]",
-	ref,
-	className: cn$1("fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0", className),
-	...props
-}));
-DialogOverlay.displayName = Overlay.displayName;
-var DialogContent = import_react.forwardRef(({ className, children, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogPortal, {
-	"data-uid": "src/components/ui/dialog.tsx:35:3",
-	"data-prohibitions": "[editContent]",
-	children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DialogOverlay, {
-		"data-uid": "src/components/ui/dialog.tsx:36:5",
-		"data-prohibitions": "[editContent]"
-	}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Content$1, {
-		"data-uid": "src/components/ui/dialog.tsx:37:5",
-		"data-prohibitions": "[editContent]",
-		ref,
-		className: cn$1("fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg overflow-y-auto max-h-screen", className),
-		...props,
-		children: [children, /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Close, {
-			"data-uid": "src/components/ui/dialog.tsx:46:7",
-			"data-prohibitions": "[]",
-			className: "absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground",
-			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(X, {
-				"data-uid": "src/components/ui/dialog.tsx:47:9",
-				"data-prohibitions": "[editContent]",
-				className: "h-4 w-4"
-			}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-				"data-uid": "src/components/ui/dialog.tsx:48:9",
-				"data-prohibitions": "[]",
-				className: "sr-only",
-				children: "Close"
-			})]
-		})]
-	})]
-}));
-DialogContent.displayName = Content$1.displayName;
-var DialogHeader = ({ className, ...props }) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-	"data-uid": "src/components/ui/dialog.tsx:56:3",
-	"data-prohibitions": "[editContent]",
-	className: cn$1("flex flex-col space-y-1.5 text-center sm:text-left", className),
-	...props
-});
-DialogHeader.displayName = "DialogHeader";
-var DialogFooter = ({ className, ...props }) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-	"data-uid": "src/components/ui/dialog.tsx:61:3",
-	"data-prohibitions": "[editContent]",
-	className: cn$1("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2", className),
-	...props
-});
-DialogFooter.displayName = "DialogFooter";
-var DialogTitle = import_react.forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Title, {
-	"data-uid": "src/components/ui/dialog.tsx:72:3",
-	"data-prohibitions": "[editContent]",
-	ref,
-	className: cn$1("text-lg font-semibold leading-none tracking-tight", className),
-	...props
-}));
-DialogTitle.displayName = Title.displayName;
-var DialogDescription = import_react.forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Description, {
-	"data-uid": "src/components/ui/dialog.tsx:84:3",
-	"data-prohibitions": "[editContent]",
-	ref,
-	className: cn$1("text-sm text-muted-foreground", className),
-	...props
-}));
-DialogDescription.displayName = Description.displayName;
-//#endregion
 //#region src/components/ui/table.tsx
 var Table = import_react.forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 	"data-uid": "src/components/ui/table.tsx:8:5",
@@ -58682,6 +58870,105 @@ function TopPerformersWidget() {
 					className: "text-center text-sm text-muted-foreground py-4",
 					children: "Nenhum dado de conversão disponível."
 				})]
+			})
+		})]
+	});
+}
+//#endregion
+//#region src/pages/Dashboard/UpcomingOnlineMeetings.tsx
+function UpcomingOnlineMeetings({ dateRange }) {
+	const { state } = useMainStore();
+	const slots = (0, import_react.useMemo)(() => {
+		const grouped = state.appointments.filter((a) => a.isVirtual && a.status === "Scheduled" && isDateInRange(a.date, dateRange)).reduce((acc, app) => {
+			if (!acc[app.date]) acc[app.date] = {
+				date: app.date,
+				meetLink: app.meetLink,
+				participants: 0,
+				ids: []
+			};
+			acc[app.date].participants++;
+			acc[app.date].ids.push(app.id);
+			return acc;
+		}, {});
+		return Object.values(grouped).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+	}, [state.appointments, dateRange]);
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
+		"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:44:5",
+		"data-prohibitions": "[editContent]",
+		className: "shadow-subtle flex-1 flex flex-col",
+		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardHeader, {
+			"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:45:7",
+			"data-prohibitions": "[]",
+			className: "pb-3",
+			children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardTitle, {
+				"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:46:9",
+				"data-prohibitions": "[]",
+				className: "text-lg flex items-center gap-2",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Video, {
+					"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:47:11",
+					"data-prohibitions": "[editContent]",
+					className: "h-5 w-5 text-teal-600"
+				}), "Próximas Reuniões Online"]
+			})
+		}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardContent, {
+			"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:51:7",
+			"data-prohibitions": "[editContent]",
+			className: "flex-1 overflow-y-auto max-h-[300px]",
+			children: slots.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+				"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:53:11",
+				"data-prohibitions": "[]",
+				className: "text-muted-foreground text-sm text-center py-4",
+				children: "Nenhuma reunião online no período."
+			}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:57:11",
+				"data-prohibitions": "[editContent]",
+				className: "space-y-3",
+				children: slots.map((slot) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:59:15",
+					"data-prohibitions": "[editContent]",
+					className: "p-3 border rounded-lg bg-teal-50/40 flex flex-col gap-3 hover:bg-teal-50/60 transition-colors",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:63:17",
+						"data-prohibitions": "[editContent]",
+						className: "flex justify-between items-center",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+							"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:64:19",
+							"data-prohibitions": "[editContent]",
+							className: "font-semibold text-sm",
+							children: format$1(new Date(slot.date), "dd/MM 'às' HH:mm", { locale: ptBR })
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:67:19",
+							"data-prohibitions": "[editContent]",
+							className: "flex items-center gap-1 text-xs font-medium text-teal-800 bg-teal-100/80 px-2 py-1 rounded-full border border-teal-200",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Users, {
+									"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:68:21",
+									"data-prohibitions": "[editContent]",
+									className: "h-3.5 w-3.5"
+								}),
+								slot.participants,
+								" / 30"
+							]
+						})]
+					}), slot.meetLink ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("a", {
+						"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:73:19",
+						"data-prohibitions": "[]",
+						href: slot.meetLink,
+						target: "_blank",
+						rel: "noreferrer",
+						className: "flex items-center justify-center gap-2 w-full text-xs font-medium bg-teal-600 hover:bg-teal-700 text-white px-3 py-2 rounded-md transition-colors",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ExternalLink, {
+							"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:79:21",
+							"data-prohibitions": "[editContent]",
+							className: "h-3.5 w-3.5"
+						}), "Ingressar no Meet"]
+					}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+						"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:83:19",
+						"data-prohibitions": "[]",
+						className: "text-xs text-muted-foreground text-center block py-1 bg-muted rounded-md",
+						children: "Link indisponível"
+					})]
+				}, slot.date))
 			})
 		})]
 	});
@@ -60254,7 +60541,7 @@ function PreviousMonthButton(props) {
 * @group Components
 * @see https://daypicker.dev/guides/custom-components
 */
-function Root$4(props) {
+function Root$3(props) {
 	const { rootRef, ...rest } = props;
 	return import_react.createElement("div", {
 		...rest,
@@ -60372,7 +60659,7 @@ var custom_components_exports = /* @__PURE__ */ __exportAll({
 	NextMonthButton: () => NextMonthButton,
 	Option: () => Option,
 	PreviousMonthButton: () => PreviousMonthButton,
-	Root: () => Root$4,
+	Root: () => Root$3,
 	Select: () => Select$2,
 	Week: () => Week,
 	WeekNumber: () => WeekNumber,
@@ -62814,46 +63101,46 @@ function CalendarDayButton({ className, day, modifiers, ...props }) {
 function DashboardPage() {
 	const [dateRange, setDateRange] = (0, import_react.useState)();
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-		"data-uid": "src/pages/Dashboard/Index.tsx:19:5",
+		"data-uid": "src/pages/Dashboard/Index.tsx:20:5",
 		"data-prohibitions": "[editContent]",
 		className: "space-y-6 animate-slide-up pb-8",
 		children: [
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				"data-uid": "src/pages/Dashboard/Index.tsx:20:7",
+				"data-uid": "src/pages/Dashboard/Index.tsx:21:7",
 				"data-prohibitions": "[editContent]",
 				className: "flex flex-col sm:flex-row sm:items-center justify-between gap-4",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					"data-uid": "src/pages/Dashboard/Index.tsx:21:9",
+					"data-uid": "src/pages/Dashboard/Index.tsx:22:9",
 					"data-prohibitions": "[]",
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", {
-						"data-uid": "src/pages/Dashboard/Index.tsx:22:11",
+						"data-uid": "src/pages/Dashboard/Index.tsx:23:11",
 						"data-prohibitions": "[]",
 						className: "text-2xl font-bold tracking-tight",
 						children: "Visão Geral"
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-						"data-uid": "src/pages/Dashboard/Index.tsx:23:11",
+						"data-uid": "src/pages/Dashboard/Index.tsx:24:11",
 						"data-prohibitions": "[]",
 						className: "text-muted-foreground",
 						children: "Acompanhe seus agendamentos, funil e logística."
 					})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					"data-uid": "src/pages/Dashboard/Index.tsx:26:9",
+					"data-uid": "src/pages/Dashboard/Index.tsx:27:9",
 					"data-prohibitions": "[editContent]",
 					className: "flex items-center gap-2",
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Popover, {
-						"data-uid": "src/pages/Dashboard/Index.tsx:27:11",
+						"data-uid": "src/pages/Dashboard/Index.tsx:28:11",
 						"data-prohibitions": "[editContent]",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PopoverTrigger, {
-							"data-uid": "src/pages/Dashboard/Index.tsx:28:13",
+							"data-uid": "src/pages/Dashboard/Index.tsx:29:13",
 							"data-prohibitions": "[editContent]",
 							asChild: true,
 							children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button$1, {
-								"data-uid": "src/pages/Dashboard/Index.tsx:29:15",
+								"data-uid": "src/pages/Dashboard/Index.tsx:30:15",
 								"data-prohibitions": "[editContent]",
 								variant: "outline",
 								className: `w-full sm:w-[280px] justify-start text-left font-normal ${!dateRange ? "text-muted-foreground" : ""}`,
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Calendar$1, {
-									"data-uid": "src/pages/Dashboard/Index.tsx:33:17",
+									"data-uid": "src/pages/Dashboard/Index.tsx:34:17",
 									"data-prohibitions": "[editContent]",
 									className: "mr-2 h-4 w-4"
 								}), dateRange?.from ? dateRange.to ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
@@ -62862,18 +63149,18 @@ function DashboardPage() {
 									" ",
 									format$1(dateRange.to, "dd 'de' MMM, yyyy", { locale: ptBR })
 								] }) : format$1(dateRange.from, "dd 'de' MMM, yyyy", { locale: ptBR }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-									"data-uid": "src/pages/Dashboard/Index.tsx:44:19",
+									"data-uid": "src/pages/Dashboard/Index.tsx:45:19",
 									"data-prohibitions": "[]",
 									children: "Filtrar por data..."
 								})]
 							})
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PopoverContent, {
-							"data-uid": "src/pages/Dashboard/Index.tsx:48:13",
+							"data-uid": "src/pages/Dashboard/Index.tsx:49:13",
 							"data-prohibitions": "[]",
 							className: "w-auto p-0",
 							align: "end",
 							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Calendar, {
-								"data-uid": "src/pages/Dashboard/Index.tsx:49:15",
+								"data-uid": "src/pages/Dashboard/Index.tsx:50:15",
 								"data-prohibitions": "[editContent]",
 								initialFocus: true,
 								mode: "range",
@@ -62885,14 +63172,14 @@ function DashboardPage() {
 							})
 						})]
 					}), dateRange && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button$1, {
-						"data-uid": "src/pages/Dashboard/Index.tsx:61:13",
+						"data-uid": "src/pages/Dashboard/Index.tsx:62:13",
 						"data-prohibitions": "[]",
 						variant: "ghost",
 						size: "icon",
 						onClick: () => setDateRange(void 0),
 						title: "Limpar filtro",
 						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(X, {
-							"data-uid": "src/pages/Dashboard/Index.tsx:67:15",
+							"data-uid": "src/pages/Dashboard/Index.tsx:68:15",
 							"data-prohibitions": "[editContent]",
 							className: "h-4 w-4"
 						})
@@ -62900,39 +63187,47 @@ function DashboardPage() {
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(KpiCards, {
-				"data-uid": "src/pages/Dashboard/Index.tsx:73:7",
+				"data-uid": "src/pages/Dashboard/Index.tsx:74:7",
 				"data-prohibitions": "[editContent]",
 				dateRange
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				"data-uid": "src/pages/Dashboard/Index.tsx:75:7",
+				"data-uid": "src/pages/Dashboard/Index.tsx:76:7",
 				"data-prohibitions": "[]",
 				className: "grid gap-4 lg:grid-cols-3",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					"data-uid": "src/pages/Dashboard/Index.tsx:76:9",
+					"data-uid": "src/pages/Dashboard/Index.tsx:77:9",
 					"data-prohibitions": "[]",
 					className: "lg:col-span-2 space-y-4 flex flex-col",
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(StateVisitsTrendChart, {
-						"data-uid": "src/pages/Dashboard/Index.tsx:77:11",
+						"data-uid": "src/pages/Dashboard/Index.tsx:78:11",
 						"data-prohibitions": "[editContent]",
 						dateRange
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TopPerformersWidget, {
-						"data-uid": "src/pages/Dashboard/Index.tsx:78:11",
+						"data-uid": "src/pages/Dashboard/Index.tsx:79:11",
 						"data-prohibitions": "[editContent]"
 					})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					"data-uid": "src/pages/Dashboard/Index.tsx:80:9",
+					"data-uid": "src/pages/Dashboard/Index.tsx:81:9",
 					"data-prohibitions": "[]",
 					className: "space-y-4 flex flex-col h-full",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PerformancePanel, {
-						"data-uid": "src/pages/Dashboard/Index.tsx:81:11",
-						"data-prohibitions": "[editContent]",
-						dateRange
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DashboardAgenda, {
-						"data-uid": "src/pages/Dashboard/Index.tsx:82:11",
-						"data-prohibitions": "[editContent]",
-						dateRange
-					})]
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(UpcomingOnlineMeetings, {
+							"data-uid": "src/pages/Dashboard/Index.tsx:82:11",
+							"data-prohibitions": "[editContent]",
+							dateRange
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DashboardAgenda, {
+							"data-uid": "src/pages/Dashboard/Index.tsx:83:11",
+							"data-prohibitions": "[editContent]",
+							dateRange
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PerformancePanel, {
+							"data-uid": "src/pages/Dashboard/Index.tsx:84:11",
+							"data-prohibitions": "[editContent]",
+							dateRange
+						})
+					]
 				})]
 			})
 		]
@@ -68329,33 +68624,6 @@ function superRefine(fn) {
 	return /* @__PURE__ */ _superRefine(fn);
 }
 //#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/@radix-ui+react-label@2.1.8_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@_55fa612a976b7bdfbf4dcdd93d861aab/node_modules/@radix-ui/react-label/dist/index.mjs
-var NAME = "Label";
-var Label$3 = import_react.forwardRef((props, forwardedRef) => {
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Primitive.label, {
-		...props,
-		ref: forwardedRef,
-		onMouseDown: (event) => {
-			if (event.target.closest("button, input, select, textarea")) return;
-			props.onMouseDown?.(event);
-			if (!event.defaultPrevented && event.detail > 1) event.preventDefault();
-		}
-	});
-});
-Label$3.displayName = NAME;
-var Root$3 = Label$3;
-//#endregion
-//#region src/components/ui/label.tsx
-var labelVariants = cva("text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70");
-var Label$2 = import_react.forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Root$3, {
-	"data-uid": "src/components/ui/label.tsx:16:3",
-	"data-prohibitions": "[editContent]",
-	ref,
-	className: cn$1(labelVariants(), className),
-	...props
-}));
-Label$2.displayName = Root$3.displayName;
-//#endregion
 //#region src/components/ui/form.tsx
 var Form = FormProvider;
 var FormFieldContext = import_react.createContext({});
@@ -68406,7 +68674,7 @@ var FormItem = import_react.forwardRef(({ className, ...props }, ref) => {
 FormItem.displayName = "FormItem";
 var FormLabel = import_react.forwardRef(({ className, ...props }, ref) => {
 	const { error, formItemId } = useFormField();
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label$2, {
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label$3, {
 		"data-uid": "src/components/ui/form.tsx:90:5",
 		"data-prohibitions": "[editContent]",
 		ref,
@@ -69999,19 +70267,33 @@ function ScheduleForm({ selectedDate, onSuccess }) {
 		});
 		setLoading(true);
 		setTimeout(() => {
-			let meetLink = void 0;
-			if (values.isVirtual) if (state.settings?.googleMeetConnected) {
-				const randomString = () => Math.random().toString(36).substring(2, 6);
-				meetLink = `https://meet.google.com/${randomString()}-${randomString()}-${randomString()}`;
-			} else toast$1({
-				title: "Google Meet não conectado",
-				description: "O agendamento foi salvo, mas não foi possível gerar o link da reunião.",
-				variant: "destructive"
-			});
-			const fullAddress = `${values.street}, ${values.number}${values.complement ? ` - ${values.complement}` : ""}, ${values.neighborhood}, ${values.city} - ${values.state}, CEP: ${values.cep}`;
 			const timeParts = values.time.split(":");
 			const appointmentDate = new Date(selectedDate);
-			appointmentDate.setHours(parseInt(timeParts[0], 10), parseInt(timeParts[1], 10));
+			appointmentDate.setHours(parseInt(timeParts[0], 10), parseInt(timeParts[1], 10), 0, 0);
+			const dateIso = appointmentDate.toISOString();
+			let meetLink = void 0;
+			if (values.isVirtual) {
+				const existingInSlot = state.appointments.filter((a) => a.isVirtual && a.status === "Scheduled" && a.date === dateIso);
+				if (existingInSlot.length >= 30) {
+					toast$1({
+						title: "Capacidade Excedida",
+						description: "O limite de 30 participantes para este horário já foi atingido.",
+						variant: "destructive"
+					});
+					setLoading(false);
+					return;
+				}
+				if (existingInSlot.length > 0 && existingInSlot[0].meetLink) meetLink = existingInSlot[0].meetLink;
+				else if (state.settings?.googleMeetConnected) {
+					const randomString = () => Math.random().toString(36).substring(2, 6);
+					meetLink = `https://meet.google.com/${randomString()}-${randomString()}-${randomString()}`;
+				} else toast$1({
+					title: "Google Meet não conectado",
+					description: "O agendamento foi salvo, mas não foi possível gerar o link da reunião.",
+					variant: "destructive"
+				});
+			}
+			const fullAddress = `${values.street}, ${values.number}${values.complement ? ` - ${values.complement}` : ""}, ${values.neighborhood}, ${values.city} - ${values.state}, CEP: ${values.cep}`;
 			const existingLead = state.leads.find((l) => l.document === values.cpf);
 			const newLead = {
 				id: existingLead ? existingLead.id : `l-${Date.now()}`,
@@ -70035,7 +70317,7 @@ function ScheduleForm({ selectedDate, onSuccess }) {
 					appointment: {
 						id: `a-${Date.now()}`,
 						leadId: newLead.id,
-						date: appointmentDate.toISOString(),
+						date: dateIso,
 						vendor: "Ana Vendedora",
 						status: "Scheduled",
 						isVirtual: values.isVirtual,
@@ -70044,9 +70326,21 @@ function ScheduleForm({ selectedDate, onSuccess }) {
 				}
 			});
 			const timeFormatted = format$1(appointmentDate, "dd/MM 'às' HH:mm");
-			toast$1({
-				title: "Integração WhatsApp (Evolution API)",
-				description: values.isVirtual && meetLink ? `Sua reunião está agendada para ${timeFormatted}. Link: ${meetLink}` : `Lembretes automáticos configurados para 48h, 24h e 2h antes de ${timeFormatted}.`
+			if (values.isVirtual && meetLink) if (state.settings?.whatsappReminder1h) toast$1({
+				title: "Lembrete Automático WhatsApp",
+				description: `Um lembrete será enviado 1 hora antes de ${timeFormatted} com o link do Meet.`
+			});
+			else toast$1({
+				title: "Integração WhatsApp",
+				description: `Reunião agendada. Ative o lembrete de 1h nas configurações. Link: ${meetLink}`
+			});
+			else toast$1({
+				title: "Integração WhatsApp",
+				description: `Lembretes configurados para 48h e 24h antes de ${timeFormatted}.`
+			});
+			if (state.settings?.googleCalendarSync) toast$1({
+				title: "Google Calendar",
+				description: "Evento sincronizado automaticamente com a agenda."
 			});
 			toast$1({
 				title: "Agendamento Confirmado!",
@@ -70075,75 +70369,75 @@ function ScheduleForm({ selectedDate, onSuccess }) {
 		return val;
 	};
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Form, {
-		"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:269:5",
+		"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:303:5",
 		"data-prohibitions": "[editContent]",
 		...form,
 		children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("form", {
-			"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:270:7",
+			"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:304:7",
 			"data-prohibitions": "[editContent]",
 			onSubmit: form.handleSubmit(onSubmit),
 			className: "space-y-4",
 			children: [
 				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:271:9",
+					"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:305:9",
 					"data-prohibitions": "[editContent]",
 					className: "bg-muted/30 p-4 rounded-md mb-4 border border-border",
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:272:11",
+						"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:306:11",
 						"data-prohibitions": "[editContent]",
 						className: "flex items-center justify-between mb-3",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-							"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:273:13",
+							"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:307:13",
 							"data-prohibitions": "[]",
 							className: "text-sm font-medium",
 							children: "Data Visita:"
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-							"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:274:13",
+							"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:308:13",
 							"data-prohibitions": "[editContent]",
 							className: "text-primary font-bold",
 							children: selectedDate ? format$1(selectedDate, "dd 'de' MMMM, yyyy", { locale: ptBR }) : "Selecione no calendário"
 						})]
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormField, {
-						"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:280:11",
+						"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:314:11",
 						"data-prohibitions": "[editContent]",
 						control: form.control,
 						name: "time",
 						render: ({ field }) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(FormItem, {
-							"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:284:15",
+							"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:318:15",
 							"data-prohibitions": "[editContent]",
 							className: "flex items-center justify-between space-y-0",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormLabel, {
-								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:285:17",
+								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:319:17",
 								"data-prohibitions": "[]",
 								className: "text-sm font-medium",
 								children: "Horário da Visita:"
 							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:286:17",
+								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:320:17",
 								"data-prohibitions": "[editContent]",
 								className: "w-[140px]",
 								children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Select, {
-									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:287:19",
+									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:321:19",
 									"data-prohibitions": "[editContent]",
 									onValueChange: field.onChange,
 									value: field.value || "",
 									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormControl, {
-										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:288:21",
+										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:322:21",
 										"data-prohibitions": "[]",
 										children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectTrigger, {
-											"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:289:23",
+											"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:323:23",
 											"data-prohibitions": "[]",
 											className: "bg-white",
 											children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectValue, {
-												"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:290:25",
+												"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:324:25",
 												"data-prohibitions": "[editContent]",
 												placeholder: "Selecione..."
 											})
 										})
 									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectContent, {
-										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:293:21",
+										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:327:21",
 										"data-prohibitions": "[editContent]",
 										children: timeOptions.map((t) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectItem, {
-											"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:295:25",
+											"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:329:25",
 											"data-prohibitions": "[editContent]",
 											value: t,
 											children: t
@@ -70155,74 +70449,6 @@ function ScheduleForm({ selectedDate, onSuccess }) {
 					})]
 				}),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:307:9",
-					"data-prohibitions": "[]",
-					className: "grid grid-cols-1 md:grid-cols-2 gap-4",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormField, {
-						"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:308:11",
-						"data-prohibitions": "[editContent]",
-						control: form.control,
-						name: "cpf",
-						render: ({ field }) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(FormItem, {
-							"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:312:15",
-							"data-prohibitions": "[]",
-							children: [
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormLabel, {
-									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:313:17",
-									"data-prohibitions": "[]",
-									children: "CPF (Busca Automática)"
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormControl, {
-									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:314:17",
-									"data-prohibitions": "[]",
-									children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:315:19",
-										"data-prohibitions": "[editContent]",
-										...field,
-										placeholder: "000.000.000-00",
-										onChange: (e) => field.onChange(applyMask(e.target.value, "cpf")),
-										maxLength: 14
-									})
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormMessage, {
-									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:322:17",
-									"data-prohibitions": "[editContent]"
-								})
-							]
-						})
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormField, {
-						"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:326:11",
-						"data-prohibitions": "[editContent]",
-						control: form.control,
-						name: "name",
-						render: ({ field }) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(FormItem, {
-							"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:330:15",
-							"data-prohibitions": "[]",
-							children: [
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormLabel, {
-									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:331:17",
-									"data-prohibitions": "[]",
-									children: "Nome completo"
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormControl, {
-									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:332:17",
-									"data-prohibitions": "[]",
-									children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:333:19",
-										"data-prohibitions": "[editContent]",
-										...field,
-										placeholder: "Digite o nome"
-									})
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormMessage, {
-									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:335:17",
-									"data-prohibitions": "[editContent]"
-								})
-							]
-						})
-					})]
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 					"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:341:9",
 					"data-prohibitions": "[]",
 					className: "grid grid-cols-1 md:grid-cols-2 gap-4",
@@ -70230,7 +70456,7 @@ function ScheduleForm({ selectedDate, onSuccess }) {
 						"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:342:11",
 						"data-prohibitions": "[editContent]",
 						control: form.control,
-						name: "phone",
+						name: "cpf",
 						render: ({ field }) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(FormItem, {
 							"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:346:15",
 							"data-prohibitions": "[]",
@@ -70238,7 +70464,7 @@ function ScheduleForm({ selectedDate, onSuccess }) {
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormLabel, {
 									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:347:17",
 									"data-prohibitions": "[]",
-									children: "Telefone (WhatsApp)"
+									children: "CPF (Busca Automática)"
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormControl, {
 									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:348:17",
@@ -70247,9 +70473,9 @@ function ScheduleForm({ selectedDate, onSuccess }) {
 										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:349:19",
 										"data-prohibitions": "[editContent]",
 										...field,
-										placeholder: "(00) 00000-0000",
-										onChange: (e) => field.onChange(applyMask(e.target.value, "phone")),
-										maxLength: 15
+										placeholder: "000.000.000-00",
+										onChange: (e) => field.onChange(applyMask(e.target.value, "cpf")),
+										maxLength: 14
 									})
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormMessage, {
@@ -70262,7 +70488,7 @@ function ScheduleForm({ selectedDate, onSuccess }) {
 						"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:360:11",
 						"data-prohibitions": "[editContent]",
 						control: form.control,
-						name: "email",
+						name: "name",
 						render: ({ field }) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(FormItem, {
 							"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:364:15",
 							"data-prohibitions": "[]",
@@ -70270,7 +70496,7 @@ function ScheduleForm({ selectedDate, onSuccess }) {
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormLabel, {
 									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:365:17",
 									"data-prohibitions": "[]",
-									children: "E-mail"
+									children: "Nome completo"
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormControl, {
 									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:366:17",
@@ -70279,8 +70505,7 @@ function ScheduleForm({ selectedDate, onSuccess }) {
 										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:367:19",
 										"data-prohibitions": "[editContent]",
 										...field,
-										type: "email",
-										placeholder: "email@exemplo.com"
+										placeholder: "Digite o nome"
 									})
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormMessage, {
@@ -70299,7 +70524,7 @@ function ScheduleForm({ selectedDate, onSuccess }) {
 						"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:376:11",
 						"data-prohibitions": "[editContent]",
 						control: form.control,
-						name: "profession",
+						name: "phone",
 						render: ({ field }) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(FormItem, {
 							"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:380:15",
 							"data-prohibitions": "[]",
@@ -70307,43 +70532,112 @@ function ScheduleForm({ selectedDate, onSuccess }) {
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormLabel, {
 									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:381:17",
 									"data-prohibitions": "[]",
+									children: "Telefone (WhatsApp)"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormControl, {
+									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:382:17",
+									"data-prohibitions": "[]",
+									children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:383:19",
+										"data-prohibitions": "[editContent]",
+										...field,
+										placeholder: "(00) 00000-0000",
+										onChange: (e) => field.onChange(applyMask(e.target.value, "phone")),
+										maxLength: 15
+									})
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormMessage, {
+									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:390:17",
+									"data-prohibitions": "[editContent]"
+								})
+							]
+						})
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormField, {
+						"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:394:11",
+						"data-prohibitions": "[editContent]",
+						control: form.control,
+						name: "email",
+						render: ({ field }) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(FormItem, {
+							"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:398:15",
+							"data-prohibitions": "[]",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormLabel, {
+									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:399:17",
+									"data-prohibitions": "[]",
+									children: "E-mail"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormControl, {
+									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:400:17",
+									"data-prohibitions": "[]",
+									children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:401:19",
+										"data-prohibitions": "[editContent]",
+										...field,
+										type: "email",
+										placeholder: "email@exemplo.com"
+									})
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormMessage, {
+									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:403:17",
+									"data-prohibitions": "[editContent]"
+								})
+							]
+						})
+					})]
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:409:9",
+					"data-prohibitions": "[]",
+					className: "grid grid-cols-1 md:grid-cols-2 gap-4",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormField, {
+						"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:410:11",
+						"data-prohibitions": "[editContent]",
+						control: form.control,
+						name: "profession",
+						render: ({ field }) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(FormItem, {
+							"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:414:15",
+							"data-prohibitions": "[]",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormLabel, {
+									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:415:17",
+									"data-prohibitions": "[]",
 									children: "Profissão"
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Select, {
-									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:382:17",
+									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:416:17",
 									"data-prohibitions": "[]",
 									onValueChange: field.onChange,
 									value: field.value || "",
 									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormControl, {
-										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:383:19",
+										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:417:19",
 										"data-prohibitions": "[]",
 										children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectTrigger, {
-											"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:384:21",
+											"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:418:21",
 											"data-prohibitions": "[]",
 											children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectValue, {
-												"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:385:23",
+												"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:419:23",
 												"data-prohibitions": "[editContent]",
 												placeholder: "Selecione..."
 											})
 										})
 									}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(SelectContent, {
-										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:388:19",
+										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:422:19",
 										"data-prohibitions": "[]",
 										children: [
 											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectItem, {
-												"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:389:21",
+												"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:423:21",
 												"data-prohibitions": "[]",
 												value: "médico",
 												children: "Médico(a)"
 											}),
 											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectItem, {
-												"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:390:21",
+												"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:424:21",
 												"data-prohibitions": "[]",
 												value: "nutricionista",
 												children: "Nutricionista"
 											}),
 											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectItem, {
-												"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:391:21",
+												"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:425:21",
 												"data-prohibitions": "[]",
 												value: "treinador",
 												children: "Treinador(a)"
@@ -70352,37 +70646,37 @@ function ScheduleForm({ selectedDate, onSuccess }) {
 									})]
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormMessage, {
-									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:394:17",
+									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:428:17",
 									"data-prohibitions": "[editContent]"
 								})
 							]
 						})
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormField, {
-						"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:398:11",
+						"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:432:11",
 						"data-prohibitions": "[editContent]",
 						control: form.control,
 						name: "registrationNumber",
 						render: ({ field }) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(FormItem, {
-							"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:402:15",
+							"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:436:15",
 							"data-prohibitions": "[]",
 							children: [
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormLabel, {
-									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:403:17",
+									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:437:17",
 									"data-prohibitions": "[]",
 									children: "Registro Profissional"
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormControl, {
-									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:404:17",
+									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:438:17",
 									"data-prohibitions": "[]",
 									children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:405:19",
+										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:439:19",
 										"data-prohibitions": "[editContent]",
 										...field,
 										placeholder: "CRM, CRN, CREF..."
 									})
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormMessage, {
-									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:407:17",
+									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:441:17",
 									"data-prohibitions": "[editContent]"
 								})
 							]
@@ -70390,39 +70684,39 @@ function ScheduleForm({ selectedDate, onSuccess }) {
 					})]
 				}),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Separator$2, {
-					"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:413:9",
+					"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:447:9",
 					"data-prohibitions": "[editContent]",
 					className: "my-4"
 				}),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", {
-					"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:414:9",
+					"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:448:9",
 					"data-prohibitions": "[]",
 					className: "text-sm font-semibold mb-2",
 					children: "Endereço de Visita / Envio de Kit"
 				}),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:416:9",
+					"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:450:9",
 					"data-prohibitions": "[]",
 					className: "grid grid-cols-1 md:grid-cols-3 gap-4",
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormField, {
-						"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:417:11",
+						"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:451:11",
 						"data-prohibitions": "[editContent]",
 						control: form.control,
 						name: "cep",
 						render: ({ field }) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(FormItem, {
-							"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:421:15",
+							"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:455:15",
 							"data-prohibitions": "[]",
 							children: [
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormLabel, {
-									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:422:17",
+									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:456:17",
 									"data-prohibitions": "[]",
 									children: "CEP"
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormControl, {
-									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:423:17",
+									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:457:17",
 									"data-prohibitions": "[]",
 									children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:424:19",
+										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:458:19",
 										"data-prohibitions": "[editContent]",
 										...field,
 										placeholder: "00000-000",
@@ -70431,41 +70725,41 @@ function ScheduleForm({ selectedDate, onSuccess }) {
 									})
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormMessage, {
-									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:431:17",
+									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:465:17",
 									"data-prohibitions": "[editContent]"
 								})
 							]
 						})
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:435:11",
+						"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:469:11",
 						"data-prohibitions": "[]",
 						className: "md:col-span-2",
 						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormField, {
-							"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:436:13",
+							"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:470:13",
 							"data-prohibitions": "[editContent]",
 							control: form.control,
 							name: "street",
 							render: ({ field }) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(FormItem, {
-								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:440:17",
+								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:474:17",
 								"data-prohibitions": "[]",
 								children: [
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormLabel, {
-										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:441:19",
+										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:475:19",
 										"data-prohibitions": "[]",
 										children: "Logradouro"
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormControl, {
-										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:442:19",
+										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:476:19",
 										"data-prohibitions": "[]",
 										children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-											"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:443:21",
+											"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:477:21",
 											"data-prohibitions": "[editContent]",
 											...field,
 											placeholder: "Rua, Avenida..."
 										})
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormMessage, {
-										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:445:19",
+										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:479:19",
 										"data-prohibitions": "[editContent]"
 									})
 								]
@@ -70474,102 +70768,102 @@ function ScheduleForm({ selectedDate, onSuccess }) {
 					})]
 				}),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:452:9",
+					"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:486:9",
 					"data-prohibitions": "[]",
 					className: "grid grid-cols-1 md:grid-cols-4 gap-4",
 					children: [
 						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormField, {
-							"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:453:11",
+							"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:487:11",
 							"data-prohibitions": "[editContent]",
 							control: form.control,
 							name: "number",
 							render: ({ field }) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(FormItem, {
-								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:457:15",
+								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:491:15",
 								"data-prohibitions": "[]",
 								children: [
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormLabel, {
-										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:458:17",
+										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:492:17",
 										"data-prohibitions": "[]",
 										children: "Número"
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormControl, {
-										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:459:17",
+										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:493:17",
 										"data-prohibitions": "[]",
 										children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-											"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:460:19",
+											"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:494:19",
 											"data-prohibitions": "[editContent]",
 											...field,
 											placeholder: "123"
 										})
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormMessage, {
-										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:462:17",
+										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:496:17",
 										"data-prohibitions": "[editContent]"
 									})
 								]
 							})
 						}),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormField, {
-							"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:466:11",
+							"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:500:11",
 							"data-prohibitions": "[editContent]",
 							control: form.control,
 							name: "complement",
 							render: ({ field }) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(FormItem, {
-								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:470:15",
+								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:504:15",
 								"data-prohibitions": "[]",
 								children: [
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormLabel, {
-										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:471:17",
+										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:505:17",
 										"data-prohibitions": "[]",
 										children: "Complemento"
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormControl, {
-										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:472:17",
+										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:506:17",
 										"data-prohibitions": "[]",
 										children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-											"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:473:19",
+											"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:507:19",
 											"data-prohibitions": "[editContent]",
 											...field,
 											placeholder: "Sala 2"
 										})
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormMessage, {
-										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:475:17",
+										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:509:17",
 										"data-prohibitions": "[editContent]"
 									})
 								]
 							})
 						}),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:479:11",
+							"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:513:11",
 							"data-prohibitions": "[]",
 							className: "md:col-span-2",
 							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormField, {
-								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:480:13",
+								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:514:13",
 								"data-prohibitions": "[editContent]",
 								control: form.control,
 								name: "neighborhood",
 								render: ({ field }) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(FormItem, {
-									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:484:17",
+									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:518:17",
 									"data-prohibitions": "[]",
 									children: [
 										/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormLabel, {
-											"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:485:19",
+											"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:519:19",
 											"data-prohibitions": "[]",
 											children: "Bairro"
 										}),
 										/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormControl, {
-											"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:486:19",
+											"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:520:19",
 											"data-prohibitions": "[]",
 											children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-												"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:487:21",
+												"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:521:21",
 												"data-prohibitions": "[editContent]",
 												...field,
 												placeholder: "Centro"
 											})
 										}),
 										/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormMessage, {
-											"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:489:19",
+											"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:523:19",
 											"data-prohibitions": "[editContent]"
 										})
 									]
@@ -70579,80 +70873,80 @@ function ScheduleForm({ selectedDate, onSuccess }) {
 					]
 				}),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:496:9",
+					"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:530:9",
 					"data-prohibitions": "[]",
 					className: "grid grid-cols-1 md:grid-cols-3 gap-4",
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:497:11",
+						"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:531:11",
 						"data-prohibitions": "[]",
 						className: "md:col-span-2",
 						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormField, {
-							"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:498:13",
+							"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:532:13",
 							"data-prohibitions": "[editContent]",
 							control: form.control,
 							name: "city",
 							render: ({ field }) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(FormItem, {
-								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:502:17",
+								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:536:17",
 								"data-prohibitions": "[]",
 								children: [
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormLabel, {
-										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:503:19",
+										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:537:19",
 										"data-prohibitions": "[]",
 										children: "Cidade"
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormControl, {
-										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:504:19",
+										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:538:19",
 										"data-prohibitions": "[]",
 										children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-											"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:505:21",
+											"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:539:21",
 											"data-prohibitions": "[editContent]",
 											...field,
 											placeholder: "São Paulo"
 										})
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormMessage, {
-										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:507:19",
+										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:541:19",
 										"data-prohibitions": "[editContent]"
 									})
 								]
 							})
 						})
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormField, {
-						"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:512:11",
+						"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:546:11",
 						"data-prohibitions": "[editContent]",
 						control: form.control,
 						name: "state",
 						render: ({ field }) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(FormItem, {
-							"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:516:15",
+							"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:550:15",
 							"data-prohibitions": "[editContent]",
 							children: [
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormLabel, {
-									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:517:17",
+									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:551:17",
 									"data-prohibitions": "[]",
 									children: "Estado"
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Select, {
-									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:518:17",
+									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:552:17",
 									"data-prohibitions": "[editContent]",
 									onValueChange: field.onChange,
 									value: field.value || "",
 									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormControl, {
-										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:519:19",
+										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:553:19",
 										"data-prohibitions": "[]",
 										children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectTrigger, {
-											"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:520:21",
+											"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:554:21",
 											"data-prohibitions": "[]",
 											children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectValue, {
-												"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:521:23",
+												"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:555:23",
 												"data-prohibitions": "[editContent]",
 												placeholder: "UF"
 											})
 										})
 									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectContent, {
-										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:524:19",
+										"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:558:19",
 										"data-prohibitions": "[editContent]",
 										children: UF_OPTIONS.map((uf) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectItem, {
-											"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:526:23",
+											"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:560:23",
 											"data-prohibitions": "[editContent]",
 											value: uf,
 											children: uf
@@ -70660,7 +70954,7 @@ function ScheduleForm({ selectedDate, onSuccess }) {
 									})]
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormMessage, {
-									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:532:17",
+									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:566:17",
 									"data-prohibitions": "[editContent]"
 								})
 							]
@@ -70668,33 +70962,33 @@ function ScheduleForm({ selectedDate, onSuccess }) {
 					})]
 				}),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormField, {
-					"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:538:9",
+					"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:572:9",
 					"data-prohibitions": "[editContent]",
 					control: form.control,
 					name: "isVirtual",
 					render: ({ field }) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(FormItem, {
-						"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:542:13",
+						"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:576:13",
 						"data-prohibitions": "[]",
 						className: "flex flex-row items-center justify-between p-4 mt-4 border rounded-md bg-muted/20",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:543:15",
+							"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:577:15",
 							"data-prohibitions": "[]",
 							className: "space-y-0.5",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormLabel, {
-								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:544:17",
+								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:578:17",
 								"data-prohibitions": "[]",
-								children: "Reunião Virtual (Google Meet)"
+								children: "Reunião Virtual (Google Meet em Grupo)"
 							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormDescription, {
-								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:545:17",
+								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:579:17",
 								"data-prohibitions": "[]",
 								className: "text-xs text-muted-foreground",
-								children: "Gera um link de videoconferência automaticamente."
+								children: "Aloca participantes no mesmo horário em um único link (máx 30)."
 							})]
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormControl, {
-							"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:549:15",
+							"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:583:15",
 							"data-prohibitions": "[]",
 							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Switch, {
-								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:550:17",
+								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:584:17",
 								"data-prohibitions": "[editContent]",
 								checked: field.value,
 								onCheckedChange: field.onChange
@@ -70703,41 +70997,41 @@ function ScheduleForm({ selectedDate, onSuccess }) {
 					})
 				}),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormField, {
-					"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:556:9",
+					"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:590:9",
 					"data-prohibitions": "[editContent]",
 					control: form.control,
 					name: "authorizeInfo",
 					render: ({ field }) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(FormItem, {
-						"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:560:13",
+						"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:594:13",
 						"data-prohibitions": "[]",
 						className: "flex flex-row items-start space-x-3 space-y-0 p-4 mt-4 border rounded-md bg-muted/20",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormControl, {
-							"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:561:15",
+							"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:595:15",
 							"data-prohibitions": "[]",
 							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Checkbox, {
-								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:562:17",
+								"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:596:17",
 								"data-prohibitions": "[editContent]",
 								checked: field.value,
 								onCheckedChange: field.onChange
 							})
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:564:15",
+							"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:598:15",
 							"data-prohibitions": "[]",
 							className: "space-y-1 leading-none",
 							children: [
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormLabel, {
-									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:565:17",
+									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:599:17",
 									"data-prohibitions": "[]",
 									children: "Autoriza envio de informações"
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormDescription, {
-									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:566:17",
+									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:600:17",
 									"data-prohibitions": "[]",
 									className: "text-xs text-muted-foreground mt-1.5 leading-relaxed",
 									children: "Ao marcar, você autoriza o contato via WhatsApp e envio de kits em conformidade com a LGPD."
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormMessage, {
-									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:570:17",
+									"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:604:17",
 									"data-prohibitions": "[editContent]"
 								})
 							]
@@ -70745,7 +71039,7 @@ function ScheduleForm({ selectedDate, onSuccess }) {
 					})
 				}),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button$1, {
-					"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:576:9",
+					"data-uid": "src/pages/Scheduling/ScheduleForm.tsx:610:9",
 					"data-prohibitions": "[editContent]",
 					type: "submit",
 					className: "w-full h-12 text-lg mt-2",
@@ -73791,12 +74085,27 @@ function KitsPage() {
 //#endregion
 //#region src/pages/Settings/GoogleCalendarCard.tsx
 function GoogleCalendarCard() {
-	const [connected, setConnected] = (0, import_react.useState)(false);
+	const { state, dispatch } = useMainStore();
+	const connected = state.settings?.googleCalendarConnected ?? false;
+	const sync = state.settings?.googleCalendarSync ?? false;
 	const handleToggle = () => {
-		setConnected(!connected);
+		dispatch({
+			type: "UPDATE_SETTINGS",
+			payload: { googleCalendarConnected: !connected }
+		});
 		toast$1({
 			title: !connected ? "Google Calendar Conectado" : "Google Calendar Desconectado",
 			description: !connected ? "Seus agendamentos serão sincronizados." : "Sincronização pausada."
+		});
+	};
+	const handleSyncToggle = (val) => {
+		dispatch({
+			type: "UPDATE_SETTINGS",
+			payload: { googleCalendarSync: val }
+		});
+		if (val) toast$1({
+			title: "Sincronização Bidirecional Ativa",
+			description: "Mudanças no sistema e no calendário agora refletem automaticamente."
 		});
 	};
 	const testConnection = () => {
@@ -73806,29 +74115,29 @@ function GoogleCalendarCard() {
 		});
 	};
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
-		"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:31:5",
+		"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:45:5",
 		"data-prohibitions": "[editContent]",
 		className: "flex flex-col shadow-subtle border-border/50",
 		children: [
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, {
-				"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:32:7",
+				"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:46:7",
 				"data-prohibitions": "[editContent]",
 				children: [
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:33:9",
+						"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:47:9",
 						"data-prohibitions": "[editContent]",
 						className: "flex justify-between items-start",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:34:11",
+							"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:48:11",
 							"data-prohibitions": "[]",
 							className: "p-3 bg-blue-50 text-blue-600 rounded-lg mb-2",
 							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Calendar$1, {
-								"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:35:13",
+								"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:49:13",
 								"data-prohibitions": "[editContent]",
 								className: "h-6 w-6"
 							})
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
-							"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:37:11",
+							"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:51:11",
 							"data-prohibitions": "[editContent]",
 							variant: connected ? "default" : "secondary",
 							className: connected ? "bg-blue-600 hover:bg-blue-700" : "",
@@ -73836,41 +74145,58 @@ function GoogleCalendarCard() {
 						})]
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, {
-						"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:44:9",
+						"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:58:9",
 						"data-prohibitions": "[]",
 						children: "Google Calendar"
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardDescription, {
-						"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:45:9",
+						"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:59:9",
 						"data-prohibitions": "[]",
 						children: "Sincronize visitas agendadas automaticamente com sua agenda."
 					})
 				]
 			}),
-			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardContent, {
-				"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:49:7",
-				"data-prohibitions": "[]",
-				className: "flex-1",
-				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-					"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:50:9",
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardContent, {
+				"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:63:7",
+				"data-prohibitions": "[editContent]",
+				className: "flex-1 space-y-4",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:64:9",
 					"data-prohibitions": "[]",
 					className: "text-sm text-muted-foreground",
 					children: "Ao conectar, todos os novos agendamentos do CRM criarão um evento correspondente no Google Calendar do vendedor associado."
-				})
+				}), connected && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:69:11",
+					"data-prohibitions": "[]",
+					className: "flex items-center justify-between pt-2 border-t border-border/50",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label$3, {
+						"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:70:13",
+						"data-prohibitions": "[]",
+						className: "text-sm text-muted-foreground cursor-pointer",
+						htmlFor: "gc-sync",
+						children: "Sincronização Bidirecional"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Switch, {
+						"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:73:13",
+						"data-prohibitions": "[editContent]",
+						id: "gc-sync",
+						checked: sync,
+						onCheckedChange: handleSyncToggle
+					})]
+				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardFooter, {
-				"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:55:7",
+				"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:77:7",
 				"data-prohibitions": "[editContent]",
 				className: "flex flex-wrap gap-2",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button$1, {
-					"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:56:9",
+					"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:78:9",
 					"data-prohibitions": "[editContent]",
 					variant: connected ? "outline" : "default",
 					onClick: handleToggle,
 					className: "flex-1",
-					children: connected ? "Desconectar" : "Conectar Conta"
+					children: connected ? "Desconectar Conta" : "Conectar Conta"
 				}), connected && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button$1, {
-					"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:64:11",
+					"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:86:11",
 					"data-prohibitions": "[]",
 					variant: "secondary",
 					onClick: testConnection,
@@ -73940,7 +74266,7 @@ function EmailSettingsCard() {
 					"data-uid": "src/pages/Settings/EmailSettingsCard.tsx:46:9",
 					"data-prohibitions": "[]",
 					className: "space-y-2",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label$2, {
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label$3, {
 						"data-uid": "src/pages/Settings/EmailSettingsCard.tsx:47:11",
 						"data-prohibitions": "[]",
 						children: "Nome do Remetente"
@@ -73957,7 +74283,7 @@ function EmailSettingsCard() {
 						"data-uid": "src/pages/Settings/EmailSettingsCard.tsx:51:11",
 						"data-prohibitions": "[]",
 						className: "flex items-center justify-between",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label$2, {
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label$3, {
 							"data-uid": "src/pages/Settings/EmailSettingsCard.tsx:52:13",
 							"data-prohibitions": "[]",
 							className: "text-sm text-muted-foreground cursor-pointer",
@@ -73974,7 +74300,7 @@ function EmailSettingsCard() {
 						"data-uid": "src/pages/Settings/EmailSettingsCard.tsx:57:11",
 						"data-prohibitions": "[]",
 						className: "flex items-center justify-between",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label$2, {
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label$3, {
 							"data-uid": "src/pages/Settings/EmailSettingsCard.tsx:58:13",
 							"data-prohibitions": "[]",
 							className: "text-sm text-muted-foreground cursor-pointer",
@@ -74078,57 +74404,82 @@ function WhatsAppCard() {
 					"data-uid": "src/pages/Settings/WhatsAppCard.tsx:56:9",
 					"data-prohibitions": "[]",
 					className: "space-y-4",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						"data-uid": "src/pages/Settings/WhatsAppCard.tsx:57:11",
-						"data-prohibitions": "[]",
-						className: "flex items-center justify-between",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label$2, {
-							"data-uid": "src/pages/Settings/WhatsAppCard.tsx:58:13",
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							"data-uid": "src/pages/Settings/WhatsAppCard.tsx:57:11",
 							"data-prohibitions": "[]",
-							className: "text-sm text-muted-foreground cursor-pointer",
-							htmlFor: "wa-welcome",
-							children: "Mensagem de Boas-vindas p/ Prescritores"
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Switch, {
-							"data-uid": "src/pages/Settings/WhatsAppCard.tsx:61:13",
-							"data-prohibitions": "[editContent]",
-							id: "wa-welcome",
-							checked: welcomeMsg,
-							onCheckedChange: setWelcomeMsg,
-							disabled: !connected
-						})]
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						"data-uid": "src/pages/Settings/WhatsAppCard.tsx:68:11",
-						"data-prohibitions": "[]",
-						className: "flex items-center justify-between",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label$2, {
-							"data-uid": "src/pages/Settings/WhatsAppCard.tsx:69:13",
+							className: "flex items-center justify-between",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label$3, {
+								"data-uid": "src/pages/Settings/WhatsAppCard.tsx:58:13",
+								"data-prohibitions": "[]",
+								className: "text-sm text-muted-foreground cursor-pointer",
+								htmlFor: "wa-welcome",
+								children: "Mensagem de Boas-vindas p/ Prescritores"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Switch, {
+								"data-uid": "src/pages/Settings/WhatsAppCard.tsx:61:13",
+								"data-prohibitions": "[editContent]",
+								id: "wa-welcome",
+								checked: welcomeMsg,
+								onCheckedChange: setWelcomeMsg,
+								disabled: !connected
+							})]
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							"data-uid": "src/pages/Settings/WhatsAppCard.tsx:68:11",
 							"data-prohibitions": "[]",
-							className: "text-sm text-muted-foreground cursor-pointer",
-							htmlFor: "wa-delay",
-							children: "Alertas Automáticos de Atraso"
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Switch, {
-							"data-uid": "src/pages/Settings/WhatsAppCard.tsx:72:13",
-							"data-prohibitions": "[editContent]",
-							id: "wa-delay",
-							defaultChecked: true,
-							disabled: !connected
-						})]
-					})]
+							className: "flex items-center justify-between",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label$3, {
+								"data-uid": "src/pages/Settings/WhatsAppCard.tsx:69:13",
+								"data-prohibitions": "[]",
+								className: "text-sm text-muted-foreground cursor-pointer",
+								htmlFor: "wa-delay",
+								children: "Alertas Automáticos de Atraso"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Switch, {
+								"data-uid": "src/pages/Settings/WhatsAppCard.tsx:72:13",
+								"data-prohibitions": "[editContent]",
+								id: "wa-delay",
+								defaultChecked: true,
+								disabled: !connected
+							})]
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							"data-uid": "src/pages/Settings/WhatsAppCard.tsx:74:11",
+							"data-prohibitions": "[]",
+							className: "flex items-center justify-between",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label$3, {
+								"data-uid": "src/pages/Settings/WhatsAppCard.tsx:75:13",
+								"data-prohibitions": "[]",
+								className: "text-sm text-muted-foreground cursor-pointer",
+								htmlFor: "wa-1h-reminder",
+								children: "Lembrete Automático (1 hora antes do Meet)"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Switch, {
+								"data-uid": "src/pages/Settings/WhatsAppCard.tsx:81:13",
+								"data-prohibitions": "[editContent]",
+								id: "wa-1h-reminder",
+								checked: state.settings?.whatsappReminder1h ?? false,
+								onCheckedChange: (c) => dispatch({
+									type: "UPDATE_SETTINGS",
+									payload: { whatsappReminder1h: c }
+								}),
+								disabled: !connected
+							})]
+						})
+					]
 				})
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardFooter, {
-				"data-uid": "src/pages/Settings/WhatsAppCard.tsx:76:7",
+				"data-uid": "src/pages/Settings/WhatsAppCard.tsx:92:7",
 				"data-prohibitions": "[editContent]",
 				className: "flex flex-wrap gap-2",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button$1, {
-					"data-uid": "src/pages/Settings/WhatsAppCard.tsx:77:9",
+					"data-uid": "src/pages/Settings/WhatsAppCard.tsx:93:9",
 					"data-prohibitions": "[editContent]",
 					variant: connected ? "outline" : "default",
 					onClick: handleConnect,
 					className: "flex-1",
 					children: connected ? "Desconectar" : "Escanear QR Code"
 				}), connected && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button$1, {
-					"data-uid": "src/pages/Settings/WhatsAppCard.tsx:85:11",
+					"data-uid": "src/pages/Settings/WhatsAppCard.tsx:101:11",
 					"data-prohibitions": "[]",
 					variant: "secondary",
 					onClick: testConnection,
@@ -75919,4 +76270,4 @@ var App = () => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AppProvider, {
 }));
 //#endregion
 
-//# sourceMappingURL=index-CLc5Eoc9.js.map
+//# sourceMappingURL=index-BdLIxGiZ.js.map

@@ -71,6 +71,22 @@ export function WhatsAppCard() {
             </Label>
             <Switch id="wa-delay" defaultChecked disabled={!connected} />
           </div>
+          <div className="flex items-center justify-between">
+            <Label
+              className="text-sm text-muted-foreground cursor-pointer"
+              htmlFor="wa-1h-reminder"
+            >
+              Lembrete Automático (1 hora antes do Meet)
+            </Label>
+            <Switch
+              id="wa-1h-reminder"
+              checked={state.settings?.whatsappReminder1h ?? false}
+              onCheckedChange={(c) =>
+                dispatch({ type: 'UPDATE_SETTINGS', payload: { whatsappReminder1h: c } })
+              }
+              disabled={!connected}
+            />
+          </div>
         </div>
       </CardContent>
       <CardFooter className="flex flex-wrap gap-2">

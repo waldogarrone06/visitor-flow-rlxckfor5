@@ -77,7 +77,10 @@ export interface Message {
 
 export interface AppSettings {
   whatsappConnected: boolean
+  whatsappReminder1h?: boolean
   googleMeetConnected?: boolean
+  googleCalendarConnected?: boolean
+  googleCalendarSync?: boolean
 }
 
 export interface TeamMember {

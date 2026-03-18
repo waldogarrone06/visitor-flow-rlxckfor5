@@ -5,6 +5,7 @@ import { DashboardAgenda } from './Agenda'
 import { PerformancePanel } from './PerformancePanel'
 import { StateVisitsTrendChart } from './StateVisitsTrendChart'
 import { TopPerformersWidget } from './TopPerformersWidget'
+import { UpcomingOnlineMeetings } from './UpcomingOnlineMeetings'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Calendar } from '@/components/ui/calendar'
 import { Button } from '@/components/ui/button'
@@ -78,8 +79,9 @@ export default function DashboardPage() {
           <TopPerformersWidget />
         </div>
         <div className="space-y-4 flex flex-col h-full">
-          <PerformancePanel dateRange={dateRange} />
+          <UpcomingOnlineMeetings dateRange={dateRange} />
           <DashboardAgenda dateRange={dateRange} />
+          <PerformancePanel dateRange={dateRange} />
         </div>
       </div>
     </div>

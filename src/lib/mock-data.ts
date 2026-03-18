@@ -93,7 +93,7 @@ export const initialData: AppState = {
     {
       id: 'l5',
       name: 'Carlos Santos',
-      stage: 'Revisitar',
+      stage: 'Agendado',
       type: 'B2C',
       score: 5,
       document: '111.222.333-44',
@@ -133,6 +133,15 @@ export const initialData: AppState = {
     {
       id: 'a1',
       leadId: 'l3',
+      date: new Date(new Date().setHours(14, 0, 0, 0)).toISOString(),
+      vendor: 'Ana Vendedora',
+      status: 'Scheduled',
+      isVirtual: true,
+      meetLink: 'https://meet.google.com/abc-defg-hij',
+    },
+    {
+      id: 'a6',
+      leadId: 'l5',
       date: new Date(new Date().setHours(14, 0, 0, 0)).toISOString(),
       vendor: 'Ana Vendedora',
       status: 'Scheduled',
@@ -281,7 +290,10 @@ export const initialData: AppState = {
   ],
   settings: {
     whatsappConnected: true,
-    googleMeetConnected: false,
+    whatsappReminder1h: true,
+    googleMeetConnected: true,
+    googleCalendarConnected: true,
+    googleCalendarSync: true,
   },
   teamMembers: [
     {
