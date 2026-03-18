@@ -18,9 +18,16 @@ export function GoogleCalendarCard() {
   const { state, dispatch } = useMainStore()
   const connected = state.settings?.googleCalendarConnected ?? false
   const sync = state.settings?.googleCalendarSync ?? false
+  const email = state.settings?.googleAccountEmail || 'usuario@empresa.com'
 
   const handleToggle = () => {
-    dispatch({ type: 'UPDATE_SETTINGS', payload: { googleCalendarConnected: !connected } })
+    dispatch({
+      type: 'UPDATE_SETTINGS',
+      payload: {
+        googleCalendarConnected: !connected,
+        googleAccountEmail: !connected ? email : undefined,
+      },
+    })
     toast({
       title: !connected ? 'Google Calendar Conectado' : 'Google Calendar Desconectado',
       description: !connected ? 'Seus agendamentos serão sincronizados.' : 'Sincronização pausada.',
@@ -50,7 +57,7 @@ export function GoogleCalendarCard() {
           </div>
           <Badge
             variant={connected ? 'default' : 'secondary'}
-            className={connected ? 'bg-blue-600 hover:bg-blue-700' : ''}
+            className={connected ? 'bg-green-600 hover:bg-green-700' : ''}
           >
             {connected ? 'Conectado' : 'Desconectado'}
           </Badge>
@@ -61,6 +68,14 @@ export function GoogleCalendarCard() {
         </CardDescription>
       </CardHeader>
       <CardContent className="flex-1 space-y-4">
+        {connected && (
+          <div className="p-3 bg-muted/40 border border-border/50 rounded-md flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">
+              Conta: <span className="text-muted-foreground font-normal">{email}</span>
+            </span>
+          </div>
+        )}
         <p className="text-sm text-muted-foreground">
           Ao conectar, todos os novos agendamentos do CRM criarão um evento correspondente no Google
           Calendar do vendedor associado.

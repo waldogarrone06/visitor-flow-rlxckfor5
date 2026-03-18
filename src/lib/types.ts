@@ -98,11 +98,15 @@ export interface Message {
 export interface AppSettings {
   whatsappConnected: boolean
   whatsappReminder1h?: boolean
+  whatsappPhoneNumber?: string
   googleMeetConnected?: boolean
+  googleAccountEmail?: string
   googleCalendarConnected?: boolean
   googleCalendarSync?: boolean
   autoGenerateParticipationReports?: boolean
   autoExportToCRM?: boolean
+  secrets?: { id: string; key: string; value: string }[]
+  supabaseStatus?: 'connected' | 'pending' | 'error'
 }
 
 export interface TeamMember {

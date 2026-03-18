@@ -15,9 +15,16 @@ import { toast } from '@/hooks/use-toast'
 export function GoogleMeetCard() {
   const { state, dispatch } = useMainStore()
   const connected = state.settings?.googleMeetConnected ?? false
+  const email = state.settings?.googleAccountEmail || 'usuario@empresa.com'
 
   const handleToggle = () => {
-    dispatch({ type: 'UPDATE_SETTINGS', payload: { googleMeetConnected: !connected } })
+    dispatch({
+      type: 'UPDATE_SETTINGS',
+      payload: {
+        googleMeetConnected: !connected,
+        googleAccountEmail: !connected ? email : undefined,
+      },
+    })
     toast({
       title: !connected ? 'Google Meet Conectado' : 'Google Meet Desconectado',
       description: !connected
@@ -35,7 +42,7 @@ export function GoogleMeetCard() {
           </div>
           <Badge
             variant={connected ? 'default' : 'secondary'}
-            className={connected ? 'bg-teal-600 hover:bg-teal-700' : ''}
+            className={connected ? 'bg-green-600 hover:bg-green-700' : ''}
           >
             {connected ? 'Conectado' : 'Desconectado'}
           </Badge>
@@ -43,7 +50,15 @@ export function GoogleMeetCard() {
         <CardTitle>Google Meet</CardTitle>
         <CardDescription>Gere links de reunião para agendamentos virtuais.</CardDescription>
       </CardHeader>
-      <CardContent className="flex-1">
+      <CardContent className="flex-1 space-y-4">
+        {connected && (
+          <div className="p-3 bg-muted/40 border border-border/50 rounded-md flex items-center gap-2">
+            <Video className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">
+              Conta: <span className="text-muted-foreground font-normal">{email}</span>
+            </span>
+          </div>
+        )}
         <p className="text-sm text-muted-foreground">
           Conecte sua conta do Google Workspace para criar salas de videoconferência únicas em cada
           novo agendamento marcado como "Reunião Virtual".
@@ -55,7 +70,7 @@ export function GoogleMeetCard() {
           onClick={handleToggle}
           className="w-full"
         >
-          {connected ? 'Desconectar Conta' : 'Autorizar Google Meet'}
+          {connected ? 'Desconectar Conta' : 'Conectar Conta'}
         </Button>
       </CardFooter>
     </Card>

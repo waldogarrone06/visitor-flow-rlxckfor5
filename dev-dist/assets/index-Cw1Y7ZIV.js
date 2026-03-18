@@ -19259,6 +19259,23 @@ var Clock = createLucideIcon("clock", [["circle", {
 	d: "M12 6v6l4 2",
 	key: "mmk7yg"
 }]]);
+var Database = createLucideIcon("database", [
+	["ellipse", {
+		cx: "12",
+		cy: "5",
+		rx: "9",
+		ry: "3",
+		key: "msslwz"
+	}],
+	["path", {
+		d: "M3 5V19A9 3 0 0 0 21 19V5",
+		key: "1wlel7"
+	}],
+	["path", {
+		d: "M3 12A9 3 0 0 0 21 12",
+		key: "mv7ke4"
+	}]
+]);
 var Download = createLucideIcon("download", [
 	["path", {
 		d: "M12 15V3",
@@ -19307,6 +19324,33 @@ var ExternalLink = createLucideIcon("external-link", [
 		key: "a6xqqp"
 	}]
 ]);
+var EyeOff = createLucideIcon("eye-off", [
+	["path", {
+		d: "M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49",
+		key: "ct8e1f"
+	}],
+	["path", {
+		d: "M14.084 14.158a3 3 0 0 1-4.242-4.242",
+		key: "151rxh"
+	}],
+	["path", {
+		d: "M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143",
+		key: "13bj9a"
+	}],
+	["path", {
+		d: "m2 2 20 20",
+		key: "1ooewy"
+	}]
+]);
+var Eye = createLucideIcon("eye", [["path", {
+	d: "M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0",
+	key: "1nclc0"
+}], ["circle", {
+	cx: "12",
+	cy: "12",
+	r: "3",
+	key: "1v7zrd"
+}]]);
 var FileText = createLucideIcon("file-text", [
 	["path", {
 		d: "M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z",
@@ -19333,6 +19377,22 @@ var Funnel = createLucideIcon("funnel", [["path", {
 	d: "M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z",
 	key: "sc7q7i"
 }]]);
+var Key = createLucideIcon("key", [
+	["path", {
+		d: "m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4",
+		key: "g0fldk"
+	}],
+	["path", {
+		d: "m21 2-9.6 9.6",
+		key: "1j0ho8"
+	}],
+	["circle", {
+		cx: "7.5",
+		cy: "15.5",
+		r: "5.5",
+		key: "yqb3hr"
+	}]
+]);
 var LayoutDashboard = createLucideIcon("layout-dashboard", [
 	["rect", {
 		width: "7",
@@ -19550,6 +19610,28 @@ var Ticket = createLucideIcon("ticket", [
 	["path", {
 		d: "M13 11v2",
 		key: "1wjjxi"
+	}]
+]);
+var Trash2 = createLucideIcon("trash-2", [
+	["path", {
+		d: "M10 11v6",
+		key: "nco0om"
+	}],
+	["path", {
+		d: "M14 11v6",
+		key: "outv1u"
+	}],
+	["path", {
+		d: "M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6",
+		key: "miytrc"
+	}],
+	["path", {
+		d: "M3 6h18",
+		key: "d0wm0j"
+	}],
+	["path", {
+		d: "M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2",
+		key: "e791ji"
 	}]
 ]);
 var TrendingUp = createLucideIcon("trending-up", [["path", {
@@ -74458,10 +74540,14 @@ function GoogleCalendarCard() {
 	const { state, dispatch } = useMainStore();
 	const connected = state.settings?.googleCalendarConnected ?? false;
 	const sync = state.settings?.googleCalendarSync ?? false;
+	const email = state.settings?.googleAccountEmail || "usuario@empresa.com";
 	const handleToggle = () => {
 		dispatch({
 			type: "UPDATE_SETTINGS",
-			payload: { googleCalendarConnected: !connected }
+			payload: {
+				googleCalendarConnected: !connected,
+				googleAccountEmail: !connected ? email : void 0
+			}
 		});
 		toast$1({
 			title: !connected ? "Google Calendar Conectado" : "Google Calendar Desconectado",
@@ -74485,88 +74571,111 @@ function GoogleCalendarCard() {
 		});
 	};
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
-		"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:45:5",
+		"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:52:5",
 		"data-prohibitions": "[editContent]",
 		className: "flex flex-col shadow-subtle border-border/50",
 		children: [
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, {
-				"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:46:7",
+				"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:53:7",
 				"data-prohibitions": "[editContent]",
 				children: [
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:47:9",
+						"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:54:9",
 						"data-prohibitions": "[editContent]",
 						className: "flex justify-between items-start",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:48:11",
+							"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:55:11",
 							"data-prohibitions": "[]",
 							className: "p-3 bg-blue-50 text-blue-600 rounded-lg mb-2",
 							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Calendar$1, {
-								"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:49:13",
+								"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:56:13",
 								"data-prohibitions": "[editContent]",
 								className: "h-6 w-6"
 							})
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
-							"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:51:11",
+							"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:58:11",
 							"data-prohibitions": "[editContent]",
 							variant: connected ? "default" : "secondary",
-							className: connected ? "bg-blue-600 hover:bg-blue-700" : "",
+							className: connected ? "bg-green-600 hover:bg-green-700" : "",
 							children: connected ? "Conectado" : "Desconectado"
 						})]
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, {
-						"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:58:9",
+						"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:65:9",
 						"data-prohibitions": "[]",
 						children: "Google Calendar"
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardDescription, {
-						"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:59:9",
+						"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:66:9",
 						"data-prohibitions": "[]",
 						children: "Sincronize visitas agendadas automaticamente com sua agenda."
 					})
 				]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardContent, {
-				"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:63:7",
+				"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:70:7",
 				"data-prohibitions": "[editContent]",
 				className: "flex-1 space-y-4",
-				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-					"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:64:9",
-					"data-prohibitions": "[]",
-					className: "text-sm text-muted-foreground",
-					children: "Ao conectar, todos os novos agendamentos do CRM criarão um evento correspondente no Google Calendar do vendedor associado."
-				}), connected && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:69:11",
-					"data-prohibitions": "[]",
-					className: "flex items-center justify-between pt-2 border-t border-border/50",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label$3, {
-						"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:70:13",
-						"data-prohibitions": "[]",
-						className: "text-sm text-muted-foreground cursor-pointer",
-						htmlFor: "gc-sync",
-						children: "Sincronização Bidirecional"
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Switch, {
-						"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:73:13",
+				children: [
+					connected && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:72:11",
 						"data-prohibitions": "[editContent]",
-						id: "gc-sync",
-						checked: sync,
-						onCheckedChange: handleSyncToggle
-					})]
-				})]
+						className: "p-3 bg-muted/40 border border-border/50 rounded-md flex items-center gap-2",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Calendar$1, {
+							"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:73:13",
+							"data-prohibitions": "[editContent]",
+							className: "h-4 w-4 text-muted-foreground"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+							"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:74:13",
+							"data-prohibitions": "[editContent]",
+							className: "text-sm font-medium",
+							children: ["Conta: ", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+								"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:75:22",
+								"data-prohibitions": "[editContent]",
+								className: "text-muted-foreground font-normal",
+								children: email
+							})]
+						})]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:79:9",
+						"data-prohibitions": "[]",
+						className: "text-sm text-muted-foreground",
+						children: "Ao conectar, todos os novos agendamentos do CRM criarão um evento correspondente no Google Calendar do vendedor associado."
+					}),
+					connected && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:84:11",
+						"data-prohibitions": "[]",
+						className: "flex items-center justify-between pt-2 border-t border-border/50",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label$3, {
+							"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:85:13",
+							"data-prohibitions": "[]",
+							className: "text-sm text-muted-foreground cursor-pointer",
+							htmlFor: "gc-sync",
+							children: "Sincronização Bidirecional"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Switch, {
+							"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:88:13",
+							"data-prohibitions": "[editContent]",
+							id: "gc-sync",
+							checked: sync,
+							onCheckedChange: handleSyncToggle
+						})]
+					})
+				]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardFooter, {
-				"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:77:7",
+				"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:92:7",
 				"data-prohibitions": "[editContent]",
 				className: "flex flex-wrap gap-2",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button$1, {
-					"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:78:9",
+					"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:93:9",
 					"data-prohibitions": "[editContent]",
 					variant: connected ? "outline" : "default",
 					onClick: handleToggle,
 					className: "flex-1",
 					children: connected ? "Desconectar Conta" : "Conectar Conta"
 				}), connected && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button$1, {
-					"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:86:11",
+					"data-uid": "src/pages/Settings/GoogleCalendarCard.tsx:101:11",
 					"data-prohibitions": "[]",
 					variant: "secondary",
 					onClick: testConnection,
@@ -74707,11 +74816,15 @@ function EmailSettingsCard() {
 function WhatsAppCard() {
 	const { state, dispatch } = useMainStore();
 	const connected = state.settings?.whatsappConnected ?? false;
+	const phone = state.settings?.whatsappPhoneNumber || "+55 11 99999-9999";
 	const [welcomeMsg, setWelcomeMsg] = (0, import_react.useState)(true);
 	const handleConnect = () => {
 		dispatch({
 			type: "UPDATE_SETTINGS",
-			payload: { whatsappConnected: !connected }
+			payload: {
+				whatsappConnected: !connected,
+				whatsappPhoneNumber: !connected ? phone : void 0
+			}
 		});
 		toast$1({
 			title: connected ? "WhatsApp Desconectado" : "WhatsApp Conectado",
@@ -74725,29 +74838,29 @@ function WhatsAppCard() {
 		});
 	};
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
-		"data-uid": "src/pages/Settings/WhatsAppCard.tsx:39:5",
+		"data-uid": "src/pages/Settings/WhatsAppCard.tsx:46:5",
 		"data-prohibitions": "[editContent]",
 		className: "flex flex-col shadow-subtle border-border/50",
 		children: [
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, {
-				"data-uid": "src/pages/Settings/WhatsAppCard.tsx:40:7",
+				"data-uid": "src/pages/Settings/WhatsAppCard.tsx:47:7",
 				"data-prohibitions": "[editContent]",
 				children: [
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						"data-uid": "src/pages/Settings/WhatsAppCard.tsx:41:9",
+						"data-uid": "src/pages/Settings/WhatsAppCard.tsx:48:9",
 						"data-prohibitions": "[editContent]",
 						className: "flex justify-between items-start",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							"data-uid": "src/pages/Settings/WhatsAppCard.tsx:42:11",
+							"data-uid": "src/pages/Settings/WhatsAppCard.tsx:49:11",
 							"data-prohibitions": "[]",
 							className: "p-3 bg-green-50 text-green-600 rounded-lg mb-2",
 							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(MessageCircle, {
-								"data-uid": "src/pages/Settings/WhatsAppCard.tsx:43:13",
+								"data-uid": "src/pages/Settings/WhatsAppCard.tsx:50:13",
 								"data-prohibitions": "[editContent]",
 								className: "h-6 w-6"
 							})
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
-							"data-uid": "src/pages/Settings/WhatsAppCard.tsx:45:11",
+							"data-uid": "src/pages/Settings/WhatsAppCard.tsx:52:11",
 							"data-prohibitions": "[editContent]",
 							variant: connected ? "default" : "secondary",
 							className: connected ? "bg-green-600 hover:bg-green-700" : "",
@@ -74755,38 +74868,57 @@ function WhatsAppCard() {
 						})]
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, {
-						"data-uid": "src/pages/Settings/WhatsAppCard.tsx:52:9",
+						"data-uid": "src/pages/Settings/WhatsAppCard.tsx:59:9",
 						"data-prohibitions": "[]",
 						children: "Integração WhatsApp"
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardDescription, {
-						"data-uid": "src/pages/Settings/WhatsAppCard.tsx:53:9",
+						"data-uid": "src/pages/Settings/WhatsAppCard.tsx:60:9",
 						"data-prohibitions": "[]",
 						children: "Envie mensagens diretas via WhatsApp Web API."
 					})
 				]
 			}),
-			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardContent, {
-				"data-uid": "src/pages/Settings/WhatsAppCard.tsx:55:7",
-				"data-prohibitions": "[]",
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardContent, {
+				"data-uid": "src/pages/Settings/WhatsAppCard.tsx:62:7",
+				"data-prohibitions": "[editContent]",
 				className: "flex-1 space-y-6",
-				children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					"data-uid": "src/pages/Settings/WhatsAppCard.tsx:56:9",
+				children: [connected && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					"data-uid": "src/pages/Settings/WhatsAppCard.tsx:64:11",
+					"data-prohibitions": "[editContent]",
+					className: "p-3 bg-muted/40 border border-border/50 rounded-md flex items-center gap-2",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Phone, {
+						"data-uid": "src/pages/Settings/WhatsAppCard.tsx:65:13",
+						"data-prohibitions": "[editContent]",
+						className: "h-4 w-4 text-muted-foreground"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+						"data-uid": "src/pages/Settings/WhatsAppCard.tsx:66:13",
+						"data-prohibitions": "[editContent]",
+						className: "text-sm font-medium",
+						children: ["Número: ", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+							"data-uid": "src/pages/Settings/WhatsAppCard.tsx:67:23",
+							"data-prohibitions": "[editContent]",
+							className: "text-muted-foreground font-normal",
+							children: phone
+						})]
+					})]
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					"data-uid": "src/pages/Settings/WhatsAppCard.tsx:71:9",
 					"data-prohibitions": "[]",
 					className: "space-y-4",
 					children: [
 						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							"data-uid": "src/pages/Settings/WhatsAppCard.tsx:57:11",
+							"data-uid": "src/pages/Settings/WhatsAppCard.tsx:72:11",
 							"data-prohibitions": "[]",
 							className: "flex items-center justify-between",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label$3, {
-								"data-uid": "src/pages/Settings/WhatsAppCard.tsx:58:13",
+								"data-uid": "src/pages/Settings/WhatsAppCard.tsx:73:13",
 								"data-prohibitions": "[]",
 								className: "text-sm text-muted-foreground cursor-pointer",
 								htmlFor: "wa-welcome",
 								children: "Mensagem de Boas-vindas p/ Prescritores"
 							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Switch, {
-								"data-uid": "src/pages/Settings/WhatsAppCard.tsx:61:13",
+								"data-uid": "src/pages/Settings/WhatsAppCard.tsx:76:13",
 								"data-prohibitions": "[editContent]",
 								id: "wa-welcome",
 								checked: welcomeMsg,
@@ -74795,17 +74927,17 @@ function WhatsAppCard() {
 							})]
 						}),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							"data-uid": "src/pages/Settings/WhatsAppCard.tsx:68:11",
+							"data-uid": "src/pages/Settings/WhatsAppCard.tsx:83:11",
 							"data-prohibitions": "[]",
 							className: "flex items-center justify-between",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label$3, {
-								"data-uid": "src/pages/Settings/WhatsAppCard.tsx:69:13",
+								"data-uid": "src/pages/Settings/WhatsAppCard.tsx:84:13",
 								"data-prohibitions": "[]",
 								className: "text-sm text-muted-foreground cursor-pointer",
 								htmlFor: "wa-delay",
 								children: "Alertas Automáticos de Atraso"
 							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Switch, {
-								"data-uid": "src/pages/Settings/WhatsAppCard.tsx:72:13",
+								"data-uid": "src/pages/Settings/WhatsAppCard.tsx:87:13",
 								"data-prohibitions": "[editContent]",
 								id: "wa-delay",
 								defaultChecked: true,
@@ -74813,17 +74945,17 @@ function WhatsAppCard() {
 							})]
 						}),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							"data-uid": "src/pages/Settings/WhatsAppCard.tsx:74:11",
+							"data-uid": "src/pages/Settings/WhatsAppCard.tsx:89:11",
 							"data-prohibitions": "[]",
 							className: "flex items-center justify-between",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label$3, {
-								"data-uid": "src/pages/Settings/WhatsAppCard.tsx:75:13",
+								"data-uid": "src/pages/Settings/WhatsAppCard.tsx:90:13",
 								"data-prohibitions": "[]",
 								className: "text-sm text-muted-foreground cursor-pointer",
 								htmlFor: "wa-1h-reminder",
-								children: "Lembrete Automático (1 hora antes do Meet)"
+								children: "Lembrete Automático via WhatsApp"
 							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Switch, {
-								"data-uid": "src/pages/Settings/WhatsAppCard.tsx:81:13",
+								"data-uid": "src/pages/Settings/WhatsAppCard.tsx:96:13",
 								"data-prohibitions": "[editContent]",
 								id: "wa-1h-reminder",
 								checked: state.settings?.whatsappReminder1h ?? false,
@@ -74835,21 +74967,21 @@ function WhatsAppCard() {
 							})]
 						})
 					]
-				})
+				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardFooter, {
-				"data-uid": "src/pages/Settings/WhatsAppCard.tsx:92:7",
+				"data-uid": "src/pages/Settings/WhatsAppCard.tsx:107:7",
 				"data-prohibitions": "[editContent]",
 				className: "flex flex-wrap gap-2",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button$1, {
-					"data-uid": "src/pages/Settings/WhatsAppCard.tsx:93:9",
+					"data-uid": "src/pages/Settings/WhatsAppCard.tsx:108:9",
 					"data-prohibitions": "[editContent]",
 					variant: connected ? "outline" : "default",
 					onClick: handleConnect,
 					className: "flex-1",
-					children: connected ? "Desconectar" : "Escanear QR Code"
+					children: connected ? "Desconectar Conta" : "Escanear QR Code"
 				}), connected && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button$1, {
-					"data-uid": "src/pages/Settings/WhatsAppCard.tsx:101:11",
+					"data-uid": "src/pages/Settings/WhatsAppCard.tsx:116:11",
 					"data-prohibitions": "[]",
 					variant: "secondary",
 					onClick: testConnection,
@@ -75303,10 +75435,14 @@ function TeamRegistrationCard() {
 function GoogleMeetCard() {
 	const { state, dispatch } = useMainStore();
 	const connected = state.settings?.googleMeetConnected ?? false;
+	const email = state.settings?.googleAccountEmail || "usuario@empresa.com";
 	const handleToggle = () => {
 		dispatch({
 			type: "UPDATE_SETTINGS",
-			payload: { googleMeetConnected: !connected }
+			payload: {
+				googleMeetConnected: !connected,
+				googleAccountEmail: !connected ? email : void 0
+			}
 		});
 		toast$1({
 			title: !connected ? "Google Meet Conectado" : "Google Meet Desconectado",
@@ -75314,68 +75450,87 @@ function GoogleMeetCard() {
 		});
 	};
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
-		"data-uid": "src/pages/Settings/GoogleMeetCard.tsx:30:5",
+		"data-uid": "src/pages/Settings/GoogleMeetCard.tsx:37:5",
 		"data-prohibitions": "[editContent]",
 		className: "flex flex-col shadow-subtle border-border/50",
 		children: [
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, {
-				"data-uid": "src/pages/Settings/GoogleMeetCard.tsx:31:7",
+				"data-uid": "src/pages/Settings/GoogleMeetCard.tsx:38:7",
 				"data-prohibitions": "[editContent]",
 				children: [
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						"data-uid": "src/pages/Settings/GoogleMeetCard.tsx:32:9",
+						"data-uid": "src/pages/Settings/GoogleMeetCard.tsx:39:9",
 						"data-prohibitions": "[editContent]",
 						className: "flex justify-between items-start",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							"data-uid": "src/pages/Settings/GoogleMeetCard.tsx:33:11",
+							"data-uid": "src/pages/Settings/GoogleMeetCard.tsx:40:11",
 							"data-prohibitions": "[]",
 							className: "p-3 bg-teal-50 text-teal-600 rounded-lg mb-2",
 							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Video, {
-								"data-uid": "src/pages/Settings/GoogleMeetCard.tsx:34:13",
+								"data-uid": "src/pages/Settings/GoogleMeetCard.tsx:41:13",
 								"data-prohibitions": "[editContent]",
 								className: "h-6 w-6"
 							})
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
-							"data-uid": "src/pages/Settings/GoogleMeetCard.tsx:36:11",
+							"data-uid": "src/pages/Settings/GoogleMeetCard.tsx:43:11",
 							"data-prohibitions": "[editContent]",
 							variant: connected ? "default" : "secondary",
-							className: connected ? "bg-teal-600 hover:bg-teal-700" : "",
+							className: connected ? "bg-green-600 hover:bg-green-700" : "",
 							children: connected ? "Conectado" : "Desconectado"
 						})]
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, {
-						"data-uid": "src/pages/Settings/GoogleMeetCard.tsx:43:9",
+						"data-uid": "src/pages/Settings/GoogleMeetCard.tsx:50:9",
 						"data-prohibitions": "[]",
 						children: "Google Meet"
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardDescription, {
-						"data-uid": "src/pages/Settings/GoogleMeetCard.tsx:44:9",
+						"data-uid": "src/pages/Settings/GoogleMeetCard.tsx:51:9",
 						"data-prohibitions": "[]",
 						children: "Gere links de reunião para agendamentos virtuais."
 					})
 				]
 			}),
-			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardContent, {
-				"data-uid": "src/pages/Settings/GoogleMeetCard.tsx:46:7",
-				"data-prohibitions": "[]",
-				className: "flex-1",
-				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-					"data-uid": "src/pages/Settings/GoogleMeetCard.tsx:47:9",
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardContent, {
+				"data-uid": "src/pages/Settings/GoogleMeetCard.tsx:53:7",
+				"data-prohibitions": "[editContent]",
+				className: "flex-1 space-y-4",
+				children: [connected && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					"data-uid": "src/pages/Settings/GoogleMeetCard.tsx:55:11",
+					"data-prohibitions": "[editContent]",
+					className: "p-3 bg-muted/40 border border-border/50 rounded-md flex items-center gap-2",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Video, {
+						"data-uid": "src/pages/Settings/GoogleMeetCard.tsx:56:13",
+						"data-prohibitions": "[editContent]",
+						className: "h-4 w-4 text-muted-foreground"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+						"data-uid": "src/pages/Settings/GoogleMeetCard.tsx:57:13",
+						"data-prohibitions": "[editContent]",
+						className: "text-sm font-medium",
+						children: ["Conta: ", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+							"data-uid": "src/pages/Settings/GoogleMeetCard.tsx:58:22",
+							"data-prohibitions": "[editContent]",
+							className: "text-muted-foreground font-normal",
+							children: email
+						})]
+					})]
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					"data-uid": "src/pages/Settings/GoogleMeetCard.tsx:62:9",
 					"data-prohibitions": "[]",
 					className: "text-sm text-muted-foreground",
 					children: "Conecte sua conta do Google Workspace para criar salas de videoconferência únicas em cada novo agendamento marcado como \"Reunião Virtual\"."
-				})
+				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardFooter, {
-				"data-uid": "src/pages/Settings/GoogleMeetCard.tsx:52:7",
+				"data-uid": "src/pages/Settings/GoogleMeetCard.tsx:67:7",
 				"data-prohibitions": "[editContent]",
 				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button$1, {
-					"data-uid": "src/pages/Settings/GoogleMeetCard.tsx:53:9",
+					"data-uid": "src/pages/Settings/GoogleMeetCard.tsx:68:9",
 					"data-prohibitions": "[editContent]",
 					variant: connected ? "outline" : "default",
 					onClick: handleToggle,
 					className: "w-full",
-					children: connected ? "Desconectar Conta" : "Autorizar Google Meet"
+					children: connected ? "Desconectar Conta" : "Conectar Conta"
 				})
 			})
 		]
@@ -75411,7 +75566,7 @@ function ReportsSettingsCard() {
 				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, {
 					"data-uid": "src/pages/Settings/ReportsSettingsCard.tsx:18:9",
 					"data-prohibitions": "[]",
-					children: "Relatórios e CRM"
+					children: "CRM & Relatórios"
 				}),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardDescription, {
 					"data-uid": "src/pages/Settings/ReportsSettingsCard.tsx:19:9",
@@ -75440,7 +75595,7 @@ function ReportsSettingsCard() {
 							"data-uid": "src/pages/Settings/ReportsSettingsCard.tsx:30:15",
 							"data-prohibitions": "[]",
 							className: "font-medium text-foreground block mb-1",
-							children: "Gerar Relatórios de Participação"
+							children: "Relatórios de Participação Automáticos"
 						}), "Pré-preencher os relatórios de presença automaticamente após o fim de reuniões via Google Meet."]
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Switch, {
 						"data-uid": "src/pages/Settings/ReportsSettingsCard.tsx:36:13",
@@ -75483,57 +75638,442 @@ function ReportsSettingsCard() {
 	});
 }
 //#endregion
+//#region src/pages/Settings/DatabaseStatusCard.tsx
+function DatabaseStatusCard() {
+	const { state } = useMainStore();
+	const status = state.settings?.supabaseStatus || "connected";
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
+		"data-uid": "src/pages/Settings/DatabaseStatusCard.tsx:11:5",
+		"data-prohibitions": "[editContent]",
+		className: "flex flex-col shadow-subtle border-border/50 h-full",
+		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, {
+			"data-uid": "src/pages/Settings/DatabaseStatusCard.tsx:12:7",
+			"data-prohibitions": "[editContent]",
+			children: [
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					"data-uid": "src/pages/Settings/DatabaseStatusCard.tsx:13:9",
+					"data-prohibitions": "[editContent]",
+					className: "flex justify-between items-start",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						"data-uid": "src/pages/Settings/DatabaseStatusCard.tsx:14:11",
+						"data-prohibitions": "[]",
+						className: "p-3 bg-slate-100 text-slate-700 rounded-lg mb-2",
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Database, {
+							"data-uid": "src/pages/Settings/DatabaseStatusCard.tsx:15:13",
+							"data-prohibitions": "[editContent]",
+							className: "h-6 w-6"
+						})
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
+						"data-uid": "src/pages/Settings/DatabaseStatusCard.tsx:17:11",
+						"data-prohibitions": "[editContent]",
+						variant: status === "connected" ? "default" : "secondary",
+						className: status === "connected" ? "bg-green-600 hover:bg-green-700" : "",
+						children: status === "connected" ? "Conectado" : "Pendente"
+					})]
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, {
+					"data-uid": "src/pages/Settings/DatabaseStatusCard.tsx:24:9",
+					"data-prohibitions": "[]",
+					children: "Configuração do Banco de Dados"
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardDescription, {
+					"data-uid": "src/pages/Settings/DatabaseStatusCard.tsx:25:9",
+					"data-prohibitions": "[]",
+					children: "Conexão com o banco de dados oficial Supabase."
+				})
+			]
+		}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardContent, {
+			"data-uid": "src/pages/Settings/DatabaseStatusCard.tsx:27:7",
+			"data-prohibitions": "[editContent]",
+			className: "flex-1 space-y-4",
+			children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				"data-uid": "src/pages/Settings/DatabaseStatusCard.tsx:28:9",
+				"data-prohibitions": "[editContent]",
+				className: "rounded-md bg-muted/50 p-4 flex items-start gap-3 border border-border/50",
+				children: [status === "connected" ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CircleCheck, {
+					"data-uid": "src/pages/Settings/DatabaseStatusCard.tsx:30:13",
+					"data-prohibitions": "[editContent]",
+					className: "h-5 w-5 text-green-600 mt-0.5 shrink-0"
+				}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CircleAlert, {
+					"data-uid": "src/pages/Settings/DatabaseStatusCard.tsx:32:13",
+					"data-prohibitions": "[editContent]",
+					className: "h-5 w-5 text-amber-500 mt-0.5 shrink-0"
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					"data-uid": "src/pages/Settings/DatabaseStatusCard.tsx:34:11",
+					"data-prohibitions": "[]",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						"data-uid": "src/pages/Settings/DatabaseStatusCard.tsx:35:13",
+						"data-prohibitions": "[]",
+						className: "text-sm font-medium",
+						children: "Status da Conexão"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						"data-uid": "src/pages/Settings/DatabaseStatusCard.tsx:36:13",
+						"data-prohibitions": "[]",
+						className: "text-sm text-muted-foreground mt-1",
+						children: "O sistema está utilizando o banco de dados oficial fornecido pelo usuário. As operações de leitura e escrita estão funcionando normalmente e sincronizadas em tempo real."
+					})]
+				})]
+			})
+		})]
+	});
+}
+//#endregion
+//#region src/pages/Settings/SecretsVaultCard.tsx
+function SecretsVaultCard() {
+	const { state, dispatch } = useMainStore();
+	const secrets = state.settings?.secrets || [];
+	const [key, setKey] = (0, import_react.useState)("");
+	const [value, setValue] = (0, import_react.useState)("");
+	const [showValue, setShowValue] = (0, import_react.useState)(false);
+	const [visibleSecrets, setVisibleSecrets] = (0, import_react.useState)({});
+	const suggestions = [
+		"GOOGLE_CLIENT_ID",
+		"WHATSAPP_API_TOKEN",
+		"CRM_INTEGRATION_KEY"
+	];
+	const handleAddSecret = () => {
+		if (!key.trim() || !value.trim()) {
+			toast$1({
+				title: "Erro",
+				description: "Preencha a chave e o valor.",
+				variant: "destructive"
+			});
+			return;
+		}
+		const newSecret = {
+			id: `sec-${Date.now()}`,
+			key: key.trim(),
+			value: value.trim()
+		};
+		dispatch({
+			type: "UPDATE_SETTINGS",
+			payload: { secrets: [...secrets, newSecret] }
+		});
+		toast$1({
+			title: "Secret Adicionada",
+			description: "Credencial salva com sucesso."
+		});
+		setKey("");
+		setValue("");
+	};
+	const handleRemoveSecret = (id) => {
+		dispatch({
+			type: "UPDATE_SETTINGS",
+			payload: { secrets: secrets.filter((s) => s.id !== id) }
+		});
+		toast$1({
+			title: "Secret Removida",
+			description: "Credencial apagada do cofre."
+		});
+	};
+	const toggleVisibility = (id) => {
+		setVisibleSecrets((prev) => ({
+			...prev,
+			[id]: !prev[id]
+		}));
+	};
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
+		"data-uid": "src/pages/Settings/SecretsVaultCard.tsx:45:5",
+		"data-prohibitions": "[editContent]",
+		className: "flex flex-col shadow-subtle border-border/50 h-full",
+		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, {
+			"data-uid": "src/pages/Settings/SecretsVaultCard.tsx:46:7",
+			"data-prohibitions": "[editContent]",
+			children: [
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					"data-uid": "src/pages/Settings/SecretsVaultCard.tsx:47:9",
+					"data-prohibitions": "[editContent]",
+					className: "flex justify-between items-start",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						"data-uid": "src/pages/Settings/SecretsVaultCard.tsx:48:11",
+						"data-prohibitions": "[]",
+						className: "p-3 bg-zinc-100 text-zinc-700 rounded-lg mb-2",
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Key, {
+							"data-uid": "src/pages/Settings/SecretsVaultCard.tsx:49:13",
+							"data-prohibitions": "[editContent]",
+							className: "h-6 w-6"
+						})
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Badge, {
+						"data-uid": "src/pages/Settings/SecretsVaultCard.tsx:51:11",
+						"data-prohibitions": "[editContent]",
+						variant: "secondary",
+						children: [secrets.length, " Chaves"]
+					})]
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, {
+					"data-uid": "src/pages/Settings/SecretsVaultCard.tsx:53:9",
+					"data-prohibitions": "[]",
+					children: "Gerenciamento de Secrets"
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardDescription, {
+					"data-uid": "src/pages/Settings/SecretsVaultCard.tsx:54:9",
+					"data-prohibitions": "[]",
+					children: "Cofre seguro para credenciais e tokens de API externos."
+				})
+			]
+		}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardContent, {
+			"data-uid": "src/pages/Settings/SecretsVaultCard.tsx:56:7",
+			"data-prohibitions": "[editContent]",
+			className: "space-y-6 flex-1 flex flex-col",
+			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				"data-uid": "src/pages/Settings/SecretsVaultCard.tsx:57:9",
+				"data-prohibitions": "[editContent]",
+				className: "space-y-4 p-4 border rounded-md bg-muted/20",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						"data-uid": "src/pages/Settings/SecretsVaultCard.tsx:58:11",
+						"data-prohibitions": "[editContent]",
+						className: "space-y-2",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label$3, {
+								"data-uid": "src/pages/Settings/SecretsVaultCard.tsx:59:13",
+								"data-prohibitions": "[]",
+								htmlFor: "secret-key",
+								children: "Nome da Chave"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+								"data-uid": "src/pages/Settings/SecretsVaultCard.tsx:60:13",
+								"data-prohibitions": "[editContent]",
+								id: "secret-key",
+								placeholder: "Ex: API_TOKEN",
+								value: key,
+								onChange: (e) => setKey(e.target.value)
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								"data-uid": "src/pages/Settings/SecretsVaultCard.tsx:66:13",
+								"data-prohibitions": "[editContent]",
+								className: "flex flex-wrap gap-2 mt-2",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+									"data-uid": "src/pages/Settings/SecretsVaultCard.tsx:67:15",
+									"data-prohibitions": "[]",
+									className: "text-xs text-muted-foreground self-center",
+									children: "Sugestões:"
+								}), suggestions.map((s) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
+									"data-uid": "src/pages/Settings/SecretsVaultCard.tsx:69:17",
+									"data-prohibitions": "[editContent]",
+									variant: "outline",
+									className: "text-[10px] cursor-pointer hover:bg-muted font-normal",
+									onClick: () => setKey(s),
+									children: s
+								}, s))]
+							})
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						"data-uid": "src/pages/Settings/SecretsVaultCard.tsx:80:11",
+						"data-prohibitions": "[editContent]",
+						className: "space-y-2",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label$3, {
+							"data-uid": "src/pages/Settings/SecretsVaultCard.tsx:81:13",
+							"data-prohibitions": "[]",
+							htmlFor: "secret-value",
+							children: "Valor"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							"data-uid": "src/pages/Settings/SecretsVaultCard.tsx:82:13",
+							"data-prohibitions": "[editContent]",
+							className: "relative",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+								"data-uid": "src/pages/Settings/SecretsVaultCard.tsx:83:15",
+								"data-prohibitions": "[editContent]",
+								id: "secret-value",
+								type: showValue ? "text" : "password",
+								placeholder: "Insira o token ou credencial",
+								value,
+								onChange: (e) => setValue(e.target.value),
+								className: "pr-10"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+								"data-uid": "src/pages/Settings/SecretsVaultCard.tsx:91:15",
+								"data-prohibitions": "[editContent]",
+								type: "button",
+								onClick: () => setShowValue(!showValue),
+								className: "absolute right-3 top-2.5 text-muted-foreground hover:text-foreground transition-colors",
+								children: showValue ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(EyeOff, {
+									"data-uid": "src/pages/Settings/SecretsVaultCard.tsx:96:30",
+									"data-prohibitions": "[editContent]",
+									className: "h-4 w-4"
+								}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Eye, {
+									"data-uid": "src/pages/Settings/SecretsVaultCard.tsx:96:63",
+									"data-prohibitions": "[editContent]",
+									className: "h-4 w-4"
+								})
+							})]
+						})]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button$1, {
+						"data-uid": "src/pages/Settings/SecretsVaultCard.tsx:100:11",
+						"data-prohibitions": "[]",
+						onClick: handleAddSecret,
+						className: "w-full gap-2",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Plus, {
+							"data-uid": "src/pages/Settings/SecretsVaultCard.tsx:101:13",
+							"data-prohibitions": "[editContent]",
+							className: "h-4 w-4"
+						}), " Adicionar Secret"]
+					})
+				]
+			}), secrets.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				"data-uid": "src/pages/Settings/SecretsVaultCard.tsx:106:11",
+				"data-prohibitions": "[editContent]",
+				className: "space-y-3 flex-1 overflow-y-auto min-h-0",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label$3, {
+					"data-uid": "src/pages/Settings/SecretsVaultCard.tsx:107:13",
+					"data-prohibitions": "[]",
+					className: "text-muted-foreground text-xs uppercase tracking-wider",
+					children: "Credenciais Salvas"
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+					"data-uid": "src/pages/Settings/SecretsVaultCard.tsx:110:13",
+					"data-prohibitions": "[editContent]",
+					className: "space-y-2",
+					children: secrets.map((secret) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						"data-uid": "src/pages/Settings/SecretsVaultCard.tsx:112:17",
+						"data-prohibitions": "[editContent]",
+						className: "flex items-center justify-between p-3 border rounded-md bg-background shadow-sm",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							"data-uid": "src/pages/Settings/SecretsVaultCard.tsx:116:19",
+							"data-prohibitions": "[editContent]",
+							className: "overflow-hidden mr-4",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								"data-uid": "src/pages/Settings/SecretsVaultCard.tsx:117:21",
+								"data-prohibitions": "[editContent]",
+								className: "text-xs font-semibold text-foreground truncate",
+								children: secret.key
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								"data-uid": "src/pages/Settings/SecretsVaultCard.tsx:118:21",
+								"data-prohibitions": "[editContent]",
+								className: "text-[11px] font-mono text-muted-foreground truncate mt-0.5",
+								children: visibleSecrets[secret.id] ? secret.value : "••••••••••••••••••••••••"
+							})]
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							"data-uid": "src/pages/Settings/SecretsVaultCard.tsx:122:19",
+							"data-prohibitions": "[editContent]",
+							className: "flex items-center gap-1 shrink-0",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button$1, {
+								"data-uid": "src/pages/Settings/SecretsVaultCard.tsx:123:21",
+								"data-prohibitions": "[editContent]",
+								variant: "ghost",
+								size: "icon",
+								className: "h-7 w-7",
+								onClick: () => toggleVisibility(secret.id),
+								children: visibleSecrets[secret.id] ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(EyeOff, {
+									"data-uid": "src/pages/Settings/SecretsVaultCard.tsx:130:25",
+									"data-prohibitions": "[editContent]",
+									className: "h-3.5 w-3.5"
+								}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Eye, {
+									"data-uid": "src/pages/Settings/SecretsVaultCard.tsx:132:25",
+									"data-prohibitions": "[editContent]",
+									className: "h-3.5 w-3.5"
+								})
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button$1, {
+								"data-uid": "src/pages/Settings/SecretsVaultCard.tsx:135:21",
+								"data-prohibitions": "[]",
+								variant: "ghost",
+								size: "icon",
+								className: "h-7 w-7 text-destructive hover:bg-destructive/10",
+								onClick: () => handleRemoveSecret(secret.id),
+								children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Trash2, {
+									"data-uid": "src/pages/Settings/SecretsVaultCard.tsx:141:23",
+									"data-prohibitions": "[editContent]",
+									className: "h-3.5 w-3.5"
+								})
+							})]
+						})]
+					}, secret.id))
+				})]
+			})]
+		})]
+	});
+}
+//#endregion
 //#region src/pages/Settings/Index.tsx
 function SettingsPage() {
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-		"data-uid": "src/pages/Settings/Index.tsx:10:5",
+		"data-uid": "src/pages/Settings/Index.tsx:13:5",
 		"data-prohibitions": "[]",
-		className: "space-y-6 animate-slide-up pb-8",
-		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-			"data-uid": "src/pages/Settings/Index.tsx:11:7",
-			"data-prohibitions": "[]",
-			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", {
-				"data-uid": "src/pages/Settings/Index.tsx:12:9",
+		className: "space-y-8 animate-slide-up pb-8",
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				"data-uid": "src/pages/Settings/Index.tsx:14:7",
 				"data-prohibitions": "[]",
-				className: "text-2xl font-bold tracking-tight",
-				children: "Configurações & Integrações"
-			}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-				"data-uid": "src/pages/Settings/Index.tsx:13:9",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", {
+					"data-uid": "src/pages/Settings/Index.tsx:15:9",
+					"data-prohibitions": "[]",
+					className: "text-2xl font-bold tracking-tight",
+					children: "Configurações do Sistema"
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					"data-uid": "src/pages/Settings/Index.tsx:16:9",
+					"data-prohibitions": "[]",
+					className: "text-muted-foreground mt-1",
+					children: "Gerencie conexões com o banco de dados oficial, credenciais e integrações externas."
+				})]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				"data-uid": "src/pages/Settings/Index.tsx:21:7",
 				"data-prohibitions": "[]",
-				className: "text-muted-foreground",
-				children: "Gerencie conexões com serviços externos, automatize fluxos e controle acessos."
-			})]
-		}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-			"data-uid": "src/pages/Settings/Index.tsx:17:7",
-			"data-prohibitions": "[]",
-			className: "grid gap-6 md:grid-cols-2 lg:grid-cols-3",
-			children: [
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(GoogleCalendarCard, {
-					"data-uid": "src/pages/Settings/Index.tsx:18:9",
-					"data-prohibitions": "[editContent]"
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(GoogleMeetCard, {
-					"data-uid": "src/pages/Settings/Index.tsx:19:9",
-					"data-prohibitions": "[editContent]"
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ReportsSettingsCard, {
-					"data-uid": "src/pages/Settings/Index.tsx:20:9",
-					"data-prohibitions": "[editContent]"
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(EmailSettingsCard, {
-					"data-uid": "src/pages/Settings/Index.tsx:21:9",
-					"data-prohibitions": "[editContent]"
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(WhatsAppCard, {
+				className: "space-y-4",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
 					"data-uid": "src/pages/Settings/Index.tsx:22:9",
-					"data-prohibitions": "[editContent]"
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TeamRegistrationCard, {
+					"data-prohibitions": "[]",
+					className: "text-lg font-semibold tracking-tight",
+					children: "Infraestrutura e Segurança"
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 					"data-uid": "src/pages/Settings/Index.tsx:23:9",
-					"data-prohibitions": "[editContent]"
-				})
-			]
-		})]
+					"data-prohibitions": "[]",
+					className: "grid gap-6 md:grid-cols-2",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DatabaseStatusCard, {
+						"data-uid": "src/pages/Settings/Index.tsx:24:11",
+						"data-prohibitions": "[editContent]"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SecretsVaultCard, {
+						"data-uid": "src/pages/Settings/Index.tsx:25:11",
+						"data-prohibitions": "[editContent]"
+					})]
+				})]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Separator$2, {
+				"data-uid": "src/pages/Settings/Index.tsx:29:7",
+				"data-prohibitions": "[editContent]"
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				"data-uid": "src/pages/Settings/Index.tsx:31:7",
+				"data-prohibitions": "[]",
+				className: "space-y-4",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+					"data-uid": "src/pages/Settings/Index.tsx:32:9",
+					"data-prohibitions": "[]",
+					className: "text-lg font-semibold tracking-tight",
+					children: "Integrações de Serviço"
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					"data-uid": "src/pages/Settings/Index.tsx:33:9",
+					"data-prohibitions": "[]",
+					className: "grid gap-6 md:grid-cols-2 lg:grid-cols-3",
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(GoogleCalendarCard, {
+							"data-uid": "src/pages/Settings/Index.tsx:34:11",
+							"data-prohibitions": "[editContent]"
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(GoogleMeetCard, {
+							"data-uid": "src/pages/Settings/Index.tsx:35:11",
+							"data-prohibitions": "[editContent]"
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(WhatsAppCard, {
+							"data-uid": "src/pages/Settings/Index.tsx:36:11",
+							"data-prohibitions": "[editContent]"
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ReportsSettingsCard, {
+							"data-uid": "src/pages/Settings/Index.tsx:37:11",
+							"data-prohibitions": "[editContent]"
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(EmailSettingsCard, {
+							"data-uid": "src/pages/Settings/Index.tsx:38:11",
+							"data-prohibitions": "[editContent]"
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TeamRegistrationCard, {
+							"data-uid": "src/pages/Settings/Index.tsx:39:11",
+							"data-prohibitions": "[editContent]"
+						})
+					]
+				})]
+			})
+		]
 	});
 }
 //#endregion
@@ -76865,4 +77405,4 @@ var App = () => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AppProvider, {
 }));
 //#endregion
 
-//# sourceMappingURL=index-C11dHPJf.js.map
+//# sourceMappingURL=index-Cw1Y7ZIV.js.map

@@ -12,16 +12,23 @@ import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { toast } from '@/hooks/use-toast'
-import { MessageCircle } from 'lucide-react'
+import { MessageCircle, Phone } from 'lucide-react'
 import { useMainStore } from '@/stores/main'
 
 export function WhatsAppCard() {
   const { state, dispatch } = useMainStore()
   const connected = state.settings?.whatsappConnected ?? false
+  const phone = state.settings?.whatsappPhoneNumber || '+55 11 99999-9999'
   const [welcomeMsg, setWelcomeMsg] = useState(true)
 
   const handleConnect = () => {
-    dispatch({ type: 'UPDATE_SETTINGS', payload: { whatsappConnected: !connected } })
+    dispatch({
+      type: 'UPDATE_SETTINGS',
+      payload: {
+        whatsappConnected: !connected,
+        whatsappPhoneNumber: !connected ? phone : undefined,
+      },
+    })
     toast({
       title: connected ? 'WhatsApp Desconectado' : 'WhatsApp Conectado',
       description: connected ? 'A integração foi pausada.' : 'QR Code escaneado com sucesso.',
@@ -53,6 +60,14 @@ export function WhatsAppCard() {
         <CardDescription>Envie mensagens diretas via WhatsApp Web API.</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 space-y-6">
+        {connected && (
+          <div className="p-3 bg-muted/40 border border-border/50 rounded-md flex items-center gap-2">
+            <Phone className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">
+              Número: <span className="text-muted-foreground font-normal">{phone}</span>
+            </span>
+          </div>
+        )}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <Label className="text-sm text-muted-foreground cursor-pointer" htmlFor="wa-welcome">
@@ -76,7 +91,7 @@ export function WhatsAppCard() {
               className="text-sm text-muted-foreground cursor-pointer"
               htmlFor="wa-1h-reminder"
             >
-              Lembrete Automático (1 hora antes do Meet)
+              Lembrete Automático via WhatsApp
             </Label>
             <Switch
               id="wa-1h-reminder"
@@ -95,7 +110,7 @@ export function WhatsAppCard() {
           onClick={handleConnect}
           className="flex-1"
         >
-          {connected ? 'Desconectar' : 'Escanear QR Code'}
+          {connected ? 'Desconectar Conta' : 'Escanear QR Code'}
         </Button>
         {connected && (
           <Button variant="secondary" onClick={testConnection}>

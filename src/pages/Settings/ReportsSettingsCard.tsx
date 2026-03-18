@@ -15,7 +15,7 @@ export function ReportsSettingsCard() {
             <FileText className="h-6 w-6" />
           </div>
         </div>
-        <CardTitle>Relatórios e CRM</CardTitle>
+        <CardTitle>CRM & Relatórios</CardTitle>
         <CardDescription>
           Automatize a geração de relatórios de presença e a atualização de prontuários.
         </CardDescription>
@@ -28,7 +28,7 @@ export function ReportsSettingsCard() {
               htmlFor="auto-generate-reports"
             >
               <span className="font-medium text-foreground block mb-1">
-                Gerar Relatórios de Participação
+                Relatórios de Participação Automáticos
               </span>
               Pré-preencher os relatórios de presença automaticamente após o fim de reuniões via
               Google Meet.
