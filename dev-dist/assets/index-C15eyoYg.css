@@ -846,6 +846,11 @@ section[aria-label='Notifications alt+T'] {
   margin-right: -0.25rem;
 }
 
+.mx-1{
+  margin-left: 0.25rem;
+  margin-right: 0.25rem;
+}
+
 .mx-2{
   margin-left: 0.5rem;
   margin-right: 0.5rem;
@@ -1425,6 +1430,10 @@ section[aria-label='Notifications alt+T'] {
   max-width: 28rem;
 }
 
+.max-w-sm{
+  max-width: 24rem;
+}
+
 .flex-1{
   flex: 1 1 0%;
 }
@@ -1530,6 +1539,17 @@ section[aria-label='Notifications alt+T'] {
 
 .animate-pulse{
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes spin{
+
+  to{
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin{
+  animation: spin 1s linear infinite;
 }
 
 .cursor-default{
@@ -1770,6 +1790,10 @@ section[aria-label='Notifications alt+T'] {
   overflow-wrap: break-word;
 }
 
+.rounded{
+  border-radius: 0.25rem;
+}
+
 .rounded-2xl{
   border-radius: 1rem;
 }
@@ -1844,6 +1868,10 @@ section[aria-label='Notifications alt+T'] {
 
 .border-2{
   border-width: 2px;
+}
+
+.border-4{
+  border-width: 4px;
 }
 
 .border-\[1\.5px\]{
@@ -2431,6 +2459,10 @@ section[aria-label='Notifications alt+T'] {
   padding-top: 1rem;
 }
 
+.pt-6{
+  padding-top: 1.5rem;
+}
+
 .text-left{
   text-align: left;
 }
@@ -2716,6 +2748,11 @@ section[aria-label='Notifications alt+T'] {
 .text-teal-600{
   --tw-text-opacity: 1;
   color: rgb(13 148 136 / var(--tw-text-opacity, 1));
+}
+
+.text-teal-700{
+  --tw-text-opacity: 1;
+  color: rgb(15 118 110 / var(--tw-text-opacity, 1));
 }
 
 .text-teal-800{
@@ -3131,6 +3168,10 @@ section[aria-label='Notifications alt+T'] {
 .last\:rounded-r-md:last-child{
   border-top-right-radius: calc(var(--radius) - 2px);
   border-bottom-right-radius: calc(var(--radius) - 2px);
+}
+
+.hover\:border-primary\/30:hover{
+  border-color: hsl(var(--primary) / 0.3);
 }
 
 .hover\:bg-accent:hover{
@@ -4394,6 +4435,10 @@ section[aria-label='Notifications alt+T'] {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
+  .md\:grid-cols-5{
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
   .md\:flex-row{
     flex-direction: row;
   }
@@ -4447,6 +4492,10 @@ section[aria-label='Notifications alt+T'] {
 
   .lg\:col-span-2{
     grid-column: span 2 / span 2;
+  }
+
+  .lg\:col-span-3{
+    grid-column: span 3 / span 3;
   }
 
   .lg\:max-w-sm{

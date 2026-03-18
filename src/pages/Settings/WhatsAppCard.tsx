@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Card,
   CardHeader,
@@ -8,38 +8,58 @@ import {
   CardFooter,
 } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Switch } from '@/components/ui/switch'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { toast } from '@/hooks/use-toast'
-import { MessageCircle, Phone } from 'lucide-react'
-import { useMainStore } from '@/stores/main'
+import { MessageCircle } from 'lucide-react'
+import { getIntegrations, saveIntegrations } from '@/services/settings'
 
 export function WhatsAppCard() {
-  const { state, dispatch } = useMainStore()
-  const connected = state.settings?.whatsappConnected ?? false
-  const phone = state.settings?.whatsappPhoneNumber || '+55 11 99999-9999'
-  const [welcomeMsg, setWelcomeMsg] = useState(true)
+  const [instanceId, setInstanceId] = useState('')
+  const [apiToken, setApiToken] = useState('')
+  const [connected, setConnected] = useState(false)
+  const [loading, setLoading] = useState(true)
 
-  const handleConnect = () => {
-    dispatch({
-      type: 'UPDATE_SETTINGS',
-      payload: {
-        whatsappConnected: !connected,
-        whatsappPhoneNumber: !connected ? phone : undefined,
-      },
+  useEffect(() => {
+    getIntegrations().then((data) => {
+      if (data) {
+        setInstanceId(data.whatsapp_instance_id || '')
+        setApiToken(data.whatsapp_api_token || '')
+        setConnected(data.whatsapp_connected || false)
+      }
+      setLoading(false)
     })
-    toast({
-      title: connected ? 'WhatsApp Desconectado' : 'WhatsApp Conectado',
-      description: connected ? 'A integração foi pausada.' : 'QR Code escaneado com sucesso.',
+  }, [])
+
+  const handleSave = async () => {
+    if (!instanceId || !apiToken) {
+      toast({
+        title: 'Aviso',
+        description: 'Preencha os campos para conectar.',
+        variant: 'destructive',
+      })
+      return
+    }
+    await saveIntegrations({
+      whatsapp_instance_id: instanceId,
+      whatsapp_api_token: apiToken,
+      whatsapp_connected: true,
     })
+    setConnected(true)
+    toast({ title: 'WhatsApp Conectado', description: 'Credenciais salvas com sucesso.' })
   }
 
-  const testConnection = () => {
-    toast({
-      title: 'Mensagem de Teste',
-      description: 'Um ping de teste foi enviado para o seu número.',
+  const handleDisconnect = async () => {
+    await saveIntegrations({
+      whatsapp_instance_id: null,
+      whatsapp_api_token: null,
+      whatsapp_connected: false,
     })
+    setInstanceId('')
+    setApiToken('')
+    setConnected(false)
+    toast({ title: 'WhatsApp Desconectado' })
   }
 
   return (
@@ -53,68 +73,58 @@ export function WhatsAppCard() {
             variant={connected ? 'default' : 'secondary'}
             className={connected ? 'bg-green-600 hover:bg-green-700' : ''}
           >
-            {connected ? 'Conectado' : 'Desconectado'}
+            {connected ? 'Ativo' : 'Inativo'}
           </Badge>
         </div>
-        <CardTitle>Integração WhatsApp</CardTitle>
-        <CardDescription>Envie mensagens diretas via WhatsApp Web API.</CardDescription>
+        <CardTitle>WhatsApp Individual</CardTitle>
+        <CardDescription>Vincule seu número pessoal ou corporativo via API.</CardDescription>
       </CardHeader>
-      <CardContent className="flex-1 space-y-6">
-        {connected && (
-          <div className="p-3 bg-muted/40 border border-border/50 rounded-md flex items-center gap-2">
-            <Phone className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">
-              Número: <span className="text-muted-foreground font-normal">{phone}</span>
-            </span>
+      <CardContent className="flex-1 space-y-4">
+        {loading ? (
+          <div className="space-y-4 animate-pulse">
+            <div className="h-10 bg-muted rounded"></div>
+            <div className="h-10 bg-muted rounded"></div>
           </div>
+        ) : (
+          <>
+            <div className="space-y-2">
+              <Label>Instance ID</Label>
+              <Input
+                value={instanceId}
+                onChange={(e) => setInstanceId(e.target.value)}
+                placeholder="Ex: id_12345"
+                disabled={connected}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>API Token</Label>
+              <Input
+                value={apiToken}
+                onChange={(e) => setApiToken(e.target.value)}
+                placeholder="Seu token de acesso seguro"
+                type="password"
+                disabled={connected}
+              />
+            </div>
+          </>
         )}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <Label className="text-sm text-muted-foreground cursor-pointer" htmlFor="wa-welcome">
-              Mensagem de Boas-vindas p/ Prescritores
-            </Label>
-            <Switch
-              id="wa-welcome"
-              checked={welcomeMsg}
-              onCheckedChange={setWelcomeMsg}
-              disabled={!connected}
-            />
-          </div>
-          <div className="flex items-center justify-between">
-            <Label className="text-sm text-muted-foreground cursor-pointer" htmlFor="wa-delay">
-              Alertas Automáticos de Atraso
-            </Label>
-            <Switch id="wa-delay" defaultChecked disabled={!connected} />
-          </div>
-          <div className="flex items-center justify-between">
-            <Label
-              className="text-sm text-muted-foreground cursor-pointer"
-              htmlFor="wa-1h-reminder"
-            >
-              Lembrete Automático via WhatsApp
-            </Label>
-            <Switch
-              id="wa-1h-reminder"
-              checked={state.settings?.whatsappReminder1h ?? false}
-              onCheckedChange={(c) =>
-                dispatch({ type: 'UPDATE_SETTINGS', payload: { whatsappReminder1h: c } })
-              }
-              disabled={!connected}
-            />
-          </div>
-        </div>
       </CardContent>
       <CardFooter className="flex flex-wrap gap-2">
-        <Button
-          variant={connected ? 'outline' : 'default'}
-          onClick={handleConnect}
-          className="flex-1"
-        >
-          {connected ? 'Desconectar Conta' : 'Escanear QR Code'}
-        </Button>
-        {connected && (
-          <Button variant="secondary" onClick={testConnection}>
-            Testar
+        {connected ? (
+          <Button
+            variant="outline"
+            onClick={handleDisconnect}
+            className="w-full text-destructive hover:bg-destructive/10"
+          >
+            Desconectar Conta
+          </Button>
+        ) : (
+          <Button
+            onClick={handleSave}
+            className="w-full"
+            disabled={loading || !instanceId || !apiToken}
+          >
+            Salvar e Conectar
           </Button>
         )}
       </CardFooter>

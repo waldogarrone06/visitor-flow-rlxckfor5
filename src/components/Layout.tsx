@@ -1,12 +1,30 @@
-import { Outlet } from 'react-router-dom'
+import { Outlet, Link } from 'react-router-dom'
 import { SidebarProvider } from '@/components/ui/sidebar'
 import { AppSidebar } from './layout/AppSidebar'
 import { TopHeader } from './layout/TopHeader'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { useAuth } from '@/hooks/use-auth'
+import { Login } from './auth/Login'
 
 export default function Layout() {
+  const { user, loading } = useAuth()
+
+  if (loading) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center bg-slate-50">
+        <div className="animate-pulse flex flex-col items-center gap-4">
+          <div className="h-10 w-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-muted-foreground font-medium">Carregando aplicação...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return <Login />
+  }
+
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-slate-50">

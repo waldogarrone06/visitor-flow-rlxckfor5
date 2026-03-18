@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import {
   Card,
   CardHeader,
@@ -7,45 +8,48 @@ import {
   CardFooter,
 } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Switch } from '@/components/ui/switch'
-import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { toast } from '@/hooks/use-toast'
 import { Calendar } from 'lucide-react'
-import { useMainStore } from '@/stores/main'
+import { getIntegrations, saveIntegrations } from '@/services/settings'
 
 export function GoogleCalendarCard() {
-  const { state, dispatch } = useMainStore()
-  const connected = state.settings?.googleCalendarConnected ?? false
-  const sync = state.settings?.googleCalendarSync ?? false
-  const email = state.settings?.googleAccountEmail || 'usuario@empresa.com'
+  const [email, setEmail] = useState('')
+  const [connected, setConnected] = useState(false)
+  const [loading, setLoading] = useState(true)
 
-  const handleToggle = () => {
-    dispatch({
-      type: 'UPDATE_SETTINGS',
-      payload: {
-        googleCalendarConnected: !connected,
-        googleAccountEmail: !connected ? email : undefined,
-      },
+  useEffect(() => {
+    getIntegrations().then((data) => {
+      if (data?.google_email) {
+        setEmail(data.google_email)
+        setConnected(true)
+      }
+      setLoading(false)
     })
-    toast({
-      title: !connected ? 'Google Calendar Conectado' : 'Google Calendar Desconectado',
-      description: !connected ? 'Seus agendamentos serão sincronizados.' : 'Sincronização pausada.',
-    })
-  }
+  }, [])
 
-  const handleSyncToggle = (val: boolean) => {
-    dispatch({ type: 'UPDATE_SETTINGS', payload: { googleCalendarSync: val } })
-    if (val) {
+  const handleConnect = async () => {
+    // In a real app, this redirects to Google OAuth
+    const fakeEmail = prompt('Simulação de Integração. Digite a conta Google que deseja conectar:')
+    if (fakeEmail) {
+      await saveIntegrations({ google_email: fakeEmail, google_access_token: 'mock_token' })
+      setEmail(fakeEmail)
+      setConnected(true)
       toast({
-        title: 'Sincronização Bidirecional Ativa',
-        description: 'Mudanças no sistema e no calendário agora refletem automaticamente.',
+        title: 'Google Calendar Conectado',
+        description: 'Seus eventos agora serão sincronizados com a agenda.',
       })
     }
   }
 
-  const testConnection = () => {
-    toast({ title: 'Teste de Conexão', description: 'Conexão com Google Calendar está estável.' })
+  const handleDisconnect = async () => {
+    await saveIntegrations({ google_email: null, google_access_token: null })
+    setEmail('')
+    setConnected(false)
+    toast({
+      title: 'Google Calendar Desconectado',
+      description: 'Integração removida com sucesso.',
+    })
   }
 
   return (
@@ -62,44 +66,38 @@ export function GoogleCalendarCard() {
             {connected ? 'Conectado' : 'Desconectado'}
           </Badge>
         </div>
-        <CardTitle>Google Calendar</CardTitle>
-        <CardDescription>
-          Sincronize visitas agendadas automaticamente com sua agenda.
-        </CardDescription>
+        <CardTitle>Google Calendar Pessoal</CardTitle>
+        <CardDescription>Sincronize visitas automaticamente na sua própria agenda.</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 space-y-4">
-        {connected && (
+        {loading ? (
+          <div className="animate-pulse h-10 bg-muted rounded-md w-full"></div>
+        ) : connected ? (
           <div className="p-3 bg-muted/40 border border-border/50 rounded-md flex items-center gap-2">
             <Calendar className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm font-medium">
               Conta: <span className="text-muted-foreground font-normal">{email}</span>
             </span>
           </div>
-        )}
-        <p className="text-sm text-muted-foreground">
-          Ao conectar, todos os novos agendamentos do CRM criarão um evento correspondente no Google
-          Calendar do vendedor associado.
-        </p>
-        {connected && (
-          <div className="flex items-center justify-between pt-2 border-t border-border/50">
-            <Label className="text-sm text-muted-foreground cursor-pointer" htmlFor="gc-sync">
-              Sincronização Bidirecional
-            </Label>
-            <Switch id="gc-sync" checked={sync} onCheckedChange={handleSyncToggle} />
-          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Conecte seu calendário individual para evitar conflitos e receber lembretes diretamente
+            no seu celular.
+          </p>
         )}
       </CardContent>
       <CardFooter className="flex flex-wrap gap-2">
-        <Button
-          variant={connected ? 'outline' : 'default'}
-          onClick={handleToggle}
-          className="flex-1"
-        >
-          {connected ? 'Desconectar Conta' : 'Conectar Conta'}
-        </Button>
-        {connected && (
-          <Button variant="secondary" onClick={testConnection}>
-            Testar
+        {connected ? (
+          <Button
+            variant="outline"
+            onClick={handleDisconnect}
+            className="w-full text-destructive hover:bg-destructive/10"
+          >
+            Desconectar Conta
+          </Button>
+        ) : (
+          <Button onClick={handleConnect} className="w-full" disabled={loading}>
+            Conectar Google Calendar
           </Button>
         )}
       </CardFooter>

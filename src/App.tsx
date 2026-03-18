@@ -4,6 +4,7 @@ import { Toaster as Sonner } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import Layout from './components/Layout'
 import { AppProvider } from './stores/main'
+import { AuthProvider } from './hooks/use-auth'
 
 // Pages
 import DashboardPage from './pages/Dashboard/Index'
@@ -16,26 +17,28 @@ import ChatPage from './pages/Chat/Index'
 import NotFound from './pages/NotFound'
 
 const App = () => (
-  <AppProvider>
-    <BrowserRouter future={{ v7_startTransition: false, v7_relativeSplatPath: false }}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <Routes>
-          <Route element={<Layout />}>
-            <Route path="/" element={<DashboardPage />} />
-            <Route path="/agendamento" element={<SchedulingPage />} />
-            <Route path="/crm" element={<CrmPage />} />
-            <Route path="/crm/prescritor/:id" element={<LeadDetailPage />} />
-            <Route path="/chat" element={<ChatPage />} />
-            <Route path="/kits" element={<KitsPage />} />
-            <Route path="/config" element={<SettingsPage />} />
-          </Route>
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </TooltipProvider>
-    </BrowserRouter>
-  </AppProvider>
+  <AuthProvider>
+    <AppProvider>
+      <BrowserRouter future={{ v7_startTransition: false, v7_relativeSplatPath: false }}>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <Routes>
+            <Route element={<Layout />}>
+              <Route path="/" element={<DashboardPage />} />
+              <Route path="/agendamento" element={<SchedulingPage />} />
+              <Route path="/crm" element={<CrmPage />} />
+              <Route path="/crm/prescritor/:id" element={<LeadDetailPage />} />
+              <Route path="/chat" element={<ChatPage />} />
+              <Route path="/kits" element={<KitsPage />} />
+              <Route path="/config" element={<SettingsPage />} />
+            </Route>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </TooltipProvider>
+      </BrowserRouter>
+    </AppProvider>
+  </AuthProvider>
 )
 
 export default App
