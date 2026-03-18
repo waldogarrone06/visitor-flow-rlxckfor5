@@ -44,7 +44,7 @@ CREATE POLICY "Users can manage their own schedule"
     WITH CHECK (auth.uid() = user_id);
 
 -- Seed an admin user
-DO $
+DO $$
 DECLARE
   new_user_id uuid;
 BEGIN
@@ -62,4 +62,4 @@ BEGIN
     false, 'authenticated', 'authenticated',
     '', '', '', '', '', NULL, '', '', ''
   );
-END $;
+END $$;
