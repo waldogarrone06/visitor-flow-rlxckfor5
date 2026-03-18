@@ -2,9 +2,23 @@ import { useParams, Link } from 'react-router-dom'
 import { useMainStore } from '@/stores/main'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, User, MapPin, Tag, MessageCircle, Paperclip, FileText } from 'lucide-react'
+import {
+  ArrowLeft,
+  User,
+  MapPin,
+  Tag,
+  MessageCircle,
+  Paperclip,
+  FileText,
+  CalendarCheck,
+  Video,
+  Phone,
+  NotebookText,
+} from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { ConversionEvolutionChart } from './ConversionEvolutionChart'
+import { format } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
 
 export default function LeadDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -15,6 +29,11 @@ export default function LeadDetailPage() {
   const messages = state.messages
     .filter((m) => m.leadId === id)
     .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+
+  const interactions =
+    state.interactions
+      ?.filter((i) => i.leadId === id)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) || []
 
   if (!lead) {
     return (
@@ -27,6 +46,27 @@ export default function LeadDetailPage() {
         </Link>
       </div>
     )
+  }
+
+  const getInteractionIcon = (type: string) => {
+    switch (type) {
+      case 'Meeting':
+        return <Video className="h-4 w-4" />
+      case 'Visit':
+        return <CalendarCheck className="h-4 w-4" />
+      case 'Call':
+        return <Phone className="h-4 w-4" />
+      default:
+        return <NotebookText className="h-4 w-4" />
+    }
+  }
+
+  const getStatusColor = (status?: string) => {
+    if (status === 'Presente' || status === 'Realizada')
+      return 'bg-success/10 text-success border-success/30 hover:bg-success/20'
+    if (status === 'Ausente' || status === 'Cancelada')
+      return 'bg-destructive/10 text-destructive border-destructive/30 hover:bg-destructive/20'
+    return 'bg-secondary text-secondary-foreground'
   }
 
   return (
@@ -106,12 +146,68 @@ export default function LeadDetailPage() {
         </Card>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3 mt-6">
-        <Card className="md:col-span-3 shadow-subtle">
-          <CardHeader className="flex flex-row items-center justify-between">
+      <div className="grid gap-6 md:grid-cols-2 mt-6">
+        <Card className="shadow-subtle">
+          <CardHeader className="pb-4 border-b border-border/50 mb-4">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <NotebookText className="h-5 w-5 text-indigo-600" />
+              Prontuário (Atendimentos)
+            </CardTitle>
+            <CardDescription>Histórico de visitas e reuniões exportadas.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {interactions.length === 0 ? (
+              <div className="text-center text-muted-foreground py-8 border rounded-md border-dashed">
+                Nenhum atendimento registrado.
+              </div>
+            ) : (
+              <div className="relative border-l border-border/60 ml-3 pl-6 space-y-6">
+                {interactions.map((int) => (
+                  <div key={int.id} className="relative">
+                    <span className="absolute -left-[35px] top-1 flex h-6 w-6 items-center justify-center rounded-full bg-background border border-border/60 text-muted-foreground shadow-sm">
+                      {getInteractionIcon(int.type)}
+                    </span>
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-semibold text-foreground">
+                          {format(new Date(int.date), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                        </span>
+                        {int.status && (
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] h-5 ${getStatusColor(int.status)}`}
+                          >
+                            {int.status}
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground">{int.description}</p>
+                      {int.link && (
+                        <a
+                          href={int.link}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs text-primary hover:underline w-fit mt-1 flex items-center gap-1"
+                        >
+                          Ver Sala / Referência
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-subtle flex flex-col">
+          <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-border/50 mb-4">
             <div>
-              <CardTitle className="text-lg">Histórico de Comunicação</CardTitle>
-              <CardDescription>Últimas mensagens trocadas via WhatsApp integrado.</CardDescription>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <MessageCircle className="h-5 w-5 text-green-600" />
+                Histórico de WhatsApp
+              </CardTitle>
+              <CardDescription>Últimas mensagens trocadas.</CardDescription>
             </div>
             <Link to={`/chat?contactId=${lead.id}`}>
               <Button variant="outline" size="sm" className="gap-2 shrink-0">
@@ -119,14 +215,14 @@ export default function LeadDetailPage() {
               </Button>
             </Link>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex-1 overflow-y-auto max-h-[400px]">
             {messages.length === 0 ? (
               <div className="text-center text-muted-foreground py-8 border rounded-md border-dashed">
                 Nenhuma mensagem registrada.
               </div>
             ) : (
               <div className="space-y-4">
-                {messages.slice(-5).map((msg) => (
+                {messages.slice(-10).map((msg) => (
                   <div key={msg.id} className="flex flex-col gap-1">
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <span className="font-medium text-foreground">

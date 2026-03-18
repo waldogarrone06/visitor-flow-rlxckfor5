@@ -8,6 +8,8 @@ import {
   Message,
   AppSettings,
   TeamMember,
+  MeetingReport,
+  LeadInteraction,
 } from '@/lib/types'
 import { initialData } from '@/lib/mock-data'
 
@@ -24,6 +26,14 @@ type Action =
   | { type: 'SEND_MESSAGE'; payload: Message }
   | { type: 'UPDATE_SETTINGS'; payload: Partial<AppSettings> }
   | { type: 'ADD_TEAM_MEMBER'; payload: TeamMember }
+  | {
+      type: 'SAVE_MEETING_REPORT'
+      payload: {
+        report: MeetingReport
+        interactions: LeadInteraction[]
+        appointmentIds: string[]
+      }
+    }
 
 const AppContext = createContext<{ state: AppState; dispatch: React.Dispatch<Action> } | undefined>(
   undefined,
@@ -170,6 +180,18 @@ function appReducer(state: AppState, action: Action): AppState {
 
     case 'ADD_TEAM_MEMBER':
       return { ...state, teamMembers: [...(state.teamMembers || []), action.payload] }
+
+    case 'SAVE_MEETING_REPORT': {
+      const { report, interactions, appointmentIds } = action.payload
+      return {
+        ...state,
+        meetingReports: [...(state.meetingReports || []), report],
+        interactions: [...(state.interactions || []), ...interactions],
+        appointments: state.appointments.map((a) =>
+          appointmentIds.includes(a.id) ? { ...a, status: 'Visited' } : a,
+        ),
+      }
+    }
 
     default:
       return state

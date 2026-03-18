@@ -697,6 +697,10 @@ section[aria-label='Notifications alt+T'] {
   left: -3rem;
 }
 
+.-left-\[35px\]{
+  left: -35px;
+}
+
 .-right-12{
   right: -3rem;
 }
@@ -763,6 +767,10 @@ section[aria-label='Notifications alt+T'] {
 
 .top-0{
   top: 0px;
+}
+
+.top-1{
+  top: 0.25rem;
 }
 
 .top-1\.5{
@@ -914,6 +922,10 @@ section[aria-label='Notifications alt+T'] {
 
 .ml-2{
   margin-left: 0.5rem;
+}
+
+.ml-3{
+  margin-left: 0.75rem;
 }
 
 .ml-auto{
@@ -1150,6 +1162,14 @@ section[aria-label='Notifications alt+T'] {
   max-height: 300px;
 }
 
+.max-h-\[350px\]{
+  max-height: 350px;
+}
+
+.max-h-\[400px\]{
+  max-height: 400px;
+}
+
 .max-h-screen{
   max-height: 100vh;
 }
@@ -1370,6 +1390,10 @@ section[aria-label='Notifications alt+T'] {
 
 .max-w-\[160px\]{
   max-width: 160px;
+}
+
+.max-w-\[200px\]{
+  max-width: 200px;
 }
 
 .max-w-\[240px\]{
@@ -1869,6 +1893,10 @@ section[aria-label='Notifications alt+T'] {
   border-color: hsl(var(--destructive));
 }
 
+.border-destructive\/30{
+  border-color: hsl(var(--destructive) / 0.3);
+}
+
 .border-destructive\/50{
   border-color: hsl(var(--destructive) / 0.5);
 }
@@ -1893,6 +1921,10 @@ section[aria-label='Notifications alt+T'] {
 
 .border-sidebar-border{
   border-color: hsl(var(--sidebar-border));
+}
+
+.border-success\/30{
+  border-color: hsl(var(--success) / 0.3);
 }
 
 .border-teal-200{
@@ -1972,6 +2004,10 @@ section[aria-label='Notifications alt+T'] {
   background-color: hsl(var(--destructive));
 }
 
+.bg-destructive\/10{
+  background-color: hsl(var(--destructive) / 0.1);
+}
+
 .bg-emerald-50{
   --tw-bg-opacity: 1;
   background-color: rgb(236 253 245 / var(--tw-bg-opacity, 1));
@@ -2006,6 +2042,11 @@ section[aria-label='Notifications alt+T'] {
   background-color: rgb(224 231 255 / var(--tw-bg-opacity, 1));
 }
 
+.bg-indigo-50{
+  --tw-bg-opacity: 1;
+  background-color: rgb(238 242 255 / var(--tw-bg-opacity, 1));
+}
+
 .bg-muted{
   background-color: hsl(var(--muted));
 }
@@ -2030,6 +2071,15 @@ section[aria-label='Notifications alt+T'] {
 .bg-orange-50{
   --tw-bg-opacity: 1;
   background-color: rgb(255 247 237 / var(--tw-bg-opacity, 1));
+}
+
+.bg-orange-50\/40{
+  background-color: rgb(255 247 237 / 0.4);
+}
+
+.bg-orange-600{
+  --tw-bg-opacity: 1;
+  background-color: rgb(234 88 12 / var(--tw-bg-opacity, 1));
 }
 
 .bg-popover{
@@ -2094,6 +2144,10 @@ section[aria-label='Notifications alt+T'] {
 
 .bg-success{
   background-color: hsl(var(--success));
+}
+
+.bg-success\/10{
+  background-color: hsl(var(--success) / 0.1);
 }
 
 .bg-teal-100\/80{
@@ -2307,6 +2361,10 @@ section[aria-label='Notifications alt+T'] {
   padding-left: 1rem;
 }
 
+.pl-6{
+  padding-left: 1.5rem;
+}
+
 .pl-8{
   padding-left: 2rem;
 }
@@ -2325,6 +2383,10 @@ section[aria-label='Notifications alt+T'] {
 
 .pr-2\.5{
   padding-right: 0.625rem;
+}
+
+.pr-4{
+  padding-right: 1rem;
 }
 
 .pr-8{
@@ -2439,6 +2501,10 @@ section[aria-label='Notifications alt+T'] {
   font-weight: 600;
 }
 
+.uppercase{
+  text-transform: uppercase;
+}
+
 .italic{
   font-style: italic;
 }
@@ -2458,6 +2524,10 @@ section[aria-label='Notifications alt+T'] {
 
 .tracking-tight{
   letter-spacing: -0.025em;
+}
+
+.tracking-wider{
+  letter-spacing: 0.05em;
 }
 
 .tracking-widest{
@@ -2536,6 +2606,11 @@ section[aria-label='Notifications alt+T'] {
   color: rgb(21 128 61 / var(--tw-text-opacity, 1));
 }
 
+.text-indigo-600{
+  --tw-text-opacity: 1;
+  color: rgb(79 70 229 / var(--tw-text-opacity, 1));
+}
+
 .text-indigo-700{
   --tw-text-opacity: 1;
   color: rgb(67 56 202 / var(--tw-text-opacity, 1));
@@ -2553,6 +2628,11 @@ section[aria-label='Notifications alt+T'] {
 .text-orange-700{
   --tw-text-opacity: 1;
   color: rgb(194 65 12 / var(--tw-text-opacity, 1));
+}
+
+.text-orange-800{
+  --tw-text-opacity: 1;
+  color: rgb(154 52 18 / var(--tw-text-opacity, 1));
 }
 
 .text-popover-foreground{
@@ -3038,6 +3118,10 @@ section[aria-label='Notifications alt+T'] {
   background-color: hsl(var(--destructive) / 0.1);
 }
 
+.hover\:bg-destructive\/20:hover{
+  background-color: hsl(var(--destructive) / 0.2);
+}
+
 .hover\:bg-destructive\/80:hover{
   background-color: hsl(var(--destructive) / 0.8);
 }
@@ -3075,6 +3159,15 @@ section[aria-label='Notifications alt+T'] {
 .hover\:bg-orange-200:hover{
   --tw-bg-opacity: 1;
   background-color: rgb(254 215 170 / var(--tw-bg-opacity, 1));
+}
+
+.hover\:bg-orange-50\/60:hover{
+  background-color: rgb(255 247 237 / 0.6);
+}
+
+.hover\:bg-orange-700:hover{
+  --tw-bg-opacity: 1;
+  background-color: rgb(194 65 12 / var(--tw-bg-opacity, 1));
 }
 
 .hover\:bg-primary\/20:hover{
@@ -3120,8 +3213,16 @@ section[aria-label='Notifications alt+T'] {
   background-color: rgb(248 250 252 / 0.5);
 }
 
+.hover\:bg-success\/20:hover{
+  background-color: hsl(var(--success) / 0.2);
+}
+
 .hover\:bg-success\/80:hover{
   background-color: hsl(var(--success) / 0.8);
+}
+
+.hover\:bg-success\/90:hover{
+  background-color: hsl(var(--success) / 0.9);
 }
 
 .hover\:bg-teal-50\/60:hover{
@@ -3503,6 +3604,10 @@ section[aria-label='Notifications alt+T'] {
   border-radius: 0px;
 }
 
+.data-\[state\=checked\]\:border-success[data-state="checked"]{
+  border-color: hsl(var(--success));
+}
+
 .data-\[active\=true\]\:bg-sidebar-accent[data-active="true"]{
   background-color: hsl(var(--sidebar-accent));
 }
@@ -3533,6 +3638,10 @@ section[aria-label='Notifications alt+T'] {
 
 .data-\[state\=checked\]\:bg-primary[data-state="checked"]{
   background-color: hsl(var(--primary));
+}
+
+.data-\[state\=checked\]\:bg-success[data-state="checked"]{
+  background-color: hsl(var(--success));
 }
 
 .data-\[state\=on\]\:bg-accent[data-state="on"]{
@@ -3597,6 +3706,10 @@ section[aria-label='Notifications alt+T'] {
 
 .data-\[state\=checked\]\:text-primary-foreground[data-state="checked"]{
   color: hsl(var(--primary-foreground));
+}
+
+.data-\[state\=checked\]\:text-success-foreground[data-state="checked"]{
+  color: hsl(var(--success-foreground));
 }
 
 .data-\[state\=on\]\:text-accent-foreground[data-state="on"]{
@@ -4132,6 +4245,10 @@ section[aria-label='Notifications alt+T'] {
     justify-content: flex-end;
   }
 
+  .sm\:justify-between{
+    justify-content: space-between;
+  }
+
   .sm\:gap-2\.5{
     gap: 0.625rem;
   }
@@ -4199,10 +4316,6 @@ section[aria-label='Notifications alt+T'] {
 
   .md\:col-span-2{
     grid-column: span 2 / span 2;
-  }
-
-  .md\:col-span-3{
-    grid-column: span 3 / span 3;
   }
 
   .md\:block{

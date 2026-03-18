@@ -2,6 +2,9 @@ import { AppState } from './types'
 
 const currentYear = new Date().getFullYear()
 
+// Past meeting 2 hours ago for testing
+const pastVirtualDate = new Date(Date.now() - 2 * 3600000).toISOString()
+
 export const initialData: AppState = {
   leads: [
     {
@@ -149,6 +152,24 @@ export const initialData: AppState = {
       meetLink: 'https://meet.google.com/abc-defg-hij',
     },
     {
+      id: 'a7',
+      leadId: 'l1',
+      date: pastVirtualDate,
+      vendor: 'Ana Vendedora',
+      status: 'Scheduled', // Finished but pending report
+      isVirtual: true,
+      meetLink: 'https://meet.google.com/xyz-test-123',
+    },
+    {
+      id: 'a8',
+      leadId: 'l4',
+      date: pastVirtualDate,
+      vendor: 'Ana Vendedora',
+      status: 'Scheduled',
+      isVirtual: true,
+      meetLink: 'https://meet.google.com/xyz-test-123',
+    },
+    {
       id: 'a2',
       leadId: 'l1',
       date: new Date(Date.now() + 172800000).toISOString(),
@@ -294,6 +315,8 @@ export const initialData: AppState = {
     googleMeetConnected: true,
     googleCalendarConnected: true,
     googleCalendarSync: true,
+    autoGenerateParticipationReports: true,
+    autoExportToCRM: true,
   },
   teamMembers: [
     {
@@ -309,6 +332,17 @@ export const initialData: AppState = {
       email: 'marcos@fourlab.com',
       role: 'Agent',
       avatarUrl: 'https://img.usecurling.com/ppl/thumbnail?seed=11',
+    },
+  ],
+  meetingReports: [],
+  interactions: [
+    {
+      id: 'int-1',
+      leadId: 'l1',
+      type: 'Visit',
+      date: new Date(Date.now() - 5 * 86400000).toISOString(),
+      description: 'Visita presencial no consultório. Amostras entregues.',
+      status: 'Realizada',
     },
   ],
 }

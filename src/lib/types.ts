@@ -7,6 +7,17 @@ export interface ConversionHistory {
   count: number
 }
 
+export interface LeadInteraction {
+  id: string
+  leadId: string
+  type: 'Meeting' | 'Note' | 'Visit' | 'Call'
+  date: string
+  description: string
+  status?: 'Presente' | 'Ausente' | 'Realizada' | 'Cancelada'
+  link?: string
+  durationMinutes?: number
+}
+
 export interface Lead {
   id: string
   name: string
@@ -40,6 +51,15 @@ export interface Appointment {
   status: 'Scheduled' | 'Visited' | 'Cancelled'
   isVirtual?: boolean
   meetLink?: string
+}
+
+export interface MeetingReport {
+  id: string
+  date: string
+  meetLink: string
+  invitedLeadIds: string[]
+  attendedLeadIds: string[]
+  durationMinutes: number
 }
 
 export interface Kit {
@@ -81,6 +101,8 @@ export interface AppSettings {
   googleMeetConnected?: boolean
   googleCalendarConnected?: boolean
   googleCalendarSync?: boolean
+  autoGenerateParticipationReports?: boolean
+  autoExportToCRM?: boolean
 }
 
 export interface TeamMember {
@@ -99,4 +121,6 @@ export interface AppState {
   messages: Message[]
   settings: AppSettings
   teamMembers: TeamMember[]
+  meetingReports: MeetingReport[]
+  interactions: LeadInteraction[]
 }

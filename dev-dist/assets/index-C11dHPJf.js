@@ -19391,6 +19391,44 @@ var MessageCircle = createLucideIcon("message-circle", [["path", {
 	d: "M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719",
 	key: "1sd12s"
 }]]);
+var NotebookText = createLucideIcon("notebook-text", [
+	["path", {
+		d: "M2 6h4",
+		key: "aawbzj"
+	}],
+	["path", {
+		d: "M2 10h4",
+		key: "l0bgd4"
+	}],
+	["path", {
+		d: "M2 14h4",
+		key: "1gsvsf"
+	}],
+	["path", {
+		d: "M2 18h4",
+		key: "1bu2t1"
+	}],
+	["rect", {
+		width: "16",
+		height: "20",
+		x: "4",
+		y: "2",
+		rx: "2",
+		key: "1nb95v"
+	}],
+	["path", {
+		d: "M9.5 8h5",
+		key: "11mslq"
+	}],
+	["path", {
+		d: "M9.5 12H16",
+		key: "ktog6x"
+	}],
+	["path", {
+		d: "M9.5 16H14",
+		key: "p1seyn"
+	}]
+]);
 var PackagePlus = createLucideIcon("package-plus", [
 	["path", {
 		d: "M12 22V12",
@@ -19449,6 +19487,10 @@ var PanelLeft = createLucideIcon("panel-left", [["rect", {
 var Paperclip = createLucideIcon("paperclip", [["path", {
 	d: "m16 6-8.414 8.586a2 2 0 0 0 2.829 2.829l8.414-8.586a4 4 0 1 0-5.657-5.657l-8.379 8.551a6 6 0 1 0 8.485 8.485l8.379-8.551",
 	key: "1miecu"
+}]]);
+var Phone = createLucideIcon("phone", [["path", {
+	d: "M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384",
+	key: "9njp5v"
 }]]);
 var Plus = createLucideIcon("plus", [["path", {
 	d: "M5 12h14",
@@ -30460,6 +30502,7 @@ function Layout() {
 //#endregion
 //#region src/lib/mock-data.ts
 var currentYear = (/* @__PURE__ */ new Date()).getFullYear();
+var pastVirtualDate = (/* @__PURE__ */ new Date(Date.now() - 2 * 36e5)).toISOString();
 var initialData = {
 	leads: [
 		{
@@ -30644,6 +30687,24 @@ var initialData = {
 			meetLink: "https://meet.google.com/abc-defg-hij"
 		},
 		{
+			id: "a7",
+			leadId: "l1",
+			date: pastVirtualDate,
+			vendor: "Ana Vendedora",
+			status: "Scheduled",
+			isVirtual: true,
+			meetLink: "https://meet.google.com/xyz-test-123"
+		},
+		{
+			id: "a8",
+			leadId: "l4",
+			date: pastVirtualDate,
+			vendor: "Ana Vendedora",
+			status: "Scheduled",
+			isVirtual: true,
+			meetLink: "https://meet.google.com/xyz-test-123"
+		},
+		{
 			id: "a2",
 			leadId: "l1",
 			date: new Date(Date.now() + 1728e5).toISOString(),
@@ -30788,7 +30849,9 @@ var initialData = {
 		whatsappReminder1h: true,
 		googleMeetConnected: true,
 		googleCalendarConnected: true,
-		googleCalendarSync: true
+		googleCalendarSync: true,
+		autoGenerateParticipationReports: true,
+		autoExportToCRM: true
 	},
 	teamMembers: [{
 		id: "t1",
@@ -30802,6 +30865,15 @@ var initialData = {
 		email: "marcos@fourlab.com",
 		role: "Agent",
 		avatarUrl: "https://img.usecurling.com/ppl/thumbnail?seed=11"
+	}],
+	meetingReports: [],
+	interactions: [{
+		id: "int-1",
+		leadId: "l1",
+		type: "Visit",
+		date: (/* @__PURE__ */ new Date(Date.now() - 5 * 864e5)).toISOString(),
+		description: "Visita presencial no consultório. Amostras entregues.",
+		status: "Realizada"
 	}]
 };
 //#endregion
@@ -30947,6 +31019,18 @@ function appReducer(state, action) {
 			...state,
 			teamMembers: [...state.teamMembers || [], action.payload]
 		};
+		case "SAVE_MEETING_REPORT": {
+			const { report, interactions, appointmentIds } = action.payload;
+			return {
+				...state,
+				meetingReports: [...state.meetingReports || [], report],
+				interactions: [...state.interactions || [], ...interactions],
+				appointments: state.appointments.map((a) => appointmentIds.includes(a.id) ? {
+					...a,
+					status: "Visited"
+				} : a)
+			};
+		}
 		default: return state;
 	}
 }
@@ -58875,11 +58959,546 @@ function TopPerformersWidget() {
 	});
 }
 //#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/@radix-ui+react-use-previous@1.1.1_@types+react@19.2.14_react@19.2.4/node_modules/@radix-ui/react-use-previous/dist/index.mjs
+function usePrevious(value) {
+	const ref = import_react.useRef({
+		value,
+		previous: value
+	});
+	return import_react.useMemo(() => {
+		if (ref.current.value !== value) {
+			ref.current.previous = ref.current.value;
+			ref.current.value = value;
+		}
+		return ref.current.previous;
+	}, [value]);
+}
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/@radix-ui+react-checkbox@1.3.3_@types+react-dom@19.2.3_@types+react@19.2.14__@types+rea_a9bfe74df417688e01ae6068318bf0dd/node_modules/@radix-ui/react-checkbox/dist/index.mjs
+var CHECKBOX_NAME = "Checkbox";
+var [createCheckboxContext, createCheckboxScope] = createContextScope$1(CHECKBOX_NAME);
+var [CheckboxProviderImpl, useCheckboxContext] = createCheckboxContext(CHECKBOX_NAME);
+function CheckboxProvider(props) {
+	const { __scopeCheckbox, checked: checkedProp, children, defaultChecked, disabled, form, name, onCheckedChange, required, value = "on", internal_do_not_use_render } = props;
+	const [checked, setChecked] = useControllableState({
+		prop: checkedProp,
+		defaultProp: defaultChecked ?? false,
+		onChange: onCheckedChange,
+		caller: CHECKBOX_NAME
+	});
+	const [control, setControl] = import_react.useState(null);
+	const [bubbleInput, setBubbleInput] = import_react.useState(null);
+	const hasConsumerStoppedPropagationRef = import_react.useRef(false);
+	const isFormControl = control ? !!form || !!control.closest("form") : true;
+	const context = {
+		checked,
+		disabled,
+		setChecked,
+		control,
+		setControl,
+		name,
+		form,
+		value,
+		hasConsumerStoppedPropagationRef,
+		required,
+		defaultChecked: isIndeterminate$1(defaultChecked) ? false : defaultChecked,
+		isFormControl,
+		bubbleInput,
+		setBubbleInput
+	};
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CheckboxProviderImpl, {
+		scope: __scopeCheckbox,
+		...context,
+		children: isFunction$1(internal_do_not_use_render) ? internal_do_not_use_render(context) : children
+	});
+}
+var TRIGGER_NAME$4 = "CheckboxTrigger";
+var CheckboxTrigger = import_react.forwardRef(({ __scopeCheckbox, onKeyDown, onClick, ...checkboxProps }, forwardedRef) => {
+	const { control, value, disabled, checked, required, setControl, setChecked, hasConsumerStoppedPropagationRef, isFormControl, bubbleInput } = useCheckboxContext(TRIGGER_NAME$4, __scopeCheckbox);
+	const composedRefs = useComposedRefs(forwardedRef, setControl);
+	const initialCheckedStateRef = import_react.useRef(checked);
+	import_react.useEffect(() => {
+		const form = control?.form;
+		if (form) {
+			const reset = () => setChecked(initialCheckedStateRef.current);
+			form.addEventListener("reset", reset);
+			return () => form.removeEventListener("reset", reset);
+		}
+	}, [control, setChecked]);
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Primitive$1.button, {
+		type: "button",
+		role: "checkbox",
+		"aria-checked": isIndeterminate$1(checked) ? "mixed" : checked,
+		"aria-required": required,
+		"data-state": getState$2(checked),
+		"data-disabled": disabled ? "" : void 0,
+		disabled,
+		value,
+		...checkboxProps,
+		ref: composedRefs,
+		onKeyDown: composeEventHandlers(onKeyDown, (event) => {
+			if (event.key === "Enter") event.preventDefault();
+		}),
+		onClick: composeEventHandlers(onClick, (event) => {
+			setChecked((prevChecked) => isIndeterminate$1(prevChecked) ? true : !prevChecked);
+			if (bubbleInput && isFormControl) {
+				hasConsumerStoppedPropagationRef.current = event.isPropagationStopped();
+				if (!hasConsumerStoppedPropagationRef.current) event.stopPropagation();
+			}
+		})
+	});
+});
+CheckboxTrigger.displayName = TRIGGER_NAME$4;
+var Checkbox$1 = import_react.forwardRef((props, forwardedRef) => {
+	const { __scopeCheckbox, name, checked, defaultChecked, required, disabled, value, onCheckedChange, form, ...checkboxProps } = props;
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CheckboxProvider, {
+		__scopeCheckbox,
+		checked,
+		defaultChecked,
+		disabled,
+		required,
+		onCheckedChange,
+		name,
+		form,
+		value,
+		internal_do_not_use_render: ({ isFormControl }) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CheckboxTrigger, {
+			...checkboxProps,
+			ref: forwardedRef,
+			__scopeCheckbox
+		}), isFormControl && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CheckboxBubbleInput, { __scopeCheckbox })] })
+	});
+});
+Checkbox$1.displayName = CHECKBOX_NAME;
+var INDICATOR_NAME$2 = "CheckboxIndicator";
+var CheckboxIndicator = import_react.forwardRef((props, forwardedRef) => {
+	const { __scopeCheckbox, forceMount, ...indicatorProps } = props;
+	const context = useCheckboxContext(INDICATOR_NAME$2, __scopeCheckbox);
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Presence, {
+		present: forceMount || isIndeterminate$1(context.checked) || context.checked === true,
+		children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Primitive$1.span, {
+			"data-state": getState$2(context.checked),
+			"data-disabled": context.disabled ? "" : void 0,
+			...indicatorProps,
+			ref: forwardedRef,
+			style: {
+				pointerEvents: "none",
+				...props.style
+			}
+		})
+	});
+});
+CheckboxIndicator.displayName = INDICATOR_NAME$2;
+var BUBBLE_INPUT_NAME$2 = "CheckboxBubbleInput";
+var CheckboxBubbleInput = import_react.forwardRef(({ __scopeCheckbox, ...props }, forwardedRef) => {
+	const { control, hasConsumerStoppedPropagationRef, checked, defaultChecked, required, disabled, name, value, form, bubbleInput, setBubbleInput } = useCheckboxContext(BUBBLE_INPUT_NAME$2, __scopeCheckbox);
+	const composedRefs = useComposedRefs(forwardedRef, setBubbleInput);
+	const prevChecked = usePrevious(checked);
+	const controlSize = useSize(control);
+	import_react.useEffect(() => {
+		const input = bubbleInput;
+		if (!input) return;
+		const inputProto = window.HTMLInputElement.prototype;
+		const setChecked = Object.getOwnPropertyDescriptor(inputProto, "checked").set;
+		const bubbles = !hasConsumerStoppedPropagationRef.current;
+		if (prevChecked !== checked && setChecked) {
+			const event = new Event("click", { bubbles });
+			input.indeterminate = isIndeterminate$1(checked);
+			setChecked.call(input, isIndeterminate$1(checked) ? false : checked);
+			input.dispatchEvent(event);
+		}
+	}, [
+		bubbleInput,
+		prevChecked,
+		checked,
+		hasConsumerStoppedPropagationRef
+	]);
+	const defaultCheckedRef = import_react.useRef(isIndeterminate$1(checked) ? false : checked);
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Primitive$1.input, {
+		type: "checkbox",
+		"aria-hidden": true,
+		defaultChecked: defaultChecked ?? defaultCheckedRef.current,
+		required,
+		disabled,
+		name,
+		value,
+		form,
+		...props,
+		tabIndex: -1,
+		ref: composedRefs,
+		style: {
+			...props.style,
+			...controlSize,
+			position: "absolute",
+			pointerEvents: "none",
+			opacity: 0,
+			margin: 0,
+			transform: "translateX(-100%)"
+		}
+	});
+});
+CheckboxBubbleInput.displayName = BUBBLE_INPUT_NAME$2;
+function isFunction$1(value) {
+	return typeof value === "function";
+}
+function isIndeterminate$1(checked) {
+	return checked === "indeterminate";
+}
+function getState$2(checked) {
+	return isIndeterminate$1(checked) ? "indeterminate" : checked ? "checked" : "unchecked";
+}
+//#endregion
+//#region src/components/ui/checkbox.tsx
+var Checkbox = import_react.forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Checkbox$1, {
+	"data-uid": "src/components/ui/checkbox.tsx:11:3",
+	"data-prohibitions": "[editContent]",
+	ref,
+	className: cn$1("peer h-4 w-4 shrink-0 rounded-sm border border-primary ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground", className),
+	...props,
+	children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CheckboxIndicator, {
+		"data-uid": "src/components/ui/checkbox.tsx:19:5",
+		"data-prohibitions": "[editContent]",
+		className: cn$1("flex items-center justify-center text-current"),
+		children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Check, {
+			"data-uid": "src/components/ui/checkbox.tsx:20:7",
+			"data-prohibitions": "[editContent]",
+			className: "h-4 w-4"
+		})
+	})
+}));
+Checkbox.displayName = Checkbox$1.displayName;
+//#endregion
+//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/@radix-ui+react-progress@1.1.8_@types+react-dom@19.2.3_@types+react@19.2.14__@types+rea_7258c0b550570cef5cd6f2d2227aa6b9/node_modules/@radix-ui/react-progress/dist/index.mjs
+var PROGRESS_NAME = "Progress";
+var DEFAULT_MAX = 100;
+var [createProgressContext, createProgressScope] = createContextScope(PROGRESS_NAME);
+var [ProgressProvider, useProgressContext] = createProgressContext(PROGRESS_NAME);
+var Progress$1 = import_react.forwardRef((props, forwardedRef) => {
+	const { __scopeProgress, value: valueProp = null, max: maxProp, getValueLabel = defaultGetValueLabel, ...progressProps } = props;
+	if ((maxProp || maxProp === 0) && !isValidMaxNumber(maxProp)) console.error(getInvalidMaxError(`${maxProp}`, "Progress"));
+	const max = isValidMaxNumber(maxProp) ? maxProp : DEFAULT_MAX;
+	if (valueProp !== null && !isValidValueNumber(valueProp, max)) console.error(getInvalidValueError(`${valueProp}`, "Progress"));
+	const value = isValidValueNumber(valueProp, max) ? valueProp : null;
+	const valueLabel = isNumber(value) ? getValueLabel(value, max) : void 0;
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ProgressProvider, {
+		scope: __scopeProgress,
+		value,
+		max,
+		children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Primitive.div, {
+			"aria-valuemax": max,
+			"aria-valuemin": 0,
+			"aria-valuenow": isNumber(value) ? value : void 0,
+			"aria-valuetext": valueLabel,
+			role: "progressbar",
+			"data-state": getProgressState(value, max),
+			"data-value": value ?? void 0,
+			"data-max": max,
+			...progressProps,
+			ref: forwardedRef
+		})
+	});
+});
+Progress$1.displayName = PROGRESS_NAME;
+var INDICATOR_NAME$1 = "ProgressIndicator";
+var ProgressIndicator = import_react.forwardRef((props, forwardedRef) => {
+	const { __scopeProgress, ...indicatorProps } = props;
+	const context = useProgressContext(INDICATOR_NAME$1, __scopeProgress);
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Primitive.div, {
+		"data-state": getProgressState(context.value, context.max),
+		"data-value": context.value ?? void 0,
+		"data-max": context.max,
+		...indicatorProps,
+		ref: forwardedRef
+	});
+});
+ProgressIndicator.displayName = INDICATOR_NAME$1;
+function defaultGetValueLabel(value, max) {
+	return `${Math.round(value / max * 100)}%`;
+}
+function getProgressState(value, maxValue) {
+	return value == null ? "indeterminate" : value === maxValue ? "complete" : "loading";
+}
+function isNumber(value) {
+	return typeof value === "number";
+}
+function isValidMaxNumber(max) {
+	return isNumber(max) && !isNaN(max) && max > 0;
+}
+function isValidValueNumber(value, max) {
+	return isNumber(value) && !isNaN(value) && value <= max && value >= 0;
+}
+function getInvalidMaxError(propValue, componentName) {
+	return `Invalid prop \`max\` of value \`${propValue}\` supplied to \`${componentName}\`. Only numbers greater than 0 are valid max values. Defaulting to \`${DEFAULT_MAX}\`.`;
+}
+function getInvalidValueError(propValue, componentName) {
+	return `Invalid prop \`value\` of value \`${propValue}\` supplied to \`${componentName}\`. The \`value\` prop must be:
+  - a positive number
+  - less than the value passed to \`max\` (or ${DEFAULT_MAX} if no \`max\` prop is set)
+  - \`null\` or \`undefined\` if the progress is indeterminate.
+
+Defaulting to \`null\`.`;
+}
+var Root$3 = Progress$1;
+var Indicator = ProgressIndicator;
+//#endregion
+//#region src/components/ui/progress.tsx
+var Progress = import_react.forwardRef(({ className, value, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Root$3, {
+	"data-uid": "src/components/ui/progress.tsx:10:3",
+	"data-prohibitions": "[editContent]",
+	ref,
+	className: cn$1("relative h-4 w-full overflow-hidden rounded-full bg-secondary", className),
+	...props,
+	children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Indicator, {
+		"data-uid": "src/components/ui/progress.tsx:15:5",
+		"data-prohibitions": "[editContent]",
+		className: "h-full w-full flex-1 bg-primary transition-all",
+		style: { transform: `translateX(-${100 - (value || 0)}%)` }
+	})
+}));
+Progress.displayName = Root$3.displayName;
+//#endregion
+//#region src/pages/Dashboard/MeetingReportDialog.tsx
+function MeetingReportDialog({ slot, open, onOpenChange }) {
+	const { state, dispatch } = useMainStore();
+	const [attendedIds, setAttendedIds] = (0, import_react.useState)([]);
+	const leads = state.leads.filter((l) => state.appointments.filter((a) => slot?.ids.includes(a.id)).map((a) => a.leadId).includes(l.id));
+	const existingReport = state.meetingReports?.find((r) => r.date === slot?.date);
+	const isViewMode = !!existingReport;
+	(0, import_react.useEffect)(() => {
+		if (open && slot) if (existingReport) setAttendedIds(existingReport.attendedLeadIds);
+		else if (state.settings?.autoGenerateParticipationReports) setAttendedIds(leads.map((l) => l.id));
+		else setAttendedIds([]);
+	}, [
+		open,
+		slot,
+		existingReport,
+		leads.length,
+		state.settings?.autoGenerateParticipationReports
+	]);
+	if (!slot) return null;
+	const attendanceRate = leads.length > 0 ? Math.round(attendedIds.length / leads.length * 100) : 0;
+	const handleToggle = (leadId) => {
+		if (isViewMode) return;
+		setAttendedIds((prev) => prev.includes(leadId) ? prev.filter((id) => id !== leadId) : [...prev, leadId]);
+	};
+	const handleSave = () => {
+		if (!slot) return;
+		const report = {
+			id: `rep-${Date.now()}`,
+			date: slot.date,
+			meetLink: slot.meetLink || "",
+			invitedLeadIds: leads.map((l) => l.id),
+			attendedLeadIds: attendedIds,
+			durationMinutes: 60
+		};
+		const interactions = [];
+		if (state.settings?.autoExportToCRM) leads.forEach((l) => {
+			interactions.push({
+				id: `int-${Date.now()}-${l.id}`,
+				leadId: l.id,
+				type: "Meeting",
+				date: slot.date,
+				description: "Reunião Virtual via Google Meet",
+				status: attendedIds.includes(l.id) ? "Presente" : "Ausente",
+				link: slot.meetLink,
+				durationMinutes: 60
+			});
+		});
+		dispatch({
+			type: "SAVE_MEETING_REPORT",
+			payload: {
+				report,
+				interactions,
+				appointmentIds: slot.ids
+			}
+		});
+		toast.success("Relatório Salvo", { description: state.settings?.autoExportToCRM ? "Participação registrada e prontuários atualizados com sucesso." : "Relatório de participação gerado com sucesso." });
+		onOpenChange(false);
+	};
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Dialog, {
+		"data-uid": "src/pages/Dashboard/MeetingReportDialog.tsx:118:5",
+		"data-prohibitions": "[editContent]",
+		open,
+		onOpenChange,
+		children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogContent, {
+			"data-uid": "src/pages/Dashboard/MeetingReportDialog.tsx:119:7",
+			"data-prohibitions": "[editContent]",
+			className: "sm:max-w-md",
+			children: [
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogHeader, {
+					"data-uid": "src/pages/Dashboard/MeetingReportDialog.tsx:120:9",
+					"data-prohibitions": "[editContent]",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DialogTitle, {
+						"data-uid": "src/pages/Dashboard/MeetingReportDialog.tsx:121:11",
+						"data-prohibitions": "[]",
+						children: "Relatório de Participação"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DialogDescription, {
+						"data-uid": "src/pages/Dashboard/MeetingReportDialog.tsx:122:11",
+						"data-prohibitions": "[editContent]",
+						children: format$1(new Date(slot.date), "dd 'de' MMMM, yyyy 'às' HH:mm", { locale: ptBR })
+					})]
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					"data-uid": "src/pages/Dashboard/MeetingReportDialog.tsx:127:9",
+					"data-prohibitions": "[editContent]",
+					className: "space-y-6 py-2",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						"data-uid": "src/pages/Dashboard/MeetingReportDialog.tsx:128:11",
+						"data-prohibitions": "[editContent]",
+						className: "bg-muted/50 p-4 rounded-lg space-y-3",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								"data-uid": "src/pages/Dashboard/MeetingReportDialog.tsx:129:13",
+								"data-prohibitions": "[editContent]",
+								className: "flex justify-between items-center text-sm",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+									"data-uid": "src/pages/Dashboard/MeetingReportDialog.tsx:130:15",
+									"data-prohibitions": "[]",
+									className: "text-muted-foreground font-medium",
+									children: "Taxa de Presença"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+									"data-uid": "src/pages/Dashboard/MeetingReportDialog.tsx:131:15",
+									"data-prohibitions": "[editContent]",
+									className: "font-bold",
+									children: [attendanceRate, "%"]
+								})]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Progress, {
+								"data-uid": "src/pages/Dashboard/MeetingReportDialog.tsx:133:13",
+								"data-prohibitions": "[editContent]",
+								value: attendanceRate,
+								className: "h-2"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+								"data-uid": "src/pages/Dashboard/MeetingReportDialog.tsx:134:13",
+								"data-prohibitions": "[editContent]",
+								className: "text-xs text-muted-foreground",
+								children: [
+									attendedIds.length,
+									" de ",
+									leads.length,
+									" convidados presentes."
+								]
+							})
+						]
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						"data-uid": "src/pages/Dashboard/MeetingReportDialog.tsx:139:11",
+						"data-prohibitions": "[editContent]",
+						className: "space-y-3 max-h-[300px] overflow-y-auto pr-2",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h4", {
+							"data-uid": "src/pages/Dashboard/MeetingReportDialog.tsx:140:13",
+							"data-prohibitions": "[editContent]",
+							className: "text-sm font-semibold text-muted-foreground uppercase tracking-wider",
+							children: [
+								"Convidados (",
+								leads.length,
+								")"
+							]
+						}), leads.map((lead) => {
+							const isAttended = attendedIds.includes(lead.id);
+							return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								"data-uid": "src/pages/Dashboard/MeetingReportDialog.tsx:146:17",
+								"data-prohibitions": "[editContent]",
+								className: `flex items-center justify-between p-2 rounded-md border transition-colors ${isAttended ? "bg-success/10 border-success/30" : "bg-background border-border/50"}`,
+								onClick: () => handleToggle(lead.id),
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									"data-uid": "src/pages/Dashboard/MeetingReportDialog.tsx:155:19",
+									"data-prohibitions": "[editContent]",
+									className: "flex items-center gap-3",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Avatar, {
+										"data-uid": "src/pages/Dashboard/MeetingReportDialog.tsx:156:21",
+										"data-prohibitions": "[editContent]",
+										className: "h-8 w-8",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(AvatarImage, {
+											"data-uid": "src/pages/Dashboard/MeetingReportDialog.tsx:157:23",
+											"data-prohibitions": "[editContent]",
+											src: `https://img.usecurling.com/ppl/thumbnail?gender=male&seed=${lead.avatarSeed || 1}`
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AvatarFallback, {
+											"data-uid": "src/pages/Dashboard/MeetingReportDialog.tsx:160:23",
+											"data-prohibitions": "[editContent]",
+											children: lead.name.charAt(0)
+										})]
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										"data-uid": "src/pages/Dashboard/MeetingReportDialog.tsx:162:21",
+										"data-prohibitions": "[editContent]",
+										className: "flex flex-col",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											"data-uid": "src/pages/Dashboard/MeetingReportDialog.tsx:163:23",
+											"data-prohibitions": "[editContent]",
+											className: "text-sm font-medium",
+											children: lead.name
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											"data-uid": "src/pages/Dashboard/MeetingReportDialog.tsx:164:23",
+											"data-prohibitions": "[editContent]",
+											className: "text-xs text-muted-foreground",
+											children: lead.company || lead.type
+										})]
+									})]
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									"data-uid": "src/pages/Dashboard/MeetingReportDialog.tsx:169:19",
+									"data-prohibitions": "[editContent]",
+									className: "flex items-center gap-2",
+									children: [isViewMode && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
+										"data-uid": "src/pages/Dashboard/MeetingReportDialog.tsx:171:23",
+										"data-prohibitions": "[editContent]",
+										variant: isAttended ? "default" : "secondary",
+										className: isAttended ? "bg-success hover:bg-success/90" : "",
+										children: isAttended ? "Presente" : "Ausente"
+									}), !isViewMode && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Checkbox, {
+										"data-uid": "src/pages/Dashboard/MeetingReportDialog.tsx:179:23",
+										"data-prohibitions": "[editContent]",
+										checked: isAttended,
+										onCheckedChange: () => handleToggle(lead.id),
+										className: "data-[state=checked]:bg-success data-[state=checked]:text-success-foreground data-[state=checked]:border-success"
+									})]
+								})]
+							}, lead.id);
+						})]
+					})]
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DialogFooter, {
+					"data-uid": "src/pages/Dashboard/MeetingReportDialog.tsx:192:9",
+					"data-prohibitions": "[editContent]",
+					className: "sm:justify-between items-center border-t pt-4",
+					children: isViewMode ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						"data-uid": "src/pages/Dashboard/MeetingReportDialog.tsx:194:13",
+						"data-prohibitions": "[]",
+						className: "text-xs text-muted-foreground w-full text-center",
+						children: "Este relatório já foi finalizado e os prontuários foram atualizados."
+					}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						"data-uid": "src/pages/Dashboard/MeetingReportDialog.tsx:199:15",
+						"data-prohibitions": "[editContent]",
+						className: "text-[11px] text-muted-foreground max-w-[200px]",
+						children: state.settings?.autoExportToCRM ? "Os dados serão exportados para o prontuário de cada prescritor." : "A exportação para CRM está desativada."
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						"data-uid": "src/pages/Dashboard/MeetingReportDialog.tsx:204:15",
+						"data-prohibitions": "[]",
+						className: "flex gap-2",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button$1, {
+							"data-uid": "src/pages/Dashboard/MeetingReportDialog.tsx:205:17",
+							"data-prohibitions": "[]",
+							variant: "outline",
+							onClick: () => onOpenChange(false),
+							children: "Cancelar"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button$1, {
+							"data-uid": "src/pages/Dashboard/MeetingReportDialog.tsx:208:17",
+							"data-prohibitions": "[]",
+							onClick: handleSave,
+							children: "Salvar Relatório"
+						})]
+					})] })
+				})
+			]
+		})
+	});
+}
+//#endregion
 //#region src/pages/Dashboard/UpcomingOnlineMeetings.tsx
 function UpcomingOnlineMeetings({ dateRange }) {
 	const { state } = useMainStore();
+	const [selectedSlot, setSelectedSlot] = (0, import_react.useState)(null);
+	const [dialogOpen, setDialogOpen] = (0, import_react.useState)(false);
 	const slots = (0, import_react.useMemo)(() => {
-		const grouped = state.appointments.filter((a) => a.isVirtual && a.status === "Scheduled" && isDateInRange(a.date, dateRange)).reduce((acc, app) => {
+		const grouped = state.appointments.filter((a) => a.isVirtual && isDateInRange(a.date, dateRange)).reduce((acc, app) => {
 			if (!acc[app.date]) acc[app.date] = {
 				date: app.date,
 				meetLink: app.meetLink,
@@ -58890,87 +59509,135 @@ function UpcomingOnlineMeetings({ dateRange }) {
 			acc[app.date].ids.push(app.id);
 			return acc;
 		}, {});
-		return Object.values(grouped).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+		return Object.values(grouped).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 	}, [state.appointments, dateRange]);
+	const openReport = (slot) => {
+		setSelectedSlot(slot);
+		setDialogOpen(true);
+	};
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
-		"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:44:5",
+		"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:54:5",
 		"data-prohibitions": "[editContent]",
 		className: "shadow-subtle flex-1 flex flex-col",
-		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardHeader, {
-			"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:45:7",
-			"data-prohibitions": "[]",
-			className: "pb-3",
-			children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardTitle, {
-				"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:46:9",
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardHeader, {
+				"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:55:7",
 				"data-prohibitions": "[]",
-				className: "text-lg flex items-center gap-2",
-				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Video, {
-					"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:47:11",
-					"data-prohibitions": "[editContent]",
-					className: "h-5 w-5 text-teal-600"
-				}), "Próximas Reuniões Online"]
-			})
-		}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardContent, {
-			"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:51:7",
-			"data-prohibitions": "[editContent]",
-			className: "flex-1 overflow-y-auto max-h-[300px]",
-			children: slots.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-				"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:53:11",
-				"data-prohibitions": "[]",
-				className: "text-muted-foreground text-sm text-center py-4",
-				children: "Nenhuma reunião online no período."
-			}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-				"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:57:11",
-				"data-prohibitions": "[editContent]",
-				className: "space-y-3",
-				children: slots.map((slot) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:59:15",
-					"data-prohibitions": "[editContent]",
-					className: "p-3 border rounded-lg bg-teal-50/40 flex flex-col gap-3 hover:bg-teal-50/60 transition-colors",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:63:17",
+				className: "pb-3",
+				children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardTitle, {
+					"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:56:9",
+					"data-prohibitions": "[]",
+					className: "text-lg flex items-center gap-2",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Video, {
+						"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:57:11",
 						"data-prohibitions": "[editContent]",
-						className: "flex justify-between items-center",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-							"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:64:19",
+						className: "h-5 w-5 text-teal-600"
+					}), "Reuniões Online (Google Meet)"]
+				})
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardContent, {
+				"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:61:7",
+				"data-prohibitions": "[editContent]",
+				className: "flex-1 overflow-y-auto max-h-[350px]",
+				children: slots.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:63:11",
+					"data-prohibitions": "[]",
+					className: "text-muted-foreground text-sm text-center py-4",
+					children: "Nenhuma reunião online no período."
+				}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+					"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:67:11",
+					"data-prohibitions": "[editContent]",
+					className: "space-y-3",
+					children: slots.map((slot) => {
+						const isPast = new Date(slot.date) < /* @__PURE__ */ new Date();
+						const hasReport = state.meetingReports?.some((r) => r.date === slot.date);
+						return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:73:17",
 							"data-prohibitions": "[editContent]",
-							className: "font-semibold text-sm",
-							children: format$1(new Date(slot.date), "dd/MM 'às' HH:mm", { locale: ptBR })
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:67:19",
-							"data-prohibitions": "[editContent]",
-							className: "flex items-center gap-1 text-xs font-medium text-teal-800 bg-teal-100/80 px-2 py-1 rounded-full border border-teal-200",
-							children: [
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Users, {
-									"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:68:21",
+							className: `p-3 border rounded-lg flex flex-col gap-3 transition-colors ${isPast && !hasReport ? "bg-orange-50/40 hover:bg-orange-50/60 border-orange-200" : "bg-teal-50/40 hover:bg-teal-50/60"}`,
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:81:19",
+								"data-prohibitions": "[editContent]",
+								className: "flex justify-between items-start",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:82:21",
 									"data-prohibitions": "[editContent]",
-									className: "h-3.5 w-3.5"
-								}),
-								slot.participants,
-								" / 30"
-							]
-						})]
-					}), slot.meetLink ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("a", {
-						"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:73:19",
-						"data-prohibitions": "[]",
-						href: slot.meetLink,
-						target: "_blank",
-						rel: "noreferrer",
-						className: "flex items-center justify-center gap-2 w-full text-xs font-medium bg-teal-600 hover:bg-teal-700 text-white px-3 py-2 rounded-md transition-colors",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ExternalLink, {
-							"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:79:21",
-							"data-prohibitions": "[editContent]",
-							className: "h-3.5 w-3.5"
-						}), "Ingressar no Meet"]
-					}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-						"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:83:19",
-						"data-prohibitions": "[]",
-						className: "text-xs text-muted-foreground text-center block py-1 bg-muted rounded-md",
-						children: "Link indisponível"
-					})]
-				}, slot.date))
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+										"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:83:23",
+										"data-prohibitions": "[editContent]",
+										className: "font-semibold text-sm block",
+										children: format$1(new Date(slot.date), "dd/MM 'às' HH:mm", { locale: ptBR })
+									}), isPast && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+										"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:87:25",
+										"data-prohibitions": "[editContent]",
+										className: "text-[10px] font-medium text-muted-foreground uppercase",
+										children: hasReport ? "Concluída" : "Aguardando Relatório"
+									})]
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:92:21",
+									"data-prohibitions": "[editContent]",
+									className: `flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full border ${isPast && !hasReport ? "bg-orange-100 text-orange-800 border-orange-200" : "bg-teal-100/80 text-teal-800 border-teal-200"}`,
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Users, {
+											"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:99:23",
+											"data-prohibitions": "[editContent]",
+											className: "h-3.5 w-3.5"
+										}),
+										slot.participants,
+										" / 30"
+									]
+								})]
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:104:19",
+								"data-prohibitions": "[editContent]",
+								className: "flex flex-col sm:flex-row gap-2 w-full",
+								children: [
+									!isPast && slot.meetLink && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("a", {
+										"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:106:23",
+										"data-prohibitions": "[]",
+										href: slot.meetLink,
+										target: "_blank",
+										rel: "noreferrer",
+										className: "flex-1 flex items-center justify-center gap-2 text-xs font-medium bg-teal-600 hover:bg-teal-700 text-white px-3 py-2 rounded-md transition-colors",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ExternalLink, {
+											"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:112:25",
+											"data-prohibitions": "[editContent]",
+											className: "h-3.5 w-3.5"
+										}), "Ingressar"]
+									}),
+									isPast && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button$1, {
+										"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:118:23",
+										"data-prohibitions": "[editContent]",
+										variant: hasReport ? "outline" : "default",
+										size: "sm",
+										onClick: () => openReport(slot),
+										className: `flex-1 gap-2 h-8 text-xs ${hasReport ? "" : "bg-orange-600 hover:bg-orange-700 text-white"}`,
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FileText, {
+											"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:124:25",
+											"data-prohibitions": "[editContent]",
+											className: "h-3.5 w-3.5"
+										}), hasReport ? "Ver Relatório" : "Gerar Relatório"]
+									}),
+									!isPast && !slot.meetLink && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+										"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:130:23",
+										"data-prohibitions": "[]",
+										className: "flex-1 text-xs text-muted-foreground text-center py-2 bg-muted rounded-md",
+										children: "Link indisponível"
+									})
+								]
+							})]
+						}, slot.date);
+					})
+				})
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(MeetingReportDialog, {
+				"data-uid": "src/pages/Dashboard/UpcomingOnlineMeetings.tsx:142:7",
+				"data-prohibitions": "[editContent]",
+				slot: selectedSlot,
+				open: dialogOpen,
+				onOpenChange: setDialogOpen
 			})
-		})]
+		]
 	});
 }
 //#endregion
@@ -59025,10 +59692,10 @@ var PopoverAnchor = import_react.forwardRef((props, forwardedRef) => {
 	});
 });
 PopoverAnchor.displayName = ANCHOR_NAME$1;
-var TRIGGER_NAME$4 = "PopoverTrigger";
+var TRIGGER_NAME$3 = "PopoverTrigger";
 var PopoverTrigger$1 = import_react.forwardRef((props, forwardedRef) => {
 	const { __scopePopover, ...triggerProps } = props;
-	const context = usePopoverContext(TRIGGER_NAME$4, __scopePopover);
+	const context = usePopoverContext(TRIGGER_NAME$3, __scopePopover);
 	const popperScope = usePopperScope$2(__scopePopover);
 	const composedTriggerRef = useComposedRefs(forwardedRef, context.triggerRef);
 	const trigger = /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Primitive$1.button, {
@@ -59036,7 +59703,7 @@ var PopoverTrigger$1 = import_react.forwardRef((props, forwardedRef) => {
 		"aria-haspopup": "dialog",
 		"aria-expanded": context.open,
 		"aria-controls": context.contentId,
-		"data-state": getState$2(context.open),
+		"data-state": getState$1(context.open),
 		...triggerProps,
 		ref: composedTriggerRef,
 		onClick: composeEventHandlers(props.onClick, context.onOpenToggle)
@@ -59047,7 +59714,7 @@ var PopoverTrigger$1 = import_react.forwardRef((props, forwardedRef) => {
 		children: trigger
 	});
 });
-PopoverTrigger$1.displayName = TRIGGER_NAME$4;
+PopoverTrigger$1.displayName = TRIGGER_NAME$3;
 var PORTAL_NAME$3 = "PopoverPortal";
 var [PortalProvider$1, usePortalContext$1] = createPopoverContext(PORTAL_NAME$3, { forceMount: void 0 });
 var PopoverPortal = (props) => {
@@ -59165,7 +59832,7 @@ var PopoverContentImpl = import_react.forwardRef((props, forwardedRef) => {
 			onFocusOutside,
 			onDismiss: () => context.onOpenChange(false),
 			children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Content$2, {
-				"data-state": getState$2(context.open),
+				"data-state": getState$1(context.open),
 				role: "dialog",
 				id: context.contentId,
 				...popperScope,
@@ -59206,7 +59873,7 @@ var PopoverArrow = import_react.forwardRef((props, forwardedRef) => {
 	});
 });
 PopoverArrow.displayName = ARROW_NAME$3;
-function getState$2(open) {
+function getState$1(open) {
 	return open ? "open" : "closed";
 }
 var Root2$3 = Popover$1;
@@ -60541,7 +61208,7 @@ function PreviousMonthButton(props) {
 * @group Components
 * @see https://daypicker.dev/guides/custom-components
 */
-function Root$3(props) {
+function Root$2(props) {
 	const { rootRef, ...rest } = props;
 	return import_react.createElement("div", {
 		...rest,
@@ -60659,7 +61326,7 @@ var custom_components_exports = /* @__PURE__ */ __exportAll({
 	NextMonthButton: () => NextMonthButton,
 	Option: () => Option,
 	PreviousMonthButton: () => PreviousMonthButton,
-	Root: () => Root$3,
+	Root: () => Root$2,
 	Select: () => Select$2,
 	Week: () => Week,
 	WeekNumber: () => WeekNumber,
@@ -63268,7 +63935,7 @@ var get = (object, path, defaultValue) => {
 	return isUndefined(result) || result === object ? isUndefined(object[path]) ? defaultValue : object[path] : result;
 };
 var isBoolean = (value) => typeof value === "boolean";
-var isFunction$1 = (value) => typeof value === "function";
+var isFunction = (value) => typeof value === "function";
 var set = (object, path, value) => {
 	let index = -1;
 	const tempPath = isKey(path) ? [path] : stringToPath(path);
@@ -63602,10 +64269,10 @@ function useController(props) {
 	const ref = import_react.useCallback((elm) => {
 		const field = get(control._fields, name);
 		if (field && field._f && elm) field._f.ref = {
-			focus: () => isFunction$1(elm.focus) && elm.focus(),
-			select: () => isFunction$1(elm.select) && elm.select(),
-			setCustomValidity: (message) => isFunction$1(elm.setCustomValidity) && elm.setCustomValidity(message),
-			reportValidity: () => isFunction$1(elm.reportValidity) && elm.reportValidity()
+			focus: () => isFunction(elm.focus) && elm.focus(),
+			select: () => isFunction(elm.select) && elm.select(),
+			setCustomValidity: (message) => isFunction(elm.setCustomValidity) && elm.setCustomValidity(message),
+			reportValidity: () => isFunction(elm.reportValidity) && elm.reportValidity()
 		};
 	}, [control._fields, name]);
 	const field = import_react.useMemo(() => ({
@@ -63891,7 +64558,7 @@ function unset(object, path) {
 	return object;
 }
 var objectHasFunction = (data) => {
-	for (const key in data) if (isFunction$1(data[key])) return true;
+	for (const key in data) if (isFunction(data[key])) return true;
 	return false;
 };
 function isTraversable(value) {
@@ -63984,7 +64651,7 @@ var getValidationModes = (mode) => ({
 	isOnTouch: mode === VALIDATION_MODE.onTouched
 });
 var ASYNC_FUNCTION = "AsyncFunction";
-var hasPromiseValidation = (fieldReference) => !!fieldReference && !!fieldReference.validate && !!(isFunction$1(fieldReference.validate) && fieldReference.validate.constructor.name === ASYNC_FUNCTION || isObject$1(fieldReference.validate) && Object.values(fieldReference.validate).find((validateFunction) => validateFunction.constructor.name === ASYNC_FUNCTION));
+var hasPromiseValidation = (fieldReference) => !!fieldReference && !!fieldReference.validate && !!(isFunction(fieldReference.validate) && fieldReference.validate.constructor.name === ASYNC_FUNCTION || isObject$1(fieldReference.validate) && Object.values(fieldReference.validate).find((validateFunction) => validateFunction.constructor.name === ASYNC_FUNCTION));
 var hasValidation = (options) => options.mount && (options.required || options.min || options.max || options.maxLength || options.minLength || options.pattern || options.validate);
 var isWatched = (name, _names, isBlurEvent) => !isBlurEvent && (_names.watchAll || _names.watch.has(name) || [..._names.watch].some((watchName) => name.startsWith(watchName) && /^\.\w+/.test(name.slice(watchName.length))));
 var iterateFieldsByAction = (fields, action, fieldsNames, abortEarly) => {
@@ -64155,7 +64822,7 @@ var validateField = async (field, disabledFieldNames, formValues, validateAllFie
 		}
 	}
 	if (validate) {
-		if (isFunction$1(validate)) {
+		if (isFunction(validate)) {
 			const validateError = getValidateError(await validate(inputValue, formValues), inputRef);
 			if (validateError) {
 				error[name] = {
@@ -64207,7 +64874,7 @@ function createFormControl(props = {}) {
 		submitCount: 0,
 		isDirty: false,
 		isReady: false,
-		isLoading: isFunction$1(_options.defaultValues),
+		isLoading: isFunction(_options.defaultValues),
 		isValidating: false,
 		isSubmitted: false,
 		isSubmitting: false,
@@ -64624,7 +65291,7 @@ function createFormControl(props = {}) {
 		});
 		options && options.shouldFocus && ref && ref.focus && ref.focus();
 	};
-	const watch = (name, defaultValue) => isFunction$1(name) ? _subjects.state.subscribe({ next: (payload) => "values" in payload && name(_getWatch(void 0, defaultValue), payload) }) : _getWatch(name, defaultValue, true);
+	const watch = (name, defaultValue) => isFunction(name) ? _subjects.state.subscribe({ next: (payload) => "values" in payload && name(_getWatch(void 0, defaultValue), payload) }) : _getWatch(name, defaultValue, true);
 	const _subscribe = (props) => _subjects.state.subscribe({ next: (formState) => {
 		if (shouldSubscribeByName(props.name, formState.name, props.exact) && shouldRenderFormState(formState, props.formState || _proxyFormState, _setFormState, props.reRenderRoot)) props.callback({
 			values: { ..._formValues },
@@ -64871,7 +65538,7 @@ function createFormControl(props = {}) {
 			defaultValues: _defaultValues
 		});
 	};
-	const reset = (formValues, keepStateOptions) => _reset(isFunction$1(formValues) ? formValues(_formValues) : formValues, {
+	const reset = (formValues, keepStateOptions) => _reset(isFunction(formValues) ? formValues(_formValues) : formValues, {
 		..._options.resetOptions,
 		...keepStateOptions
 	});
@@ -64882,7 +65549,7 @@ function createFormControl(props = {}) {
 			const fieldRef = fieldReference.refs ? fieldReference.refs[0] : fieldReference.ref;
 			if (fieldRef.focus) setTimeout(() => {
 				fieldRef.focus();
-				options.shouldSelect && isFunction$1(fieldRef.select) && fieldRef.select();
+				options.shouldSelect && isFunction(fieldRef.select) && fieldRef.select();
 			});
 		}
 	};
@@ -64892,7 +65559,7 @@ function createFormControl(props = {}) {
 			...updatedFormState
 		};
 	};
-	const _resetDefaultValues = () => isFunction$1(_options.defaultValues) && _options.defaultValues().then((values) => {
+	const _resetDefaultValues = () => isFunction(_options.defaultValues) && _options.defaultValues().then((values) => {
 		reset(values, _options.resetOptions);
 		_subjects.state.next({ isLoading: false });
 	});
@@ -65009,7 +65676,7 @@ function useForm(props = {}) {
 	const [formState, updateFormState] = import_react.useState({
 		isDirty: false,
 		isValidating: false,
-		isLoading: isFunction$1(props.defaultValues),
+		isLoading: isFunction(props.defaultValues),
 		isSubmitted: false,
 		isSubmitting: false,
 		isSubmitSuccessful: false,
@@ -65021,14 +65688,14 @@ function useForm(props = {}) {
 		errors: props.errors || {},
 		disabled: props.disabled || false,
 		isReady: false,
-		defaultValues: isFunction$1(props.defaultValues) ? void 0 : props.defaultValues
+		defaultValues: isFunction(props.defaultValues) ? void 0 : props.defaultValues
 	});
 	if (!_formControl.current) if (props.formControl) {
 		_formControl.current = {
 			...props.formControl,
 			formState
 		};
-		if (props.defaultValues && !isFunction$1(props.defaultValues)) props.formControl.reset(props.defaultValues, props.resetOptions);
+		if (props.defaultValues && !isFunction(props.defaultValues)) props.formControl.reset(props.defaultValues, props.resetOptions);
 	} else {
 		const { formControl, ...rest } = createFormControl(props);
 		_formControl.current = {
@@ -68737,21 +69404,6 @@ function useDirection(localDir) {
 	return localDir || globalDir || "ltr";
 }
 //#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/@radix-ui+react-use-previous@1.1.1_@types+react@19.2.14_react@19.2.4/node_modules/@radix-ui/react-use-previous/dist/index.mjs
-function usePrevious(value) {
-	const ref = import_react.useRef({
-		value,
-		previous: value
-	});
-	return import_react.useMemo(() => {
-		if (ref.current.value !== value) {
-			ref.current.previous = ref.current.value;
-			ref.current.value = value;
-		}
-		return ref.current.previous;
-	}, [value]);
-}
-//#endregion
 //#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/@radix-ui+react-select@2.2.6_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react_53894a32562cb9eeb6aef8b357a4f4e3/node_modules/@radix-ui/react-select/dist/index.mjs
 var OPEN_KEYS = [
 	" ",
@@ -68840,11 +69492,11 @@ var Select$1 = (props) => {
 	});
 };
 Select$1.displayName = SELECT_NAME;
-var TRIGGER_NAME$3 = "SelectTrigger";
+var TRIGGER_NAME$2 = "SelectTrigger";
 var SelectTrigger$1 = import_react.forwardRef((props, forwardedRef) => {
 	const { __scopeSelect, disabled = false, ...triggerProps } = props;
 	const popperScope = usePopperScope$1(__scopeSelect);
-	const context = useSelectContext(TRIGGER_NAME$3, __scopeSelect);
+	const context = useSelectContext(TRIGGER_NAME$2, __scopeSelect);
 	const isDisabled = context.disabled || disabled;
 	const composedRefs = useComposedRefs(forwardedRef, context.onTriggerChange);
 	const getItems = useCollection$2(__scopeSelect);
@@ -68906,7 +69558,7 @@ var SelectTrigger$1 = import_react.forwardRef((props, forwardedRef) => {
 		})
 	});
 });
-SelectTrigger$1.displayName = TRIGGER_NAME$3;
+SelectTrigger$1.displayName = TRIGGER_NAME$2;
 var VALUE_NAME = "SelectValue";
 var SelectValue$1 = import_react.forwardRef((props, forwardedRef) => {
 	const { __scopeSelect, className, style, children, placeholder = "", ...valueProps } = props;
@@ -69621,7 +70273,7 @@ var SelectArrow = import_react.forwardRef((props, forwardedRef) => {
 	}) : null;
 });
 SelectArrow.displayName = ARROW_NAME$2;
-var BUBBLE_INPUT_NAME$2 = "SelectBubbleInput";
+var BUBBLE_INPUT_NAME$1 = "SelectBubbleInput";
 var SelectBubbleInput = import_react.forwardRef(({ __scopeSelect, value, ...props }, forwardedRef) => {
 	const ref = import_react.useRef(null);
 	const composedRefs = useComposedRefs(forwardedRef, ref);
@@ -69647,7 +70299,7 @@ var SelectBubbleInput = import_react.forwardRef(({ __scopeSelect, value, ...prop
 		defaultValue: value
 	});
 });
-SelectBubbleInput.displayName = BUBBLE_INPUT_NAME$2;
+SelectBubbleInput.displayName = BUBBLE_INPUT_NAME$1;
 function shouldShowPlaceholder(value) {
 	return value === "" || value === void 0;
 }
@@ -69822,199 +70474,6 @@ var SelectSeparator = import_react.forwardRef(({ className, ...props }, ref) => 
 }));
 SelectSeparator.displayName = Separator$1.displayName;
 //#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/@radix-ui+react-checkbox@1.3.3_@types+react-dom@19.2.3_@types+react@19.2.14__@types+rea_a9bfe74df417688e01ae6068318bf0dd/node_modules/@radix-ui/react-checkbox/dist/index.mjs
-var CHECKBOX_NAME = "Checkbox";
-var [createCheckboxContext, createCheckboxScope] = createContextScope$1(CHECKBOX_NAME);
-var [CheckboxProviderImpl, useCheckboxContext] = createCheckboxContext(CHECKBOX_NAME);
-function CheckboxProvider(props) {
-	const { __scopeCheckbox, checked: checkedProp, children, defaultChecked, disabled, form, name, onCheckedChange, required, value = "on", internal_do_not_use_render } = props;
-	const [checked, setChecked] = useControllableState({
-		prop: checkedProp,
-		defaultProp: defaultChecked ?? false,
-		onChange: onCheckedChange,
-		caller: CHECKBOX_NAME
-	});
-	const [control, setControl] = import_react.useState(null);
-	const [bubbleInput, setBubbleInput] = import_react.useState(null);
-	const hasConsumerStoppedPropagationRef = import_react.useRef(false);
-	const isFormControl = control ? !!form || !!control.closest("form") : true;
-	const context = {
-		checked,
-		disabled,
-		setChecked,
-		control,
-		setControl,
-		name,
-		form,
-		value,
-		hasConsumerStoppedPropagationRef,
-		required,
-		defaultChecked: isIndeterminate$1(defaultChecked) ? false : defaultChecked,
-		isFormControl,
-		bubbleInput,
-		setBubbleInput
-	};
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CheckboxProviderImpl, {
-		scope: __scopeCheckbox,
-		...context,
-		children: isFunction(internal_do_not_use_render) ? internal_do_not_use_render(context) : children
-	});
-}
-var TRIGGER_NAME$2 = "CheckboxTrigger";
-var CheckboxTrigger = import_react.forwardRef(({ __scopeCheckbox, onKeyDown, onClick, ...checkboxProps }, forwardedRef) => {
-	const { control, value, disabled, checked, required, setControl, setChecked, hasConsumerStoppedPropagationRef, isFormControl, bubbleInput } = useCheckboxContext(TRIGGER_NAME$2, __scopeCheckbox);
-	const composedRefs = useComposedRefs(forwardedRef, setControl);
-	const initialCheckedStateRef = import_react.useRef(checked);
-	import_react.useEffect(() => {
-		const form = control?.form;
-		if (form) {
-			const reset = () => setChecked(initialCheckedStateRef.current);
-			form.addEventListener("reset", reset);
-			return () => form.removeEventListener("reset", reset);
-		}
-	}, [control, setChecked]);
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Primitive$1.button, {
-		type: "button",
-		role: "checkbox",
-		"aria-checked": isIndeterminate$1(checked) ? "mixed" : checked,
-		"aria-required": required,
-		"data-state": getState$1(checked),
-		"data-disabled": disabled ? "" : void 0,
-		disabled,
-		value,
-		...checkboxProps,
-		ref: composedRefs,
-		onKeyDown: composeEventHandlers(onKeyDown, (event) => {
-			if (event.key === "Enter") event.preventDefault();
-		}),
-		onClick: composeEventHandlers(onClick, (event) => {
-			setChecked((prevChecked) => isIndeterminate$1(prevChecked) ? true : !prevChecked);
-			if (bubbleInput && isFormControl) {
-				hasConsumerStoppedPropagationRef.current = event.isPropagationStopped();
-				if (!hasConsumerStoppedPropagationRef.current) event.stopPropagation();
-			}
-		})
-	});
-});
-CheckboxTrigger.displayName = TRIGGER_NAME$2;
-var Checkbox$1 = import_react.forwardRef((props, forwardedRef) => {
-	const { __scopeCheckbox, name, checked, defaultChecked, required, disabled, value, onCheckedChange, form, ...checkboxProps } = props;
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CheckboxProvider, {
-		__scopeCheckbox,
-		checked,
-		defaultChecked,
-		disabled,
-		required,
-		onCheckedChange,
-		name,
-		form,
-		value,
-		internal_do_not_use_render: ({ isFormControl }) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CheckboxTrigger, {
-			...checkboxProps,
-			ref: forwardedRef,
-			__scopeCheckbox
-		}), isFormControl && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CheckboxBubbleInput, { __scopeCheckbox })] })
-	});
-});
-Checkbox$1.displayName = CHECKBOX_NAME;
-var INDICATOR_NAME$2 = "CheckboxIndicator";
-var CheckboxIndicator = import_react.forwardRef((props, forwardedRef) => {
-	const { __scopeCheckbox, forceMount, ...indicatorProps } = props;
-	const context = useCheckboxContext(INDICATOR_NAME$2, __scopeCheckbox);
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Presence, {
-		present: forceMount || isIndeterminate$1(context.checked) || context.checked === true,
-		children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Primitive$1.span, {
-			"data-state": getState$1(context.checked),
-			"data-disabled": context.disabled ? "" : void 0,
-			...indicatorProps,
-			ref: forwardedRef,
-			style: {
-				pointerEvents: "none",
-				...props.style
-			}
-		})
-	});
-});
-CheckboxIndicator.displayName = INDICATOR_NAME$2;
-var BUBBLE_INPUT_NAME$1 = "CheckboxBubbleInput";
-var CheckboxBubbleInput = import_react.forwardRef(({ __scopeCheckbox, ...props }, forwardedRef) => {
-	const { control, hasConsumerStoppedPropagationRef, checked, defaultChecked, required, disabled, name, value, form, bubbleInput, setBubbleInput } = useCheckboxContext(BUBBLE_INPUT_NAME$1, __scopeCheckbox);
-	const composedRefs = useComposedRefs(forwardedRef, setBubbleInput);
-	const prevChecked = usePrevious(checked);
-	const controlSize = useSize(control);
-	import_react.useEffect(() => {
-		const input = bubbleInput;
-		if (!input) return;
-		const inputProto = window.HTMLInputElement.prototype;
-		const setChecked = Object.getOwnPropertyDescriptor(inputProto, "checked").set;
-		const bubbles = !hasConsumerStoppedPropagationRef.current;
-		if (prevChecked !== checked && setChecked) {
-			const event = new Event("click", { bubbles });
-			input.indeterminate = isIndeterminate$1(checked);
-			setChecked.call(input, isIndeterminate$1(checked) ? false : checked);
-			input.dispatchEvent(event);
-		}
-	}, [
-		bubbleInput,
-		prevChecked,
-		checked,
-		hasConsumerStoppedPropagationRef
-	]);
-	const defaultCheckedRef = import_react.useRef(isIndeterminate$1(checked) ? false : checked);
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Primitive$1.input, {
-		type: "checkbox",
-		"aria-hidden": true,
-		defaultChecked: defaultChecked ?? defaultCheckedRef.current,
-		required,
-		disabled,
-		name,
-		value,
-		form,
-		...props,
-		tabIndex: -1,
-		ref: composedRefs,
-		style: {
-			...props.style,
-			...controlSize,
-			position: "absolute",
-			pointerEvents: "none",
-			opacity: 0,
-			margin: 0,
-			transform: "translateX(-100%)"
-		}
-	});
-});
-CheckboxBubbleInput.displayName = BUBBLE_INPUT_NAME$1;
-function isFunction(value) {
-	return typeof value === "function";
-}
-function isIndeterminate$1(checked) {
-	return checked === "indeterminate";
-}
-function getState$1(checked) {
-	return isIndeterminate$1(checked) ? "indeterminate" : checked ? "checked" : "unchecked";
-}
-//#endregion
-//#region src/components/ui/checkbox.tsx
-var Checkbox = import_react.forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Checkbox$1, {
-	"data-uid": "src/components/ui/checkbox.tsx:12:3",
-	"data-prohibitions": "[editContent]",
-	ref,
-	className: cn$1("peer h-4 w-4 shrink-0 rounded-sm border border-primary ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground", className),
-	...props,
-	children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CheckboxIndicator, {
-		"data-uid": "src/components/ui/checkbox.tsx:20:5",
-		"data-prohibitions": "[editContent]",
-		className: cn$1("flex items-center justify-center text-current"),
-		children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Check, {
-			"data-uid": "src/components/ui/checkbox.tsx:21:7",
-			"data-prohibitions": "[editContent]",
-			className: "h-4 w-4"
-		})
-	})
-}));
-Checkbox.displayName = Checkbox$1.displayName;
-//#endregion
 //#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/@radix-ui+react-switch@1.2.6_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react_e3738c514c10df2ef7e24af5ee461853/node_modules/@radix-ui/react-switch/dist/index.mjs
 var SWITCH_NAME = "Switch";
 var [createSwitchContext, createSwitchScope] = createContextScope$1(SWITCH_NAME);
@@ -70121,11 +70580,11 @@ SwitchBubbleInput.displayName = BUBBLE_INPUT_NAME;
 function getState(checked) {
 	return checked ? "checked" : "unchecked";
 }
-var Root$2 = Switch$1;
+var Root$1 = Switch$1;
 var Thumb = SwitchThumb;
 //#endregion
 //#region src/components/ui/switch.tsx
-var Switch = import_react.forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Root$2, {
+var Switch = import_react.forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Root$1, {
 	"data-uid": "src/components/ui/switch.tsx:11:3",
 	"data-prohibitions": "[editContent]",
 	className: cn$1("peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input", className),
@@ -70137,7 +70596,7 @@ var Switch = import_react.forwardRef(({ className, ...props }, ref) => /* @__PUR
 		className: cn$1("pointer-events-none block h-5 w-5 rounded-full bg-background shadow-lg ring-0 transition-transform data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0")
 	})
 }));
-Switch.displayName = Root$2.displayName;
+Switch.displayName = Root$1.displayName;
 //#endregion
 //#region src/pages/Scheduling/ScheduleForm.tsx
 var UF_OPTIONS = [
@@ -71460,7 +71919,7 @@ function focusFirst$1(candidates, preventScroll = false) {
 function wrapArray$1(array, startIndex) {
 	return array.map((_, index) => array[(startIndex + index) % array.length]);
 }
-var Root$1 = RovingFocusGroup;
+var Root = RovingFocusGroup;
 var Item = RovingFocusGroupItem;
 //#endregion
 //#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/@radix-ui+react-tabs@1.1.13_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@_2ad0945e3cb98dc5bbfaaf29c105e977/node_modules/@radix-ui/react-tabs/dist/index.mjs
@@ -71499,7 +71958,7 @@ var TabsList$1 = import_react.forwardRef((props, forwardedRef) => {
 	const { __scopeTabs, loop = true, ...listProps } = props;
 	const context = useTabsContext(TAB_LIST_NAME, __scopeTabs);
 	const rovingFocusGroupScope = useRovingFocusGroupScope$1(__scopeTabs);
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Root$1, {
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Root, {
 		asChild: true,
 		...rovingFocusGroupScope,
 		orientation: context.orientation,
@@ -71865,7 +72324,7 @@ var MenuContentImpl = import_react.forwardRef((props, forwardedRef) => {
 					onFocusOutside,
 					onInteractOutside,
 					onDismiss,
-					children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Root$1, {
+					children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Root, {
 						asChild: true,
 						...rovingFocusGroupScope,
 						dir: rootContext.dir,
@@ -72566,7 +73025,7 @@ var DropdownMenuRadioItem = import_react.forwardRef((props, forwardedRef) => {
 	});
 });
 DropdownMenuRadioItem.displayName = RADIO_ITEM_NAME;
-var INDICATOR_NAME$1 = "DropdownMenuItemIndicator";
+var INDICATOR_NAME = "DropdownMenuItemIndicator";
 var DropdownMenuItemIndicator = import_react.forwardRef((props, forwardedRef) => {
 	const { __scopeDropdownMenu, ...itemIndicatorProps } = props;
 	const menuScope = useMenuScope(__scopeDropdownMenu);
@@ -72576,7 +73035,7 @@ var DropdownMenuItemIndicator = import_react.forwardRef((props, forwardedRef) =>
 		ref: forwardedRef
 	});
 });
-DropdownMenuItemIndicator.displayName = INDICATOR_NAME$1;
+DropdownMenuItemIndicator.displayName = INDICATOR_NAME;
 var SEPARATOR_NAME = "DropdownMenuSeparator";
 var DropdownMenuSeparator = import_react.forwardRef((props, forwardedRef) => {
 	const { __scopeDropdownMenu, ...separatorProps } = props;
@@ -73486,95 +73945,6 @@ function CrmPage() {
 		})]
 	});
 }
-//#endregion
-//#region ../../cache/modules/sistema-de-agendamento-e-vendas-f4fa4/node_modules/.pnpm/@radix-ui+react-progress@1.1.8_@types+react-dom@19.2.3_@types+react@19.2.14__@types+rea_7258c0b550570cef5cd6f2d2227aa6b9/node_modules/@radix-ui/react-progress/dist/index.mjs
-var PROGRESS_NAME = "Progress";
-var DEFAULT_MAX = 100;
-var [createProgressContext, createProgressScope] = createContextScope(PROGRESS_NAME);
-var [ProgressProvider, useProgressContext] = createProgressContext(PROGRESS_NAME);
-var Progress$1 = import_react.forwardRef((props, forwardedRef) => {
-	const { __scopeProgress, value: valueProp = null, max: maxProp, getValueLabel = defaultGetValueLabel, ...progressProps } = props;
-	if ((maxProp || maxProp === 0) && !isValidMaxNumber(maxProp)) console.error(getInvalidMaxError(`${maxProp}`, "Progress"));
-	const max = isValidMaxNumber(maxProp) ? maxProp : DEFAULT_MAX;
-	if (valueProp !== null && !isValidValueNumber(valueProp, max)) console.error(getInvalidValueError(`${valueProp}`, "Progress"));
-	const value = isValidValueNumber(valueProp, max) ? valueProp : null;
-	const valueLabel = isNumber(value) ? getValueLabel(value, max) : void 0;
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ProgressProvider, {
-		scope: __scopeProgress,
-		value,
-		max,
-		children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Primitive.div, {
-			"aria-valuemax": max,
-			"aria-valuemin": 0,
-			"aria-valuenow": isNumber(value) ? value : void 0,
-			"aria-valuetext": valueLabel,
-			role: "progressbar",
-			"data-state": getProgressState(value, max),
-			"data-value": value ?? void 0,
-			"data-max": max,
-			...progressProps,
-			ref: forwardedRef
-		})
-	});
-});
-Progress$1.displayName = PROGRESS_NAME;
-var INDICATOR_NAME = "ProgressIndicator";
-var ProgressIndicator = import_react.forwardRef((props, forwardedRef) => {
-	const { __scopeProgress, ...indicatorProps } = props;
-	const context = useProgressContext(INDICATOR_NAME, __scopeProgress);
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Primitive.div, {
-		"data-state": getProgressState(context.value, context.max),
-		"data-value": context.value ?? void 0,
-		"data-max": context.max,
-		...indicatorProps,
-		ref: forwardedRef
-	});
-});
-ProgressIndicator.displayName = INDICATOR_NAME;
-function defaultGetValueLabel(value, max) {
-	return `${Math.round(value / max * 100)}%`;
-}
-function getProgressState(value, maxValue) {
-	return value == null ? "indeterminate" : value === maxValue ? "complete" : "loading";
-}
-function isNumber(value) {
-	return typeof value === "number";
-}
-function isValidMaxNumber(max) {
-	return isNumber(max) && !isNaN(max) && max > 0;
-}
-function isValidValueNumber(value, max) {
-	return isNumber(value) && !isNaN(value) && value <= max && value >= 0;
-}
-function getInvalidMaxError(propValue, componentName) {
-	return `Invalid prop \`max\` of value \`${propValue}\` supplied to \`${componentName}\`. Only numbers greater than 0 are valid max values. Defaulting to \`${DEFAULT_MAX}\`.`;
-}
-function getInvalidValueError(propValue, componentName) {
-	return `Invalid prop \`value\` of value \`${propValue}\` supplied to \`${componentName}\`. The \`value\` prop must be:
-  - a positive number
-  - less than the value passed to \`max\` (or ${DEFAULT_MAX} if no \`max\` prop is set)
-  - \`null\` or \`undefined\` if the progress is indeterminate.
-
-Defaulting to \`null\`.`;
-}
-var Root = Progress$1;
-var Indicator = ProgressIndicator;
-//#endregion
-//#region src/components/ui/progress.tsx
-var Progress = import_react.forwardRef(({ className, value, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Root, {
-	"data-uid": "src/components/ui/progress.tsx:11:3",
-	"data-prohibitions": "[editContent]",
-	ref,
-	className: cn$1("relative h-4 w-full overflow-hidden rounded-full bg-secondary", className),
-	...props,
-	children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Indicator, {
-		"data-uid": "src/components/ui/progress.tsx:16:5",
-		"data-prohibitions": "[editContent]",
-		className: "h-full w-full flex-1 bg-primary transition-all",
-		style: { transform: `translateX(-${100 - (value || 0)}%)` }
-	})
-}));
-Progress.displayName = Root.displayName;
 //#endregion
 //#region src/pages/Kits/Inventory.tsx
 function KitInventory() {
@@ -75012,49 +75382,154 @@ function GoogleMeetCard() {
 	});
 }
 //#endregion
+//#region src/pages/Settings/ReportsSettingsCard.tsx
+function ReportsSettingsCard() {
+	const { state, dispatch } = useMainStore();
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
+		"data-uid": "src/pages/Settings/ReportsSettingsCard.tsx:11:5",
+		"data-prohibitions": "[]",
+		className: "flex flex-col shadow-subtle border-border/50",
+		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, {
+			"data-uid": "src/pages/Settings/ReportsSettingsCard.tsx:12:7",
+			"data-prohibitions": "[]",
+			children: [
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+					"data-uid": "src/pages/Settings/ReportsSettingsCard.tsx:13:9",
+					"data-prohibitions": "[]",
+					className: "flex justify-between items-start",
+					children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						"data-uid": "src/pages/Settings/ReportsSettingsCard.tsx:14:11",
+						"data-prohibitions": "[]",
+						className: "p-3 bg-indigo-50 text-indigo-600 rounded-lg mb-2",
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(FileText, {
+							"data-uid": "src/pages/Settings/ReportsSettingsCard.tsx:15:13",
+							"data-prohibitions": "[editContent]",
+							className: "h-6 w-6"
+						})
+					})
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, {
+					"data-uid": "src/pages/Settings/ReportsSettingsCard.tsx:18:9",
+					"data-prohibitions": "[]",
+					children: "Relatórios e CRM"
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardDescription, {
+					"data-uid": "src/pages/Settings/ReportsSettingsCard.tsx:19:9",
+					"data-prohibitions": "[]",
+					children: "Automatize a geração de relatórios de presença e a atualização de prontuários."
+				})
+			]
+		}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardContent, {
+			"data-uid": "src/pages/Settings/ReportsSettingsCard.tsx:23:7",
+			"data-prohibitions": "[]",
+			className: "flex-1 space-y-6",
+			children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				"data-uid": "src/pages/Settings/ReportsSettingsCard.tsx:24:9",
+				"data-prohibitions": "[]",
+				className: "space-y-4",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					"data-uid": "src/pages/Settings/ReportsSettingsCard.tsx:25:11",
+					"data-prohibitions": "[]",
+					className: "flex items-center justify-between",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Label$3, {
+						"data-uid": "src/pages/Settings/ReportsSettingsCard.tsx:26:13",
+						"data-prohibitions": "[]",
+						className: "text-sm text-muted-foreground cursor-pointer pr-4",
+						htmlFor: "auto-generate-reports",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+							"data-uid": "src/pages/Settings/ReportsSettingsCard.tsx:30:15",
+							"data-prohibitions": "[]",
+							className: "font-medium text-foreground block mb-1",
+							children: "Gerar Relatórios de Participação"
+						}), "Pré-preencher os relatórios de presença automaticamente após o fim de reuniões via Google Meet."]
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Switch, {
+						"data-uid": "src/pages/Settings/ReportsSettingsCard.tsx:36:13",
+						"data-prohibitions": "[editContent]",
+						id: "auto-generate-reports",
+						checked: state.settings?.autoGenerateParticipationReports ?? false,
+						onCheckedChange: (c) => dispatch({
+							type: "UPDATE_SETTINGS",
+							payload: { autoGenerateParticipationReports: c }
+						})
+					})]
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					"data-uid": "src/pages/Settings/ReportsSettingsCard.tsx:47:11",
+					"data-prohibitions": "[]",
+					className: "flex items-center justify-between",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Label$3, {
+						"data-uid": "src/pages/Settings/ReportsSettingsCard.tsx:48:13",
+						"data-prohibitions": "[]",
+						className: "text-sm text-muted-foreground cursor-pointer pr-4",
+						htmlFor: "auto-export-crm",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+							"data-uid": "src/pages/Settings/ReportsSettingsCard.tsx:52:15",
+							"data-prohibitions": "[]",
+							className: "font-medium text-foreground block mb-1",
+							children: "Exportar para Prontuário CRM"
+						}), "Exportar detalhes de presença (Presente/Ausente) diretamente para o prontuário eletrônico do prescritor após concluir o relatório."]
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Switch, {
+						"data-uid": "src/pages/Settings/ReportsSettingsCard.tsx:58:13",
+						"data-prohibitions": "[editContent]",
+						id: "auto-export-crm",
+						checked: state.settings?.autoExportToCRM ?? false,
+						onCheckedChange: (c) => dispatch({
+							type: "UPDATE_SETTINGS",
+							payload: { autoExportToCRM: c }
+						})
+					})]
+				})]
+			})
+		})]
+	});
+}
+//#endregion
 //#region src/pages/Settings/Index.tsx
 function SettingsPage() {
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-		"data-uid": "src/pages/Settings/Index.tsx:9:5",
+		"data-uid": "src/pages/Settings/Index.tsx:10:5",
 		"data-prohibitions": "[]",
 		className: "space-y-6 animate-slide-up pb-8",
 		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-			"data-uid": "src/pages/Settings/Index.tsx:10:7",
+			"data-uid": "src/pages/Settings/Index.tsx:11:7",
 			"data-prohibitions": "[]",
 			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", {
-				"data-uid": "src/pages/Settings/Index.tsx:11:9",
+				"data-uid": "src/pages/Settings/Index.tsx:12:9",
 				"data-prohibitions": "[]",
 				className: "text-2xl font-bold tracking-tight",
 				children: "Configurações & Integrações"
 			}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-				"data-uid": "src/pages/Settings/Index.tsx:12:9",
+				"data-uid": "src/pages/Settings/Index.tsx:13:9",
 				"data-prohibitions": "[]",
 				className: "text-muted-foreground",
 				children: "Gerencie conexões com serviços externos, automatize fluxos e controle acessos."
 			})]
 		}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-			"data-uid": "src/pages/Settings/Index.tsx:16:7",
+			"data-uid": "src/pages/Settings/Index.tsx:17:7",
 			"data-prohibitions": "[]",
 			className: "grid gap-6 md:grid-cols-2 lg:grid-cols-3",
 			children: [
 				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(GoogleCalendarCard, {
-					"data-uid": "src/pages/Settings/Index.tsx:17:9",
-					"data-prohibitions": "[editContent]"
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(GoogleMeetCard, {
 					"data-uid": "src/pages/Settings/Index.tsx:18:9",
 					"data-prohibitions": "[editContent]"
 				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(EmailSettingsCard, {
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(GoogleMeetCard, {
 					"data-uid": "src/pages/Settings/Index.tsx:19:9",
 					"data-prohibitions": "[editContent]"
 				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(WhatsAppCard, {
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ReportsSettingsCard, {
 					"data-uid": "src/pages/Settings/Index.tsx:20:9",
 					"data-prohibitions": "[editContent]"
 				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TeamRegistrationCard, {
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(EmailSettingsCard, {
 					"data-uid": "src/pages/Settings/Index.tsx:21:9",
+					"data-prohibitions": "[editContent]"
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(WhatsAppCard, {
+					"data-uid": "src/pages/Settings/Index.tsx:22:9",
+					"data-prohibitions": "[editContent]"
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TeamRegistrationCard, {
+					"data-uid": "src/pages/Settings/Index.tsx:23:9",
 					"data-prohibitions": "[editContent]"
 				})
 			]
@@ -75221,21 +75696,22 @@ function LeadDetailPage() {
 	const { state } = useMainStore();
 	const lead = state.leads.find((l) => l.id === id);
 	const messages = state.messages.filter((m) => m.leadId === id).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+	const interactions = state.interactions?.filter((i) => i.leadId === id).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) || [];
 	if (!lead) return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-		"data-uid": "src/pages/Crm/LeadDetail.tsx:21:7",
+		"data-uid": "src/pages/Crm/LeadDetail.tsx:40:7",
 		"data-prohibitions": "[]",
 		className: "p-8 text-center",
 		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
-			"data-uid": "src/pages/Crm/LeadDetail.tsx:22:9",
+			"data-uid": "src/pages/Crm/LeadDetail.tsx:41:9",
 			"data-prohibitions": "[]",
 			className: "text-xl font-bold",
 			children: "Prescritor não encontrado"
 		}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Link, {
-			"data-uid": "src/pages/Crm/LeadDetail.tsx:23:9",
+			"data-uid": "src/pages/Crm/LeadDetail.tsx:42:9",
 			"data-prohibitions": "[]",
 			to: "/crm",
 			children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button$1, {
-				"data-uid": "src/pages/Crm/LeadDetail.tsx:24:11",
+				"data-uid": "src/pages/Crm/LeadDetail.tsx:43:11",
 				"data-prohibitions": "[]",
 				variant: "link",
 				className: "mt-4",
@@ -75243,49 +75719,78 @@ function LeadDetailPage() {
 			})
 		})]
 	});
+	const getInteractionIcon = (type) => {
+		switch (type) {
+			case "Meeting": return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Video, {
+				"data-uid": "src/pages/Crm/LeadDetail.tsx:54:16",
+				"data-prohibitions": "[editContent]",
+				className: "h-4 w-4"
+			});
+			case "Visit": return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CalendarCheck, {
+				"data-uid": "src/pages/Crm/LeadDetail.tsx:56:16",
+				"data-prohibitions": "[editContent]",
+				className: "h-4 w-4"
+			});
+			case "Call": return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Phone, {
+				"data-uid": "src/pages/Crm/LeadDetail.tsx:58:16",
+				"data-prohibitions": "[editContent]",
+				className: "h-4 w-4"
+			});
+			default: return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(NotebookText, {
+				"data-uid": "src/pages/Crm/LeadDetail.tsx:60:16",
+				"data-prohibitions": "[editContent]",
+				className: "h-4 w-4"
+			});
+		}
+	};
+	const getStatusColor = (status) => {
+		if (status === "Presente" || status === "Realizada") return "bg-success/10 text-success border-success/30 hover:bg-success/20";
+		if (status === "Ausente" || status === "Cancelada") return "bg-destructive/10 text-destructive border-destructive/30 hover:bg-destructive/20";
+		return "bg-secondary text-secondary-foreground";
+	};
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-		"data-uid": "src/pages/Crm/LeadDetail.tsx:33:5",
+		"data-uid": "src/pages/Crm/LeadDetail.tsx:73:5",
 		"data-prohibitions": "[editContent]",
 		className: "space-y-6 animate-slide-up pb-8",
 		children: [
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				"data-uid": "src/pages/Crm/LeadDetail.tsx:34:7",
+				"data-uid": "src/pages/Crm/LeadDetail.tsx:74:7",
 				"data-prohibitions": "[editContent]",
 				className: "flex flex-col sm:flex-row sm:items-center justify-between gap-4",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					"data-uid": "src/pages/Crm/LeadDetail.tsx:35:9",
+					"data-uid": "src/pages/Crm/LeadDetail.tsx:75:9",
 					"data-prohibitions": "[editContent]",
 					className: "flex items-center gap-4",
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Link, {
-						"data-uid": "src/pages/Crm/LeadDetail.tsx:36:11",
+						"data-uid": "src/pages/Crm/LeadDetail.tsx:76:11",
 						"data-prohibitions": "[]",
 						to: "/crm",
 						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button$1, {
-							"data-uid": "src/pages/Crm/LeadDetail.tsx:37:13",
+							"data-uid": "src/pages/Crm/LeadDetail.tsx:77:13",
 							"data-prohibitions": "[]",
 							variant: "ghost",
 							size: "icon",
 							className: "rounded-full",
 							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ArrowLeft, {
-								"data-uid": "src/pages/Crm/LeadDetail.tsx:38:15",
+								"data-uid": "src/pages/Crm/LeadDetail.tsx:78:15",
 								"data-prohibitions": "[editContent]",
 								className: "h-5 w-5"
 							})
 						})
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						"data-uid": "src/pages/Crm/LeadDetail.tsx:41:11",
+						"data-uid": "src/pages/Crm/LeadDetail.tsx:81:11",
 						"data-prohibitions": "[editContent]",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", {
-							"data-uid": "src/pages/Crm/LeadDetail.tsx:42:13",
+							"data-uid": "src/pages/Crm/LeadDetail.tsx:82:13",
 							"data-prohibitions": "[editContent]",
 							className: "text-2xl font-bold tracking-tight",
 							children: lead.name
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-							"data-uid": "src/pages/Crm/LeadDetail.tsx:43:13",
+							"data-uid": "src/pages/Crm/LeadDetail.tsx:83:13",
 							"data-prohibitions": "[editContent]",
 							className: "text-muted-foreground flex items-center gap-2 mt-1",
 							children: [lead.company || lead.type, /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
-								"data-uid": "src/pages/Crm/LeadDetail.tsx:45:15",
+								"data-uid": "src/pages/Crm/LeadDetail.tsx:85:15",
 								"data-prohibitions": "[editContent]",
 								variant: "outline",
 								children: lead.stage
@@ -75293,19 +75798,19 @@ function LeadDetailPage() {
 						})]
 					})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Link, {
-					"data-uid": "src/pages/Crm/LeadDetail.tsx:49:9",
+					"data-uid": "src/pages/Crm/LeadDetail.tsx:89:9",
 					"data-prohibitions": "[]",
 					to: `/chat?contactId=${lead.id}`,
 					children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button$1, {
-						"data-uid": "src/pages/Crm/LeadDetail.tsx:50:11",
+						"data-uid": "src/pages/Crm/LeadDetail.tsx:90:11",
 						"data-prohibitions": "[]",
 						className: "bg-green-600 hover:bg-green-700 text-white shadow-md gap-2 w-full sm:w-auto",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(MessageCircle, {
-							"data-uid": "src/pages/Crm/LeadDetail.tsx:51:13",
+							"data-uid": "src/pages/Crm/LeadDetail.tsx:91:13",
 							"data-prohibitions": "[editContent]",
 							className: "h-4 w-4"
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-							"data-uid": "src/pages/Crm/LeadDetail.tsx:52:13",
+							"data-uid": "src/pages/Crm/LeadDetail.tsx:92:13",
 							"data-prohibitions": "[]",
 							children: "WhatsApp"
 						})]
@@ -75313,53 +75818,53 @@ function LeadDetailPage() {
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				"data-uid": "src/pages/Crm/LeadDetail.tsx:57:7",
+				"data-uid": "src/pages/Crm/LeadDetail.tsx:97:7",
 				"data-prohibitions": "[editContent]",
 				className: "grid gap-6 md:grid-cols-3",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
-					"data-uid": "src/pages/Crm/LeadDetail.tsx:58:9",
+					"data-uid": "src/pages/Crm/LeadDetail.tsx:98:9",
 					"data-prohibitions": "[editContent]",
 					className: "md:col-span-1 shadow-subtle h-fit",
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardHeader, {
-						"data-uid": "src/pages/Crm/LeadDetail.tsx:59:11",
+						"data-uid": "src/pages/Crm/LeadDetail.tsx:99:11",
 						"data-prohibitions": "[]",
 						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, {
-							"data-uid": "src/pages/Crm/LeadDetail.tsx:60:13",
+							"data-uid": "src/pages/Crm/LeadDetail.tsx:100:13",
 							"data-prohibitions": "[]",
 							className: "text-lg",
 							children: "Informações"
 						})
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardContent, {
-						"data-uid": "src/pages/Crm/LeadDetail.tsx:62:11",
+						"data-uid": "src/pages/Crm/LeadDetail.tsx:102:11",
 						"data-prohibitions": "[editContent]",
 						className: "space-y-4",
 						children: [
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								"data-uid": "src/pages/Crm/LeadDetail.tsx:63:13",
+								"data-uid": "src/pages/Crm/LeadDetail.tsx:103:13",
 								"data-prohibitions": "[editContent]",
 								className: "flex items-start gap-3",
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(User, {
-									"data-uid": "src/pages/Crm/LeadDetail.tsx:64:15",
+									"data-uid": "src/pages/Crm/LeadDetail.tsx:104:15",
 									"data-prohibitions": "[editContent]",
 									className: "h-4 w-4 text-muted-foreground mt-0.5"
 								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									"data-uid": "src/pages/Crm/LeadDetail.tsx:65:15",
+									"data-uid": "src/pages/Crm/LeadDetail.tsx:105:15",
 									"data-prohibitions": "[editContent]",
 									children: [
 										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-											"data-uid": "src/pages/Crm/LeadDetail.tsx:66:17",
+											"data-uid": "src/pages/Crm/LeadDetail.tsx:106:17",
 											"data-prohibitions": "[]",
 											className: "text-sm font-medium",
 											children: "Contato"
 										}),
 										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-											"data-uid": "src/pages/Crm/LeadDetail.tsx:67:17",
+											"data-uid": "src/pages/Crm/LeadDetail.tsx:107:17",
 											"data-prohibitions": "[editContent]",
 											className: "text-sm text-muted-foreground",
 											children: lead.email || "Sem e-mail"
 										}),
 										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-											"data-uid": "src/pages/Crm/LeadDetail.tsx:68:17",
+											"data-uid": "src/pages/Crm/LeadDetail.tsx:108:17",
 											"data-prohibitions": "[editContent]",
 											className: "text-sm text-muted-foreground",
 											children: lead.phone || "Sem telefone"
@@ -75368,31 +75873,31 @@ function LeadDetailPage() {
 								})]
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								"data-uid": "src/pages/Crm/LeadDetail.tsx:71:13",
+								"data-uid": "src/pages/Crm/LeadDetail.tsx:111:13",
 								"data-prohibitions": "[editContent]",
 								className: "flex items-start gap-3",
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(MapPin, {
-									"data-uid": "src/pages/Crm/LeadDetail.tsx:72:15",
+									"data-uid": "src/pages/Crm/LeadDetail.tsx:112:15",
 									"data-prohibitions": "[editContent]",
 									className: "h-4 w-4 text-muted-foreground mt-0.5"
 								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									"data-uid": "src/pages/Crm/LeadDetail.tsx:73:15",
+									"data-uid": "src/pages/Crm/LeadDetail.tsx:113:15",
 									"data-prohibitions": "[editContent]",
 									children: [
 										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-											"data-uid": "src/pages/Crm/LeadDetail.tsx:74:17",
+											"data-uid": "src/pages/Crm/LeadDetail.tsx:114:17",
 											"data-prohibitions": "[]",
 											className: "text-sm font-medium",
 											children: "Endereço"
 										}),
 										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-											"data-uid": "src/pages/Crm/LeadDetail.tsx:75:17",
+											"data-uid": "src/pages/Crm/LeadDetail.tsx:115:17",
 											"data-prohibitions": "[editContent]",
 											className: "text-sm text-muted-foreground",
 											children: lead.address
 										}),
 										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-											"data-uid": "src/pages/Crm/LeadDetail.tsx:76:17",
+											"data-uid": "src/pages/Crm/LeadDetail.tsx:116:17",
 											"data-prohibitions": "[editContent]",
 											className: "text-sm text-muted-foreground",
 											children: [
@@ -75405,32 +75910,32 @@ function LeadDetailPage() {
 								})]
 							}),
 							lead.couponCode && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								"data-uid": "src/pages/Crm/LeadDetail.tsx:82:15",
+								"data-uid": "src/pages/Crm/LeadDetail.tsx:122:15",
 								"data-prohibitions": "[editContent]",
 								className: "flex items-start gap-3",
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Tag, {
-									"data-uid": "src/pages/Crm/LeadDetail.tsx:83:17",
+									"data-uid": "src/pages/Crm/LeadDetail.tsx:123:17",
 									"data-prohibitions": "[editContent]",
 									className: "h-4 w-4 text-muted-foreground mt-0.5"
 								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									"data-uid": "src/pages/Crm/LeadDetail.tsx:84:17",
+									"data-uid": "src/pages/Crm/LeadDetail.tsx:124:17",
 									"data-prohibitions": "[editContent]",
 									children: [
 										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-											"data-uid": "src/pages/Crm/LeadDetail.tsx:85:19",
+											"data-uid": "src/pages/Crm/LeadDetail.tsx:125:19",
 											"data-prohibitions": "[]",
 											className: "text-sm font-medium",
 											children: "Cupom Ativo"
 										}),
 										/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
-											"data-uid": "src/pages/Crm/LeadDetail.tsx:86:19",
+											"data-uid": "src/pages/Crm/LeadDetail.tsx:126:19",
 											"data-prohibitions": "[editContent]",
 											variant: "secondary",
 											className: "mt-1 font-mono",
 											children: lead.couponCode
 										}),
 										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-											"data-uid": "src/pages/Crm/LeadDetail.tsx:89:19",
+											"data-uid": "src/pages/Crm/LeadDetail.tsx:129:19",
 											"data-prohibitions": "[editContent]",
 											className: "text-xs text-muted-foreground mt-1",
 											children: ["Total de usos: ", lead.couponUsage || 0]
@@ -75441,109 +75946,199 @@ function LeadDetailPage() {
 						]
 					})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
-					"data-uid": "src/pages/Crm/LeadDetail.tsx:98:9",
+					"data-uid": "src/pages/Crm/LeadDetail.tsx:138:9",
 					"data-prohibitions": "[]",
 					className: "md:col-span-2 shadow-subtle",
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, {
-						"data-uid": "src/pages/Crm/LeadDetail.tsx:99:11",
+						"data-uid": "src/pages/Crm/LeadDetail.tsx:139:11",
 						"data-prohibitions": "[]",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, {
-							"data-uid": "src/pages/Crm/LeadDetail.tsx:100:13",
+							"data-uid": "src/pages/Crm/LeadDetail.tsx:140:13",
 							"data-prohibitions": "[]",
 							className: "text-lg",
 							children: "Evolução de Conversões"
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardDescription, {
-							"data-uid": "src/pages/Crm/LeadDetail.tsx:101:13",
+							"data-uid": "src/pages/Crm/LeadDetail.tsx:141:13",
 							"data-prohibitions": "[]",
 							children: "Histórico de uso do cupom ao longo dos meses."
 						})]
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardContent, {
-						"data-uid": "src/pages/Crm/LeadDetail.tsx:103:11",
+						"data-uid": "src/pages/Crm/LeadDetail.tsx:143:11",
 						"data-prohibitions": "[]",
 						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ConversionEvolutionChart, {
-							"data-uid": "src/pages/Crm/LeadDetail.tsx:104:13",
+							"data-uid": "src/pages/Crm/LeadDetail.tsx:144:13",
 							"data-prohibitions": "[editContent]",
 							data: lead.conversionsHistory || []
 						})
 					})]
 				})]
 			}),
-			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-				"data-uid": "src/pages/Crm/LeadDetail.tsx:109:7",
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				"data-uid": "src/pages/Crm/LeadDetail.tsx:149:7",
 				"data-prohibitions": "[editContent]",
-				className: "grid gap-6 md:grid-cols-3 mt-6",
-				children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
-					"data-uid": "src/pages/Crm/LeadDetail.tsx:110:9",
+				className: "grid gap-6 md:grid-cols-2 mt-6",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
+					"data-uid": "src/pages/Crm/LeadDetail.tsx:150:9",
 					"data-prohibitions": "[editContent]",
-					className: "md:col-span-3 shadow-subtle",
+					className: "shadow-subtle",
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, {
-						"data-uid": "src/pages/Crm/LeadDetail.tsx:111:11",
+						"data-uid": "src/pages/Crm/LeadDetail.tsx:151:11",
 						"data-prohibitions": "[]",
-						className: "flex flex-row items-center justify-between",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							"data-uid": "src/pages/Crm/LeadDetail.tsx:112:13",
+						className: "pb-4 border-b border-border/50 mb-4",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardTitle, {
+							"data-uid": "src/pages/Crm/LeadDetail.tsx:152:13",
 							"data-prohibitions": "[]",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, {
-								"data-uid": "src/pages/Crm/LeadDetail.tsx:113:15",
+							className: "text-lg flex items-center gap-2",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(NotebookText, {
+								"data-uid": "src/pages/Crm/LeadDetail.tsx:153:15",
+								"data-prohibitions": "[editContent]",
+								className: "h-5 w-5 text-indigo-600"
+							}), "Prontuário (Atendimentos)"]
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardDescription, {
+							"data-uid": "src/pages/Crm/LeadDetail.tsx:156:13",
+							"data-prohibitions": "[]",
+							children: "Histórico de visitas e reuniões exportadas."
+						})]
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardContent, {
+						"data-uid": "src/pages/Crm/LeadDetail.tsx:158:11",
+						"data-prohibitions": "[editContent]",
+						children: interactions.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							"data-uid": "src/pages/Crm/LeadDetail.tsx:160:15",
+							"data-prohibitions": "[]",
+							className: "text-center text-muted-foreground py-8 border rounded-md border-dashed",
+							children: "Nenhum atendimento registrado."
+						}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							"data-uid": "src/pages/Crm/LeadDetail.tsx:164:15",
+							"data-prohibitions": "[editContent]",
+							className: "relative border-l border-border/60 ml-3 pl-6 space-y-6",
+							children: interactions.map((int) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								"data-uid": "src/pages/Crm/LeadDetail.tsx:166:19",
+								"data-prohibitions": "[editContent]",
+								className: "relative",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+									"data-uid": "src/pages/Crm/LeadDetail.tsx:167:21",
+									"data-prohibitions": "[editContent]",
+									className: "absolute -left-[35px] top-1 flex h-6 w-6 items-center justify-center rounded-full bg-background border border-border/60 text-muted-foreground shadow-sm",
+									children: getInteractionIcon(int.type)
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									"data-uid": "src/pages/Crm/LeadDetail.tsx:170:21",
+									"data-prohibitions": "[editContent]",
+									className: "flex flex-col gap-1",
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											"data-uid": "src/pages/Crm/LeadDetail.tsx:171:23",
+											"data-prohibitions": "[editContent]",
+											className: "flex items-center justify-between gap-2",
+											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+												"data-uid": "src/pages/Crm/LeadDetail.tsx:172:25",
+												"data-prohibitions": "[editContent]",
+												className: "text-sm font-semibold text-foreground",
+												children: format$1(new Date(int.date), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
+											}), int.status && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
+												"data-uid": "src/pages/Crm/LeadDetail.tsx:176:27",
+												"data-prohibitions": "[editContent]",
+												variant: "outline",
+												className: `text-[10px] h-5 ${getStatusColor(int.status)}`,
+												children: int.status
+											})]
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											"data-uid": "src/pages/Crm/LeadDetail.tsx:184:23",
+											"data-prohibitions": "[editContent]",
+											className: "text-sm text-muted-foreground",
+											children: int.description
+										}),
+										int.link && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", {
+											"data-uid": "src/pages/Crm/LeadDetail.tsx:186:25",
+											"data-prohibitions": "[]",
+											href: int.link,
+											target: "_blank",
+											rel: "noreferrer",
+											className: "text-xs text-primary hover:underline w-fit mt-1 flex items-center gap-1",
+											children: "Ver Sala / Referência"
+										})
+									]
+								})]
+							}, int.id))
+						})
+					})]
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
+					"data-uid": "src/pages/Crm/LeadDetail.tsx:203:9",
+					"data-prohibitions": "[editContent]",
+					className: "shadow-subtle flex flex-col",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, {
+						"data-uid": "src/pages/Crm/LeadDetail.tsx:204:11",
+						"data-prohibitions": "[]",
+						className: "flex flex-row items-center justify-between pb-4 border-b border-border/50 mb-4",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							"data-uid": "src/pages/Crm/LeadDetail.tsx:205:13",
+							"data-prohibitions": "[]",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardTitle, {
+								"data-uid": "src/pages/Crm/LeadDetail.tsx:206:15",
 								"data-prohibitions": "[]",
-								className: "text-lg",
-								children: "Histórico de Comunicação"
+								className: "text-lg flex items-center gap-2",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(MessageCircle, {
+									"data-uid": "src/pages/Crm/LeadDetail.tsx:207:17",
+									"data-prohibitions": "[editContent]",
+									className: "h-5 w-5 text-green-600"
+								}), "Histórico de WhatsApp"]
 							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardDescription, {
-								"data-uid": "src/pages/Crm/LeadDetail.tsx:114:15",
+								"data-uid": "src/pages/Crm/LeadDetail.tsx:210:15",
 								"data-prohibitions": "[]",
-								children: "Últimas mensagens trocadas via WhatsApp integrado."
+								children: "Últimas mensagens trocadas."
 							})]
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Link, {
-							"data-uid": "src/pages/Crm/LeadDetail.tsx:116:13",
+							"data-uid": "src/pages/Crm/LeadDetail.tsx:212:13",
 							"data-prohibitions": "[]",
 							to: `/chat?contactId=${lead.id}`,
 							children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button$1, {
-								"data-uid": "src/pages/Crm/LeadDetail.tsx:117:15",
+								"data-uid": "src/pages/Crm/LeadDetail.tsx:213:15",
 								"data-prohibitions": "[]",
 								variant: "outline",
 								size: "sm",
 								className: "gap-2 shrink-0",
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(MessageCircle, {
-									"data-uid": "src/pages/Crm/LeadDetail.tsx:118:17",
+									"data-uid": "src/pages/Crm/LeadDetail.tsx:214:17",
 									"data-prohibitions": "[editContent]",
 									className: "h-4 w-4"
 								}), " Abrir Chat"]
 							})
 						})]
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardContent, {
-						"data-uid": "src/pages/Crm/LeadDetail.tsx:122:11",
+						"data-uid": "src/pages/Crm/LeadDetail.tsx:218:11",
 						"data-prohibitions": "[editContent]",
+						className: "flex-1 overflow-y-auto max-h-[400px]",
 						children: messages.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							"data-uid": "src/pages/Crm/LeadDetail.tsx:124:15",
+							"data-uid": "src/pages/Crm/LeadDetail.tsx:220:15",
 							"data-prohibitions": "[]",
 							className: "text-center text-muted-foreground py-8 border rounded-md border-dashed",
 							children: "Nenhuma mensagem registrada."
 						}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							"data-uid": "src/pages/Crm/LeadDetail.tsx:128:15",
+							"data-uid": "src/pages/Crm/LeadDetail.tsx:224:15",
 							"data-prohibitions": "[editContent]",
 							className: "space-y-4",
-							children: messages.slice(-5).map((msg) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								"data-uid": "src/pages/Crm/LeadDetail.tsx:130:19",
+							children: messages.slice(-10).map((msg) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								"data-uid": "src/pages/Crm/LeadDetail.tsx:226:19",
 								"data-prohibitions": "[editContent]",
 								className: "flex flex-col gap-1",
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									"data-uid": "src/pages/Crm/LeadDetail.tsx:131:21",
+									"data-uid": "src/pages/Crm/LeadDetail.tsx:227:21",
 									"data-prohibitions": "[editContent]",
 									className: "flex items-center gap-2 text-xs text-muted-foreground",
 									children: [
 										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-											"data-uid": "src/pages/Crm/LeadDetail.tsx:132:23",
+											"data-uid": "src/pages/Crm/LeadDetail.tsx:228:23",
 											"data-prohibitions": "[editContent]",
 											className: "font-medium text-foreground",
 											children: msg.sender === "me" ? "Você" : lead.name
 										}),
 										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-											"data-uid": "src/pages/Crm/LeadDetail.tsx:135:23",
+											"data-uid": "src/pages/Crm/LeadDetail.tsx:231:23",
 											"data-prohibitions": "[]",
 											children: "•"
 										}),
 										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-											"data-uid": "src/pages/Crm/LeadDetail.tsx:136:23",
+											"data-uid": "src/pages/Crm/LeadDetail.tsx:232:23",
 											"data-prohibitions": "[editContent]",
 											children: new Date(msg.timestamp).toLocaleString("pt-BR", {
 												dateStyle: "short",
@@ -75551,7 +76146,7 @@ function LeadDetailPage() {
 											})
 										}),
 										msg.sender === "me" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
-											"data-uid": "src/pages/Crm/LeadDetail.tsx:143:25",
+											"data-uid": "src/pages/Crm/LeadDetail.tsx:239:25",
 											"data-prohibitions": "[editContent]",
 											variant: "outline",
 											className: "text-[10px] py-0 h-4 bg-muted/50 border-border/50 text-muted-foreground font-normal px-1.5",
@@ -75559,42 +76154,42 @@ function LeadDetailPage() {
 										})
 									]
 								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									"data-uid": "src/pages/Crm/LeadDetail.tsx:155:21",
+									"data-uid": "src/pages/Crm/LeadDetail.tsx:251:21",
 									"data-prohibitions": "[editContent]",
 									className: "p-3 bg-muted/30 border border-border/50 rounded-md text-sm",
 									children: [
 										msg.type === "image" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-											"data-uid": "src/pages/Crm/LeadDetail.tsx:157:25",
+											"data-uid": "src/pages/Crm/LeadDetail.tsx:253:25",
 											"data-prohibitions": "[]",
 											className: "flex items-center gap-2 mb-2 text-blue-600",
 											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Paperclip, {
-												"data-uid": "src/pages/Crm/LeadDetail.tsx:158:27",
+												"data-uid": "src/pages/Crm/LeadDetail.tsx:254:27",
 												"data-prohibitions": "[editContent]",
 												className: "h-4 w-4"
 											}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-												"data-uid": "src/pages/Crm/LeadDetail.tsx:159:27",
+												"data-uid": "src/pages/Crm/LeadDetail.tsx:255:27",
 												"data-prohibitions": "[]",
 												className: "text-xs font-medium",
 												children: "Imagem Anexada"
 											})]
 										}),
 										msg.type === "pdf" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-											"data-uid": "src/pages/Crm/LeadDetail.tsx:163:25",
+											"data-uid": "src/pages/Crm/LeadDetail.tsx:259:25",
 											"data-prohibitions": "[editContent]",
 											className: "flex items-center gap-2 mb-2 text-red-600",
 											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FileText, {
-												"data-uid": "src/pages/Crm/LeadDetail.tsx:164:27",
+												"data-uid": "src/pages/Crm/LeadDetail.tsx:260:27",
 												"data-prohibitions": "[editContent]",
 												className: "h-4 w-4"
 											}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-												"data-uid": "src/pages/Crm/LeadDetail.tsx:165:27",
+												"data-uid": "src/pages/Crm/LeadDetail.tsx:261:27",
 												"data-prohibitions": "[editContent]",
 												className: "text-xs font-medium",
 												children: msg.mediaName || "Documento PDF"
 											})]
 										}),
 										msg.text && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-											"data-uid": "src/pages/Crm/LeadDetail.tsx:170:36",
+											"data-uid": "src/pages/Crm/LeadDetail.tsx:266:36",
 											"data-prohibitions": "[editContent]",
 											className: "whitespace-pre-wrap",
 											children: msg.text
@@ -75604,7 +76199,7 @@ function LeadDetailPage() {
 							}, msg.id))
 						})
 					})]
-				})
+				})]
 			})
 		]
 	});
@@ -76270,4 +76865,4 @@ var App = () => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AppProvider, {
 }));
 //#endregion
 
-//# sourceMappingURL=index-BdLIxGiZ.js.map
+//# sourceMappingURL=index-C11dHPJf.js.map
