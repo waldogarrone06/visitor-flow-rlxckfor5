@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Switch } from '@/components/ui/switch'
 import { useMainStore } from '@/stores/main'
 import { toast } from '@/hooks/use-toast'
 import { Lead } from '@/lib/types'
@@ -81,6 +82,7 @@ const formSchema = z.object({
   neighborhood: z.string().min(2, 'Bairro obrigatório'),
   city: z.string().min(2, 'Cidade obrigatória'),
   state: z.string().length(2, 'UF obrigatória'),
+  isVirtual: z.boolean().default(false),
   authorizeInfo: z.boolean().refine((val) => val === true, 'Autorização necessária.'),
 })
 
@@ -112,6 +114,7 @@ export function ScheduleForm({
       neighborhood: '',
       city: '',
       state: '',
+      isVirtual: false,
       authorizeInfo: false,
     },
   })
@@ -163,6 +166,21 @@ export function ScheduleForm({
     setLoading(true)
 
     setTimeout(() => {
+      let meetLink = undefined
+
+      if (values.isVirtual) {
+        if (state.settings?.googleMeetConnected) {
+          const randomString = () => Math.random().toString(36).substring(2, 6)
+          meetLink = `https://meet.google.com/${randomString()}-${randomString()}-${randomString()}`
+        } else {
+          toast({
+            title: 'Google Meet não conectado',
+            description: 'O agendamento foi salvo, mas não foi possível gerar o link da reunião.',
+            variant: 'destructive',
+          })
+        }
+      }
+
       const fullAddress = `${values.street}, ${values.number}${
         values.complement ? ` - ${values.complement}` : ''
       }, ${values.neighborhood}, ${values.city} - ${values.state}, CEP: ${values.cep}`
@@ -198,14 +216,23 @@ export function ScheduleForm({
             date: appointmentDate.toISOString(),
             vendor: 'Ana Vendedora',
             status: 'Scheduled',
+            isVirtual: values.isVirtual,
+            meetLink,
           },
         },
       })
 
+      const timeFormatted = format(appointmentDate, "dd/MM 'às' HH:mm")
+      const wppMessage =
+        values.isVirtual && meetLink
+          ? `Sua reunião está agendada para ${timeFormatted}. Link: ${meetLink}`
+          : `Lembretes automáticos configurados para 48h, 24h e 2h antes de ${timeFormatted}.`
+
       toast({
         title: 'Integração WhatsApp (Evolution API)',
-        description: `Lembretes automáticos configurados para 48h, 24h e 2h antes de ${format(appointmentDate, "dd/MM 'às' HH:mm")}.`,
+        description: wppMessage,
       })
+
       toast({
         title: 'Agendamento Confirmado!',
         description: `Visita para ${values.name} agendada com sucesso.`,
@@ -507,6 +534,24 @@ export function ScheduleForm({
             )}
           />
         </div>
+
+        <FormField
+          control={form.control}
+          name="isVirtual"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-center justify-between p-4 mt-4 border rounded-md bg-muted/20">
+              <div className="space-y-0.5">
+                <FormLabel>Reunião Virtual (Google Meet)</FormLabel>
+                <FormDescription className="text-xs text-muted-foreground">
+                  Gera um link de videoconferência automaticamente.
+                </FormDescription>
+              </div>
+              <FormControl>
+                <Switch checked={field.value} onCheckedChange={field.onChange} />
+              </FormControl>
+            </FormItem>
+          )}
+        />
 
         <FormField
           control={form.control}

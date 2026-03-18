@@ -38,6 +38,8 @@ export interface Appointment {
   date: string
   vendor: string
   status: 'Scheduled' | 'Visited' | 'Cancelled'
+  isVirtual?: boolean
+  meetLink?: string
 }
 
 export interface Kit {
@@ -75,6 +77,7 @@ export interface Message {
 
 export interface AppSettings {
   whatsappConnected: boolean
+  googleMeetConnected?: boolean
 }
 
 export interface TeamMember {

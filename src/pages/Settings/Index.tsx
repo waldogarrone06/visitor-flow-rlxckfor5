@@ -2,6 +2,7 @@ import { GoogleCalendarCard } from './GoogleCalendarCard'
 import { EmailSettingsCard } from './EmailSettingsCard'
 import { WhatsAppCard } from './WhatsAppCard'
 import { TeamRegistrationCard } from './TeamRegistrationCard'
+import { GoogleMeetCard } from './GoogleMeetCard'
 
 export default function SettingsPage() {
   return (
@@ -14,6 +15,7 @@ export default function SettingsPage() {
       </div>
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <GoogleCalendarCard />
+        <GoogleMeetCard />
         <EmailSettingsCard />
         <WhatsAppCard />
         <TeamRegistrationCard />

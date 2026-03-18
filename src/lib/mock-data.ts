@@ -133,9 +133,11 @@ export const initialData: AppState = {
     {
       id: 'a1',
       leadId: 'l3',
-      date: new Date(Date.now() + 86400000).toISOString(),
+      date: new Date(new Date().setHours(14, 0, 0, 0)).toISOString(),
       vendor: 'Ana Vendedora',
       status: 'Scheduled',
+      isVirtual: true,
+      meetLink: 'https://meet.google.com/abc-defg-hij',
     },
     {
       id: 'a2',
@@ -279,6 +281,7 @@ export const initialData: AppState = {
   ],
   settings: {
     whatsappConnected: true,
+    googleMeetConnected: false,
   },
   teamMembers: [
     {
