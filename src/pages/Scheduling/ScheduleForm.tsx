@@ -211,13 +211,6 @@ export function ScheduleForm({
         description: `Lembretes configurados para 48h e 24h antes de ${timeFormatted}.`,
       })
 
-      if (state.settings?.googleCalendarSync) {
-        toast({
-          title: 'Google Calendar',
-          description: 'Evento sincronizado automaticamente com a agenda.',
-        })
-      }
-
       toast({
         title: 'Agendamento Confirmado!',
         description: `Visita para ${values.name} agendada com sucesso.`,

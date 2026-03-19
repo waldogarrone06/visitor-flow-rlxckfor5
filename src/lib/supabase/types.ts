@@ -9,6 +9,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      appointments: {
+        Row: {
+          appointment_date: string
+          client_email: string
+          client_name: string
+          client_phone: string | null
+          created_at: string
+          end_time: string
+          id: string
+          start_time: string
+          status: string | null
+          user_id: string
+        }
+        Insert: {
+          appointment_date: string
+          client_email: string
+          client_name: string
+          client_phone?: string | null
+          created_at?: string
+          end_time: string
+          id?: string
+          start_time: string
+          status?: string | null
+          user_id: string
+        }
+        Update: {
+          appointment_date?: string
+          client_email?: string
+          client_name?: string
+          client_phone?: string | null
+          created_at?: string
+          end_time?: string
+          id?: string
+          start_time?: string
+          status?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       schedule_settings: {
         Row: {
           created_at: string
@@ -228,6 +267,17 @@ export const Constants = {
 // --- COLUMN TYPES (actual PostgreSQL types) ---
 // Use this to know the real database type when writing migrations.
 // "string" in TypeScript types above may be uuid, text, varchar, timestamptz, etc.
+// Table: appointments
+//   id: uuid (not null, default: gen_random_uuid())
+//   user_id: uuid (not null)
+//   client_name: text (not null)
+//   client_email: text (not null)
+//   client_phone: text (nullable)
+//   appointment_date: date (not null)
+//   start_time: text (not null)
+//   end_time: text (not null)
+//   status: text (nullable, default: 'scheduled'::text)
+//   created_at: timestamp with time zone (not null, default: now())
 // Table: schedule_settings
 //   id: uuid (not null, default: gen_random_uuid())
 //   user_id: uuid (not null)
@@ -250,6 +300,9 @@ export const Constants = {
 //   updated_at: timestamp with time zone (not null, default: now())
 
 // --- CONSTRAINTS ---
+// Table: appointments
+//   PRIMARY KEY appointments_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY appointments_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
 // Table: schedule_settings
 //   CHECK schedule_settings_day_of_week_check: CHECK (((day_of_week >= 0) AND (day_of_week <= 6)))
 //   PRIMARY KEY schedule_settings_pkey: PRIMARY KEY (id)
@@ -261,7 +314,15 @@ export const Constants = {
 //   UNIQUE user_integrations_user_id_key: UNIQUE (user_id)
 
 // --- ROW LEVEL SECURITY POLICIES ---
+// Table: appointments
+//   Policy "Anon can insert appointments" (INSERT, PERMISSIVE) roles={anon}
+//     WITH CHECK: true
+//   Policy "Users manage own appointments" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: (auth.uid() = user_id)
+//     WITH CHECK: (auth.uid() = user_id)
 // Table: schedule_settings
+//   Policy "Anon can view schedules" (SELECT, PERMISSIVE) roles={anon}
+//     USING: true
 //   Policy "Users can manage their own schedule" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: (auth.uid() = user_id)
 //     WITH CHECK: (auth.uid() = user_id)

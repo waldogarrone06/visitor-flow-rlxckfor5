@@ -18,12 +18,13 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { Clock, Plus, Trash2, Save, Trash } from 'lucide-react'
+import { Clock, Plus, Trash2, Save, Trash, Calendar as CalIcon } from 'lucide-react'
 import { getSchedule, saveSchedule, clearSchedule } from '@/services/settings'
 import { toast } from '@/hooks/use-toast'
+import { Link } from 'react-router-dom'
 
 const DAYS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
-const SLOT_TYPES = ['Prescritor Exclusivo']
+const SLOT_TYPES = ['Prescritor Exclusivo', 'Grupo']
 
 export function PersonalScheduleCard() {
   const [slots, setSlots] = useState<any[]>([])
@@ -69,10 +70,7 @@ export function PersonalScheduleCard() {
     setSaving(true)
     await saveSchedule(slots)
     setSaving(false)
-    toast({
-      title: 'Agenda Atualizada',
-      description: 'Seus horários de disponibilidade foram salvos com sucesso no banco de dados.',
-    })
+    toast({ title: 'Agenda Atualizada', description: 'Seus horários foram salvos com sucesso.' })
   }
 
   const handleClear = async () => {
@@ -88,12 +86,16 @@ export function PersonalScheduleCard() {
           <div className="p-3 bg-purple-50 text-purple-600 rounded-lg mb-2">
             <Clock className="h-6 w-6" />
           </div>
-          <Badge variant="secondary">{slots.length} Horários</Badge>
+          <Link to="/agendamento">
+            <Button variant="outline" size="sm" className="gap-2">
+              <CalIcon className="h-4 w-4" /> Gerenciar Bloqueios Diários
+            </Button>
+          </Link>
         </div>
-        <CardTitle>Agenda Pessoal & Disponibilidade</CardTitle>
+        <CardTitle>Disponibilidade Semanal Padrão</CardTitle>
         <CardDescription>
-          Gerencie seus horários de atendimento exclusivos para sincronização com o agendador
-          público.
+          Configure os horários padrão que ficarão disponíveis na sua página pública. A capacidade
+          máxima é gerida automaticamente (10 pessoas).
         </CardDescription>
       </CardHeader>
 
@@ -158,7 +160,7 @@ export function PersonalScheduleCard() {
           </h4>
           {loading ? (
             <div className="h-20 flex items-center justify-center text-muted-foreground">
-              Carregando horários...
+              Carregando...
             </div>
           ) : slots.length === 0 ? (
             <div className="p-8 border border-dashed rounded-md text-center text-muted-foreground text-sm bg-slate-50/50">
@@ -169,7 +171,7 @@ export function PersonalScheduleCard() {
               {slots.map((slot, index) => (
                 <div
                   key={index}
-                  className="flex justify-between items-center p-3 border rounded-md bg-white shadow-sm hover:border-primary/30 transition-colors"
+                  className="flex justify-between items-center p-3 border rounded-md bg-white shadow-sm"
                 >
                   <div>
                     <div className="font-medium text-sm text-foreground">
@@ -180,7 +182,7 @@ export function PersonalScheduleCard() {
                     </div>
                     <Badge
                       variant="outline"
-                      className={`mt-2 text-[10px] bg-orange-50 text-orange-700`}
+                      className="mt-2 text-[10px] bg-orange-50 text-orange-700"
                     >
                       {slot.slot_type}
                     </Badge>
@@ -188,7 +190,7 @@ export function PersonalScheduleCard() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="text-destructive h-8 w-8 shrink-0 hover:bg-destructive/10"
+                    className="text-destructive h-8 w-8 hover:bg-destructive/10"
                     onClick={() => handleRemove(index)}
                   >
                     <Trash2 className="h-4 w-4" />

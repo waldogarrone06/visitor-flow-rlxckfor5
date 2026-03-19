@@ -1,12 +1,9 @@
 import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Calendar } from '@/components/ui/calendar'
-import { ScheduleForm } from './ScheduleForm'
 import { FourLabLogo } from '@/components/FourLabLogo'
 import { ptBR } from 'date-fns/locale'
-import { isSameDay, format } from 'date-fns'
-import { Video, MapPin, ExternalLink, Copy } from 'lucide-react'
-import { useMainStore } from '@/stores/main'
+import { Copy } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/hooks/use-toast'
@@ -17,24 +14,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { DayAppointments } from './DayAppointments'
+import { ScheduleForm } from './ScheduleForm'
 
 export default function SchedulingPage() {
   const [date, setDate] = useState<Date | undefined>(new Date())
-  const { state } = useMainStore()
   const { user } = useAuth()
-
-  const dayAppointments = state.appointments
-    .filter((a) => date && isSameDay(new Date(a.date), date))
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 
   const handleCopyLink = () => {
     if (!user?.id) return
     const url = `${window.location.origin}/agendar/${user.id}`
     navigator.clipboard.writeText(url)
-    toast({
-      title: 'Link copiado!',
-      description: 'O link de agendamento público foi copiado para a área de transferência.',
-    })
+    toast({ title: 'Link copiado!', description: 'O link de agendamento público foi copiado.' })
   }
 
   return (
@@ -43,9 +34,9 @@ export default function SchedulingPage() {
         <div className="space-y-2">
           <FourLabLogo className="h-16 w-auto text-foreground" />
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Agendamento de Visitas</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Gestão de Agenda</h1>
             <p className="text-muted-foreground">
-              Selecione uma data e cadastre um novo compromisso.
+              Controle seus horários, bloqueios e agendamentos.
             </p>
           </div>
         </div>
@@ -55,13 +46,16 @@ export default function SchedulingPage() {
               <SelectValue placeholder="Selecione o Vendedor" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="v1">Ana Vendedora</SelectItem>
-              <SelectItem value="v2">Marcos Sales</SelectItem>
-              <SelectItem value="v3">Todos</SelectItem>
+              <SelectItem value="v1">Meu Calendário</SelectItem>
+              <SelectItem value="v2">Equipe</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" onClick={handleCopyLink} className="gap-2">
-            <Copy className="h-4 w-4" /> Link Público
+          <Button
+            variant="default"
+            onClick={handleCopyLink}
+            className="gap-2 bg-blue-600 hover:bg-blue-700"
+          >
+            <Copy className="h-4 w-4" /> Copiar Link Público
           </Button>
         </div>
       </div>
@@ -70,7 +64,7 @@ export default function SchedulingPage() {
         <div className="flex flex-col gap-6 xl:col-span-7">
           <Card className="shadow-subtle border-border/50">
             <CardHeader>
-              <CardTitle className="text-lg">Calendário de Disponibilidade</CardTitle>
+              <CardTitle className="text-lg">Calendário</CardTitle>
             </CardHeader>
             <CardContent className="flex justify-center pb-8 w-full overflow-x-auto">
               <Calendar
@@ -79,73 +73,17 @@ export default function SchedulingPage() {
                 onSelect={setDate}
                 locale={ptBR}
                 className="rounded-md border shadow-sm p-4 sm:p-6 w-full max-w-full flex justify-center [--cell-size:2.5rem] sm:[--cell-size:3.5rem] md:[--cell-size:4.5rem] bg-white"
-                disabled={(d) => d < new Date(new Date().setHours(0, 0, 0, 0))}
               />
             </CardContent>
           </Card>
 
-          <Card className="shadow-subtle border-border/50">
-            <CardHeader>
-              <CardTitle className="text-lg">
-                Agendamentos em {date ? format(date, 'dd/MM/yyyy') : 'Selecionado'}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {dayAppointments.length === 0 ? (
-                <p className="text-muted-foreground text-sm text-center py-6">
-                  Nenhum agendamento para esta data.
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {dayAppointments.map((app) => {
-                    const lead = state.leads.find((l) => l.id === app.leadId)
-                    return (
-                      <div
-                        key={app.id}
-                        className="p-4 border rounded-md bg-muted/20 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"
-                      >
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="font-semibold text-primary">
-                              {format(new Date(app.date), 'HH:mm')}
-                            </span>
-                            <span className="font-medium text-foreground">
-                              {lead?.name || 'Cliente'}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                            {app.isVirtual ? (
-                              <Video className="h-3.5 w-3.5" />
-                            ) : (
-                              <MapPin className="h-3.5 w-3.5" />
-                            )}
-                            {app.isVirtual ? 'Reunião Virtual' : 'Visita Presencial'}
-                          </div>
-                        </div>
-                        {app.isVirtual && app.meetLink && (
-                          <a
-                            href={app.meetLink}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="flex items-center gap-2 text-sm text-teal-600 hover:text-teal-700 bg-teal-50 px-3 py-2 rounded-md font-medium transition-colors shrink-0"
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                            Acessar Reunião
-                          </a>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <DayAppointments date={date} />
         </div>
 
         <div className="xl:col-span-5">
           <Card className="shadow-subtle border-border/50 h-full">
             <CardHeader>
-              <CardTitle className="text-lg">Novo Agendamento</CardTitle>
+              <CardTitle className="text-lg">Agendamento Manual (Interno)</CardTitle>
             </CardHeader>
             <CardContent>
               <ScheduleForm selectedDate={date} onSuccess={() => {}} />
