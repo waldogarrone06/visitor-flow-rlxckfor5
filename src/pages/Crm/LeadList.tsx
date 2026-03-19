@@ -1,5 +1,6 @@
-import { useState } from 'react'
-import { useMainStore } from '@/stores/main'
+import { useState, useEffect } from 'react'
+import { useAuth } from '@/hooks/use-auth'
+import { getPrescribers, updatePrescriberData } from '@/services/crm'
 import {
   Table,
   TableBody,
@@ -9,24 +10,82 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { ArrowDown, ArrowUp, Tag } from 'lucide-react'
+import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Checkbox } from '@/components/ui/checkbox'
+import { toast } from '@/hooks/use-toast'
+import { Save, User, Package, Tag, CheckCircle2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 export function LeadList() {
-  const { state } = useMainStore()
-  // Default sort by highest converters (descending coupon usage)
-  const [sortDir, setSortDir] = useState<'asc' | 'desc' | null>('desc')
+  const { user } = useAuth()
+  const [prescribers, setPrescribers] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [editingCode, setEditingCode] = useState<Record<string, string>>({})
 
-  const sortedLeads = [...state.leads].sort((a, b) => {
-    if (!sortDir) return 0
-    const usageA = a.couponUsage || 0
-    const usageB = b.couponUsage || 0
-    return sortDir === 'asc' ? usageA - usageB : usageB - usageA
-  })
+  const loadData = async () => {
+    if (!user) return
+    try {
+      const data = await getPrescribers(user.id)
+      setPrescribers(data)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
+  }
 
-  const toggleSort = () => {
-    setSortDir((current) => (current === 'desc' ? 'asc' : 'desc'))
+  useEffect(() => {
+    loadData()
+  }, [user])
+
+  const handleUpdate = async (email: string, updates: any) => {
+    if (!user) return
+    try {
+      await updatePrescriberData(user.id, email, updates)
+
+      // If kit status is set to Delivered, simulate NPS scheduling
+      if (updates.kit_status === 'Delivered') {
+        const app = prescribers.find((p) => p.client_email === email)
+        const url = `${window.location.origin}/nps/${app?.id || 'demo'}`
+        toast({
+          title: 'NPS Programado Automaticamente',
+          description: `Formulário será enviado em 24h. Link: ${url}`,
+        })
+      } else {
+        toast({ title: 'Dados Atualizados', description: 'Informações do prescritor salvas.' })
+      }
+
+      loadData()
+    } catch (err) {
+      toast({ title: 'Erro', description: 'Não foi possível salvar.', variant: 'destructive' })
+    }
+  }
+
+  const getKitBadge = (status: string) => {
+    switch (status) {
+      case 'Delivered':
+        return <Badge className="bg-green-500">Entregue</Badge>
+      case 'Shipped':
+        return <Badge className="bg-blue-500">Enviado</Badge>
+      default:
+        return <Badge variant="secondary">Pendente</Badge>
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="h-40 flex items-center justify-center text-muted-foreground">
+        Carregando prescritores...
+      </div>
+    )
   }
 
   return (
@@ -35,71 +94,105 @@ export function LeadList() {
         <Table>
           <TableHeader className="bg-slate-50 sticky top-0 z-10 shadow-sm">
             <TableRow>
-              <TableHead className="font-semibold">Profissional / Empresa</TableHead>
-              <TableHead className="font-semibold">Estágio</TableHead>
-              <TableHead className="font-semibold">Tipo</TableHead>
-              <TableHead className="font-semibold">Cupom</TableHead>
-              <TableHead className="text-right font-semibold">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={toggleSort}
-                  className="-mr-3 hover:bg-slate-200"
-                >
-                  Utilizações
-                  {sortDir === 'desc' ? (
-                    <ArrowDown className="ml-2 h-4 w-4" />
-                  ) : (
-                    <ArrowUp className="ml-2 h-4 w-4" />
-                  )}
-                </Button>
+              <TableHead className="font-semibold">
+                <User className="inline h-4 w-4 mr-2" />
+                Prescritor
+              </TableHead>
+              <TableHead className="font-semibold">Contato</TableHead>
+              <TableHead className="font-semibold">
+                <Package className="inline h-4 w-4 mr-2" />
+                Status do Kit
+              </TableHead>
+              <TableHead className="font-semibold">
+                <Tag className="inline h-4 w-4 mr-2" />
+                Cupom E-commerce
+              </TableHead>
+              <TableHead className="font-semibold">
+                <CheckCircle2 className="inline h-4 w-4 mr-2" />
+                Verificado
               </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {sortedLeads.length === 0 ? (
+            {prescribers.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="text-center h-32 text-muted-foreground">
-                  Nenhum prescritor encontrado.
+                  Nenhum prescritor agendado ainda.
                 </TableCell>
               </TableRow>
             ) : (
-              sortedLeads.map((lead) => (
-                <TableRow key={lead.id} className="hover:bg-slate-50/50">
+              prescribers.map((p) => (
+                <TableRow key={p.id} className="hover:bg-slate-50/50">
                   <TableCell className="font-medium">
                     <Link
-                      to={`/crm/prescritor/${lead.id}`}
+                      to={`/crm/prescritor/${p.id}`}
                       className="hover:underline hover:text-primary transition-colors"
                     >
-                      {lead.name}
+                      {p.client_name}
                     </Link>
                   </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary" className="font-normal bg-slate-100">
-                      {lead.stage}
-                    </Badge>
+                  <TableCell className="text-sm text-muted-foreground">
+                    <div>{p.client_email}</div>
+                    <div>{p.client_phone}</div>
                   </TableCell>
-                  <TableCell>{lead.type}</TableCell>
                   <TableCell>
-                    {lead.couponCode ? (
-                      <div className="flex items-center gap-1.5 text-sm">
-                        <Tag className="h-3 w-3 text-muted-foreground" />
-                        <span className="font-mono text-primary font-medium">
-                          {lead.couponCode}
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-muted-foreground text-xs">-</span>
-                    )}
+                    <Select
+                      value={p.kit_status || 'Pending'}
+                      onValueChange={(val) => handleUpdate(p.client_email, { kit_status: val })}
+                    >
+                      <SelectTrigger className="w-[130px] h-8 text-xs font-medium">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Pending">Pendente</SelectItem>
+                        <SelectItem value="Shipped">Enviado</SelectItem>
+                        <SelectItem value="Delivered">Entregue</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </TableCell>
-                  <TableCell className="text-right font-medium">
-                    {lead.couponUsage !== undefined && lead.couponUsage > 0 ? (
-                      <Badge variant={lead.couponUsage > 10 ? 'default' : 'secondary'}>
-                        {lead.couponUsage}
-                      </Badge>
-                    ) : (
-                      <span className="text-muted-foreground text-xs">0</span>
-                    )}
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={
+                          editingCode[p.client_email] !== undefined
+                            ? editingCode[p.client_email]
+                            : p.coupon_code || ''
+                        }
+                        onChange={(e) =>
+                          setEditingCode({ ...editingCode, [p.client_email]: e.target.value })
+                        }
+                        placeholder="Ex: NUTRI10"
+                        className="h-8 w-32 font-mono text-xs uppercase"
+                      />
+                      {editingCode[p.client_email] !== undefined &&
+                        editingCode[p.client_email] !== (p.coupon_code || '') && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 text-green-600"
+                            onClick={() =>
+                              handleUpdate(p.client_email, {
+                                coupon_code: editingCode[p.client_email],
+                              })
+                            }
+                          >
+                            <Save className="h-4 w-4" />
+                          </Button>
+                        )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        checked={p.coupon_verified || false}
+                        onCheckedChange={(checked) =>
+                          handleUpdate(p.client_email, { coupon_verified: !!checked })
+                        }
+                      />
+                      <label className="text-xs text-muted-foreground cursor-pointer">
+                        Confirmado
+                      </label>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))

@@ -48,6 +48,33 @@ export type Database = {
         }
         Relationships: []
       }
+      locked_slots: {
+        Row: {
+          created_at: string
+          end_time: string | null
+          id: string
+          lock_date: string
+          start_time: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          end_time?: string | null
+          id?: string
+          lock_date: string
+          start_time?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          end_time?: string | null
+          id?: string
+          lock_date?: string
+          start_time?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       schedule_settings: {
         Row: {
           created_at: string
@@ -278,6 +305,13 @@ export const Constants = {
 //   end_time: text (not null)
 //   status: text (nullable, default: 'scheduled'::text)
 //   created_at: timestamp with time zone (not null, default: now())
+// Table: locked_slots
+//   id: uuid (not null, default: gen_random_uuid())
+//   user_id: uuid (not null)
+//   lock_date: date (not null)
+//   start_time: text (nullable)
+//   end_time: text (nullable)
+//   created_at: timestamp with time zone (not null, default: now())
 // Table: schedule_settings
 //   id: uuid (not null, default: gen_random_uuid())
 //   user_id: uuid (not null)
@@ -303,6 +337,9 @@ export const Constants = {
 // Table: appointments
 //   PRIMARY KEY appointments_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY appointments_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+// Table: locked_slots
+//   PRIMARY KEY locked_slots_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY locked_slots_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
 // Table: schedule_settings
 //   CHECK schedule_settings_day_of_week_check: CHECK (((day_of_week >= 0) AND (day_of_week <= 6)))
 //   PRIMARY KEY schedule_settings_pkey: PRIMARY KEY (id)
@@ -317,9 +354,19 @@ export const Constants = {
 // Table: appointments
 //   Policy "Anon can insert appointments" (INSERT, PERMISSIVE) roles={anon}
 //     WITH CHECK: true
+//   Policy "Anon can view appointments for capacity" (SELECT, PERMISSIVE) roles={anon}
+//     USING: true
 //   Policy "Users manage own appointments" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: (auth.uid() = user_id)
 //     WITH CHECK: (auth.uid() = user_id)
+// Table: locked_slots
+//   Policy "Anon can view locked slots" (SELECT, PERMISSIVE) roles={anon}
+//     USING: true
+//   Policy "Users manage own locked slots" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: (auth.uid() = user_id)
+//     WITH CHECK: (auth.uid() = user_id)
+//   Policy "Users view locked slots" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: true
 // Table: schedule_settings
 //   Policy "Anon can view schedules" (SELECT, PERMISSIVE) roles={anon}
 //     USING: true

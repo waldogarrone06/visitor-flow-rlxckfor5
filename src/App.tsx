@@ -15,6 +15,7 @@ import SettingsPage from './pages/Settings/Index'
 import LeadDetailPage from './pages/Crm/LeadDetail'
 import ChatPage from './pages/Chat/Index'
 import PublicBookingPage from './pages/PublicBooking/Index'
+import NpsPage from './pages/NPS/Index'
 import NotFound from './pages/NotFound'
 
 const App = () => (
@@ -26,6 +27,7 @@ const App = () => (
           <Sonner />
           <Routes>
             <Route path="/agendar/:userId" element={<PublicBookingPage />} />
+            <Route path="/nps/:appointmentId" element={<NpsPage />} />
 
             <Route element={<Layout />}>
               <Route path="/" element={<DashboardPage />} />
