@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useAuth } from '@/hooks/use-auth'
-import { LogOut, ShieldAlert } from 'lucide-react'
+import { LogOut, ShieldAlert, Loader2 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import { saveIntegrations, getProfiles, getCurrentProfile } from '@/services/settings'
 
@@ -32,21 +32,31 @@ export default function SettingsPage() {
   const [profiles, setProfiles] = useState<any[]>([])
   const [currentProfile, setCurrentProfile] = useState<any>(null)
   const [selectedUserId, setSelectedUserId] = useState<string>('')
+  const [loadingProfiles, setLoadingProfiles] = useState(true)
 
   useEffect(() => {
     const loadAccess = async () => {
       if (!user) return
-      const profile = await getCurrentProfile()
-      setCurrentProfile(profile)
-      if (profile?.is_admin) {
-        const allProfiles = await getProfiles()
-        setProfiles(allProfiles)
-        setSelectedUserId(user.id)
-      } else {
-        setSelectedUserId(user.id)
+      setLoadingProfiles(true)
+      try {
+        const profile = await getCurrentProfile()
+        setCurrentProfile(profile)
+        if (profile?.is_admin) {
+          const allProfiles = await getProfiles()
+          setProfiles(allProfiles)
+          setSelectedUserId((prev) => prev || user.id)
+        } else {
+          setSelectedUserId(user.id)
+        }
+      } finally {
+        setLoadingProfiles(false)
       }
     }
     loadAccess()
+
+    const handleUpdate = () => loadAccess()
+    window.addEventListener('profiles_updated', handleUpdate)
+    return () => window.removeEventListener('profiles_updated', handleUpdate)
   }, [user])
 
   useEffect(() => {
@@ -143,18 +153,29 @@ export default function SettingsPage() {
           </div>
           <div className="flex-1 flex items-center gap-3 w-full sm:w-auto">
             <Label className="text-muted-foreground whitespace-nowrap">Gerenciar usuário:</Label>
-            <Select value={selectedUserId} onValueChange={setSelectedUserId}>
-              <SelectTrigger className="w-full max-w-xs bg-white">
-                <SelectValue placeholder="Selecione um usuário" />
-              </SelectTrigger>
-              <SelectContent>
-                {profiles.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.name} ({p.email})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="relative w-full max-w-xs">
+              <Select
+                value={selectedUserId}
+                onValueChange={setSelectedUserId}
+                disabled={loadingProfiles}
+              >
+                <SelectTrigger className="w-full bg-white">
+                  <SelectValue placeholder="Selecione um usuário" />
+                </SelectTrigger>
+                <SelectContent>
+                  {profiles.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name} ({p.email})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {loadingProfiles && (
+                <div className="absolute right-8 top-1/2 -translate-y-1/2">
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -164,8 +185,8 @@ export default function SettingsPage() {
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
           <GoogleCalendarCard targetUserId={selectedUserId} />
           <GoogleMeetCard targetUserId={selectedUserId} />
-          <WhatsAppCard />
-          <FrenetCard />
+          <WhatsAppCard targetUserId={selectedUserId} />
+          <FrenetCard targetUserId={selectedUserId} />
         </div>
         <div className="grid gap-6">
           <PersonalScheduleCard />

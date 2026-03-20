@@ -21,6 +21,8 @@ export type Database = {
           created_at: string
           delivered_at: string | null
           end_time: string
+          google_event_id: string | null
+          google_meet_link: string | null
           id: string
           kit_status: string | null
           start_time: string
@@ -39,6 +41,8 @@ export type Database = {
           created_at?: string
           delivered_at?: string | null
           end_time: string
+          google_event_id?: string | null
+          google_meet_link?: string | null
           id?: string
           kit_status?: string | null
           start_time: string
@@ -57,6 +61,8 @@ export type Database = {
           created_at?: string
           delivered_at?: string | null
           end_time?: string
+          google_event_id?: string | null
+          google_meet_link?: string | null
           id?: string
           kit_status?: string | null
           start_time?: string
@@ -181,6 +187,30 @@ export type Database = {
           },
         ]
       }
+      profiles: {
+        Row: {
+          created_at: string | null
+          email: string
+          id: string
+          is_admin: boolean | null
+          name: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          id: string
+          is_admin?: boolean | null
+          name?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          id?: string
+          is_admin?: boolean | null
+          name?: string | null
+        }
+        Relationships: []
+      }
       schedule_settings: {
         Row: {
           created_at: string
@@ -220,8 +250,10 @@ export type Database = {
           frenet_token: string | null
           google_access_token: string | null
           google_email: string | null
+          google_invitation_body: string | null
           google_refresh_token: string | null
           id: string
+          sync_enabled: boolean | null
           updated_at: string
           user_id: string
           whatsapp_api_token: string | null
@@ -235,8 +267,10 @@ export type Database = {
           frenet_token?: string | null
           google_access_token?: string | null
           google_email?: string | null
+          google_invitation_body?: string | null
           google_refresh_token?: string | null
           id?: string
+          sync_enabled?: boolean | null
           updated_at?: string
           user_id: string
           whatsapp_api_token?: string | null
@@ -250,8 +284,10 @@ export type Database = {
           frenet_token?: string | null
           google_access_token?: string | null
           google_email?: string | null
+          google_invitation_body?: string | null
           google_refresh_token?: string | null
           id?: string
+          sync_enabled?: boolean | null
           updated_at?: string
           user_id?: string
           whatsapp_api_token?: string | null
@@ -426,6 +462,8 @@ export const Constants = {
 //   coupon_usage_count: integer (not null, default: 0)
 //   tracking_number: text (nullable)
 //   delivered_at: timestamp with time zone (nullable)
+//   google_event_id: text (nullable)
+//   google_meet_link: text (nullable)
 // Table: kit_items
 //   id: uuid (not null, default: gen_random_uuid())
 //   kit_id: uuid (not null)
@@ -451,6 +489,12 @@ export const Constants = {
 //   score: integer (not null)
 //   feedback: text (nullable)
 //   created_at: timestamp with time zone (not null, default: now())
+// Table: profiles
+//   id: uuid (not null)
+//   email: text (not null)
+//   name: text (nullable)
+//   is_admin: boolean (nullable, default: false)
+//   created_at: timestamp with time zone (nullable, default: now())
 // Table: schedule_settings
 //   id: uuid (not null, default: gen_random_uuid())
 //   user_id: uuid (not null)
@@ -474,6 +518,8 @@ export const Constants = {
 //   yampi_token: text (nullable)
 //   yampi_alias: text (nullable)
 //   frenet_token: text (nullable)
+//   google_invitation_body: text (nullable)
+//   sync_enabled: boolean (nullable, default: false)
 
 // --- CONSTRAINTS ---
 // Table: appointments
@@ -492,6 +538,9 @@ export const Constants = {
 //   FOREIGN KEY nps_responses_appointment_id_fkey: FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE CASCADE
 //   PRIMARY KEY nps_responses_pkey: PRIMARY KEY (id)
 //   CHECK nps_responses_score_check: CHECK (((score >= 1) AND (score <= 10)))
+// Table: profiles
+//   FOREIGN KEY profiles_id_fkey: FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE
+//   PRIMARY KEY profiles_pkey: PRIMARY KEY (id)
 // Table: schedule_settings
 //   CHECK schedule_settings_day_of_week_check: CHECK (((day_of_week >= 0) AND (day_of_week <= 6)))
 //   PRIMARY KEY schedule_settings_pkey: PRIMARY KEY (id)
@@ -534,6 +583,11 @@ export const Constants = {
 //     WITH CHECK: true
 //   Policy "Users view own NPS" (SELECT, PERMISSIVE) roles={authenticated}
 //     USING: (EXISTS ( SELECT 1    FROM appointments   WHERE ((appointments.id = nps_responses.appointment_id) AND (appointments.user_id = auth.uid()))))
+// Table: profiles
+//   Policy "profiles_read_all" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: true
+//   Policy "profiles_update_self" (UPDATE, PERMISSIVE) roles={authenticated}
+//     USING: (auth.uid() = id)
 // Table: schedule_settings
 //   Policy "Anon can view schedules" (SELECT, PERMISSIVE) roles={anon}
 //     USING: true
@@ -542,8 +596,29 @@ export const Constants = {
 //     WITH CHECK: (auth.uid() = user_id)
 // Table: user_integrations
 //   Policy "Users can manage their own integrations" (ALL, PERMISSIVE) roles={authenticated}
-//     USING: (auth.uid() = user_id)
-//     WITH CHECK: (auth.uid() = user_id)
+//     USING: ((auth.uid() = user_id) OR (EXISTS ( SELECT 1    FROM profiles   WHERE ((profiles.id = auth.uid()) AND (profiles.is_admin = true)))))
+//     WITH CHECK: ((auth.uid() = user_id) OR (EXISTS ( SELECT 1    FROM profiles   WHERE ((profiles.id = auth.uid()) AND (profiles.is_admin = true)))))
+
+// --- DATABASE FUNCTIONS ---
+// FUNCTION handle_new_user()
+//   CREATE OR REPLACE FUNCTION public.handle_new_user()
+//    RETURNS trigger
+//    LANGUAGE plpgsql
+//    SECURITY DEFINER
+//   AS $function$
+//   BEGIN
+//     INSERT INTO public.profiles (id, email, name)
+//     VALUES (NEW.id, NEW.email, coalesce(NEW.raw_user_meta_data->>'name', 'Usuário'))
+//     ON CONFLICT (id) DO NOTHING;
+//
+//     INSERT INTO public.user_integrations (user_id)
+//     VALUES (NEW.id)
+//     ON CONFLICT (user_id) DO NOTHING;
+//
+//     RETURN NEW;
+//   END;
+//   $function$
+//
 
 // --- INDEXES ---
 // Table: user_integrations

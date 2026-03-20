@@ -15,22 +15,28 @@ import { toast } from '@/hooks/use-toast'
 import { MessageCircle } from 'lucide-react'
 import { getIntegrations, saveIntegrations } from '@/services/settings'
 
-export function WhatsAppCard() {
+export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
   const [instanceId, setInstanceId] = useState('')
   const [apiToken, setApiToken] = useState('')
   const [connected, setConnected] = useState(false)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    getIntegrations().then((data) => {
+    if (!targetUserId) return
+    setLoading(true)
+    getIntegrations(targetUserId).then((data) => {
       if (data) {
         setInstanceId(data.whatsapp_instance_id || '')
         setApiToken(data.whatsapp_api_token || '')
         setConnected(data.whatsapp_connected || false)
+      } else {
+        setInstanceId('')
+        setApiToken('')
+        setConnected(false)
       }
       setLoading(false)
     })
-  }, [])
+  }, [targetUserId])
 
   const handleSave = async () => {
     if (!instanceId || !apiToken) {
@@ -41,26 +47,34 @@ export function WhatsAppCard() {
       })
       return
     }
-    await saveIntegrations({
-      whatsapp_instance_id: instanceId,
-      whatsapp_api_token: apiToken,
-      whatsapp_connected: true,
-    })
+    await saveIntegrations(
+      {
+        whatsapp_instance_id: instanceId,
+        whatsapp_api_token: apiToken,
+        whatsapp_connected: true,
+      },
+      targetUserId,
+    )
     setConnected(true)
     toast({ title: 'WhatsApp Conectado', description: 'Credenciais salvas com sucesso.' })
   }
 
   const handleDisconnect = async () => {
-    await saveIntegrations({
-      whatsapp_instance_id: null,
-      whatsapp_api_token: null,
-      whatsapp_connected: false,
-    })
+    await saveIntegrations(
+      {
+        whatsapp_instance_id: null,
+        whatsapp_api_token: null,
+        whatsapp_connected: false,
+      },
+      targetUserId,
+    )
     setInstanceId('')
     setApiToken('')
     setConnected(false)
     toast({ title: 'WhatsApp Desconectado' })
   }
+
+  if (!targetUserId) return null
 
   return (
     <Card className="flex flex-col shadow-subtle border-border/50">

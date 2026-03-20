@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import {
   Card,
   CardHeader,
@@ -18,8 +18,7 @@ import {
 } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { toast } from '@/hooks/use-toast'
-import { Users, Plus, Upload, Check } from 'lucide-react'
-import { useMainStore } from '@/stores/main'
+import { Users, Plus, Upload, Check, Loader2 } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -40,6 +39,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
+import { supabase } from '@/lib/supabase/client'
 
 const formSchema = z.object({
   name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
@@ -49,10 +49,25 @@ const formSchema = z.object({
 })
 
 export function TeamRegistrationCard() {
-  const { state, dispatch } = useMainStore()
   const [open, setOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [hasAvatar, setHasAvatar] = useState(false)
+  const [members, setMembers] = useState<any[]>([])
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  useEffect(() => {
+    loadMembers()
+    const handleUpdate = () => loadMembers()
+    window.addEventListener('profiles_updated', handleUpdate)
+    return () => window.removeEventListener('profiles_updated', handleUpdate)
+  }, [])
+
+  const loadMembers = async () => {
+    const { data } = await supabase.from('profiles').select('*').order('name')
+    if (data) {
+      setMembers(data)
+    }
+  }
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -64,24 +79,34 @@ export function TeamRegistrationCard() {
     },
   })
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
-    dispatch({
-      type: 'ADD_TEAM_MEMBER',
-      payload: {
-        id: `t-${Date.now()}`,
-        name: values.name,
-        email: values.email,
-        role: values.role as 'Admin' | 'Agent' | 'Viewer',
-        avatarUrl: `https://img.usecurling.com/ppl/thumbnail?seed=${Math.floor(Math.random() * 100)}`,
-      },
-    })
-    toast({
-      title: 'Usuário cadastrado',
-      description: `${values.name} foi adicionado à equipe com sucesso.`,
-    })
-    setOpen(false)
-    form.reset()
-    setHasAvatar(false)
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    setIsSubmitting(true)
+    try {
+      const { data, error } = await supabase.functions.invoke('create-user', {
+        body: values,
+      })
+
+      if (error) throw new Error(error.message)
+      if (data?.error) throw new Error(data.error)
+
+      toast({
+        title: 'Usuário cadastrado',
+        description: `${values.name} foi adicionado à equipe com sucesso e já pode realizar login.`,
+      })
+      setOpen(false)
+      form.reset()
+      setHasAvatar(false)
+
+      window.dispatchEvent(new CustomEvent('profiles_updated'))
+    } catch (e: any) {
+      toast({
+        title: 'Erro ao cadastrar',
+        description: e.message || 'Houve um problema ao criar o usuário.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleAvatarClick = () => {
@@ -101,37 +126,35 @@ export function TeamRegistrationCard() {
           <div className="p-3 bg-orange-50 text-orange-600 rounded-lg mb-2">
             <Users className="h-6 w-6" />
           </div>
-          <Badge variant="secondary">{state.teamMembers?.length || 0} Membros</Badge>
+          <Badge variant="secondary">{members.length || 0} Membros</Badge>
         </div>
         <CardTitle>Equipe & Acessos</CardTitle>
         <CardDescription>Gerencie os membros da equipe e seus níveis de acesso.</CardDescription>
       </CardHeader>
       <CardContent className="flex-1">
         <div className="space-y-4">
-          {state.teamMembers?.slice(0, 3).map((member) => (
+          {members.slice(0, 3).map((member) => (
             <div
               key={member.id}
               className="flex items-center justify-between text-sm p-2 rounded-md bg-muted/30 hover:bg-muted/60 transition-colors"
             >
               <div className="flex items-center gap-3">
-                <img
-                  src={member.avatarUrl}
-                  alt={member.name}
-                  className="h-8 w-8 rounded-full object-cover shadow-sm border border-background"
-                />
+                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-xs border border-background shadow-sm">
+                  {member.name?.charAt(0).toUpperCase() || member.email?.charAt(0).toUpperCase()}
+                </div>
                 <div className="flex flex-col">
-                  <span className="font-medium text-foreground">{member.name}</span>
+                  <span className="font-medium text-foreground">{member.name || 'Sem Nome'}</span>
                   <span className="text-muted-foreground text-[11px]">{member.email}</span>
                 </div>
               </div>
               <Badge variant="outline" className="text-[10px] bg-background">
-                {member.role}
+                {member.is_admin ? 'Admin' : 'Agente'}
               </Badge>
             </div>
           ))}
-          {(state.teamMembers?.length || 0) > 3 && (
+          {members.length > 3 && (
             <p className="text-xs text-muted-foreground text-center pt-2">
-              +{state.teamMembers.length - 3} outros membros
+              +{members.length - 3} outros membros
             </p>
           )}
         </div>
@@ -250,10 +273,17 @@ export function TeamRegistrationCard() {
                 </div>
 
                 <DialogFooter className="pt-4">
-                  <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setOpen(false)}
+                    disabled={isSubmitting}
+                  >
                     Cancelar
                   </Button>
-                  <Button type="submit">Salvar Usuário</Button>
+                  <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Salvar Usuário'}
+                  </Button>
                 </DialogFooter>
               </form>
             </Form>

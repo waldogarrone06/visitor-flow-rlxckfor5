@@ -15,20 +15,25 @@ import { toast } from '@/hooks/use-toast'
 import { Truck } from 'lucide-react'
 import { getIntegrations, saveIntegrations } from '@/services/settings'
 
-export function FrenetCard() {
+export function FrenetCard({ targetUserId }: { targetUserId?: string }) {
   const [token, setToken] = useState('')
   const [connected, setConnected] = useState(false)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    getIntegrations().then((data) => {
+    if (!targetUserId) return
+    setLoading(true)
+    getIntegrations(targetUserId).then((data) => {
       if (data && data.frenet_token) {
         setToken(data.frenet_token)
         setConnected(true)
+      } else {
+        setToken('')
+        setConnected(false)
       }
       setLoading(false)
     })
-  }, [])
+  }, [targetUserId])
 
   const handleSave = async () => {
     if (!token) {
@@ -39,17 +44,19 @@ export function FrenetCard() {
       })
       return
     }
-    await saveIntegrations({ frenet_token: token })
+    await saveIntegrations({ frenet_token: token }, targetUserId)
     setConnected(true)
     toast({ title: 'Frenet Conectado', description: 'Token de integração salvo com sucesso.' })
   }
 
   const handleDisconnect = async () => {
-    await saveIntegrations({ frenet_token: null })
+    await saveIntegrations({ frenet_token: null }, targetUserId)
     setToken('')
     setConnected(false)
     toast({ title: 'Frenet Desconectado' })
   }
+
+  if (!targetUserId) return null
 
   return (
     <Card className="flex flex-col shadow-subtle border-border/50">
