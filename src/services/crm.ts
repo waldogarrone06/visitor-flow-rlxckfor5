@@ -27,3 +27,24 @@ export async function updatePrescriberData(userId: string, email: string, update
 
   if (error) throw error
 }
+
+export async function createYampiCoupon(
+  appointmentId: string,
+  userId: string,
+  name: string,
+  email: string,
+) {
+  const { data, error } = await supabase.functions.invoke('yampi-service', {
+    body: { action: 'create-coupon', appointmentId, userId, name, email },
+  })
+  if (error) throw error
+  return data
+}
+
+export async function syncYampiUsage(userId: string) {
+  const { data, error } = await supabase.functions.invoke('yampi-service', {
+    body: { action: 'sync-usage', userId },
+  })
+  if (error) throw error
+  return data
+}

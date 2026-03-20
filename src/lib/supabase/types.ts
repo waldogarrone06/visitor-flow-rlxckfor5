@@ -15,9 +15,12 @@ export type Database = {
           client_email: string
           client_name: string
           client_phone: string | null
+          coupon_code: string | null
+          coupon_verified: boolean | null
           created_at: string
           end_time: string
           id: string
+          kit_status: string | null
           start_time: string
           status: string | null
           user_id: string
@@ -27,9 +30,12 @@ export type Database = {
           client_email: string
           client_name: string
           client_phone?: string | null
+          coupon_code?: string | null
+          coupon_verified?: boolean | null
           created_at?: string
           end_time: string
           id?: string
+          kit_status?: string | null
           start_time: string
           status?: string | null
           user_id: string
@@ -39,11 +45,70 @@ export type Database = {
           client_email?: string
           client_name?: string
           client_phone?: string | null
+          coupon_code?: string | null
+          coupon_verified?: boolean | null
           created_at?: string
           end_time?: string
           id?: string
+          kit_status?: string | null
           start_time?: string
           status?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      kit_items: {
+        Row: {
+          id: string
+          kit_id: string
+          product_name: string
+          quantity: number
+        }
+        Insert: {
+          id?: string
+          kit_id: string
+          product_name: string
+          quantity?: number
+        }
+        Update: {
+          id?: string
+          kit_id?: string
+          product_name?: string
+          quantity?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'kit_items_kit_id_fkey'
+            columns: ['kit_id']
+            isOneToOne: false
+            referencedRelation: 'kits'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      kits: {
+        Row: {
+          created_at: string
+          id: string
+          is_personalized: boolean | null
+          name: string
+          prescriber_email: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_personalized?: boolean | null
+          name: string
+          prescriber_email?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_personalized?: boolean | null
+          name?: string
+          prescriber_email?: string | null
           user_id?: string
         }
         Relationships: []
@@ -74,6 +139,38 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      nps_responses: {
+        Row: {
+          appointment_id: string
+          created_at: string
+          feedback: string | null
+          id: string
+          score: number
+        }
+        Insert: {
+          appointment_id: string
+          created_at?: string
+          feedback?: string | null
+          id?: string
+          score: number
+        }
+        Update: {
+          appointment_id?: string
+          created_at?: string
+          feedback?: string | null
+          id?: string
+          score?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'nps_responses_appointment_id_fkey'
+            columns: ['appointment_id']
+            isOneToOne: false
+            referencedRelation: 'appointments'
+            referencedColumns: ['id']
+          },
+        ]
       }
       schedule_settings: {
         Row: {
@@ -305,12 +402,33 @@ export const Constants = {
 //   end_time: text (not null)
 //   status: text (nullable, default: 'scheduled'::text)
 //   created_at: timestamp with time zone (not null, default: now())
+//   kit_status: text (nullable, default: 'Pending'::text)
+//   coupon_code: text (nullable)
+//   coupon_verified: boolean (nullable, default: false)
+// Table: kit_items
+//   id: uuid (not null, default: gen_random_uuid())
+//   kit_id: uuid (not null)
+//   product_name: text (not null)
+//   quantity: integer (not null, default: 1)
+// Table: kits
+//   id: uuid (not null, default: gen_random_uuid())
+//   user_id: uuid (not null)
+//   name: text (not null)
+//   is_personalized: boolean (nullable, default: false)
+//   prescriber_email: text (nullable)
+//   created_at: timestamp with time zone (not null, default: now())
 // Table: locked_slots
 //   id: uuid (not null, default: gen_random_uuid())
 //   user_id: uuid (not null)
 //   lock_date: date (not null)
 //   start_time: text (nullable)
 //   end_time: text (nullable)
+//   created_at: timestamp with time zone (not null, default: now())
+// Table: nps_responses
+//   id: uuid (not null, default: gen_random_uuid())
+//   appointment_id: uuid (not null)
+//   score: integer (not null)
+//   feedback: text (nullable)
 //   created_at: timestamp with time zone (not null, default: now())
 // Table: schedule_settings
 //   id: uuid (not null, default: gen_random_uuid())
@@ -337,9 +455,19 @@ export const Constants = {
 // Table: appointments
 //   PRIMARY KEY appointments_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY appointments_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+// Table: kit_items
+//   FOREIGN KEY kit_items_kit_id_fkey: FOREIGN KEY (kit_id) REFERENCES kits(id) ON DELETE CASCADE
+//   PRIMARY KEY kit_items_pkey: PRIMARY KEY (id)
+// Table: kits
+//   PRIMARY KEY kits_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY kits_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
 // Table: locked_slots
 //   PRIMARY KEY locked_slots_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY locked_slots_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+// Table: nps_responses
+//   FOREIGN KEY nps_responses_appointment_id_fkey: FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE CASCADE
+//   PRIMARY KEY nps_responses_pkey: PRIMARY KEY (id)
+//   CHECK nps_responses_score_check: CHECK (((score >= 1) AND (score <= 10)))
 // Table: schedule_settings
 //   CHECK schedule_settings_day_of_week_check: CHECK (((day_of_week >= 0) AND (day_of_week <= 6)))
 //   PRIMARY KEY schedule_settings_pkey: PRIMARY KEY (id)
@@ -359,6 +487,14 @@ export const Constants = {
 //   Policy "Users manage own appointments" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: (auth.uid() = user_id)
 //     WITH CHECK: (auth.uid() = user_id)
+// Table: kit_items
+//   Policy "Users manage own kit items" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: (EXISTS ( SELECT 1    FROM kits   WHERE ((kits.id = kit_items.kit_id) AND (kits.user_id = auth.uid()))))
+//     WITH CHECK: (EXISTS ( SELECT 1    FROM kits   WHERE ((kits.id = kit_items.kit_id) AND (kits.user_id = auth.uid()))))
+// Table: kits
+//   Policy "Users manage own kits" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: (auth.uid() = user_id)
+//     WITH CHECK: (auth.uid() = user_id)
 // Table: locked_slots
 //   Policy "Anon can view locked slots" (SELECT, PERMISSIVE) roles={anon}
 //     USING: true
@@ -367,6 +503,13 @@ export const Constants = {
 //     WITH CHECK: (auth.uid() = user_id)
 //   Policy "Users view locked slots" (SELECT, PERMISSIVE) roles={authenticated}
 //     USING: true
+// Table: nps_responses
+//   Policy "Anon can insert NPS" (INSERT, PERMISSIVE) roles={anon}
+//     WITH CHECK: true
+//   Policy "Auth can insert NPS" (INSERT, PERMISSIVE) roles={authenticated}
+//     WITH CHECK: true
+//   Policy "Users view own NPS" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: (EXISTS ( SELECT 1    FROM appointments   WHERE ((appointments.id = nps_responses.appointment_id) AND (appointments.user_id = auth.uid()))))
 // Table: schedule_settings
 //   Policy "Anon can view schedules" (SELECT, PERMISSIVE) roles={anon}
 //     USING: true

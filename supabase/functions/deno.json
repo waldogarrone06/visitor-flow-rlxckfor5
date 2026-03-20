@@ -1,5 +1,6 @@
 {
   "_versions": {
-    "sync-calendar": 1
+    "sync-calendar": 1,
+    "yampi-service": 1
   }
 }
