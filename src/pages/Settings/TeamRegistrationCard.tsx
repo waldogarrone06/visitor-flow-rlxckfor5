@@ -95,7 +95,9 @@ export function TeamRegistrationCard() {
               errorMessage = errorBody.error
             }
           }
-        } catch (_) {}
+        } catch (_) {
+          console.error('Failed to parse error context', _)
+        }
 
         throw new Error(errorMessage)
       }
