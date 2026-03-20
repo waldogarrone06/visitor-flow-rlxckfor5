@@ -606,18 +606,18 @@ export const Constants = {
 //    LANGUAGE plpgsql
 //    SECURITY DEFINER
 //   AS $function$
-//   BEGIN
-//     INSERT INTO public.profiles (id, email, name)
-//     VALUES (NEW.id, NEW.email, coalesce(NEW.raw_user_meta_data->>'name', 'Usuário'))
-//     ON CONFLICT (id) DO NOTHING;
+//     BEGIN
+//       INSERT INTO public.profiles (id, email, name)
+//       VALUES (NEW.id, NEW.email, coalesce(NEW.raw_user_meta_data->>'name', 'Usuário'))
+//       ON CONFLICT (id) DO NOTHING;
 //
-//     INSERT INTO public.user_integrations (user_id)
-//     VALUES (NEW.id)
-//     ON CONFLICT (user_id) DO NOTHING;
+//       INSERT INTO public.user_integrations (user_id)
+//       VALUES (NEW.id)
+//       ON CONFLICT (user_id) DO NOTHING;
 //
-//     RETURN NEW;
-//   END;
-//   $function$
+//       RETURN NEW;
+//     END;
+//     $function$
 //
 
 // --- INDEXES ---
