@@ -65,7 +65,7 @@ CREATE TRIGGER on_auth_user_created
 DO $$
 DECLARE
   admin_id UUID := gen_random_uuid();
-  user_id UUID := gen_random_uuid();
+  normal_user_id UUID := gen_random_uuid();
 BEGIN
   -- Admin
   IF NOT EXISTS (SELECT 1 FROM auth.users WHERE email = 'admin@example.com') THEN
@@ -100,18 +100,18 @@ BEGIN
       email_change, email_change_token_current, phone_change, 
       phone_change_token, reauthentication_token
     ) VALUES (
-      user_id, '00000000-0000-0000-0000-000000000000', 'user@example.com', 
+      normal_user_id, '00000000-0000-0000-0000-000000000000', 'user@example.com', 
       crypt('User123!', gen_salt('bf')), NOW(), NOW(), NOW(), 
       'authenticated', 'authenticated', 
       '', '', '', '', '', '', '', ''
     );
 
     INSERT INTO public.profiles (id, email, name, is_admin) 
-    VALUES (user_id, 'user@example.com', 'Atendente Comercial', false) 
+    VALUES (normal_user_id, 'user@example.com', 'Atendente Comercial', false) 
     ON CONFLICT (id) DO NOTHING;
 
     INSERT INTO public.user_integrations (user_id) 
-    VALUES (user_id) 
+    VALUES (normal_user_id) 
     ON CONFLICT (user_id) DO NOTHING;
   END IF;
 END $$;
