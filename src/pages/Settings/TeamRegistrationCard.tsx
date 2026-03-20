@@ -86,8 +86,12 @@ export function TeamRegistrationCard() {
         body: values,
       })
 
-      if (error) throw new Error(error.message)
-      if (data?.error) throw new Error(data.error)
+      if (error) {
+        throw new Error(error.message || 'Erro de rede ou falha na chamada da função.')
+      }
+      if (data?.error) {
+        throw new Error(data.error)
+      }
 
       toast({
         title: 'Usuário cadastrado',

@@ -56,9 +56,19 @@ Deno.serve(async (req: Request) => {
 
     if (newUser && newUser.user) {
       // The trigger automatically inserts the profile and integrations.
-      // We just need to update the role if the new user is an Admin.
+      // We add a small delay to ensure the database trigger has completed inserting the profile
+      // before we attempt to update it.
+      await new Promise((resolve) => setTimeout(resolve, 300))
+
       if (role === 'Admin') {
-        await supabase.from('profiles').update({ is_admin: true }).eq('id', newUser.user.id)
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ is_admin: true })
+          .eq('id', newUser.user.id)
+
+        if (updateError) {
+          console.error('Failed to assign admin role:', updateError)
+        }
       }
     }
 

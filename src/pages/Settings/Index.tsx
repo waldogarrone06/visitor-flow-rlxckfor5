@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { GoogleCalendarCard } from './GoogleCalendarCard'
 import { GoogleMeetCard } from './GoogleMeetCard'
@@ -34,30 +34,32 @@ export default function SettingsPage() {
   const [selectedUserId, setSelectedUserId] = useState<string>('')
   const [loadingProfiles, setLoadingProfiles] = useState(true)
 
-  useEffect(() => {
-    const loadAccess = async () => {
-      if (!user) return
-      setLoadingProfiles(true)
-      try {
-        const profile = await getCurrentProfile()
-        setCurrentProfile(profile)
-        if (profile?.is_admin) {
-          const allProfiles = await getProfiles()
-          setProfiles(allProfiles)
-          setSelectedUserId((prev) => prev || user.id)
-        } else {
-          setSelectedUserId(user.id)
-        }
-      } finally {
-        setLoadingProfiles(false)
+  const loadAccess = useCallback(async () => {
+    if (!user) return
+    setLoadingProfiles(true)
+    try {
+      const profile = await getCurrentProfile()
+      setCurrentProfile(profile)
+      if (profile?.is_admin) {
+        const allProfiles = await getProfiles()
+        setProfiles(allProfiles)
+        setSelectedUserId((prev) => {
+          if (prev && allProfiles.find((p) => p.id === prev)) return prev
+          return user.id
+        })
+      } else {
+        setSelectedUserId(user.id)
       }
+    } finally {
+      setLoadingProfiles(false)
     }
-    loadAccess()
-
-    const handleUpdate = () => loadAccess()
-    window.addEventListener('profiles_updated', handleUpdate)
-    return () => window.removeEventListener('profiles_updated', handleUpdate)
   }, [user])
+
+  useEffect(() => {
+    loadAccess()
+    window.addEventListener('profiles_updated', loadAccess)
+    return () => window.removeEventListener('profiles_updated', loadAccess)
+  }, [loadAccess])
 
   useEffect(() => {
     const error = searchParams.get('error')
@@ -73,7 +75,7 @@ export default function SettingsPage() {
     }
 
     const code = searchParams.get('code')
-    const stateId = searchParams.get('state') // Target user ID
+    const stateId = searchParams.get('state')
 
     if (code && stateId) {
       const exchangeCode = async () => {

@@ -587,7 +587,7 @@ export const Constants = {
 //   Policy "profiles_read_all" (SELECT, PERMISSIVE) roles={authenticated}
 //     USING: true
 //   Policy "profiles_update_admin" (UPDATE, PERMISSIVE) roles={authenticated}
-//     USING: (EXISTS ( SELECT 1    FROM profiles profiles_1   WHERE ((profiles_1.id = auth.uid()) AND (profiles_1.is_admin = true))))
+//     USING: (( SELECT profiles_1.is_admin    FROM profiles profiles_1   WHERE (profiles_1.id = auth.uid())) = true)
 //   Policy "profiles_update_self" (UPDATE, PERMISSIVE) roles={authenticated}
 //     USING: (auth.uid() = id)
 // Table: schedule_settings
@@ -598,14 +598,14 @@ export const Constants = {
 //     WITH CHECK: (auth.uid() = user_id)
 // Table: user_integrations
 //   Policy "user_integrations_delete" (DELETE, PERMISSIVE) roles={authenticated}
-//     USING: ((auth.uid() = user_id) OR (EXISTS ( SELECT 1    FROM profiles   WHERE ((profiles.id = auth.uid()) AND (profiles.is_admin = true)))))
+//     USING: ((auth.uid() = user_id) OR (( SELECT profiles.is_admin    FROM profiles   WHERE (profiles.id = auth.uid())) = true))
 //   Policy "user_integrations_insert" (INSERT, PERMISSIVE) roles={authenticated}
-//     WITH CHECK: ((auth.uid() = user_id) OR (EXISTS ( SELECT 1    FROM profiles   WHERE ((profiles.id = auth.uid()) AND (profiles.is_admin = true)))))
+//     WITH CHECK: ((auth.uid() = user_id) OR (( SELECT profiles.is_admin    FROM profiles   WHERE (profiles.id = auth.uid())) = true))
 //   Policy "user_integrations_select" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: ((auth.uid() = user_id) OR (EXISTS ( SELECT 1    FROM profiles   WHERE ((profiles.id = auth.uid()) AND (profiles.is_admin = true)))))
+//     USING: ((auth.uid() = user_id) OR (( SELECT profiles.is_admin    FROM profiles   WHERE (profiles.id = auth.uid())) = true))
 //   Policy "user_integrations_update" (UPDATE, PERMISSIVE) roles={authenticated}
-//     USING: ((auth.uid() = user_id) OR (EXISTS ( SELECT 1    FROM profiles   WHERE ((profiles.id = auth.uid()) AND (profiles.is_admin = true)))))
-//     WITH CHECK: ((auth.uid() = user_id) OR (EXISTS ( SELECT 1    FROM profiles   WHERE ((profiles.id = auth.uid()) AND (profiles.is_admin = true)))))
+//     USING: ((auth.uid() = user_id) OR (( SELECT profiles.is_admin    FROM profiles   WHERE (profiles.id = auth.uid())) = true))
+//     WITH CHECK: ((auth.uid() = user_id) OR (( SELECT profiles.is_admin    FROM profiles   WHERE (profiles.id = auth.uid())) = true))
 
 // --- DATABASE FUNCTIONS ---
 // FUNCTION handle_new_user()
