@@ -6,6 +6,7 @@ import { ReportsSettingsCard } from './ReportsSettingsCard'
 import { DatabaseStatusCard } from './DatabaseStatusCard'
 import { SecretsVaultCard } from './SecretsVaultCard'
 import { PersonalScheduleCard } from './PersonalScheduleCard'
+import { FrenetCard } from './FrenetCard'
 import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/hooks/use-auth'
@@ -49,6 +50,7 @@ export default function SettingsPage() {
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           <GoogleCalendarCard />
           <WhatsAppCard />
+          <FrenetCard />
         </div>
         <div className="grid gap-6">
           <PersonalScheduleCard />

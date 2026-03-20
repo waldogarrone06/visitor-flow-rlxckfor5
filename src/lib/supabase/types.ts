@@ -24,6 +24,7 @@ export type Database = {
           kit_status: string | null
           start_time: string
           status: string | null
+          tracking_number: string | null
           user_id: string
         }
         Insert: {
@@ -40,6 +41,7 @@ export type Database = {
           kit_status?: string | null
           start_time: string
           status?: string | null
+          tracking_number?: string | null
           user_id: string
         }
         Update: {
@@ -56,6 +58,7 @@ export type Database = {
           kit_status?: string | null
           start_time?: string
           status?: string | null
+          tracking_number?: string | null
           user_id?: string
         }
         Relationships: []
@@ -415,6 +418,7 @@ export const Constants = {
 //   coupon_code: text (nullable)
 //   coupon_verified: boolean (nullable, default: false)
 //   coupon_usage_count: integer (not null, default: 0)
+//   tracking_number: text (nullable)
 // Table: kit_items
 //   id: uuid (not null, default: gen_random_uuid())
 //   kit_id: uuid (not null)

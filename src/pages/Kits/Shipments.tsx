@@ -22,7 +22,15 @@ import {
 } from '@/components/ui/select'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { ExternalLink, Filter, AlertTriangle, Download, Mail, Loader2 } from 'lucide-react'
+import {
+  ExternalLink,
+  Filter,
+  AlertTriangle,
+  Download,
+  Mail,
+  Loader2,
+  CheckCircle2,
+} from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 
 export function KitShipments() {
@@ -86,7 +94,7 @@ export function KitShipments() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'Delivered':
-        return <Badge className="bg-success hover:bg-success/80">Entregue</Badge>
+        return <Badge className="bg-green-600 hover:bg-green-700">Entregue</Badge>
       case 'In Transit':
         return <Badge className="bg-blue-500 hover:bg-blue-600">Em Trânsito</Badge>
       case 'Delayed':
@@ -203,7 +211,17 @@ export function KitShipments() {
                     </TableCell>
                     <TableCell className="font-medium">{app.client_name}</TableCell>
                     <TableCell>Kit Padrão</TableCell>
-                    <TableCell>{getStatusBadge(app.kit_status || 'Pending')}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-1 items-start">
+                        {getStatusBadge(app.kit_status || 'Pending')}
+                        {app.kit_status === 'Delivered' && app.delivered_at && (
+                          <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                            <CheckCircle2 className="h-3 w-3 text-green-600" />
+                            {format(new Date(app.delivered_at), 'dd/MM/yyyy HH:mm')}
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell className="text-muted-foreground whitespace-nowrap">
                       {format(expectedDate, 'dd/MM/yyyy', { locale: ptBR })}
                     </TableCell>

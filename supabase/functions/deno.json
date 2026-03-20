@@ -1,6 +1,8 @@
 {
   "_versions": {
     "sync-calendar": 1,
-    "yampi-service": 1
+    "yampi-service": 1,
+    "track-shipping": 1,
+    "trigger-nps": 1
   }
 }
