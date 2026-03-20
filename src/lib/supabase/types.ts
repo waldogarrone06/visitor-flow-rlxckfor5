@@ -19,6 +19,7 @@ export type Database = {
           coupon_usage_count: number
           coupon_verified: boolean | null
           created_at: string
+          delivered_at: string | null
           end_time: string
           id: string
           kit_status: string | null
@@ -36,6 +37,7 @@ export type Database = {
           coupon_usage_count?: number
           coupon_verified?: boolean | null
           created_at?: string
+          delivered_at?: string | null
           end_time: string
           id?: string
           kit_status?: string | null
@@ -53,6 +55,7 @@ export type Database = {
           coupon_usage_count?: number
           coupon_verified?: boolean | null
           created_at?: string
+          delivered_at?: string | null
           end_time?: string
           id?: string
           kit_status?: string | null
@@ -214,6 +217,7 @@ export type Database = {
       user_integrations: {
         Row: {
           created_at: string
+          frenet_token: string | null
           google_access_token: string | null
           google_email: string | null
           google_refresh_token: string | null
@@ -228,6 +232,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          frenet_token?: string | null
           google_access_token?: string | null
           google_email?: string | null
           google_refresh_token?: string | null
@@ -242,6 +247,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          frenet_token?: string | null
           google_access_token?: string | null
           google_email?: string | null
           google_refresh_token?: string | null
@@ -419,6 +425,7 @@ export const Constants = {
 //   coupon_verified: boolean (nullable, default: false)
 //   coupon_usage_count: integer (not null, default: 0)
 //   tracking_number: text (nullable)
+//   delivered_at: timestamp with time zone (nullable)
 // Table: kit_items
 //   id: uuid (not null, default: gen_random_uuid())
 //   kit_id: uuid (not null)
@@ -466,6 +473,7 @@ export const Constants = {
 //   updated_at: timestamp with time zone (not null, default: now())
 //   yampi_token: text (nullable)
 //   yampi_alias: text (nullable)
+//   frenet_token: text (nullable)
 
 // --- CONSTRAINTS ---
 // Table: appointments

@@ -18,38 +18,56 @@ export function GoogleCalendarCard() {
   const [connected, setConnected] = useState(false)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    getIntegrations().then((data) => {
+  const loadData = async () => {
+    try {
+      const data = await getIntegrations()
       if (data?.google_email) {
         setEmail(data.google_email)
         setConnected(true)
+      } else {
+        setEmail('')
+        setConnected(false)
       }
+    } finally {
       setLoading(false)
-    })
+    }
+  }
+
+  useEffect(() => {
+    loadData()
+    window.addEventListener('integrations_updated', loadData)
+    return () => window.removeEventListener('integrations_updated', loadData)
   }, [])
 
-  const handleConnect = async () => {
-    // In a real app, this redirects to Google OAuth
-    const fakeEmail = prompt('Simulação de Integração. Digite a conta Google que deseja conectar:')
-    if (fakeEmail) {
-      await saveIntegrations({ google_email: fakeEmail, google_access_token: 'mock_token' })
-      setEmail(fakeEmail)
-      setConnected(true)
-      toast({
-        title: 'Google Calendar Conectado',
-        description: 'Seus eventos agora serão sincronizados com a agenda.',
-      })
+  const handleConnect = () => {
+    const clientId = localStorage.getItem('GOOGLE_CLIENT_ID') || 'mock-client-id'
+    const redirectUri = window.location.origin + '/config'
+    const scope =
+      'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events'
+
+    if (clientId === 'mock-client-id') {
+      // Simulate OAuth redirect when running without a real client ID
+      window.location.href = `${redirectUri}?code=mock_auth_code_calendar_12345`
+    } else {
+      // Real OAuth flow
+      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(
+        redirectUri,
+      )}&response_type=code&scope=${encodeURIComponent(scope)}&access_type=offline&prompt=consent`
+      window.location.href = authUrl
     }
   }
 
   const handleDisconnect = async () => {
-    await saveIntegrations({ google_email: null, google_access_token: null })
-    setEmail('')
-    setConnected(false)
+    await saveIntegrations({
+      google_email: null,
+      google_access_token: null,
+      google_refresh_token: null,
+    })
     toast({
       title: 'Google Calendar Desconectado',
       description: 'Integração removida com sucesso.',
     })
+    window.dispatchEvent(new Event('integrations_updated'))
   }
 
   return (
@@ -66,23 +84,22 @@ export function GoogleCalendarCard() {
             {connected ? 'Conectado' : 'Desconectado'}
           </Badge>
         </div>
-        <CardTitle>Google Calendar Pessoal</CardTitle>
+        <CardTitle>Google Calendar</CardTitle>
         <CardDescription>Sincronize visitas automaticamente na sua própria agenda.</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 space-y-4">
         {loading ? (
           <div className="animate-pulse h-10 bg-muted rounded-md w-full"></div>
         ) : connected ? (
-          <div className="p-3 bg-muted/40 border border-border/50 rounded-md flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">
-              Conta: <span className="text-muted-foreground font-normal">{email}</span>
+          <div className="p-3 bg-muted/40 border border-border/50 rounded-md flex items-center gap-2 overflow-hidden">
+            <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <span className="text-sm font-medium truncate">
+              <span className="text-muted-foreground font-normal">{email}</span>
             </span>
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">
-            Conecte seu calendário individual para evitar conflitos e receber lembretes diretamente
-            no seu celular.
+            Conecte sua conta via OAuth 2.0 para evitar conflitos de horários e receber lembretes.
           </p>
         )}
       </CardContent>
@@ -97,7 +114,7 @@ export function GoogleCalendarCard() {
           </Button>
         ) : (
           <Button onClick={handleConnect} className="w-full" disabled={loading}>
-            Conectar Google Calendar
+            Conectar Google
           </Button>
         )}
       </CardFooter>

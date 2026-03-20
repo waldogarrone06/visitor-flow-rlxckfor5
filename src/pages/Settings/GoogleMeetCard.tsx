@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import {
   Card,
   CardHeader,
@@ -8,29 +9,63 @@ import {
 } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Video } from 'lucide-react'
-import { useMainStore } from '@/stores/main'
 import { toast } from '@/hooks/use-toast'
+import { Video } from 'lucide-react'
+import { getIntegrations, saveIntegrations } from '@/services/settings'
 
 export function GoogleMeetCard() {
-  const { state, dispatch } = useMainStore()
-  const connected = state.settings?.googleMeetConnected ?? false
-  const email = state.settings?.googleAccountEmail || 'usuario@empresa.com'
+  const [email, setEmail] = useState('')
+  const [connected, setConnected] = useState(false)
+  const [loading, setLoading] = useState(true)
 
-  const handleToggle = () => {
-    dispatch({
-      type: 'UPDATE_SETTINGS',
-      payload: {
-        googleMeetConnected: !connected,
-        googleAccountEmail: !connected ? email : undefined,
-      },
+  const loadData = async () => {
+    try {
+      const data = await getIntegrations()
+      if (data?.google_email) {
+        setEmail(data.google_email)
+        setConnected(true)
+      } else {
+        setEmail('')
+        setConnected(false)
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadData()
+    window.addEventListener('integrations_updated', loadData)
+    return () => window.removeEventListener('integrations_updated', loadData)
+  }, [])
+
+  const handleConnect = () => {
+    const clientId = localStorage.getItem('GOOGLE_CLIENT_ID') || 'mock-client-id'
+    const redirectUri = window.location.origin + '/config'
+    const scope =
+      'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events'
+
+    if (clientId === 'mock-client-id') {
+      window.location.href = `${redirectUri}?code=mock_auth_code_meet_98765`
+    } else {
+      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(
+        redirectUri,
+      )}&response_type=code&scope=${encodeURIComponent(scope)}&access_type=offline&prompt=consent`
+      window.location.href = authUrl
+    }
+  }
+
+  const handleDisconnect = async () => {
+    await saveIntegrations({
+      google_email: null,
+      google_access_token: null,
+      google_refresh_token: null,
     })
     toast({
-      title: !connected ? 'Google Meet Conectado' : 'Google Meet Desconectado',
-      description: !connected
-        ? 'Links de reunião serão gerados automaticamente.'
-        : 'Geração de links pausada.',
+      title: 'Google Meet Desconectado',
+      description: 'Geração automática de links pausada.',
     })
+    window.dispatchEvent(new Event('integrations_updated'))
   }
 
   return (
@@ -48,30 +83,39 @@ export function GoogleMeetCard() {
           </Badge>
         </div>
         <CardTitle>Google Meet</CardTitle>
-        <CardDescription>Gere links de reunião para agendamentos virtuais.</CardDescription>
+        <CardDescription>Gere links de reunião únicos para agendamentos virtuais.</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 space-y-4">
-        {connected && (
-          <div className="p-3 bg-muted/40 border border-border/50 rounded-md flex items-center gap-2">
-            <Video className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">
-              Conta: <span className="text-muted-foreground font-normal">{email}</span>
+        {loading ? (
+          <div className="animate-pulse h-10 bg-muted rounded-md w-full"></div>
+        ) : connected ? (
+          <div className="p-3 bg-muted/40 border border-border/50 rounded-md flex items-center gap-2 overflow-hidden">
+            <Video className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <span className="text-sm font-medium truncate">
+              <span className="text-muted-foreground font-normal">{email}</span>
             </span>
           </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Conecte sua conta do Google Workspace para criar salas de videoconferência em cada novo
+            agendamento virtual.
+          </p>
         )}
-        <p className="text-sm text-muted-foreground">
-          Conecte sua conta do Google Workspace para criar salas de videoconferência únicas em cada
-          novo agendamento marcado como "Reunião Virtual".
-        </p>
       </CardContent>
-      <CardFooter>
-        <Button
-          variant={connected ? 'outline' : 'default'}
-          onClick={handleToggle}
-          className="w-full"
-        >
-          {connected ? 'Desconectar Conta' : 'Conectar Conta'}
-        </Button>
+      <CardFooter className="flex flex-wrap gap-2">
+        {connected ? (
+          <Button
+            variant="outline"
+            onClick={handleDisconnect}
+            className="w-full text-destructive hover:bg-destructive/10"
+          >
+            Desconectar Conta
+          </Button>
+        ) : (
+          <Button onClick={handleConnect} className="w-full" disabled={loading}>
+            Conectar Google
+          </Button>
+        )}
       </CardFooter>
     </Card>
   )

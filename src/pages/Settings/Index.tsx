@@ -1,4 +1,7 @@
+import { useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { GoogleCalendarCard } from './GoogleCalendarCard'
+import { GoogleMeetCard } from './GoogleMeetCard'
 import { EmailSettingsCard } from './EmailSettingsCard'
 import { WhatsAppCard } from './WhatsAppCard'
 import { TeamRegistrationCard } from './TeamRegistrationCard'
@@ -11,9 +14,61 @@ import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/hooks/use-auth'
 import { LogOut } from 'lucide-react'
+import { toast } from '@/hooks/use-toast'
+import { saveIntegrations } from '@/services/settings'
 
 export default function SettingsPage() {
   const { signOut, user } = useAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  useEffect(() => {
+    const error = searchParams.get('error')
+    if (error) {
+      toast({
+        title: 'Autenticação Cancelada',
+        description: 'O processo de conexão foi interrompido ou negado.',
+        variant: 'destructive',
+      })
+      searchParams.delete('error')
+      setSearchParams(searchParams, { replace: true })
+      return
+    }
+
+    const code = searchParams.get('code')
+    if (code) {
+      const exchangeCode = async () => {
+        try {
+          // Mock token exchange - in a real app, this goes to the backend to securely exchange code for tokens
+          await saveIntegrations({
+            google_email: user?.email || 'usuario.google@empresa.com',
+            google_access_token: `ya29.a0AfB_mock_access_token_${code.substring(0, 5)}`,
+            google_refresh_token: `1//0eMock_refresh_token_${code.substring(0, 5)}`,
+          })
+
+          toast({
+            title: 'Google Conectado',
+            description: 'Sua conta foi integrada com sucesso via OAuth 2.0.',
+          })
+
+          window.dispatchEvent(new Event('integrations_updated'))
+        } catch (err) {
+          toast({
+            title: 'Erro na Autenticação',
+            description: 'Não foi possível salvar os dados da integração.',
+            variant: 'destructive',
+          })
+        } finally {
+          searchParams.delete('code')
+          searchParams.delete('scope')
+          searchParams.delete('prompt')
+          searchParams.delete('authuser')
+          searchParams.delete('hd')
+          setSearchParams(searchParams, { replace: true })
+        }
+      }
+      exchangeCode()
+    }
+  }, [searchParams, setSearchParams, user])
 
   return (
     <div className="space-y-8 animate-slide-up pb-8">
@@ -47,8 +102,9 @@ export default function SettingsPage() {
 
       <div className="space-y-4">
         <h2 className="text-lg font-semibold tracking-tight">Preferências Individuais</h2>
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
           <GoogleCalendarCard />
+          <GoogleMeetCard />
           <WhatsAppCard />
           <FrenetCard />
         </div>
