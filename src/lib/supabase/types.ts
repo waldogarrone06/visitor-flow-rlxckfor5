@@ -586,6 +586,8 @@ export const Constants = {
 // Table: profiles
 //   Policy "profiles_read_all" (SELECT, PERMISSIVE) roles={authenticated}
 //     USING: true
+//   Policy "profiles_update_admin" (UPDATE, PERMISSIVE) roles={authenticated}
+//     USING: (EXISTS ( SELECT 1    FROM profiles profiles_1   WHERE ((profiles_1.id = auth.uid()) AND (profiles_1.is_admin = true))))
 //   Policy "profiles_update_self" (UPDATE, PERMISSIVE) roles={authenticated}
 //     USING: (auth.uid() = id)
 // Table: schedule_settings
@@ -595,7 +597,13 @@ export const Constants = {
 //     USING: (auth.uid() = user_id)
 //     WITH CHECK: (auth.uid() = user_id)
 // Table: user_integrations
-//   Policy "Users can manage their own integrations" (ALL, PERMISSIVE) roles={authenticated}
+//   Policy "user_integrations_delete" (DELETE, PERMISSIVE) roles={authenticated}
+//     USING: ((auth.uid() = user_id) OR (EXISTS ( SELECT 1    FROM profiles   WHERE ((profiles.id = auth.uid()) AND (profiles.is_admin = true)))))
+//   Policy "user_integrations_insert" (INSERT, PERMISSIVE) roles={authenticated}
+//     WITH CHECK: ((auth.uid() = user_id) OR (EXISTS ( SELECT 1    FROM profiles   WHERE ((profiles.id = auth.uid()) AND (profiles.is_admin = true)))))
+//   Policy "user_integrations_select" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: ((auth.uid() = user_id) OR (EXISTS ( SELECT 1    FROM profiles   WHERE ((profiles.id = auth.uid()) AND (profiles.is_admin = true)))))
+//   Policy "user_integrations_update" (UPDATE, PERMISSIVE) roles={authenticated}
 //     USING: ((auth.uid() = user_id) OR (EXISTS ( SELECT 1    FROM profiles   WHERE ((profiles.id = auth.uid()) AND (profiles.is_admin = true)))))
 //     WITH CHECK: ((auth.uid() = user_id) OR (EXISTS ( SELECT 1    FROM profiles   WHERE ((profiles.id = auth.uid()) AND (profiles.is_admin = true)))))
 
@@ -606,18 +614,18 @@ export const Constants = {
 //    LANGUAGE plpgsql
 //    SECURITY DEFINER
 //   AS $function$
-//     BEGIN
-//       INSERT INTO public.profiles (id, email, name)
-//       VALUES (NEW.id, NEW.email, coalesce(NEW.raw_user_meta_data->>'name', 'Usuário'))
-//       ON CONFLICT (id) DO NOTHING;
+//   BEGIN
+//     INSERT INTO public.profiles (id, email, name)
+//     VALUES (NEW.id, NEW.email, coalesce(NEW.raw_user_meta_data->>'name', 'Usuário'))
+//     ON CONFLICT (id) DO NOTHING;
 //
-//       INSERT INTO public.user_integrations (user_id)
-//       VALUES (NEW.id)
-//       ON CONFLICT (user_id) DO NOTHING;
+//     INSERT INTO public.user_integrations (user_id)
+//     VALUES (NEW.id)
+//     ON CONFLICT (user_id) DO NOTHING;
 //
-//       RETURN NEW;
-//     END;
-//     $function$
+//     RETURN NEW;
+//   END;
+//   $function$
 //
 
 // --- INDEXES ---
