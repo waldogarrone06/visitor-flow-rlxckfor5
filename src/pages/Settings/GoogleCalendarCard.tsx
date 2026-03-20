@@ -51,8 +51,21 @@ export function GoogleCalendarCard({ targetUserId }: { targetUserId: string }) {
 
   const handleConnect = () => {
     if (!targetUserId) return
-    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || 'mock-client-id'
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
     const redirectUri = window.location.origin + '/auth/callback/google'
+
+    if (!clientId || clientId === 'mock-client-id' || clientId.includes('your-client-id')) {
+      toast({
+        title: 'Modo de Demonstração',
+        description:
+          'O Client ID não está configurado. Redirecionando com credenciais de teste para evitar erro 401...',
+      })
+      setTimeout(() => {
+        window.location.href = `${redirectUri}?code=mock_code_${Date.now()}&state=${targetUserId}`
+      }, 1500)
+      return
+    }
+
     const scope =
       'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/userinfo.email'
 

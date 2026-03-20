@@ -11,14 +11,13 @@ Deno.serve(async (req: Request) => {
     const { code, redirectUri, targetUserId } = await req.json()
 
     if (!code || !redirectUri || !targetUserId) {
-      throw new Error('Missing required parameters')
+      throw new Error('Missing required parameters (code, redirectUri, targetUserId)')
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || ''
 
-    // Verify authorization
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) throw new Error('No authorization header')
 
@@ -32,7 +31,6 @@ Deno.serve(async (req: Request) => {
     } = await supabaseUserClient.auth.getUser()
     if (authErr || !user) throw new Error('Unauthorized')
 
-    // Check if user is admin if they are updating someone else
     if (user.id !== targetUserId) {
       const { data: profile } = await supabaseUserClient
         .from('profiles')
@@ -49,8 +47,10 @@ Deno.serve(async (req: Request) => {
     const clientId = Deno.env.get('GOOGLE_CLIENT_ID')
     const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET')
 
-    if (!clientId || !clientSecret) {
-      console.warn('Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET. Using mock tokens.')
+    if (!clientId || !clientSecret || clientId === 'your-client-id') {
+      console.warn(
+        'Missing or invalid GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET. Using mock tokens.',
+      )
 
       await supabaseAdmin.from('user_integrations').upsert(
         {
@@ -69,7 +69,6 @@ Deno.serve(async (req: Request) => {
       })
     }
 
-    // Real token exchange
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -84,28 +83,30 @@ Deno.serve(async (req: Request) => {
 
     if (!tokenResponse.ok) {
       const err = await tokenResponse.text()
-      throw new Error(`Token exchange failed: ${err}`)
+      throw new Error(`Token exchange failed with Google: ${err}`)
     }
 
     const tokenData = await tokenResponse.json()
     const { access_token, refresh_token } = tokenData
 
-    // Get user email
+    if (!access_token) {
+      throw new Error('Access token missing in Google response')
+    }
+
     const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
       headers: { Authorization: `Bearer ${access_token}` },
     })
 
     if (!userInfoResponse.ok) {
-      throw new Error('Failed to fetch user info from Google')
+      throw new Error('Failed to fetch user info from Google using the new access token')
     }
 
     const userInfo = await userInfoResponse.json()
 
-    // Update Database
     const payload: any = {
       user_id: targetUserId,
       google_access_token: access_token,
-      google_email: userInfo.email,
+      google_email: userInfo.email || 'unknown@example.com',
       sync_enabled: true,
       updated_at: new Date().toISOString(),
     }
@@ -118,12 +119,13 @@ Deno.serve(async (req: Request) => {
       .from('user_integrations')
       .upsert(payload, { onConflict: 'user_id' })
 
-    if (dbError) throw dbError
+    if (dbError) throw new Error(`Database error saving tokens: ${dbError.message}`)
 
     return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (error: any) {
+    console.error('Google OAuth Exchange Error:', error.message)
     return new Response(JSON.stringify({ error: error.message }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

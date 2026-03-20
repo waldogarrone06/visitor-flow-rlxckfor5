@@ -92,8 +92,12 @@ export default function SettingsPage() {
 
     if (error) {
       let message = 'O processo de conexão foi interrompido ou negado.'
-      if (error === 'exchange_failed') message = 'Falha ao validar os tokens com o Google.'
+      if (error === 'exchange_failed')
+        message = 'Falha ao validar os tokens com o Google. Verifique as credenciais no console.'
       else if (error === 'access_denied') message = 'Permissão negada pelo usuário no Google.'
+      else if (error === 'invalid_request')
+        message = 'Parâmetros inválidos ou ausentes na resposta.'
+      else if (error === 'unauthorized') message = 'Sessão expirada. Faça login novamente.'
 
       toast({
         title: 'Aviso de Autenticação',
