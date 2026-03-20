@@ -16,7 +16,6 @@ import { Video, Save } from 'lucide-react'
 import { getIntegrations, saveIntegrations } from '@/services/settings'
 
 export function GoogleMeetCard({ targetUserId }: { targetUserId: string }) {
-  const [email, setEmail] = useState('')
   const [connected, setConnected] = useState(false)
   const [loading, setLoading] = useState(true)
   const [bodyText, setBodyText] = useState('')
@@ -27,12 +26,10 @@ export function GoogleMeetCard({ targetUserId }: { targetUserId: string }) {
     setLoading(true)
     try {
       const data = await getIntegrations(targetUserId)
-      if (data?.google_email) {
-        setEmail(data.google_email)
+      if (data?.google_access_token) {
         setConnected(true)
         setBodyText(data.google_invitation_body || '')
       } else {
-        setEmail('')
         setConnected(false)
         setBodyText('')
       }
@@ -52,19 +49,17 @@ export function GoogleMeetCard({ targetUserId }: { targetUserId: string }) {
 
   const handleConnect = () => {
     if (!targetUserId) return
-    const clientId = localStorage.getItem('GOOGLE_CLIENT_ID') || 'mock-client-id'
-    const redirectUri = window.location.origin + '/config'
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || 'mock-client-id'
+    const redirectUri = window.location.origin + '/auth/callback/google'
     const scope =
-      'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events'
+      'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/userinfo.email'
 
-    if (clientId === 'mock-client-id') {
-      window.location.href = `${redirectUri}?code=mock_auth_code_meet&state=${targetUserId}`
-    } else {
-      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(
-        redirectUri,
-      )}&response_type=code&scope=${encodeURIComponent(scope)}&access_type=offline&prompt=consent&state=${targetUserId}`
-      window.location.href = authUrl
-    }
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(
+      redirectUri,
+    )}&response_type=code&scope=${encodeURIComponent(
+      scope,
+    )}&access_type=offline&prompt=consent&state=${targetUserId}`
+    window.location.href = authUrl
   }
 
   const handleSaveBody = async () => {
@@ -122,8 +117,8 @@ export function GoogleMeetCard({ targetUserId }: { targetUserId: string }) {
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">
-            Conecte a conta para gerar salas automaticamente e definir templates personalizados de
-            convite.
+            A conexão é compartilhada com o Google Calendar. Conecte sua conta para habilitar a
+            geração de salas.
           </p>
         )}
       </CardContent>

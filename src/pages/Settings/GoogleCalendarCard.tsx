@@ -26,8 +26,8 @@ export function GoogleCalendarCard({ targetUserId }: { targetUserId: string }) {
     setLoading(true)
     try {
       const data = await getIntegrations(targetUserId)
-      if (data?.google_email) {
-        setEmail(data.google_email)
+      if (data?.google_access_token) {
+        setEmail(data.google_email || 'Conta Integrada')
         setConnected(true)
         setSyncEnabled(data.sync_enabled || false)
       } else {
@@ -51,19 +51,18 @@ export function GoogleCalendarCard({ targetUserId }: { targetUserId: string }) {
 
   const handleConnect = () => {
     if (!targetUserId) return
-    const clientId = localStorage.getItem('GOOGLE_CLIENT_ID') || 'mock-client-id'
-    const redirectUri = window.location.origin + '/config'
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || 'mock-client-id'
+    const redirectUri = window.location.origin + '/auth/callback/google'
     const scope =
-      'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events'
+      'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/userinfo.email'
 
-    if (clientId === 'mock-client-id') {
-      window.location.href = `${redirectUri}?code=mock_auth_code_calendar&state=${targetUserId}`
-    } else {
-      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(
-        redirectUri,
-      )}&response_type=code&scope=${encodeURIComponent(scope)}&access_type=offline&prompt=consent&state=${targetUserId}`
-      window.location.href = authUrl
-    }
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(
+      redirectUri,
+    )}&response_type=code&scope=${encodeURIComponent(
+      scope,
+    )}&access_type=offline&prompt=consent&state=${targetUserId}`
+
+    window.location.href = authUrl
   }
 
   const handleDisconnect = async () => {
@@ -120,7 +119,7 @@ export function GoogleCalendarCard({ targetUserId }: { targetUserId: string }) {
           <div className="space-y-4">
             <div className="p-3 bg-muted/40 border border-border/50 rounded-md flex items-center gap-2 overflow-hidden">
               <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" />
-              <span className="text-sm font-medium truncate">
+              <span className="text-sm font-medium truncate" title={email}>
                 <span className="text-muted-foreground font-normal">{email}</span>
               </span>
             </div>
@@ -136,7 +135,7 @@ export function GoogleCalendarCard({ targetUserId }: { targetUserId: string }) {
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">
-            Conecte a conta para habilitar o bloqueio bidirecional de disponibilidade na agenda.
+            Conecte a conta via OAuth para habilitar o bloqueio bidirecional de disponibilidade.
           </p>
         )}
       </CardContent>

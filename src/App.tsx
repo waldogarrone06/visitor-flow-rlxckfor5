@@ -17,6 +17,7 @@ import ChatPage from './pages/Chat/Index'
 import PublicBookingPage from './pages/PublicBooking/Index'
 import NpsPage from './pages/NPS/Index'
 import NotFound from './pages/NotFound'
+import GoogleCallback from './pages/Auth/GoogleCallback'
 
 const App = () => (
   <AuthProvider>
@@ -28,6 +29,7 @@ const App = () => (
           <Routes>
             <Route path="/agendar/:userId" element={<PublicBookingPage />} />
             <Route path="/nps/:appointmentId" element={<NpsPage />} />
+            <Route path="/auth/callback/google" element={<GoogleCallback />} />
 
             <Route element={<Layout />}>
               <Route path="/" element={<DashboardPage />} />

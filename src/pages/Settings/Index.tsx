@@ -23,7 +23,7 @@ import {
 import { useAuth } from '@/hooks/use-auth'
 import { LogOut, ShieldAlert, Loader2 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
-import { saveIntegrations, getProfiles, getCurrentProfile } from '@/services/settings'
+import { getProfiles, getCurrentProfile } from '@/services/settings'
 
 export default function SettingsPage() {
   const { signOut, user } = useAuth()
@@ -88,57 +88,32 @@ export default function SettingsPage() {
 
   useEffect(() => {
     const error = searchParams.get('error')
+    const success = searchParams.get('success')
+
     if (error) {
+      let message = 'O processo de conexão foi interrompido ou negado.'
+      if (error === 'exchange_failed') message = 'Falha ao validar os tokens com o Google.'
+      else if (error === 'access_denied') message = 'Permissão negada pelo usuário no Google.'
+
       toast({
-        title: 'Autenticação Cancelada',
-        description: 'O processo de conexão foi interrompido ou negado.',
+        title: 'Aviso de Autenticação',
+        description: message,
         variant: 'destructive',
       })
       searchParams.delete('error')
       setSearchParams(searchParams, { replace: true })
-      return
+    } else if (success === 'google_connected') {
+      toast({
+        title: 'Google Conectado',
+        description: 'A conta foi integrada com sucesso via OAuth 2.0.',
+      })
+      window.dispatchEvent(
+        new CustomEvent('integrations_updated', { detail: { userId: selectedUserId } }),
+      )
+      searchParams.delete('success')
+      setSearchParams(searchParams, { replace: true })
     }
-
-    const code = searchParams.get('code')
-    const stateId = searchParams.get('state')
-
-    if (code && stateId) {
-      const exchangeCode = async () => {
-        try {
-          await saveIntegrations(
-            {
-              google_email: 'integrado.oauth@empresa.com',
-              google_access_token: `ya29.mock_access_token_${code.substring(0, 5)}`,
-              google_refresh_token: `1//mock_refresh_token_${code.substring(0, 5)}`,
-            },
-            stateId,
-          )
-
-          toast({
-            title: 'Google Conectado',
-            description: 'A conta foi integrada com sucesso via OAuth 2.0.',
-          })
-
-          setSelectedUserId(stateId)
-          window.dispatchEvent(
-            new CustomEvent('integrations_updated', { detail: { userId: stateId } }),
-          )
-        } catch (err) {
-          toast({
-            title: 'Erro na Autenticação',
-            description: 'Não foi possível salvar os dados da integração.',
-            variant: 'destructive',
-          })
-        } finally {
-          searchParams.delete('code')
-          searchParams.delete('state')
-          searchParams.delete('scope')
-          setSearchParams(searchParams, { replace: true })
-        }
-      }
-      exchangeCode()
-    }
-  }, [searchParams, setSearchParams])
+  }, [searchParams, setSearchParams, selectedUserId])
 
   return (
     <div className="space-y-8 animate-slide-up pb-8">

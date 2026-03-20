@@ -620,7 +620,7 @@ export const Constants = {
 //     VALUES (
 //       NEW.id,
 //       NEW.email,
-//       coalesce(NEW.raw_user_meta_data->>'name', 'Usuário'),
+//       coalesce(NEW.raw_user_meta_data->>'name', split_part(NEW.email, '@', 1)),
 //       false
 //     )
 //     ON CONFLICT (id) DO NOTHING;
