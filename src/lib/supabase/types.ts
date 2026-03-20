@@ -16,6 +16,7 @@ export type Database = {
           client_name: string
           client_phone: string | null
           coupon_code: string | null
+          coupon_usage_count: number
           coupon_verified: boolean | null
           created_at: string
           end_time: string
@@ -31,6 +32,7 @@ export type Database = {
           client_name: string
           client_phone?: string | null
           coupon_code?: string | null
+          coupon_usage_count?: number
           coupon_verified?: boolean | null
           created_at?: string
           end_time: string
@@ -46,6 +48,7 @@ export type Database = {
           client_name?: string
           client_phone?: string | null
           coupon_code?: string | null
+          coupon_usage_count?: number
           coupon_verified?: boolean | null
           created_at?: string
           end_time?: string
@@ -217,6 +220,8 @@ export type Database = {
           whatsapp_api_token: string | null
           whatsapp_connected: boolean | null
           whatsapp_instance_id: string | null
+          yampi_alias: string | null
+          yampi_token: string | null
         }
         Insert: {
           created_at?: string
@@ -229,6 +234,8 @@ export type Database = {
           whatsapp_api_token?: string | null
           whatsapp_connected?: boolean | null
           whatsapp_instance_id?: string | null
+          yampi_alias?: string | null
+          yampi_token?: string | null
         }
         Update: {
           created_at?: string
@@ -241,6 +248,8 @@ export type Database = {
           whatsapp_api_token?: string | null
           whatsapp_connected?: boolean | null
           whatsapp_instance_id?: string | null
+          yampi_alias?: string | null
+          yampi_token?: string | null
         }
         Relationships: []
       }
@@ -405,6 +414,7 @@ export const Constants = {
 //   kit_status: text (nullable, default: 'Pending'::text)
 //   coupon_code: text (nullable)
 //   coupon_verified: boolean (nullable, default: false)
+//   coupon_usage_count: integer (not null, default: 0)
 // Table: kit_items
 //   id: uuid (not null, default: gen_random_uuid())
 //   kit_id: uuid (not null)
@@ -450,6 +460,8 @@ export const Constants = {
 //   whatsapp_connected: boolean (nullable, default: false)
 //   created_at: timestamp with time zone (not null, default: now())
 //   updated_at: timestamp with time zone (not null, default: now())
+//   yampi_token: text (nullable)
+//   yampi_alias: text (nullable)
 
 // --- CONSTRAINTS ---
 // Table: appointments
