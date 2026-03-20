@@ -4,6 +4,7 @@
     "yampi-service": 1,
     "track-shipping": 1,
     "trigger-nps": 1,
-    "check-availability": 1
+    "check-availability": 1,
+    "create-user": 1
   }
 }
