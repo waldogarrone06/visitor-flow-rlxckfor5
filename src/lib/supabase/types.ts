@@ -303,7 +303,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_admin: { Args: never; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
@@ -584,13 +584,13 @@ export const Constants = {
 //   Policy "Users view own NPS" (SELECT, PERMISSIVE) roles={authenticated}
 //     USING: (EXISTS ( SELECT 1    FROM appointments   WHERE ((appointments.id = nps_responses.appointment_id) AND (appointments.user_id = auth.uid()))))
 // Table: profiles
-//   Policy "Admins can view all profiles" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: (( SELECT p.is_admin    FROM profiles p   WHERE (p.id = auth.uid())) = true)
-//   Policy "profiles_read_all" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: true
-//   Policy "profiles_update_admin" (UPDATE, PERMISSIVE) roles={authenticated}
-//     USING: (( SELECT profiles_1.is_admin    FROM profiles profiles_1   WHERE (profiles_1.id = auth.uid())) = true)
-//   Policy "profiles_update_self" (UPDATE, PERMISSIVE) roles={authenticated}
+//   Policy "profiles_read_admin" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: is_admin()
+//   Policy "profiles_read_own" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: (auth.uid() = id)
+//   Policy "profiles_update_admin_all" (UPDATE, PERMISSIVE) roles={authenticated}
+//     USING: is_admin()
+//   Policy "profiles_update_own" (UPDATE, PERMISSIVE) roles={authenticated}
 //     USING: (auth.uid() = id)
 // Table: schedule_settings
 //   Policy "Anon can view schedules" (SELECT, PERMISSIVE) roles={anon}
@@ -600,14 +600,13 @@ export const Constants = {
 //     WITH CHECK: (auth.uid() = user_id)
 // Table: user_integrations
 //   Policy "user_integrations_delete" (DELETE, PERMISSIVE) roles={authenticated}
-//     USING: ((auth.uid() = user_id) OR (( SELECT profiles.is_admin    FROM profiles   WHERE (profiles.id = auth.uid())) = true))
+//     USING: ((auth.uid() = user_id) OR is_admin())
 //   Policy "user_integrations_insert" (INSERT, PERMISSIVE) roles={authenticated}
-//     WITH CHECK: ((auth.uid() = user_id) OR (( SELECT profiles.is_admin    FROM profiles   WHERE (profiles.id = auth.uid())) = true))
+//     WITH CHECK: ((auth.uid() = user_id) OR is_admin())
 //   Policy "user_integrations_select" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: ((auth.uid() = user_id) OR (( SELECT profiles.is_admin    FROM profiles   WHERE (profiles.id = auth.uid())) = true))
+//     USING: ((auth.uid() = user_id) OR is_admin())
 //   Policy "user_integrations_update" (UPDATE, PERMISSIVE) roles={authenticated}
-//     USING: ((auth.uid() = user_id) OR (( SELECT profiles.is_admin    FROM profiles   WHERE (profiles.id = auth.uid())) = true))
-//     WITH CHECK: ((auth.uid() = user_id) OR (( SELECT profiles.is_admin    FROM profiles   WHERE (profiles.id = auth.uid())) = true))
+//     USING: ((auth.uid() = user_id) OR is_admin())
 
 // --- DATABASE FUNCTIONS ---
 // FUNCTION handle_new_user()
@@ -631,6 +630,21 @@ export const Constants = {
 //     ON CONFLICT (user_id) DO NOTHING;
 //
 //     RETURN NEW;
+//   END;
+//   $function$
+//
+// FUNCTION is_admin()
+//   CREATE OR REPLACE FUNCTION public.is_admin()
+//    RETURNS boolean
+//    LANGUAGE plpgsql
+//    SECURITY DEFINER
+//    SET search_path TO 'public'
+//   AS $function$
+//   DECLARE
+//     _is_admin boolean;
+//   BEGIN
+//     SELECT is_admin INTO _is_admin FROM profiles WHERE id = auth.uid();
+//     RETURN COALESCE(_is_admin, false);
 //   END;
 //   $function$
 //

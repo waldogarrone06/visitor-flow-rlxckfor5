@@ -99,10 +99,16 @@ export async function getCurrentProfile() {
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) return null
-  const { data } = await supabase
+
+  const { data, error } = await supabase
     .from('profiles' as any)
     .select('*')
     .eq('id', user.id)
-    .single()
+    .maybeSingle()
+
+  if (error) {
+    console.error('Error fetching current profile:', error)
+  }
+
   return data
 }

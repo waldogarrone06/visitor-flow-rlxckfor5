@@ -39,17 +39,42 @@ export default function SettingsPage() {
     setLoadingProfiles(true)
     try {
       const profile = await getCurrentProfile()
-      setCurrentProfile(profile)
-      if (profile?.is_admin) {
-        const allProfiles = await getProfiles()
-        setProfiles(allProfiles)
-        setSelectedUserId((prev) => {
-          if (prev && allProfiles.find((p) => p.id === prev)) return prev
-          return user.id
+
+      if (!profile) {
+        toast({
+          title: 'Perfil não encontrado',
+          description:
+            'Seu perfil parece estar ausente no banco de dados. Funcionalidades podem ser limitadas.',
+          variant: 'destructive',
         })
-      } else {
+        const fallbackProfile = {
+          id: user.id,
+          email: user.email,
+          name: user.email?.split('@')[0] || 'Usuário',
+          is_admin: false,
+        }
+        setCurrentProfile(fallbackProfile)
         setSelectedUserId(user.id)
+      } else {
+        setCurrentProfile(profile)
+        if (profile.is_admin) {
+          const allProfiles = await getProfiles()
+          setProfiles(allProfiles)
+          setSelectedUserId((prev) => {
+            if (prev && allProfiles.find((p) => p.id === prev)) return prev
+            return user.id
+          })
+        } else {
+          setSelectedUserId(user.id)
+        }
       }
+    } catch (err) {
+      console.error('Error loading access:', err)
+      toast({
+        title: 'Erro de conexão',
+        description: 'Não foi possível carregar as configurações de acesso.',
+        variant: 'destructive',
+      })
     } finally {
       setLoadingProfiles(false)
     }
