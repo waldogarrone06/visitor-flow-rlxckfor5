@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { GoogleCalendarCard } from './GoogleCalendarCard'
 import { GoogleMeetCard } from './GoogleMeetCard'
@@ -12,14 +12,42 @@ import { PersonalScheduleCard } from './PersonalScheduleCard'
 import { FrenetCard } from './FrenetCard'
 import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { useAuth } from '@/hooks/use-auth'
-import { LogOut } from 'lucide-react'
+import { LogOut, ShieldAlert } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
-import { saveIntegrations } from '@/services/settings'
+import { saveIntegrations, getProfiles, getCurrentProfile } from '@/services/settings'
 
 export default function SettingsPage() {
   const { signOut, user } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
+
+  const [profiles, setProfiles] = useState<any[]>([])
+  const [currentProfile, setCurrentProfile] = useState<any>(null)
+  const [selectedUserId, setSelectedUserId] = useState<string>('')
+
+  useEffect(() => {
+    const loadAccess = async () => {
+      if (!user) return
+      const profile = await getCurrentProfile()
+      setCurrentProfile(profile)
+      if (profile?.is_admin) {
+        const allProfiles = await getProfiles()
+        setProfiles(allProfiles)
+        setSelectedUserId(user.id)
+      } else {
+        setSelectedUserId(user.id)
+      }
+    }
+    loadAccess()
+  }, [user])
 
   useEffect(() => {
     const error = searchParams.get('error')
@@ -35,22 +63,29 @@ export default function SettingsPage() {
     }
 
     const code = searchParams.get('code')
-    if (code) {
+    const stateId = searchParams.get('state') // Target user ID
+
+    if (code && stateId) {
       const exchangeCode = async () => {
         try {
-          // Mock token exchange - in a real app, this goes to the backend to securely exchange code for tokens
-          await saveIntegrations({
-            google_email: user?.email || 'usuario.google@empresa.com',
-            google_access_token: `ya29.a0AfB_mock_access_token_${code.substring(0, 5)}`,
-            google_refresh_token: `1//0eMock_refresh_token_${code.substring(0, 5)}`,
-          })
+          await saveIntegrations(
+            {
+              google_email: 'integrado.oauth@empresa.com',
+              google_access_token: `ya29.mock_access_token_${code.substring(0, 5)}`,
+              google_refresh_token: `1//mock_refresh_token_${code.substring(0, 5)}`,
+            },
+            stateId,
+          )
 
           toast({
             title: 'Google Conectado',
-            description: 'Sua conta foi integrada com sucesso via OAuth 2.0.',
+            description: 'A conta foi integrada com sucesso via OAuth 2.0.',
           })
 
-          window.dispatchEvent(new Event('integrations_updated'))
+          setSelectedUserId(stateId)
+          window.dispatchEvent(
+            new CustomEvent('integrations_updated', { detail: { userId: stateId } }),
+          )
         } catch (err) {
           toast({
             title: 'Erro na Autenticação',
@@ -59,16 +94,14 @@ export default function SettingsPage() {
           })
         } finally {
           searchParams.delete('code')
+          searchParams.delete('state')
           searchParams.delete('scope')
-          searchParams.delete('prompt')
-          searchParams.delete('authuser')
-          searchParams.delete('hd')
           setSearchParams(searchParams, { replace: true })
         }
       }
       exchangeCode()
     }
-  }, [searchParams, setSearchParams, user])
+  }, [searchParams, setSearchParams])
 
   return (
     <div className="space-y-8 animate-slide-up pb-8">
@@ -81,11 +114,13 @@ export default function SettingsPage() {
         </div>
         <div className="flex items-center gap-3 bg-white px-4 py-2 border rounded-full shadow-sm">
           <div className="h-8 w-8 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold">
-            {user?.email?.charAt(0).toUpperCase()}
+            {currentProfile?.name?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase()}
           </div>
           <div className="flex flex-col">
-            <span className="text-xs font-semibold">{user?.email}</span>
-            <span className="text-[10px] text-muted-foreground">Logado com sucesso</span>
+            <span className="text-xs font-semibold">{currentProfile?.name || user?.email}</span>
+            <span className="text-[10px] text-muted-foreground">
+              {currentProfile?.is_admin ? 'Administrador' : 'Usuário Padrão'}
+            </span>
           </div>
           <div className="h-6 w-px bg-border mx-1"></div>
           <Button
@@ -100,11 +135,35 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      {currentProfile?.is_admin && (
+        <div className="bg-amber-50/50 border border-amber-200/60 p-4 rounded-lg flex flex-col sm:flex-row items-start sm:items-center gap-4 shadow-sm">
+          <div className="flex items-center gap-2 text-amber-700">
+            <ShieldAlert className="h-5 w-5" />
+            <span className="font-semibold text-sm">Administração de Integrações:</span>
+          </div>
+          <div className="flex-1 flex items-center gap-3 w-full sm:w-auto">
+            <Label className="text-muted-foreground whitespace-nowrap">Gerenciar usuário:</Label>
+            <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+              <SelectTrigger className="w-full max-w-xs bg-white">
+                <SelectValue placeholder="Selecione um usuário" />
+              </SelectTrigger>
+              <SelectContent>
+                {profiles.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name} ({p.email})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      )}
+
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold tracking-tight">Preferências Individuais</h2>
+        <h2 className="text-lg font-semibold tracking-tight">Preferências e Integrações</h2>
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-          <GoogleCalendarCard />
-          <GoogleMeetCard />
+          <GoogleCalendarCard targetUserId={selectedUserId} />
+          <GoogleMeetCard targetUserId={selectedUserId} />
           <WhatsAppCard />
           <FrenetCard />
         </div>

@@ -25,10 +25,33 @@ export async function getDayScheduleData(userId: string, date: Date) {
       .eq('lock_date', dateStr),
   ])
 
+  let lockedSlots = locksRes.data || []
+
+  // Check external availability (Google Calendar Sync)
+  try {
+    const { data: syncData } = await supabase.functions.invoke('check-availability', {
+      body: { userId, date: dateStr },
+    })
+
+    if (syncData?.busySlots && Array.isArray(syncData.busySlots)) {
+      const externalLocks = syncData.busySlots.map((b: any) => ({
+        id: `ext-${b.start}-${b.end}`,
+        user_id: userId,
+        lock_date: dateStr,
+        start_time: b.start,
+        end_time: b.end,
+        is_external: true,
+      }))
+      lockedSlots = [...lockedSlots, ...externalLocks]
+    }
+  } catch (e) {
+    console.error('Failed to sync availability', e)
+  }
+
   return {
     schedule: schedRes.data || [],
     appointments: appsRes.data || [],
-    lockedSlots: locksRes.data || [],
+    lockedSlots,
   }
 }
 
@@ -60,12 +83,12 @@ export async function toggleSlotLock(
   isLocked: boolean,
   lockId?: string,
 ) {
-  if (isLocked && lockId) {
+  if (isLocked && lockId && !lockId.startsWith('ext-')) {
     return supabase
       .from('locked_slots' as any)
       .delete()
       .eq('id', lockId)
-  } else {
+  } else if (!isLocked) {
     return supabase.from('locked_slots' as any).insert([
       {
         user_id: userId,

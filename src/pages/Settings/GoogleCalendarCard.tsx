@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   Card,
   CardHeader,
@@ -9,66 +9,92 @@ import {
 } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
 import { toast } from '@/hooks/use-toast'
 import { Calendar } from 'lucide-react'
 import { getIntegrations, saveIntegrations } from '@/services/settings'
 
-export function GoogleCalendarCard() {
+export function GoogleCalendarCard({ targetUserId }: { targetUserId: string }) {
   const [email, setEmail] = useState('')
   const [connected, setConnected] = useState(false)
+  const [syncEnabled, setSyncEnabled] = useState(false)
   const [loading, setLoading] = useState(true)
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
+    if (!targetUserId) return
+    setLoading(true)
     try {
-      const data = await getIntegrations()
+      const data = await getIntegrations(targetUserId)
       if (data?.google_email) {
         setEmail(data.google_email)
         setConnected(true)
+        setSyncEnabled(data.sync_enabled || false)
       } else {
         setEmail('')
         setConnected(false)
+        setSyncEnabled(false)
       }
     } finally {
       setLoading(false)
     }
-  }
+  }, [targetUserId])
 
   useEffect(() => {
     loadData()
-    window.addEventListener('integrations_updated', loadData)
-    return () => window.removeEventListener('integrations_updated', loadData)
-  }, [])
+    const handleUpdate = (e: any) => {
+      if (!e.detail || e.detail.userId === targetUserId) loadData()
+    }
+    window.addEventListener('integrations_updated', handleUpdate)
+    return () => window.removeEventListener('integrations_updated', handleUpdate)
+  }, [loadData, targetUserId])
 
   const handleConnect = () => {
+    if (!targetUserId) return
     const clientId = localStorage.getItem('GOOGLE_CLIENT_ID') || 'mock-client-id'
     const redirectUri = window.location.origin + '/config'
     const scope =
       'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events'
 
     if (clientId === 'mock-client-id') {
-      // Simulate OAuth redirect when running without a real client ID
-      window.location.href = `${redirectUri}?code=mock_auth_code_calendar_12345`
+      window.location.href = `${redirectUri}?code=mock_auth_code_calendar&state=${targetUserId}`
     } else {
-      // Real OAuth flow
       const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(
         redirectUri,
-      )}&response_type=code&scope=${encodeURIComponent(scope)}&access_type=offline&prompt=consent`
+      )}&response_type=code&scope=${encodeURIComponent(scope)}&access_type=offline&prompt=consent&state=${targetUserId}`
       window.location.href = authUrl
     }
   }
 
   const handleDisconnect = async () => {
-    await saveIntegrations({
-      google_email: null,
-      google_access_token: null,
-      google_refresh_token: null,
-    })
+    await saveIntegrations(
+      {
+        google_email: null,
+        google_access_token: null,
+        google_refresh_token: null,
+        sync_enabled: false,
+      },
+      targetUserId,
+    )
     toast({
       title: 'Google Calendar Desconectado',
       description: 'Integração removida com sucesso.',
     })
-    window.dispatchEvent(new Event('integrations_updated'))
+    window.dispatchEvent(
+      new CustomEvent('integrations_updated', { detail: { userId: targetUserId } }),
+    )
   }
+
+  const handleSyncToggle = async (checked: boolean) => {
+    setSyncEnabled(checked)
+    await saveIntegrations({ sync_enabled: checked }, targetUserId)
+    toast({
+      title: checked ? 'Sincronização Ativa' : 'Sincronização Pausada',
+      description: 'As configurações de bloqueio automático foram atualizadas.',
+    })
+  }
+
+  if (!targetUserId) return null
 
   return (
     <Card className="flex flex-col shadow-subtle border-border/50">
@@ -85,21 +111,32 @@ export function GoogleCalendarCard() {
           </Badge>
         </div>
         <CardTitle>Google Calendar</CardTitle>
-        <CardDescription>Sincronize visitas automaticamente na sua própria agenda.</CardDescription>
+        <CardDescription>Sincronize visitas e evite conflitos de horário.</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 space-y-4">
         {loading ? (
           <div className="animate-pulse h-10 bg-muted rounded-md w-full"></div>
         ) : connected ? (
-          <div className="p-3 bg-muted/40 border border-border/50 rounded-md flex items-center gap-2 overflow-hidden">
-            <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" />
-            <span className="text-sm font-medium truncate">
-              <span className="text-muted-foreground font-normal">{email}</span>
-            </span>
+          <div className="space-y-4">
+            <div className="p-3 bg-muted/40 border border-border/50 rounded-md flex items-center gap-2 overflow-hidden">
+              <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <span className="text-sm font-medium truncate">
+                <span className="text-muted-foreground font-normal">{email}</span>
+              </span>
+            </div>
+            <div className="flex items-center justify-between pt-2 border-t">
+              <Label
+                className="text-sm text-muted-foreground cursor-pointer"
+                htmlFor="sync-calendar"
+              >
+                Bloquear horários ocupados
+              </Label>
+              <Switch id="sync-calendar" checked={syncEnabled} onCheckedChange={handleSyncToggle} />
+            </div>
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">
-            Conecte sua conta via OAuth 2.0 para evitar conflitos de horários e receber lembretes.
+            Conecte a conta para habilitar o bloqueio bidirecional de disponibilidade na agenda.
           </p>
         )}
       </CardContent>
