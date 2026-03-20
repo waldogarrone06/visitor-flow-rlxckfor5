@@ -584,6 +584,8 @@ export const Constants = {
 //   Policy "Users view own NPS" (SELECT, PERMISSIVE) roles={authenticated}
 //     USING: (EXISTS ( SELECT 1    FROM appointments   WHERE ((appointments.id = nps_responses.appointment_id) AND (appointments.user_id = auth.uid()))))
 // Table: profiles
+//   Policy "Admins can view all profiles" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: (( SELECT p.is_admin    FROM profiles p   WHERE (p.id = auth.uid())) = true)
 //   Policy "profiles_read_all" (SELECT, PERMISSIVE) roles={authenticated}
 //     USING: true
 //   Policy "profiles_update_admin" (UPDATE, PERMISSIVE) roles={authenticated}
@@ -615,8 +617,13 @@ export const Constants = {
 //    SECURITY DEFINER
 //   AS $function$
 //   BEGIN
-//     INSERT INTO public.profiles (id, email, name)
-//     VALUES (NEW.id, NEW.email, coalesce(NEW.raw_user_meta_data->>'name', 'Usuário'))
+//     INSERT INTO public.profiles (id, email, name, is_admin)
+//     VALUES (
+//       NEW.id,
+//       NEW.email,
+//       coalesce(NEW.raw_user_meta_data->>'name', 'Usuário'),
+//       false
+//     )
 //     ON CONFLICT (id) DO NOTHING;
 //
 //     INSERT INTO public.user_integrations (user_id)
