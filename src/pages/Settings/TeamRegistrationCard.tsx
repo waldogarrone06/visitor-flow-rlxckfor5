@@ -87,8 +87,19 @@ export function TeamRegistrationCard() {
       })
 
       if (error) {
-        throw new Error(error.message || 'Erro de rede ou falha na chamada da função.')
+        let errorMessage = error.message || 'Erro de rede ou falha na chamada da função.'
+        try {
+          if ('context' in error && typeof (error as any).context?.json === 'function') {
+            const errorBody = await (error as any).context.json()
+            if (errorBody && errorBody.error) {
+              errorMessage = errorBody.error
+            }
+          }
+        } catch (_) {}
+
+        throw new Error(errorMessage)
       }
+
       if (data?.error) {
         throw new Error(data.error)
       }
@@ -103,9 +114,23 @@ export function TeamRegistrationCard() {
 
       window.dispatchEvent(new CustomEvent('profiles_updated'))
     } catch (e: any) {
+      let message = e.message || 'Houve um problema ao criar o usuário.'
+
+      if (
+        message.includes('already exists') ||
+        message.includes('already registered') ||
+        message.includes('User already registered')
+      ) {
+        message = 'Este e-mail já está cadastrado.'
+      } else if (message.includes('Forbidden') || message.includes('Only admins')) {
+        message = 'Acesso negado: Apenas administradores podem criar novos usuários.'
+      } else if (message.includes('Password')) {
+        message = 'A senha informada é muito fraca ou inválida.'
+      }
+
       toast({
         title: 'Erro ao cadastrar',
-        description: e.message || 'Houve um problema ao criar o usuário.',
+        description: message,
         variant: 'destructive',
       })
     } finally {
@@ -230,7 +255,7 @@ export function TeamRegistrationCard() {
                     <FormItem>
                       <FormLabel>E-mail</FormLabel>
                       <FormControl>
-                        <Input placeholder="exemplo@fourlab.com" {...field} />
+                        <Input placeholder="exemplo@empresa.com" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
