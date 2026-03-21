@@ -57,8 +57,23 @@ export function EmailSettingsCard() {
         },
       })
 
-      if (error || data?.error) {
-        throw new Error(data?.error || error?.message || 'Erro desconhecido ao chamar a API.')
+      if (error) {
+        let errorMessage = error.message || 'Erro desconhecido ao chamar a API.'
+        try {
+          if ('context' in error && typeof (error as any).context?.json === 'function') {
+            const errorBody = await (error as any).context.json()
+            if (errorBody && errorBody.error) {
+              errorMessage = errorBody.error
+            }
+          }
+        } catch (_) {
+          console.error('Failed to parse error context', _)
+        }
+        throw new Error(errorMessage)
+      }
+
+      if (data?.error) {
+        throw new Error(data.error)
       }
 
       toast({
