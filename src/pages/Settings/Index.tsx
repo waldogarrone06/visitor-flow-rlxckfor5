@@ -130,7 +130,7 @@ export default function SettingsPage() {
         </div>
         <div className="flex items-center gap-3 bg-white px-4 py-2 border rounded-full shadow-sm">
           <div className="h-8 w-8 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold">
-            {currentProfile?.name?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase()}
+            {(currentProfile?.name || user?.email || 'U').charAt(0).toUpperCase()}
           </div>
           <div className="flex flex-col">
             <span className="text-xs font-semibold">{currentProfile?.name || user?.email}</span>

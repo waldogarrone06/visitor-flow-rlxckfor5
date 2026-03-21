@@ -171,7 +171,7 @@ export function TeamRegistrationCard() {
             >
               <div className="flex items-center gap-3">
                 <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-xs border border-background shadow-sm">
-                  {member.name?.charAt(0).toUpperCase() || member.email?.charAt(0).toUpperCase()}
+                  {(member.name || member.email || '?').charAt(0).toUpperCase()}
                 </div>
                 <div className="flex flex-col">
                   <span className="font-medium text-foreground">{member.name || 'Sem Nome'}</span>
