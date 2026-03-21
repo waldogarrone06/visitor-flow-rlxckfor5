@@ -1,14 +1,16 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '@/lib/supabase/client'
-import { Loader2 } from 'lucide-react'
+import { Loader2, AlertCircle } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
+import { Button } from '@/components/ui/button'
 
 export default function GoogleCallback() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const processed = useRef(false)
   const { loading, session } = useAuth()
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
   useEffect(() => {
     if (loading) return
@@ -22,17 +24,17 @@ export default function GoogleCallback() {
       const error = searchParams.get('error')
 
       if (error) {
-        navigate('/config?error=access_denied', { replace: true })
+        setErrorMsg(`Acesso negado ou erro reportado pelo Google: ${error}`)
         return
       }
 
       if (!code || !state) {
-        navigate('/config?error=invalid_request', { replace: true })
+        setErrorMsg('Parâmetros inválidos ou ausentes na resposta do Google.')
         return
       }
 
       if (!session?.access_token) {
-        navigate('/config?error=unauthorized', { replace: true })
+        setErrorMsg('Sessão expirada. Faça login novamente antes de conectar a conta Google.')
         return
       }
 
@@ -43,20 +45,48 @@ export default function GoogleCallback() {
           body: { code, redirectUri, targetUserId: state },
         })
 
-        if (fnError || data?.error) {
-          console.error('Exchange error:', fnError || data?.error)
-          throw new Error(data?.error || fnError?.message || 'Failed to exchange token')
+        if (fnError) {
+          console.error('Exchange fnError:', fnError)
+          setErrorMsg(fnError.message || 'Falha ao se comunicar com o servidor (Edge Function).')
+          return
+        }
+
+        if (data?.error) {
+          console.error('Exchange data error:', data.error)
+          setErrorMsg(data.error)
+          return
         }
 
         navigate('/config?success=google_connected', { replace: true })
-      } catch (err) {
+      } catch (err: any) {
         console.error('OAuth Exchange Caught Error:', err)
-        navigate('/config?error=exchange_failed', { replace: true })
+        setErrorMsg(err.message || 'Erro desconhecido ao processar a autenticação.')
       }
     }
 
     processCode()
   }, [searchParams, navigate, loading, session])
+
+  if (errorMsg) {
+    return (
+      <div className="min-h-screen w-full flex flex-col items-center justify-center bg-slate-50 p-4 text-center">
+        <div className="max-w-md bg-white p-8 rounded-xl shadow-sm border border-border/50 text-center space-y-4">
+          <div className="mx-auto w-12 h-12 bg-red-50 rounded-full flex items-center justify-center text-red-600 mb-4">
+            <AlertCircle className="w-6 h-6" />
+          </div>
+          <h2 className="text-xl font-bold text-slate-800">Falha na Autenticação</h2>
+          <p className="text-sm text-slate-600 bg-slate-50 p-3 rounded-md font-mono text-left overflow-hidden break-words border border-border/50">
+            {errorMsg}
+          </p>
+          <div className="pt-4">
+            <Button onClick={() => navigate('/config', { replace: true })} className="w-full">
+              Voltar para Configurações
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-center bg-slate-50 p-4 text-center">

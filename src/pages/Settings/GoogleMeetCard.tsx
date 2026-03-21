@@ -12,14 +12,16 @@ import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { toast } from '@/hooks/use-toast'
-import { Video, Save } from 'lucide-react'
+import { Video, Save, Loader2 } from 'lucide-react'
 import { getIntegrations, saveIntegrations } from '@/services/settings'
+import { supabase } from '@/lib/supabase/client'
 
 export function GoogleMeetCard({ targetUserId }: { targetUserId: string }) {
   const [connected, setConnected] = useState(false)
   const [loading, setLoading] = useState(true)
   const [bodyText, setBodyText] = useState('')
   const [saving, setSaving] = useState(false)
+  const [connecting, setConnecting] = useState(false)
 
   const loadData = useCallback(async () => {
     if (!targetUserId) return
@@ -47,32 +49,48 @@ export function GoogleMeetCard({ targetUserId }: { targetUserId: string }) {
     return () => window.removeEventListener('integrations_updated', handleUpdate)
   }, [loadData, targetUserId])
 
-  const handleConnect = () => {
+  const handleConnect = async () => {
     if (!targetUserId) return
-    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
-    const redirectUri = window.location.origin + '/auth/callback/google'
+    setConnecting(true)
 
-    if (!clientId || clientId === 'mock-client-id' || clientId.includes('your-client-id')) {
-      toast({
-        title: 'Modo de Demonstração',
-        description:
-          'O Client ID não está configurado. Redirecionando com credenciais de teste para evitar erro 401...',
+    try {
+      const redirectUri = window.location.origin + '/auth/callback/google'
+
+      const { data, error } = await supabase.functions.invoke('google-oauth-url', {
+        body: { redirectUri, targetUserId },
       })
-      setTimeout(() => {
-        window.location.href = `${redirectUri}?code=mock_code_${Date.now()}&state=${targetUserId}`
-      }, 1500)
-      return
+
+      if (error || data?.error) {
+        toast({
+          title: 'Erro de Configuração',
+          description: data?.error || error?.message || 'Falha ao gerar URL de login do Google.',
+          variant: 'destructive',
+        })
+        setConnecting(false)
+        return
+      }
+
+      if (data?.mock || !data?.url) {
+        toast({
+          title: 'Modo de Demonstração',
+          description:
+            'Client ID não configurado no backend. Redirecionando com credenciais de teste...',
+        })
+        setTimeout(() => {
+          window.location.href = `${redirectUri}?code=mock_code_${Date.now()}&state=${targetUserId}`
+        }, 1500)
+        return
+      }
+
+      window.location.href = data.url
+    } catch (err: any) {
+      toast({
+        title: 'Erro de Conexão',
+        description: 'Não foi possível iniciar a conexão com o Google.',
+        variant: 'destructive',
+      })
+      setConnecting(false)
     }
-
-    const scope =
-      'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/userinfo.email'
-
-    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(
-      redirectUri,
-    )}&response_type=code&scope=${encodeURIComponent(
-      scope,
-    )}&access_type=offline&prompt=consent&state=${targetUserId}`
-    window.location.href = authUrl
   }
 
   const handleSaveBody = async () => {
@@ -137,8 +155,9 @@ export function GoogleMeetCard({ targetUserId }: { targetUserId: string }) {
       </CardContent>
       {!connected && (
         <CardFooter className="flex flex-wrap gap-2">
-          <Button onClick={handleConnect} className="w-full" disabled={loading}>
-            Conectar Google
+          <Button onClick={handleConnect} className="w-full gap-2" disabled={loading || connecting}>
+            {connecting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            {connecting ? 'Conectando...' : 'Conectar Google'}
           </Button>
         </CardFooter>
       )}

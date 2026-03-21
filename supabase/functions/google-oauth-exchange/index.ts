@@ -11,7 +11,12 @@ Deno.serve(async (req: Request) => {
     const { code, redirectUri, targetUserId } = await req.json()
 
     if (!code || !redirectUri || !targetUserId) {
-      throw new Error('Missing required parameters (code, redirectUri, targetUserId)')
+      return new Response(
+        JSON.stringify({ error: 'Parâmetros ausentes (code, redirectUri, targetUserId)' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      )
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
@@ -19,7 +24,14 @@ Deno.serve(async (req: Request) => {
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || ''
 
     const authHeader = req.headers.get('Authorization')
-    if (!authHeader) throw new Error('No authorization header')
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Nenhum cabeçalho de autorização (Authorization header)' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      )
+    }
 
     const supabaseUserClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
@@ -29,7 +41,11 @@ Deno.serve(async (req: Request) => {
       data: { user },
       error: authErr,
     } = await supabaseUserClient.auth.getUser()
-    if (authErr || !user) throw new Error('Unauthorized')
+    if (authErr || !user) {
+      return new Response(JSON.stringify({ error: 'Não autorizado. Sessão inválida.' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
 
     if (user.id !== targetUserId) {
       const { data: profile } = await supabaseUserClient
@@ -38,7 +54,14 @@ Deno.serve(async (req: Request) => {
         .eq('id', user.id)
         .single()
       if (!profile?.is_admin) {
-        throw new Error('Forbidden: Only admins can configure integrations for other users')
+        return new Response(
+          JSON.stringify({
+            error: 'Acesso negado: Apenas administradores podem configurar outros usuários',
+          }),
+          {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          },
+        )
       }
     }
 
@@ -47,11 +70,14 @@ Deno.serve(async (req: Request) => {
     const clientId = Deno.env.get('GOOGLE_CLIENT_ID')
     const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET')
 
-    if (!clientId || !clientSecret || clientId === 'your-client-id') {
-      console.warn(
-        'Missing or invalid GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET. Using mock tokens.',
-      )
-
+    // Handle Mock Code early to avoid failing on Google API
+    if (
+      code.startsWith('mock_code_') ||
+      !clientId ||
+      !clientSecret ||
+      clientId === 'your-client-id'
+    ) {
+      console.warn('Using mock tokens due to missing credentials or mock code in request.')
       await supabaseAdmin.from('user_integrations').upsert(
         {
           user_id: targetUserId,
@@ -63,7 +89,6 @@ Deno.serve(async (req: Request) => {
         },
         { onConflict: 'user_id' },
       )
-
       return new Response(JSON.stringify({ success: true, mocked: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
@@ -81,27 +106,44 @@ Deno.serve(async (req: Request) => {
       }),
     })
 
+    const tokenData = await tokenResponse.json()
+
     if (!tokenResponse.ok) {
-      const err = await tokenResponse.text()
-      throw new Error(`Token exchange failed with Google: ${err}`)
+      console.error('Google Token Exchange Error:', tokenData)
+      return new Response(
+        JSON.stringify({
+          error: `Erro retornado pelo Google: ${tokenData.error_description || tokenData.error || 'Falha na troca do código de autorização.'}`,
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
     }
 
-    const tokenData = await tokenResponse.json()
     const { access_token, refresh_token } = tokenData
 
     if (!access_token) {
-      throw new Error('Access token missing in Google response')
+      return new Response(
+        JSON.stringify({ error: 'Google não retornou um access_token válido.' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      )
     }
 
     const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
       headers: { Authorization: `Bearer ${access_token}` },
     })
 
-    if (!userInfoResponse.ok) {
-      throw new Error('Failed to fetch user info from Google using the new access token')
-    }
-
     const userInfo = await userInfoResponse.json()
+
+    if (!userInfoResponse.ok) {
+      console.error('Google UserInfo Error:', userInfo)
+      return new Response(
+        JSON.stringify({ error: 'Falha ao buscar dados do usuário (e-mail) no Google.' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      )
+    }
 
     const payload: any = {
       user_id: targetUserId,
@@ -119,15 +161,21 @@ Deno.serve(async (req: Request) => {
       .from('user_integrations')
       .upsert(payload, { onConflict: 'user_id' })
 
-    if (dbError) throw new Error(`Database error saving tokens: ${dbError.message}`)
+    if (dbError) {
+      return new Response(
+        JSON.stringify({ error: `Erro no banco de dados ao salvar tokens: ${dbError.message}` }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      )
+    }
 
     return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (error: any) {
-    console.error('Google OAuth Exchange Error:', error.message)
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 400,
+    console.error('Google OAuth Exchange Caught Error:', error.message)
+    return new Response(JSON.stringify({ error: `Falha interna no servidor: ${error.message}` }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   }

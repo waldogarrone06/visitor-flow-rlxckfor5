@@ -1,11 +1,12 @@
 {
   "_versions": {
-    "sync-calendar": 4,
-    "yampi-service": 1,
-    "track-shipping": 1,
-    "trigger-nps": 1,
-    "check-availability": 1,
-    "create-user": 6,
-    "google-oauth-exchange": 2
+    "sync-calendar": 9,
+    "yampi-service": 5,
+    "track-shipping": 5,
+    "trigger-nps": 5,
+    "check-availability": 5,
+    "create-user": 10,
+    "google-oauth-exchange": 7,
+    "google-oauth-url": 1
   }
 }
