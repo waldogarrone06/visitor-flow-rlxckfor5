@@ -15,21 +15,20 @@ import { Badge } from '@/components/ui/badge'
 import { toast } from '@/hooks/use-toast'
 import { Mail, Loader2, Send } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
-import { useAuth } from '@/hooks/use-auth'
 import { useMainStore } from '@/stores/main'
 
 export function EmailSettingsCard() {
   const [active, setActive] = useState(true)
   const [senderName, setSenderName] = useState('FourLab Nutrition')
+  const [testEmail, setTestEmail] = useState('waldogarrone@yahoo.com.br')
   const [loading, setLoading] = useState(false)
-  const { user } = useAuth()
   const { state } = useMainStore()
 
   const testConnection = async () => {
-    if (!user?.email) {
+    if (!testEmail) {
       toast({
-        title: 'Erro de Usuário',
-        description: 'Seu usuário não possui um e-mail configurado para receber o teste.',
+        title: 'E-mail Inválido',
+        description: 'Por favor, informe um e-mail de destino para receber o teste.',
         variant: 'destructive',
       })
       return
@@ -45,7 +44,7 @@ export function EmailSettingsCard() {
     try {
       const { data, error } = await supabase.functions.invoke('send-email', {
         body: {
-          to: user.email,
+          to: testEmail,
           subject: 'Teste de Automação de E-mail - FourLab Nutrition',
           html: `
             <div style="font-family: sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #eaeaea; border-radius: 8px; overflow: hidden;">
@@ -88,7 +87,7 @@ export function EmailSettingsCard() {
 
       toast({
         title: 'E-mail Enviado!',
-        description: `Um e-mail de teste automático foi disparado para ${user.email}. Verifique sua caixa de entrada.`,
+        description: `Um e-mail de teste automático foi disparado para ${testEmail}. Verifique sua caixa de entrada.`,
       })
     } catch (err: any) {
       console.error('Error sending test email:', err)
@@ -124,15 +123,6 @@ export function EmailSettingsCard() {
         </CardDescription>
       </CardHeader>
       <CardContent className="flex-1 space-y-6">
-        <div className="space-y-2">
-          <Label htmlFor="sender-name">Nome do Remetente</Label>
-          <Input
-            id="sender-name"
-            value={senderName}
-            onChange={(e) => setSenderName(e.target.value)}
-            disabled={!active || loading}
-          />
-        </div>
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <Label
@@ -153,16 +143,40 @@ export function EmailSettingsCard() {
             />
           </div>
         </div>
+
+        <div className="space-y-4 pt-4 border-t">
+          <h4 className="text-sm font-semibold">Configuração e Teste</h4>
+          <div className="space-y-2">
+            <Label htmlFor="sender-name">Nome do Remetente</Label>
+            <Input
+              id="sender-name"
+              value={senderName}
+              onChange={(e) => setSenderName(e.target.value)}
+              disabled={!active || loading}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="test-email">E-mail de Destino (Teste)</Label>
+            <Input
+              id="test-email"
+              type="email"
+              value={testEmail}
+              onChange={(e) => setTestEmail(e.target.value)}
+              placeholder="seu-email@exemplo.com"
+              disabled={!active || loading}
+            />
+          </div>
+        </div>
       </CardContent>
       <CardFooter className="flex gap-2">
         <Button
           variant="secondary"
           onClick={testConnection}
           className="flex-1 gap-2 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800"
-          disabled={!active || loading}
+          disabled={!active || loading || !testEmail}
         >
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-          {loading ? 'Enviando Teste...' : 'Testar Automação'}
+          {loading ? 'Enviando Teste...' : 'Testar Disparo'}
         </Button>
       </CardFooter>
     </Card>
