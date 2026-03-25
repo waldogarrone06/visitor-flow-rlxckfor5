@@ -27,6 +27,7 @@ import { useMainStore } from '@/stores/main'
 import { toast } from '@/hooks/use-toast'
 import { Lead } from '@/lib/types'
 import { Separator } from '@/components/ui/separator'
+import { supabase } from '@/lib/supabase/client'
 
 const UF_OPTIONS = [
   'AC',
@@ -215,6 +216,39 @@ export function ScheduleForm({
         title: 'Agendamento Confirmado!',
         description: `Visita para ${values.name} agendada com sucesso.`,
       })
+
+      // Fetch secrets for dynamic API key if configured
+      const rawSecrets = state.settings?.secrets
+      const secrets = Array.isArray(rawSecrets) ? rawSecrets : []
+      const userResendKey = secrets.find((s: any) => s.key === 'RESEND_API_KEY')?.value
+
+      // Trigger automated email on scheduling
+      if (values.email) {
+        supabase.functions
+          .invoke('send-email', {
+            body: {
+              to: values.email,
+              subject: 'Confirmação de Agendamento - FourLab Nutrition',
+              html: `
+              <div style="font-family: sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #eaeaea; border-radius: 8px; overflow: hidden;">
+                <div style="background-color: #ffb800; padding: 24px; text-align: center;">
+                  <h1 style="color: white; margin: 0; font-size: 20px;">Visita Confirmada! 🎉</h1>
+                </div>
+                <div style="padding: 32px; background-color: #ffffff;">
+                  <p style="font-size: 16px; line-height: 1.5;">Olá <strong>${values.name}</strong>,</p>
+                  <p style="font-size: 16px; line-height: 1.5;">Seu agendamento foi registrado com sucesso para o dia <strong>${format(appointmentDate, 'dd/MM/yyyy')}</strong> às <strong>${timeParts[0]}:${timeParts[1]}</strong>.</p>
+                  <p style="font-size: 16px; line-height: 1.5;">Um de nossos representantes entrará em contato em breve para confirmar os últimos detalhes.</p>
+                  <br/>
+                  <p style="font-size: 14px; color: #666;">Atenciosamente,<br/>Equipe FourLab Nutrition</p>
+                </div>
+              </div>
+            `,
+              senderName: 'FourLab Nutrition',
+              resendApiKey: userResendKey,
+            },
+          })
+          .catch(console.error)
+      }
 
       form.reset()
       setLoading(false)

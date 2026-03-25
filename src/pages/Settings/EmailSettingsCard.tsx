@@ -20,7 +20,7 @@ import { useMainStore } from '@/stores/main'
 
 export function EmailSettingsCard() {
   const [active, setActive] = useState(true)
-  const [senderName, setSenderName] = useState('FourLab Nutrição')
+  const [senderName, setSenderName] = useState('FourLab Nutrition')
   const [loading, setLoading] = useState(false)
   const { user } = useAuth()
   const { state } = useMainStore()
@@ -46,23 +46,24 @@ export function EmailSettingsCard() {
       const { data, error } = await supabase.functions.invoke('send-email', {
         body: {
           to: user.email,
-          subject: 'Teste de Integração de E-mail - FourLab',
+          subject: 'Teste de Automação de E-mail - FourLab Nutrition',
           html: `
             <div style="font-family: sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #eaeaea; border-radius: 8px; overflow: hidden;">
-              <div style="background-color: #6d28d9; padding: 24px; text-align: center;">
-                <h1 style="color: white; margin: 0; font-size: 20px;">Integração Confirmada! 🎉</h1>
+              <div style="background-color: #e10050; padding: 24px; text-align: center;">
+                <h1 style="color: white; margin: 0; font-size: 20px;">Automação Ativa! 🎉</h1>
               </div>
               <div style="padding: 32px; background-color: #ffffff;">
                 <p style="font-size: 16px; line-height: 1.5;">Olá,</p>
                 <p style="font-size: 16px; line-height: 1.5;">Este é um e-mail de teste disparado pelo sistema <strong>${senderName}</strong> utilizando a infraestrutura do <strong>Resend</strong>.</p>
-                <p style="font-size: 16px; line-height: 1.5;">Se você está lendo esta mensagem, significa que suas <em>Edge Functions</em> estão conectadas com sucesso à API de e-mail e prontas para realizar disparos transacionais de agendamentos e alertas.</p>
+                <p style="font-size: 16px; line-height: 1.5;">Se você está lendo esta mensagem, significa que o domínio <strong>fourlabnutrition.com.br</strong> está corretamente verificado e sua automação de agendamentos está operante.</p>
+                <p style="font-size: 16px; line-height: 1.5;">A partir de agora, cada novo agendamento disparará uma confirmação automática sem intervenção manual.</p>
                 <br/>
                 <p style="font-size: 14px; color: #666;">Atenciosamente,<br/>Equipe Técnica</p>
               </div>
             </div>
           `,
           senderName: senderName,
-          resendApiKey: userResendKey, // Passes the dynamically configured key if available
+          resendApiKey: userResendKey,
         },
       })
 
@@ -87,14 +88,15 @@ export function EmailSettingsCard() {
 
       toast({
         title: 'E-mail Enviado!',
-        description: `Um e-mail de teste foi disparado para ${user.email}. Verifique sua caixa de entrada.`,
+        description: `Um e-mail de teste automático foi disparado para ${user.email}. Verifique sua caixa de entrada.`,
       })
     } catch (err: any) {
       console.error('Error sending test email:', err)
       toast({
         title: 'Falha no envio',
         description:
-          err.message || 'Não foi possível disparar o e-mail de teste. Verifique suas credenciais.',
+          err.message ||
+          'Não foi possível disparar o e-mail de teste. Verifique as configurações e a chave de API.',
         variant: 'destructive',
       })
     } finally {
@@ -118,7 +120,7 @@ export function EmailSettingsCard() {
         </div>
         <CardTitle>Disparo de E-mails</CardTitle>
         <CardDescription>
-          Configure notificações transacionais e integração via Resend.
+          Gerencie a automação de e-mails para envio automático via fourlabnutrition.com.br.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex-1 space-y-6">
@@ -133,21 +135,22 @@ export function EmailSettingsCard() {
         </div>
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <Label className="text-sm text-muted-foreground cursor-pointer" htmlFor="delay-email">
-              Alertas de Atraso de Kits
+            <Label
+              className="text-sm text-muted-foreground cursor-pointer pr-4"
+              htmlFor="auto-confirm"
+            >
+              <span className="font-medium text-foreground block mb-1">
+                Confirmação Automática de Agendamento
+              </span>
+              Disparar e-mail de confirmação aos clientes imediatamente após o agendamento no site
+              ou CRM.
             </Label>
             <Switch
-              id="delay-email"
+              id="auto-confirm"
               checked={active}
               onCheckedChange={setActive}
               disabled={loading}
             />
-          </div>
-          <div className="flex items-center justify-between">
-            <Label className="text-sm text-muted-foreground cursor-pointer" htmlFor="weekly-email">
-              Relatório Semanal de Conversão
-            </Label>
-            <Switch id="weekly-email" defaultChecked disabled={loading} />
           </div>
         </div>
       </CardContent>
@@ -155,11 +158,11 @@ export function EmailSettingsCard() {
         <Button
           variant="secondary"
           onClick={testConnection}
-          className="flex-1 gap-2"
+          className="flex-1 gap-2 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800"
           disabled={!active || loading}
         >
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-          {loading ? 'Enviando...' : 'Testar Disparo'}
+          {loading ? 'Enviando Teste...' : 'Testar Automação'}
         </Button>
       </CardFooter>
     </Card>

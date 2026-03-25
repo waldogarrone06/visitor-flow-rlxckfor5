@@ -9,7 +9,7 @@ Deno.serve(async (req: Request) => {
 
   try {
     const body = await req.json().catch(() => ({}))
-    const { to, subject, html, text, senderName, resendApiKey } = body
+    const { to, subject, html, text, senderName, resendApiKey, from } = body
 
     // Validate required inputs
     if (!to || !subject || (!html && !text)) {
@@ -24,13 +24,14 @@ Deno.serve(async (req: Request) => {
       throw new Error('Chave de API do Resend não configurada. Adicione no Cofre de Segredos.')
     }
 
-    // Since custom domains might not be verified yet in Resend free tier,
-    // it's strictly required to use the onboarding@resend.dev domain for tests.
-    // E-mails will only be successfully delivered to the e-mail address registered on the Resend account.
-    const safeSenderName = (senderName || 'Sistema FourLab').replace(/[<>]/g, '').trim()
-    const fromEmail = `${safeSenderName} <onboarding@resend.dev>`
+    // Limpa o nome do remetente
+    const safeSenderName = (senderName || 'FourLab Nutrition').replace(/[<>]/g, '').trim()
 
-    console.log(`Attempting to send email to ${to} via Resend...`)
+    // Força o uso do domínio já verificado no Resend conforme solicitado
+    const defaultFrom = 'contato@fourlabnutrition.com.br'
+    const fromEmail = `${safeSenderName} <${from || defaultFrom}>`
+
+    console.log(`Attempting to send email to ${to} via Resend from ${fromEmail}...`)
 
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -51,17 +52,6 @@ Deno.serve(async (req: Request) => {
 
     if (!res.ok) {
       console.error('Resend API Error Payload:', data)
-      // Catch common free tier limits from Resend
-      if (
-        data.message &&
-        (data.message.toLowerCase().includes('verify') ||
-          data.message.toLowerCase().includes('testing emails') ||
-          data.message.toLowerCase().includes('own email address'))
-      ) {
-        throw new Error(
-          `Restrição do Resend: O domínio ainda não foi verificado. Você só pode enviar e-mails de teste para o e-mail exato em que a conta do Resend foi criada. Detalhe: ${data.message}`,
-        )
-      }
       throw new Error(
         data.message || data.error?.message || 'Falha ao processar o envio na API do Resend.',
       )
