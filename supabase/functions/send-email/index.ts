@@ -8,18 +8,20 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { to, subject, html, text, senderName } = await req.json()
+    const body = await req.json().catch(() => ({}))
+    const { to, subject, html, text, senderName, resendApiKey } = body
 
     // Validate required inputs
     if (!to || !subject || (!html && !text)) {
       throw new Error('Parâmetros obrigatórios ausentes: to, subject e html (ou text).')
     }
 
-    // Use the provided RESEND API KEY directly or from environment variables
-    const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') || 're_WRBu3Lbz_EikoqsHQ6Kqpv3prxL1Qdgf6'
+    // Use the provided RESEND API KEY from frontend Vault, or environment variables
+    const RESEND_API_KEY =
+      resendApiKey || Deno.env.get('RESEND_API_KEY') || 're_WRBu3Lbz_EikoqsHQ6Kqpv3prxL1Qdgf6'
 
     if (!RESEND_API_KEY) {
-      throw new Error('Chave de API do Resend não configurada.')
+      throw new Error('Chave de API do Resend não configurada. Adicione no Cofre de Segredos.')
     }
 
     // Since custom domains might not be verified yet in Resend free tier,
@@ -45,7 +47,7 @@ Deno.serve(async (req: Request) => {
       }),
     })
 
-    const data = await res.json()
+    const data = await res.json().catch(() => ({ error: 'Resend API returned malformed JSON' }))
 
     if (!res.ok) {
       console.error('Resend API Error Payload:', data)
@@ -60,7 +62,9 @@ Deno.serve(async (req: Request) => {
           `Restrição do Resend: O domínio ainda não foi verificado. Você só pode enviar e-mails de teste para o e-mail exato em que a conta do Resend foi criada. Detalhe: ${data.message}`,
         )
       }
-      throw new Error(data.message || 'Falha ao processar o envio na API do Resend.')
+      throw new Error(
+        data.message || data.error?.message || 'Falha ao processar o envio na API do Resend.',
+      )
     }
 
     return new Response(JSON.stringify({ success: true, messageId: data.id }), {

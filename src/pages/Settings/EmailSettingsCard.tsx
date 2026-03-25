@@ -16,24 +16,32 @@ import { toast } from '@/hooks/use-toast'
 import { Mail, Loader2, Send } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
+import { useMainStore } from '@/stores/main'
 
 export function EmailSettingsCard() {
   const [active, setActive] = useState(true)
   const [senderName, setSenderName] = useState('FourLab Nutrição')
   const [loading, setLoading] = useState(false)
   const { user } = useAuth()
+  const { state } = useMainStore()
 
   const testConnection = async () => {
     if (!user?.email) {
       toast({
-        title: 'Erro',
-        description: 'Seu usuário não possui um e-mail configurado para o teste.',
+        title: 'Erro de Usuário',
+        description: 'Seu usuário não possui um e-mail configurado para receber o teste.',
         variant: 'destructive',
       })
       return
     }
 
     setLoading(true)
+
+    // Safely extract the Resend API Key from the Secrets Vault
+    const rawSecrets = state.settings?.secrets
+    const secrets = Array.isArray(rawSecrets) ? rawSecrets : []
+    const userResendKey = secrets.find((s: any) => s.key === 'RESEND_API_KEY')?.value
+
     try {
       const { data, error } = await supabase.functions.invoke('send-email', {
         body: {
@@ -54,11 +62,12 @@ export function EmailSettingsCard() {
             </div>
           `,
           senderName: senderName,
+          resendApiKey: userResendKey, // Passes the dynamically configured key if available
         },
       })
 
       if (error) {
-        let errorMessage = error.message || 'Erro desconhecido ao chamar a API.'
+        let errorMessage = error.message || 'Erro desconhecido ao chamar a API de envio.'
         try {
           if ('context' in error && typeof (error as any).context?.json === 'function') {
             const errorBody = await (error as any).context.json()
@@ -78,13 +87,14 @@ export function EmailSettingsCard() {
 
       toast({
         title: 'E-mail Enviado!',
-        description: `Um e-mail de teste foi disparado para ${user.email}. Verifique sua caixa de entrada (ou spam).`,
+        description: `Um e-mail de teste foi disparado para ${user.email}. Verifique sua caixa de entrada.`,
       })
     } catch (err: any) {
       console.error('Error sending test email:', err)
       toast({
         title: 'Falha no envio',
-        description: err.message || 'Não foi possível disparar o e-mail de teste.',
+        description:
+          err.message || 'Não foi possível disparar o e-mail de teste. Verifique suas credenciais.',
         variant: 'destructive',
       })
     } finally {

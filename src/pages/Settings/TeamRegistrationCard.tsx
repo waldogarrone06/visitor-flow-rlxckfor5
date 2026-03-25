@@ -63,11 +63,19 @@ export function TeamRegistrationCard() {
   }, [])
 
   const loadMembers = async () => {
-    const { data } = await supabase.from('profiles').select('*').order('name')
-    if (data) {
-      setMembers(data)
+    try {
+      const { data } = await supabase.from('profiles').select('*').order('name')
+      if (data) {
+        setMembers(data)
+      }
+    } catch (error) {
+      console.error('Failed to load members:', error)
+      setMembers([]) // Fallback to safe array
     }
   }
+
+  // Ensure members is always an array to prevent mapping crashes
+  const safeMembers = Array.isArray(members) ? members : []
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -157,14 +165,14 @@ export function TeamRegistrationCard() {
           <div className="p-3 bg-orange-50 text-orange-600 rounded-lg mb-2">
             <Users className="h-6 w-6" />
           </div>
-          <Badge variant="secondary">{members.length || 0} Membros</Badge>
+          <Badge variant="secondary">{safeMembers.length} Membros</Badge>
         </div>
         <CardTitle>Equipe & Acessos</CardTitle>
         <CardDescription>Gerencie os membros da equipe e seus níveis de acesso.</CardDescription>
       </CardHeader>
       <CardContent className="flex-1">
         <div className="space-y-4">
-          {members.slice(0, 3).map((member) => (
+          {safeMembers.slice(0, 3).map((member) => (
             <div
               key={member.id}
               className="flex items-center justify-between text-sm p-2 rounded-md bg-muted/30 hover:bg-muted/60 transition-colors"
@@ -175,7 +183,7 @@ export function TeamRegistrationCard() {
                 </div>
                 <div className="flex flex-col">
                   <span className="font-medium text-foreground">{member.name || 'Sem Nome'}</span>
-                  <span className="text-muted-foreground text-[11px]">{member.email}</span>
+                  <span className="text-muted-foreground text-[11px]">{member.email || ''}</span>
                 </div>
               </div>
               <Badge variant="outline" className="text-[10px] bg-background">
@@ -183,9 +191,9 @@ export function TeamRegistrationCard() {
               </Badge>
             </div>
           ))}
-          {members.length > 3 && (
+          {safeMembers.length > 3 && (
             <p className="text-xs text-muted-foreground text-center pt-2">
-              +{members.length - 3} outros membros
+              +{safeMembers.length - 3} outros membros
             </p>
           )}
         </div>

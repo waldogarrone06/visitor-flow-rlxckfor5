@@ -49,8 +49,8 @@ export default function SettingsPage() {
         })
         const fallbackProfile = {
           id: user.id,
-          email: user.email,
-          name: user.email?.split('@')[0] || 'Usuário',
+          email: user.email || '',
+          name: (user.email || '').split('@')[0] || 'Usuário',
           is_admin: false,
         }
         setCurrentProfile(fallbackProfile)
@@ -59,9 +59,10 @@ export default function SettingsPage() {
         setCurrentProfile(profile)
         if (profile.is_admin) {
           const allProfiles = await getProfiles()
-          setProfiles(allProfiles)
+          const safeProfiles = Array.isArray(allProfiles) ? allProfiles : []
+          setProfiles(safeProfiles)
           setSelectedUserId((prev) => {
-            if (prev && allProfiles.find((p) => p.id === prev)) return prev
+            if (prev && safeProfiles.find((p) => p.id === prev)) return prev
             return user.id
           })
         } else {
@@ -133,7 +134,9 @@ export default function SettingsPage() {
             {(currentProfile?.name || user?.email || 'U').charAt(0).toUpperCase()}
           </div>
           <div className="flex flex-col">
-            <span className="text-xs font-semibold">{currentProfile?.name || user?.email}</span>
+            <span className="text-xs font-semibold">
+              {currentProfile?.name || user?.email || 'Usuário'}
+            </span>
             <span className="text-[10px] text-muted-foreground">
               {currentProfile?.is_admin ? 'Administrador' : 'Usuário Padrão'}
             </span>
@@ -171,7 +174,7 @@ export default function SettingsPage() {
                 <SelectContent>
                   {profiles.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
-                      {p.name} ({p.email})
+                      {p.name || 'Sem Nome'} ({p.email})
                     </SelectItem>
                   ))}
                 </SelectContent>

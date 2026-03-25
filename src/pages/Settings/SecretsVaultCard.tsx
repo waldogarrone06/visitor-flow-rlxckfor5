@@ -10,14 +10,17 @@ import { toast } from '@/hooks/use-toast'
 
 export function SecretsVaultCard() {
   const { state, dispatch } = useMainStore()
-  const secrets = state.settings?.secrets || []
+
+  // Safe extraction of secrets to prevent crashes if the state is malformed
+  const rawSecrets = state.settings?.secrets
+  const secrets = Array.isArray(rawSecrets) ? rawSecrets : []
 
   const [key, setKey] = useState('')
   const [value, setValue] = useState('')
   const [showValue, setShowValue] = useState(false)
   const [visibleSecrets, setVisibleSecrets] = useState<Record<string, boolean>>({})
 
-  const suggestions = ['GOOGLE_CLIENT_ID', 'WHATSAPP_API_TOKEN', 'CRM_INTEGRATION_KEY']
+  const suggestions = ['RESEND_API_KEY', 'GOOGLE_CLIENT_ID', 'WHATSAPP_API_TOKEN']
 
   const handleAddSecret = () => {
     if (!key.trim() || !value.trim()) {
@@ -25,15 +28,33 @@ export function SecretsVaultCard() {
       return
     }
 
-    const newSecret = { id: `sec-${Date.now()}`, key: key.trim(), value: value.trim() }
+    const newSecret = {
+      id: `sec-${Date.now()}`,
+      key: key.trim().toUpperCase(),
+      value: value.trim(),
+    }
+
+    // Check for duplicates
+    if (secrets.some((s: any) => s.key === newSecret.key)) {
+      toast({
+        title: 'Aviso',
+        description: 'Uma chave com este nome já existe.',
+        variant: 'destructive',
+      })
+      return
+    }
+
     dispatch({ type: 'UPDATE_SETTINGS', payload: { secrets: [...secrets, newSecret] } })
-    toast({ title: 'Secret Adicionada', description: 'Credencial salva com sucesso.' })
+    toast({ title: 'Secret Adicionada', description: 'Credencial salva com sucesso no cofre.' })
     setKey('')
     setValue('')
   }
 
   const handleRemoveSecret = (id: string) => {
-    dispatch({ type: 'UPDATE_SETTINGS', payload: { secrets: secrets.filter((s) => s.id !== id) } })
+    dispatch({
+      type: 'UPDATE_SETTINGS',
+      payload: { secrets: secrets.filter((s: any) => s.id !== id) },
+    })
     toast({ title: 'Secret Removida', description: 'Credencial apagada do cofre.' })
   }
 
@@ -61,7 +82,7 @@ export function SecretsVaultCard() {
               id="secret-key"
               placeholder="Ex: API_TOKEN"
               value={key}
-              onChange={(e) => setKey(e.target.value)}
+              onChange={(e) => setKey(e.target.value.toUpperCase())}
             />
             <div className="flex flex-wrap gap-2 mt-2">
               <span className="text-xs text-muted-foreground self-center">Sugestões:</span>
@@ -108,7 +129,7 @@ export function SecretsVaultCard() {
               Credenciais Salvas
             </Label>
             <div className="space-y-2">
-              {secrets.map((secret) => (
+              {secrets.map((secret: any) => (
                 <div
                   key={secret.id}
                   className="flex items-center justify-between p-3 border rounded-md bg-background shadow-sm"
