@@ -72,6 +72,30 @@ export type Database = {
         }
         Relationships: []
       }
+      contacts: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          phone: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          phone: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          phone?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       kit_items: {
         Row: {
           id: string
@@ -154,6 +178,41 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      messages: {
+        Row: {
+          contact_id: string
+          content: string
+          created_at: string
+          direction: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          contact_id: string
+          content: string
+          created_at?: string
+          direction: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          contact_id?: string
+          content?: string
+          created_at?: string
+          direction?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'messages_contact_id_fkey'
+            columns: ['contact_id']
+            isOneToOne: false
+            referencedRelation: 'contacts'
+            referencedColumns: ['id']
+          },
+        ]
       }
       nps_responses: {
         Row: {
@@ -464,6 +523,12 @@ export const Constants = {
 //   delivered_at: timestamp with time zone (nullable)
 //   google_event_id: text (nullable)
 //   google_meet_link: text (nullable)
+// Table: contacts
+//   id: uuid (not null, default: gen_random_uuid())
+//   user_id: uuid (not null)
+//   name: text (not null)
+//   phone: text (not null)
+//   created_at: timestamp with time zone (not null, default: now())
 // Table: kit_items
 //   id: uuid (not null, default: gen_random_uuid())
 //   kit_id: uuid (not null)
@@ -482,6 +547,13 @@ export const Constants = {
 //   lock_date: date (not null)
 //   start_time: text (nullable)
 //   end_time: text (nullable)
+//   created_at: timestamp with time zone (not null, default: now())
+// Table: messages
+//   id: uuid (not null, default: gen_random_uuid())
+//   user_id: uuid (not null)
+//   contact_id: uuid (not null)
+//   direction: text (not null)
+//   content: text (not null)
 //   created_at: timestamp with time zone (not null, default: now())
 // Table: nps_responses
 //   id: uuid (not null, default: gen_random_uuid())
@@ -525,6 +597,9 @@ export const Constants = {
 // Table: appointments
 //   PRIMARY KEY appointments_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY appointments_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+// Table: contacts
+//   PRIMARY KEY contacts_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY contacts_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
 // Table: kit_items
 //   FOREIGN KEY kit_items_kit_id_fkey: FOREIGN KEY (kit_id) REFERENCES kits(id) ON DELETE CASCADE
 //   PRIMARY KEY kit_items_pkey: PRIMARY KEY (id)
@@ -534,6 +609,11 @@ export const Constants = {
 // Table: locked_slots
 //   PRIMARY KEY locked_slots_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY locked_slots_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+// Table: messages
+//   FOREIGN KEY messages_contact_id_fkey: FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE CASCADE
+//   CHECK messages_direction_check: CHECK ((direction = ANY (ARRAY['inbound'::text, 'outbound'::text])))
+//   PRIMARY KEY messages_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY messages_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
 // Table: nps_responses
 //   FOREIGN KEY nps_responses_appointment_id_fkey: FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE CASCADE
 //   PRIMARY KEY nps_responses_pkey: PRIMARY KEY (id)
@@ -560,6 +640,10 @@ export const Constants = {
 //   Policy "Users manage own appointments" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: (auth.uid() = user_id)
 //     WITH CHECK: (auth.uid() = user_id)
+// Table: contacts
+//   Policy "Users manage own contacts" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: (auth.uid() = user_id)
+//     WITH CHECK: (auth.uid() = user_id)
 // Table: kit_items
 //   Policy "Users manage own kit items" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: (EXISTS ( SELECT 1    FROM kits   WHERE ((kits.id = kit_items.kit_id) AND (kits.user_id = auth.uid()))))
@@ -576,6 +660,10 @@ export const Constants = {
 //     WITH CHECK: (auth.uid() = user_id)
 //   Policy "Users view locked slots" (SELECT, PERMISSIVE) roles={authenticated}
 //     USING: true
+// Table: messages
+//   Policy "Users manage own messages" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: (auth.uid() = user_id)
+//     WITH CHECK: (auth.uid() = user_id)
 // Table: nps_responses
 //   Policy "Anon can insert NPS" (INSERT, PERMISSIVE) roles={anon}
 //     WITH CHECK: true
