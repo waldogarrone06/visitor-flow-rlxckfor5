@@ -120,7 +120,7 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
       const { data, error } = await supabase.functions.invoke('whatsapp-send', {
         body: {
           to: '5535988105718',
-          text: 'Mensagem via Visitor Flow',
+          message: 'Mensagem de teste via Visitor Flow',
         },
       })
 
@@ -204,9 +204,9 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
           </>
         )}
       </CardContent>
-      <CardFooter className="flex flex-wrap gap-2">
+      <CardFooter className="flex flex-col gap-2">
         {connected ? (
-          <>
+          <div className="flex w-full gap-2">
             <Button
               variant="default"
               onClick={handleTestConnection}
@@ -214,7 +214,7 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
               className="flex-1 bg-green-600 hover:bg-green-700 text-white"
             >
               <Send className="w-4 h-4 mr-2" />
-              {testing ? 'Enviando...' : 'Testar Envio'}
+              {testing ? 'Testando...' : 'Testar Conexão WhatsApp'}
             </Button>
             <Button
               variant="outline"
@@ -223,15 +223,31 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
             >
               Desconectar Conta
             </Button>
-          </>
+          </div>
         ) : (
-          <Button
-            onClick={handleSave}
-            className="w-full"
-            disabled={loading || !apiUrl || !sessionId}
-          >
-            Iniciar Sessão
-          </Button>
+          <div className="flex flex-col w-full gap-2">
+            <Button
+              onClick={handleSave}
+              className="w-full"
+              disabled={loading || !apiUrl || !sessionId}
+            >
+              Salvar e Iniciar Sessão
+            </Button>
+            {apiUrl && sessionId && (
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  await handleSave()
+                  await handleTestConnection()
+                }}
+                disabled={testing || loading}
+                className="w-full border-green-600 text-green-600 hover:bg-green-50"
+              >
+                <Send className="w-4 h-4 mr-2" />
+                {testing ? 'Testando...' : 'Testar Conexão WhatsApp'}
+              </Button>
+            )}
+          </div>
         )}
       </CardFooter>
     </Card>

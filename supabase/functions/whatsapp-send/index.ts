@@ -14,10 +14,11 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { to, text } = await req.json()
+    const { to, text, message } = await req.json()
+    const content = message || text
 
-    if (!to || !text) {
-      throw new Error('Parâmetros "to" e "text" são obrigatórios.')
+    if (!to || !content) {
+      throw new Error('Parâmetros "to" e "message" são obrigatórios.')
     }
 
     const authHeader = req.headers.get('Authorization')
@@ -69,7 +70,7 @@ Deno.serve(async (req: Request) => {
     const payload = {
       sessionId,
       number: to.includes('+') ? to.replace(/[^\d+]/g, '') : `+${digits}`,
-      message: text,
+      message: content,
     }
 
     const response = await fetch(`${apiUrl}/messages/send`, {
