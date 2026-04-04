@@ -16,6 +16,7 @@ import { Label } from '@/components/ui/label'
 import { toast } from '@/hooks/use-toast'
 import { getContacts, createContact, getMessages, saveMessage } from '@/services/contacts'
 import { sendWhatsAppMessage } from '@/services/whatsapp'
+import { supabase } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 
 export default function ChatPage() {
@@ -30,9 +31,51 @@ export default function ChatPage() {
 
   const [newContact, setNewContact] = useState({ name: '', phone: '' })
   const scrollRef = useRef<HTMLDivElement>(null)
+  const selectedContactRef = useRef<any>(null)
+
+  useEffect(() => {
+    selectedContactRef.current = selectedContact
+  }, [selectedContact])
 
   useEffect(() => {
     loadContacts()
+
+    // Inscreve no canal em tempo real para ouvir novas mensagens do webhook
+    const channel = supabase
+      .channel('messages_channel')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages' },
+        (payload) => {
+          const newMsg = payload.new
+          const currentContact = selectedContactRef.current
+
+          if (currentContact && newMsg.contact_id === currentContact.id) {
+            setMessages((prev) => {
+              // Evita duplicação com a UI otimista verificando conteúdo e proximidade de tempo (5 segundos)
+              const isDuplicate = prev.some(
+                (m) =>
+                  m.id === newMsg.id ||
+                  (m.direction === newMsg.direction &&
+                    m.content === newMsg.content &&
+                    Math.abs(
+                      new Date(m.created_at).getTime() - new Date(newMsg.created_at).getTime(),
+                    ) < 5000),
+              )
+              if (isDuplicate) return prev
+              return [...prev, newMsg]
+            })
+          } else {
+            // Recarrega a lista de contatos para refletir as novas mensagens
+            loadContacts()
+          }
+        },
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [])
 
   useEffect(() => {
