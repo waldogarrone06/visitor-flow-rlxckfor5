@@ -10,6 +10,12 @@ import {
   RefreshCw,
   Check,
   CheckCheck,
+  Image as ImageIcon,
+  Mic,
+  FileText,
+  Sticker,
+  MapPin,
+  Film,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -81,6 +87,8 @@ export default function ChatPage() {
 
               return [...prev, newMsg]
             })
+            // Sempre atualizar os contatos para que a última mensagem do contato atualizado apareça na barra lateral
+            loadContacts()
           } else {
             if (newMsg.direction === 'inbound') {
               toast({
@@ -416,7 +424,33 @@ export default function ChatPage() {
                             : 'bg-background border rounded-tl-sm',
                         )}
                       >
-                        {msg.content}
+                        {msg.content?.includes('[Imagem]') ? (
+                          <div className="flex items-center gap-2">
+                            <ImageIcon className="h-4 w-4 shrink-0" /> <span>{msg.content}</span>
+                          </div>
+                        ) : msg.content?.includes('[Áudio]') ? (
+                          <div className="flex items-center gap-2">
+                            <Mic className="h-4 w-4 shrink-0" /> <span>{msg.content}</span>
+                          </div>
+                        ) : msg.content?.includes('[Vídeo]') ? (
+                          <div className="flex items-center gap-2">
+                            <Film className="h-4 w-4 shrink-0" /> <span>{msg.content}</span>
+                          </div>
+                        ) : msg.content?.includes('[Documento]') ? (
+                          <div className="flex items-center gap-2">
+                            <FileText className="h-4 w-4 shrink-0" /> <span>{msg.content}</span>
+                          </div>
+                        ) : msg.content?.includes('[Sticker]') ? (
+                          <div className="flex items-center gap-2">
+                            <Sticker className="h-4 w-4 shrink-0" /> <span>{msg.content}</span>
+                          </div>
+                        ) : msg.content?.includes('[Localização]') ? (
+                          <div className="flex items-center gap-2">
+                            <MapPin className="h-4 w-4 shrink-0" /> <span>{msg.content}</span>
+                          </div>
+                        ) : (
+                          <span className="whitespace-pre-wrap break-words">{msg.content}</span>
+                        )}
                       </div>
                     </div>
                     <div

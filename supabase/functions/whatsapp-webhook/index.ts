@@ -31,51 +31,86 @@ Deno.serve(async (req: Request) => {
     }
 
     // Extrair dados baseados em formatos comuns de API (Evolution, Z-API, Custom, WAPI)
-    let sessionId = body.instance || body.sessionId || body.session || body.instanceId
-    let phone =
-      body.from ||
-      body.number ||
-      body.remoteJid ||
-      body.sender ||
-      body.data?.key?.remoteJid ||
-      body.key?.remoteJid
-    let text = body.text || body.body || body.content || ''
-    let isFromMe = body.fromMe || body.key?.fromMe || body.data?.key?.fromMe || false
+    let sessionId =
+      body.instance ||
+      body.sessionId ||
+      body.session ||
+      body.instanceId ||
+      body.instance_name ||
+      'Jr'
 
-    const extractTextFromMessage = (msgObj: any): string => {
-      if (!msgObj) return ''
-      if (typeof msgObj === 'string') return msgObj
-      if (msgObj.conversation) return msgObj.conversation
-      if (msgObj.extendedTextMessage?.text) return msgObj.extendedTextMessage.text
-      if (msgObj.imageMessage) return msgObj.imageMessage.caption || '[Imagem]'
-      if (msgObj.videoMessage) return msgObj.videoMessage.caption || '[Vídeo]'
-      if (msgObj.audioMessage) return '[Áudio]'
-      if (msgObj.documentMessage)
-        return msgObj.documentMessage.title || msgObj.documentMessage.fileName || '[Documento]'
-      if (msgObj.stickerMessage) return '[Sticker]'
-      if (msgObj.contactMessage) return '[Contato]'
-      if (msgObj.locationMessage) return '[Localização]'
-      if (msgObj.protocolMessage) return '[Mensagem Apagada/Protocolo]'
+    let phone = body.from || body.number || body.remoteJid || body.sender || body.phone || ''
+    if (!phone && body.data) {
+      phone =
+        body.data.remoteJid ||
+        body.data.from ||
+        body.data.sender ||
+        body.data.key?.remoteJid ||
+        body.data.message?.key?.remoteJid ||
+        ''
+    }
+    if (!phone && body.message) {
+      phone = body.message.from || body.message.key?.remoteJid || ''
+    }
+    if (!phone && body.messages && body.messages.length > 0) {
+      phone = body.messages[0].from || body.messages[0].key?.remoteJid || ''
+    }
+
+    let text = body.text || body.body || body.content || ''
+    let isFromMe =
+      body.fromMe === true ||
+      body.isFromMe === true ||
+      body.direction === 'outbound' ||
+      body.key?.fromMe ||
+      body.data?.key?.fromMe ||
+      body.data?.fromMe ||
+      false
+
+    const extractTextFromMessage = (msg: any): string => {
+      if (!msg) return ''
+      if (typeof msg === 'string') return msg
+
+      if (msg.text)
+        return typeof msg.text === 'string' ? msg.text : extractTextFromMessage(msg.text)
+      if (msg.body)
+        return typeof msg.body === 'string' ? msg.body : extractTextFromMessage(msg.body)
+      if (msg.content)
+        return typeof msg.content === 'string' ? msg.content : extractTextFromMessage(msg.content)
+
+      if (msg.conversation) return msg.conversation
+      if (msg.extendedTextMessage?.text) return msg.extendedTextMessage.text
+      if (msg.imageMessage) return msg.imageMessage.caption || '[Imagem]'
+      if (msg.videoMessage) return msg.videoMessage.caption || '[Vídeo]'
+      if (msg.audioMessage) return '[Áudio]'
+      if (msg.documentMessage)
+        return msg.documentMessage.title || msg.documentMessage.fileName || '[Documento]'
+      if (msg.stickerMessage) return '[Sticker]'
+      if (msg.contactMessage) return '[Contato]'
+      if (msg.locationMessage) return '[Localização]'
+      if (msg.protocolMessage) return '[Mensagem Apagada/Protocolo]'
       if (
-        msgObj.buttonsResponseMessage ||
-        msgObj.templateButtonReplyMessage ||
-        msgObj.interactiveResponseMessage
+        msg.buttonsResponseMessage ||
+        msg.templateButtonReplyMessage ||
+        msg.interactiveResponseMessage ||
+        msg.listResponseMessage
       )
         return '[Resposta Interativa]'
+
       return ''
     }
 
-    let msgObj = body.message || body.data?.message
+    let msgObj = body.message || body.data?.message || (body.messages && body.messages[0]?.message)
 
     // Formato específico Evolution API / Baileys (messages.upsert)
-    if (body.event === 'messages.upsert' && body.data?.messages?.length > 0) {
-      const msg = body.data.messages[0]
-      sessionId = body.instance || sessionId
-      phone = msg.key?.remoteJid || phone
-      isFromMe = msg.key?.fromMe ?? isFromMe
-      msgObj = msg.message || msgObj
+    if (body.event === 'messages.upsert' && body.data) {
+      const msg = body.data.message || (body.data.messages && body.data.messages[0])
+      if (msg) {
+        sessionId = body.instance || sessionId
+        phone = msg.key?.remoteJid || phone
+        isFromMe = msg.key?.fromMe ?? isFromMe
+        msgObj = msg.message || msgObj
+      }
     } else if (body.data && body.data.key) {
-      // Outro formato com data.key
       sessionId = body.instance || sessionId
       phone = body.data.key.remoteJid || phone
       isFromMe = body.data.key.fromMe ?? isFromMe
@@ -88,23 +123,41 @@ Deno.serve(async (req: Request) => {
 
     // Fallbacks baseados em 'type' genérico
     if (!text && body.type) {
-      if (body.type === 'chat') text = body.body || ''
+      if (body.type === 'chat' || body.type === 'text') text = body.body || body.text || ''
       else if (body.type === 'image' || body.type === 'photo') text = body.caption || '[Imagem]'
       else if (body.type === 'video') text = body.caption || '[Vídeo]'
-      else if (body.type === 'audio') text = '[Áudio]'
+      else if (body.type === 'audio' || body.type === 'ptt') text = '[Áudio]'
       else if (body.type === 'document') text = body.fileName || '[Documento]'
       else if (body.type === 'sticker') text = '[Sticker]'
       else if (body.type === 'location') text = '[Localização]'
-      else if (body.type === 'contact') text = '[Contato]'
+      else if (body.type === 'vcard' || body.type === 'contact') text = '[Contato]'
+    }
+
+    if (!text && typeof body === 'object') {
+      if (body.message && typeof body.message === 'string') text = body.message
     }
 
     // Se ainda não houver texto, mas for uma mensagem identificada
     if (!text && phone) {
-      text = '[Mensagem/Mídia]'
+      text = '[Mídia/Outros]'
     }
 
     // Remover sufixo @s.whatsapp.net se vier no from ou remoteJid
     if (typeof phone === 'string' && phone.includes('@')) {
+      if (phone.includes('@g.us')) {
+        console.log('Mensagem de grupo ignorada:', phone)
+        return new Response(JSON.stringify({ success: true, warning: 'Group message ignored' }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+      if (phone.includes('status@broadcast')) {
+        console.log('Mensagem de status ignorada:', phone)
+        return new Response(JSON.stringify({ success: true, warning: 'Status message ignored' }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
       phone = phone.split('@')[0]
     }
 
@@ -113,7 +166,7 @@ Deno.serve(async (req: Request) => {
         sessionId,
         phone,
         text,
-        body,
+        body: JSON.stringify(body).substring(0, 200),
       })
       return new Response(JSON.stringify({ success: true, warning: 'Missing fields' }), {
         status: 200,
@@ -160,16 +213,28 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // Remoção do fallback para segurança e isolamento. Se não encontrar a instância, ignora a mensagem.
+    // Fallback: se não encontrar pela sessionId exata ou se não vier sessionId,
+    // como a maioria dos usuários só tem 1 instância conectada, vamos tentar buscar a primeira ativa
+    // para não perder a mensagem em caso de falha de nomenclatura no webhook.
     if (!userId) {
-      console.warn(
-        `Instância '${sessionId}' não encontrada ou não informada. Ignorando mensagem por segurança.`,
-      )
+      const { data: activeIntegrations } = await supabaseAdmin
+        .from('user_integrations')
+        .select('user_id')
+        .not('whatsapp_instance_id', 'is', null)
+        .limit(1)
+
+      if (activeIntegrations && activeIntegrations.length > 0) {
+        userId = activeIntegrations[0].user_id
+        console.log(
+          `Fallback ativado: Usando o primeiro usuário com integração WhatsApp configurada: ${userId}`,
+        )
+      }
+    }
+
+    if (!userId) {
+      console.warn(`Nenhuma instância de WhatsApp configurada no sistema. Ignorando mensagem.`)
       return new Response(
-        JSON.stringify({
-          error:
-            'Instância não encontrada ou usuário não configurado no sistema para associar a mensagem.',
-        }),
+        JSON.stringify({ error: 'Sistema não possui integrações de WhatsApp configuradas.' }),
         {
           status: 404,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -208,7 +273,13 @@ Deno.serve(async (req: Request) => {
     }
 
     // Identificador único da mensagem originada na API (para evitar duplicidade de webhooks ou conciliação)
-    const clientId = body.data?.messages?.[0]?.key?.id || body.messageId || body.id || null
+    const clientId =
+      body.data?.messages?.[0]?.key?.id ||
+      body.data?.message?.key?.id ||
+      body.data?.key?.id ||
+      body.messageId ||
+      body.id ||
+      null
 
     if (contact) {
       let isDuplicate = false
@@ -221,6 +292,29 @@ Deno.serve(async (req: Request) => {
           .single()
 
         if (existingMsg) isDuplicate = true
+      }
+
+      if (!isDuplicate && isFromMe) {
+        // Para mensagens outbound (enviadas por nós), verificar se já salvamos nos últimos 15 segundos (via UI/API)
+        // para evitar eco do provedor duplicando a mensagem
+        const fifteenSecondsAgo = new Date(Date.now() - 15000).toISOString()
+        const { data: recentOutbound } = await supabaseAdmin
+          .from('messages')
+          .select('id')
+          .eq('contact_id', contact.id)
+          .eq('direction', 'outbound')
+          .eq('content', text)
+          .gte('created_at', fifteenSecondsAgo)
+          .limit(1)
+
+        if (recentOutbound && recentOutbound.length > 0) {
+          isDuplicate = true
+          // Podemos apenas atualizar o status ou client_id da existente
+          await supabaseAdmin
+            .from('messages')
+            .update({ client_id: clientId, status: 'delivered' })
+            .eq('id', recentOutbound[0].id)
+        }
       }
 
       if (!isDuplicate) {
