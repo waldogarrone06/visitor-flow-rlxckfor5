@@ -12,14 +12,16 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { toast } from '@/hooks/use-toast'
-import { MessageCircle, Link2 } from 'lucide-react'
+import { MessageCircle, Link2, Send } from 'lucide-react'
 import { getIntegrations, saveIntegrations } from '@/services/settings'
+import { supabase } from '@/lib/supabase/client'
 
 export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
   const [apiUrl, setApiUrl] = useState('')
   const [sessionId, setSessionId] = useState('FourLab')
   const [connected, setConnected] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [testing, setTesting] = useState(false)
 
   useEffect(() => {
     if (!targetUserId) return
@@ -112,6 +114,39 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
     toast({ title: 'WhatsApp Desconectado' })
   }
 
+  const handleTestConnection = async () => {
+    setTesting(true)
+    try {
+      const { data, error } = await supabase.functions.invoke('whatsapp-send', {
+        body: {
+          to: '5535988105718',
+          text: 'Mensagem via Visitor Flow',
+        },
+      })
+
+      if (error) {
+        throw new Error(`Erro de conexão: ${error.message}`)
+      }
+
+      if (data?.error) {
+        throw new Error(data.error)
+      }
+
+      toast({
+        title: 'Mensagem enviada!',
+        description: 'Verifique seu celular para confirmar o recebimento.',
+      })
+    } catch (error: any) {
+      toast({
+        title: 'Falha no teste',
+        description: error.message,
+        variant: 'destructive',
+      })
+    } finally {
+      setTesting(false)
+    }
+  }
+
   if (!targetUserId) return null
 
   return (
@@ -171,13 +206,24 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
       </CardContent>
       <CardFooter className="flex flex-wrap gap-2">
         {connected ? (
-          <Button
-            variant="outline"
-            onClick={handleDisconnect}
-            className="w-full text-destructive hover:bg-destructive/10"
-          >
-            Desconectar Conta
-          </Button>
+          <>
+            <Button
+              variant="default"
+              onClick={handleTestConnection}
+              disabled={testing}
+              className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+            >
+              <Send className="w-4 h-4 mr-2" />
+              {testing ? 'Enviando...' : 'Testar Envio'}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleDisconnect}
+              className="flex-1 text-destructive hover:bg-destructive/10"
+            >
+              Desconectar Conta
+            </Button>
+          </>
         ) : (
           <Button
             onClick={handleSave}
