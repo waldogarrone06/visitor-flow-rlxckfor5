@@ -10,6 +10,6 @@
     "google-oauth-url": 1,
     "send-email": 6,
     "whatsapp-send": 8,
-    "whatsapp-webhook": 7
+    "whatsapp-webhook": 8
   }
 }
