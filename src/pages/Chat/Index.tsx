@@ -1,5 +1,16 @@
 import { useState, useEffect, useRef } from 'react'
-import { Plus, Send, User, Search, Phone, Loader2 } from 'lucide-react'
+import {
+  Plus,
+  Send,
+  User,
+  Search,
+  Phone,
+  Loader2,
+  AlertCircle,
+  RefreshCw,
+  Check,
+  CheckCheck,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -13,13 +24,16 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { toast } from '@/hooks/use-toast'
-import { getContacts, createContact, getMessages, saveMessage } from '@/services/contacts'
+import { getContacts, createContact } from '@/services/contacts'
 import { sendWhatsAppMessage } from '@/services/whatsapp'
 import { supabase } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/hooks/use-auth'
 
 export default function ChatPage() {
+  const { user } = useAuth()
   const [contacts, setContacts] = useState<any[]>([])
   const [selectedContact, setSelectedContact] = useState<any>(null)
   const [messages, setMessages] = useState<any[]>([])
@@ -39,31 +53,32 @@ export default function ChatPage() {
   }, [selectedContact])
 
   useEffect(() => {
+    if (!user) return
     loadContacts()
 
-    // Inscreve no canal em tempo real para ouvir novas mensagens do webhook
+    // Inscreve no canal em tempo real para ouvir novas mensagens do webhook otimizado pelo user_id
     const channel = supabase
       .channel('messages_channel')
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages' },
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `user_id=eq.${user.id}` },
         (payload) => {
           const newMsg = payload.new
           const currentContact = selectedContactRef.current
 
           if (currentContact && newMsg.contact_id === currentContact.id) {
             setMessages((prev) => {
-              // Evita duplicação com a UI otimista verificando conteúdo e proximidade de tempo (5 segundos)
-              const isDuplicate = prev.some(
-                (m) =>
-                  m.id === newMsg.id ||
-                  (m.direction === newMsg.direction &&
-                    m.content === newMsg.content &&
-                    Math.abs(
-                      new Date(m.created_at).getTime() - new Date(newMsg.created_at).getTime(),
-                    ) < 5000),
+              // Verifica se a mensagem já existe pelo client_id (otimista) ou id
+              const existingIndex = prev.findIndex(
+                (m) => (newMsg.client_id && m.client_id === newMsg.client_id) || m.id === newMsg.id,
               )
-              if (isDuplicate) return prev
+
+              if (existingIndex >= 0) {
+                const newMessages = [...prev]
+                newMessages[existingIndex] = { ...newMessages[existingIndex], ...newMsg }
+                return newMessages
+              }
+
               return [...prev, newMsg]
             })
           } else {
@@ -73,8 +88,21 @@ export default function ChatPage() {
                 description: 'Verifique a lista de contatos.',
               })
             }
-            // Recarrega a lista de contatos para refletir as novas mensagens
+            // Recarrega a lista de contatos para refletir as novas mensagens no sidebar
             loadContacts()
+          }
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'messages', filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          const updatedMsg = payload.new
+          const currentContact = selectedContactRef.current
+          if (currentContact && updatedMsg.contact_id === currentContact.id) {
+            setMessages((prev) =>
+              prev.map((m) => (m.id === updatedMsg.id ? { ...m, ...updatedMsg } : m)),
+            )
           }
         },
       )
@@ -83,7 +111,7 @@ export default function ChatPage() {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [])
+  }, [user])
 
   useEffect(() => {
     if (selectedContact) {
@@ -110,8 +138,15 @@ export default function ChatPage() {
 
   const loadMessages = async (contactId: string) => {
     try {
-      const data = await getMessages(contactId)
-      setMessages(data)
+      // Busca direta pelo Supabase para carregar também status e client_id que não estavam na modelagem base
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('contact_id', contactId)
+        .order('created_at', { ascending: true })
+
+      if (error) throw error
+      setMessages(data || [])
     } catch (e: any) {
       toast({ title: 'Erro ao carregar mensagens', description: e.message, variant: 'destructive' })
     }
@@ -124,7 +159,11 @@ export default function ChatPage() {
     }
     setLoading(true)
     try {
-      const created = await createContact(newContact)
+      let formattedPhone = newContact.phone.replace(/\D/g, '')
+      if (formattedPhone.length === 10 || formattedPhone.length === 11) {
+        formattedPhone = '55' + formattedPhone
+      }
+      const created = await createContact({ ...newContact, phone: formattedPhone })
       setContacts((prev) => [...prev, created])
       setIsAddOpen(false)
       setNewContact({ name: '', phone: '' })
@@ -139,26 +178,43 @@ export default function ChatPage() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newMessage.trim() || !selectedContact || sending) return
+    if (!newMessage.trim() || !selectedContact || !user || sending) return
 
-    const content = newMessage
+    const content = newMessage.trim()
     setNewMessage('')
     setSending(true)
 
+    const clientId = crypto.randomUUID()
     const optimisticMsg = {
-      id: Math.random().toString(),
+      id: clientId,
+      client_id: clientId,
       content,
       direction: 'outbound',
       created_at: new Date().toISOString(),
+      status: 'sending',
     }
+
     setMessages((prev) => [...prev, optimisticMsg])
 
     try {
       const response = await sendWhatsAppMessage(selectedContact.phone, content)
 
-      // Salva localmente se a API não retornou erro fatal
-      const saved = await saveMessage(selectedContact.id, content, 'outbound')
-      setMessages((prev) => prev.map((m) => (m.id === optimisticMsg.id ? saved : m)))
+      const { data: saved, error } = await supabase
+        .from('messages')
+        .insert({
+          user_id: user.id,
+          contact_id: selectedContact.id,
+          content,
+          direction: 'outbound',
+          client_id: clientId,
+          status: 'sent',
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+
+      setMessages((prev) => prev.map((m) => (m.client_id === clientId ? saved : m)))
 
       if (response?.warning) {
         toast({
@@ -169,15 +225,51 @@ export default function ChatPage() {
       }
     } catch (e: any) {
       console.error('Erro ao enviar mensagem:', e)
-      toast({
-        title: 'Falha no Envio',
-        description: 'Não foi possível enviar: ' + e.message,
-        variant: 'destructive',
-      })
-      // Em caso de falha na API, removemos a mensagem otimista e NÃO salvamos no banco
-      setMessages((prev) => prev.filter((m) => m.id !== optimisticMsg.id))
+      // Feedback visual de erro
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.client_id === clientId ? { ...m, status: 'error', error_msg: e.message } : m,
+        ),
+      )
     } finally {
       setSending(false)
+    }
+  }
+
+  const handleRetry = async (msg: any) => {
+    if (!user || !selectedContact) return
+
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.client_id === msg.client_id ? { ...m, status: 'sending', error_msg: null } : m,
+      ),
+    )
+
+    try {
+      await sendWhatsAppMessage(selectedContact.phone, msg.content)
+
+      const { data: saved, error } = await supabase
+        .from('messages')
+        .insert({
+          user_id: user.id,
+          contact_id: selectedContact.id,
+          content: msg.content,
+          direction: 'outbound',
+          client_id: msg.client_id,
+          status: 'sent',
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+
+      setMessages((prev) => prev.map((m) => (m.client_id === msg.client_id ? saved : m)))
+    } catch (e: any) {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.client_id === msg.client_id ? { ...m, status: 'error', error_msg: e.message } : m,
+        ),
+      )
     }
   }
 
@@ -281,9 +373,7 @@ export default function ChatPage() {
                     <p className="font-medium text-foreground">
                       Inicie uma conversa com {selectedContact.name}
                     </p>
-                    <p className="text-sm mt-1">
-                      Sua mensagem será enviada via WhatsApp API própria (Session)
-                    </p>
+                    <p className="text-sm mt-1">Sua mensagem será enviada via WhatsApp API</p>
                   </div>
                 </div>
               ) : (
@@ -295,22 +385,65 @@ export default function ChatPage() {
                       msg.direction === 'outbound' ? 'ml-auto items-end' : 'mr-auto items-start',
                     )}
                   >
+                    <div className="flex items-center gap-2">
+                      {msg.direction === 'outbound' && msg.status === 'error' && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive hover:bg-destructive/10 rounded-full"
+                              onClick={() => handleRetry(msg)}
+                            >
+                              <RefreshCw className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Falha ao enviar. Clique para tentar novamente.</p>
+                            {msg.error_msg && (
+                              <p className="text-xs text-muted-foreground mt-1">{msg.error_msg}</p>
+                            )}
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                      <div
+                        className={cn(
+                          'px-4 py-2.5 rounded-2xl text-sm shadow-sm relative group',
+                          msg.direction === 'outbound'
+                            ? msg.status === 'error'
+                              ? 'bg-destructive/10 text-destructive border border-destructive/20 rounded-tr-sm'
+                              : 'bg-primary text-primary-foreground rounded-tr-sm'
+                            : 'bg-background border rounded-tl-sm',
+                        )}
+                      >
+                        {msg.content}
+                      </div>
+                    </div>
                     <div
                       className={cn(
-                        'px-4 py-2.5 rounded-2xl text-sm shadow-sm',
-                        msg.direction === 'outbound'
-                          ? 'bg-primary text-primary-foreground rounded-tr-sm'
-                          : 'bg-background border rounded-tl-sm',
+                        'flex items-center gap-1 mt-1.5 px-1',
+                        msg.direction === 'outbound' ? 'justify-end' : 'justify-start',
                       )}
                     >
-                      {msg.content}
+                      <span className="text-[10px] text-muted-foreground font-medium">
+                        {new Date(msg.created_at).toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
+                      {msg.direction === 'outbound' && (
+                        <span className="text-muted-foreground ml-1">
+                          {msg.status === 'sending' && <Loader2 className="h-3 w-3 animate-spin" />}
+                          {msg.status === 'sent' && <Check className="h-3 w-3" />}
+                          {msg.status === 'delivered' && (
+                            <CheckCheck className="h-3 w-3 text-blue-500" />
+                          )}
+                          {msg.status === 'error' && (
+                            <AlertCircle className="h-3 w-3 text-destructive" />
+                          )}
+                        </span>
+                      )}
                     </div>
-                    <span className="text-[10px] text-muted-foreground mt-1.5 px-1 font-medium">
-                      {new Date(msg.created_at).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </span>
                   </div>
                 ))
               )}
@@ -346,8 +479,7 @@ export default function ChatPage() {
             </div>
             <h3 className="text-lg font-medium text-foreground mb-2">Módulo de Mensagens</h3>
             <p className="text-sm max-w-sm text-center">
-              Selecione um contato na lateral ou adicione um novo para iniciar o envio de mensagens
-              via sua API de WhatsApp independente.
+              Selecione um contato na lateral ou adicione um novo para iniciar o envio de mensagens.
             </p>
           </div>
         )}
@@ -358,7 +490,7 @@ export default function ChatPage() {
           <DialogHeader>
             <DialogTitle>Adicionar Novo Contato</DialogTitle>
             <DialogDescription>
-              Insira os dados do cliente para habilitar o envio de mensagens via WhatsApp.
+              Insira os dados do cliente para habilitar o envio de mensagens.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
