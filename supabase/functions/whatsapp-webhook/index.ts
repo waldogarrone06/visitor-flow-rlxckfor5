@@ -178,41 +178,24 @@ Deno.serve(async (req: Request) => {
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
 
-    // Buscar usuário dono da integração
+    // Opção A: Forçar ID de usuário fixo temporariamente
     let userId = null
-    if (sessionId) {
-      const { data: integration, error: intErr } = await supabaseAdmin
-        .from('user_integrations')
-        .select('user_id')
-        .eq('whatsapp_instance_id', sessionId)
-        .single()
+    console.log('Aplicando Opção A: Forçando identificação de usuário fixo.')
 
-      if (intErr) {
-        console.warn(
-          `Aviso: Instância '${sessionId}' não encontrada ou erro na busca:`,
-          intErr.message,
-        )
-      } else if (integration) {
-        userId = integration.user_id
-      }
-    }
+    const { data: mainProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('id')
+      .eq('email', 'wal@fourlabnutri.com.br')
+      .maybeSingle()
 
-    // Fallback de segurança
-    if (!userId) {
-      console.log(
-        'Aplicando fallback para encontrar userId. Nenhuma instância correspondente encontrada.',
-      )
-      const { data: fallbackInteg } = await supabaseAdmin
-        .from('user_integrations')
-        .select('user_id')
-        .not('whatsapp_instance_id', 'is', null)
-        .limit(1)
-
-      if (fallbackInteg && fallbackInteg.length > 0) {
-        userId = fallbackInteg[0].user_id
-      } else {
-        const { data: admin } = await supabaseAdmin.from('profiles').select('id').limit(1)
-        if (admin && admin.length > 0) userId = admin[0].id
+    if (mainProfile) {
+      userId = mainProfile.id
+      console.log('Usuário principal encontrado. ID:', userId)
+    } else {
+      const { data: anyProfile } = await supabaseAdmin.from('profiles').select('id').limit(1)
+      if (anyProfile && anyProfile.length > 0) {
+        userId = anyProfile[0].id
+        console.log('Usuário fallback encontrado. ID:', userId)
       }
     }
 
