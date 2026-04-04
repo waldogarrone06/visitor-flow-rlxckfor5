@@ -181,27 +181,33 @@ export type Database = {
       }
       messages: {
         Row: {
+          client_id: string | null
           contact_id: string
           content: string
           created_at: string
           direction: string
           id: string
+          status: string | null
           user_id: string
         }
         Insert: {
+          client_id?: string | null
           contact_id: string
           content: string
           created_at?: string
           direction: string
           id?: string
+          status?: string | null
           user_id: string
         }
         Update: {
+          client_id?: string | null
           contact_id?: string
           content?: string
           created_at?: string
           direction?: string
           id?: string
+          status?: string | null
           user_id?: string
         }
         Relationships: [
@@ -555,6 +561,8 @@ export const Constants = {
 //   direction: text (not null)
 //   content: text (not null)
 //   created_at: timestamp with time zone (not null, default: now())
+//   client_id: text (nullable)
+//   status: text (nullable, default: 'sent'::text)
 // Table: nps_responses
 //   id: uuid (not null, default: gen_random_uuid())
 //   appointment_id: uuid (not null)
@@ -738,5 +746,7 @@ export const Constants = {
 //
 
 // --- INDEXES ---
+// Table: messages
+//   CREATE INDEX messages_client_id_idx ON public.messages USING btree (client_id)
 // Table: user_integrations
 //   CREATE UNIQUE INDEX user_integrations_user_id_key ON public.user_integrations USING btree (user_id)

@@ -73,6 +73,16 @@ Deno.serve(async (req: Request) => {
       phone = '55' + phone
     }
 
+    // Tratar possível ausência do 9º dígito em números BR para evitar contatos duplicados
+    let alternativePhone = phone
+    if (phone.startsWith('55') && phone.length === 13) {
+      // De 55 11 99999 9999 para 55 11 9999 9999
+      alternativePhone = phone.substring(0, 4) + phone.substring(5)
+    } else if (phone.startsWith('55') && phone.length === 12) {
+      // De 55 11 9999 9999 para 55 11 9 9999 9999
+      alternativePhone = phone.substring(0, 4) + '9' + phone.substring(4)
+    }
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
 
@@ -111,13 +121,16 @@ Deno.serve(async (req: Request) => {
       )
     }
 
-    // Buscar contato pelo número
-    let { data: contact } = await supabaseAdmin
+    // Buscar contato pelo número (considerando variações do 9º dígito)
+    let { data: contacts } = await supabaseAdmin
       .from('contacts')
-      .select('id')
+      .select('id, phone')
       .eq('user_id', userId)
-      .eq('phone', phone)
-      .single()
+      .in('phone', [phone, alternativePhone])
+      .order('created_at', { ascending: true })
+      .limit(1)
+
+    let contact = contacts && contacts.length > 0 ? contacts[0] : null
 
     // Se contato não existe, vamos criá-lo
     if (!contact) {
@@ -125,7 +138,7 @@ Deno.serve(async (req: Request) => {
         .from('contacts')
         .insert({
           user_id: userId,
-          phone: phone,
+          phone: phone, // Usa o número original que chegou no webhook
           name: `Novo Contato (${phone})`,
         })
         .select()
