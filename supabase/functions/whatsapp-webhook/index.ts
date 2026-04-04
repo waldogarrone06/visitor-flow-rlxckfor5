@@ -128,7 +128,35 @@ Deno.serve(async (req: Request) => {
       text = '[mensagem sem texto]'
     }
 
-    const isFromMe = body.fromMe === true || body.direction === 'outbound' || false
+    // ECHO TEST - Validação de conectividade e handshake VPS -> Supabase
+    if (
+      body.action === 'echo' ||
+      body.type === 'echo' ||
+      body.echo === true ||
+      text.trim().toLowerCase() === '/echo'
+    ) {
+      console.log('=== [WEBHOOK] ECHO TEST OK ===')
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: 'Echo test successful. Connection between VPS and Supabase is working.',
+          receivedPayload: body,
+          timestamp: new Date().toISOString(),
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      )
+    }
+
+    const isFromMe =
+      body.fromMe === true ||
+      body.id?.fromMe === true ||
+      body.message?.fromMe === true ||
+      body.message?.id?.fromMe === true ||
+      body.direction === 'outbound' ||
+      false
 
     console.log('=== [WEBHOOK] PARSED DATA ===')
     console.log(`- SessionId: ${sessionId}`)
@@ -229,13 +257,34 @@ Deno.serve(async (req: Request) => {
 
     // Registrar mensagem
     console.log(`Inserindo mensagem na tabela messages...`)
-    const { error: messageError } = await supabaseAdmin.from('messages').insert({
+
+    const messagePayload: any = {
       user_id: userId,
       contact_id: contactId,
       content: text,
       direction: isFromMe ? 'outbound' : 'inbound',
       status: 'delivered',
-    })
+    }
+
+    // Aproveita o timestamp original da mensagem se disponível (whatsapp-web.js envia em segundos)
+    const msgTimestamp = body.timestamp || body.message?.timestamp
+    if (msgTimestamp) {
+      try {
+        let parsedDate: Date
+        if (typeof msgTimestamp === 'number') {
+          parsedDate = new Date(msgTimestamp * (msgTimestamp < 10000000000 ? 1000 : 1))
+        } else {
+          parsedDate = new Date(msgTimestamp)
+        }
+        if (!isNaN(parsedDate.getTime())) {
+          messagePayload.created_at = parsedDate.toISOString()
+        }
+      } catch (e) {
+        // Ignora em caso de timestamp inválido
+      }
+    }
+
+    const { error: messageError } = await supabaseAdmin.from('messages').insert(messagePayload)
 
     if (messageError) {
       console.error('Erro crítico ao inserir mensagem:', messageError)
