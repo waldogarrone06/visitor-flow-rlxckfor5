@@ -14,90 +14,33 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const body = await req.json()
-    console.log('Incoming request body:', body)
+    console.log('Executando teste direto temporário na VPS conforme solicitado...')
 
-    // Mapeamento rígido conforme especificação do usuário
-    const to = body.to
-    const text = body.text
-
-    if (!to || !text) {
-      throw new Error('Parâmetros "to" e "text" são obrigatórios no body.')
-    }
-
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) {
-      throw new Error('Acesso não autorizado. Token ausente.')
-    }
-
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || ''
-
-    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    })
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabaseClient.auth.getUser()
-    if (authError || !user) {
-      throw new Error('Acesso não autorizado. Sessão inválida.')
-    }
-
-    const supabaseAdmin = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '')
-    const { data: integration } = await supabaseAdmin
-      .from('user_integrations')
-      .select('whatsapp_api_token, whatsapp_instance_id')
-      .eq('user_id', user.id)
-      .single()
-
-    if (!integration?.whatsapp_api_token) {
-      throw new Error('URL da API do WhatsApp não configurada. Verifique as configurações.')
-    }
-
-    const apiUrl = integration.whatsapp_api_token.replace(/\/$/, '')
-    const sessionId = integration.whatsapp_instance_id || 'FourLab' // fallback
-
-    // Dispara a inicialização da sessão para garantir que está ativa
-    try {
-      await fetch(`${apiUrl}/sessions/start`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId }),
-      })
-    } catch (e) {
-      console.log('Aviso: falha ao iniciar sessão, tentando enviar mensagem mesmo assim.', e)
-    }
-
-    const digits = String(to).replace(/\D/g, '')
-    const formattedNumber = String(to).includes('+')
-      ? String(to).replace(/[^\d+]/g, '')
-      : `+${digits}`
-
-    // Payload exato requerido pela VPS do cliente
-    const payload = {
-      sessionId,
-      number: formattedNumber,
-      message: text,
-    }
-
-    console.log('Payload construído para VPS:', payload)
-
-    const response = await fetch(`${apiUrl}/messages/send`, {
+    const r = await fetch('http://129.121.44.86:3000/messages/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        sessionId: 'Jr',
+        number: '5511980224076',
+        message: 'Teste via Supabase direto!',
+      }),
     })
 
-    if (!response.ok) {
-      const errText = await response.text().catch(() => '')
-      throw new Error(`Falha na API externa (${response.status}): ${errText}`)
+    const responseText = await r.text().catch(() => '')
+    console.log('VPS Response status:', r.status, 'text:', responseText)
+
+    if (!r.ok) {
+      throw new Error(`Falha na API externa (${r.status}): ${responseText}`)
     }
 
-    const result = await response.json().catch(() => ({ success: true }))
+    let parsedResult
+    try {
+      parsedResult = JSON.parse(responseText)
+    } catch (e) {
+      parsedResult = { rawText: responseText }
+    }
 
-    return new Response(JSON.stringify({ success: true, result }), {
+    return new Response(JSON.stringify({ success: true, result: parsedResult }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (error: any) {
