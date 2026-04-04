@@ -14,6 +14,15 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    let body = {}
+    try {
+      body = await req.json()
+    } catch (e) {
+      console.log('Falha ao fazer parse do JSON do request ou body vazio.')
+    }
+
+    console.log('RECEBIDO DO VISITOR FLOW:', body)
+
     console.log('Executando teste direto temporário na VPS conforme solicitado...')
 
     const r = await fetch('http://129.121.44.86:3000/messages/send', {
