@@ -15,27 +15,55 @@ Deno.serve(async (req: Request) => {
     const body = await req.json().catch(() => ({}))
     console.log('WEBHOOK RECEBIDO:', JSON.stringify(body, null, 2))
 
-    // Extrair dados baseados em formatos comuns de API (Evolution, Z-API, Custom)
-    let sessionId = body.instance || body.sessionId || body.session
-    let phone = body.from || body.number || body.remoteJid || body.sender
-    let text = body.text || body.message || body.body || body.content || ''
+    // Extrair dados baseados em formatos comuns de API (Evolution, Z-API, Custom, WAPI)
+    let sessionId = body.instance || body.sessionId || body.session || body.instanceId
+    let phone =
+      body.from || body.number || body.remoteJid || body.sender || body.data?.key?.remoteJid
+    let text = body.text || body.body || body.content || ''
     let isFromMe = body.fromMe || false
+
+    // Se "message" vier como string
+    if (typeof body.message === 'string') {
+      text = body.message
+    } else if (body.message?.conversation) {
+      text = body.message.conversation
+    } else if (body.message?.extendedTextMessage?.text) {
+      text = body.message.extendedTextMessage.text
+    }
 
     // Formato específico Evolution API / Baileys (messages.upsert)
     if (body.event === 'messages.upsert' && body.data?.messages?.length > 0) {
       const msg = body.data.messages[0]
-      sessionId = body.instance
-      phone = msg.key.remoteJid?.split('@')[0]
-      isFromMe = msg.key.fromMe
+      sessionId = body.instance || sessionId
+      phone = msg.key?.remoteJid?.split('@')[0] || phone
+      isFromMe = msg.key?.fromMe || isFromMe
       text = msg.message?.conversation || msg.message?.extendedTextMessage?.text || text
+    } else if (body.data && body.data.key) {
+      // Outro formato com data.key
+      sessionId = body.instance || sessionId
+      phone = body.data.key.remoteJid?.split('@')[0] || phone
+      isFromMe = body.data.key.fromMe || isFromMe
+      text = body.data.message?.conversation || body.data.message?.extendedTextMessage?.text || text
     }
 
-    if (!sessionId || !phone || !text) {
-      console.warn('Payload ignorado - campos ausentes:', body)
-      return new Response(JSON.stringify({ success: true, warning: 'Missing fields' }), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
+    // Remover sufixo @s.whatsapp.net se vier no from
+    if (typeof phone === 'string' && phone.includes('@')) {
+      phone = phone.split('@')[0]
+    }
+
+    if (!phone || !text) {
+      console.warn('Payload ignorado - campos ausentes:', { sessionId, phone, text, body })
+      return new Response(
+        JSON.stringify({
+          success: true,
+          warning: 'Missing fields',
+          parsed: { sessionId, phone, text },
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      )
     }
 
     // Limpar o número para manter apenas os dígitos
@@ -47,22 +75,58 @@ Deno.serve(async (req: Request) => {
     // Bypass RLS para inserção via webhook usando service role key
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
 
-    // Buscar usuário associado a essa sessão
-    const { data: integration, error: intError } = await supabaseAdmin
-      .from('user_integrations')
-      .select('user_id')
-      .eq('whatsapp_instance_id', sessionId)
-      .single()
+    let userId = null
 
-    if (intError || !integration) {
-      console.error(`Instância ${sessionId} não encontrada.`)
-      return new Response(JSON.stringify({ error: 'Instance not found' }), {
-        status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
+    // Buscar usuário associado a essa sessão
+    if (sessionId) {
+      const { data: integration } = await supabaseAdmin
+        .from('user_integrations')
+        .select('user_id')
+        .eq('whatsapp_instance_id', sessionId)
+        .single()
+
+      if (integration) {
+        userId = integration.user_id
+      }
     }
 
-    const userId = integration.user_id
+    // Fallback: se não achar a instância, ou ela não vier, tentar achar a primeira instância configurada
+    // já que o cliente pode ter esquecido de configurar a instância igual na VPS e no painel.
+    if (!userId) {
+      console.warn(
+        `Instância '${sessionId}' não encontrada ou não informada. Tentando fallback para primeira integração válida...`,
+      )
+      const { data: fallbackIntegration } = await supabaseAdmin
+        .from('user_integrations')
+        .select('user_id')
+        .not('whatsapp_instance_id', 'is', null)
+        .limit(1)
+        .single()
+
+      if (fallbackIntegration) {
+        userId = fallbackIntegration.user_id
+      } else {
+        // Se nem isso, pega o primeiro usuário que tem alguma integração
+        const { data: anyIntegration } = await supabaseAdmin
+          .from('user_integrations')
+          .select('user_id')
+          .limit(1)
+          .single()
+        if (anyIntegration) {
+          userId = anyIntegration.user_id
+        } else {
+          return new Response(
+            JSON.stringify({
+              error: 'Nenhum usuário configurado no sistema para associar a mensagem.',
+            }),
+            {
+              status: 404,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            },
+          )
+        }
+      }
+    }
 
     // Buscar contato pelo número
     let { data: contact } = await supabaseAdmin

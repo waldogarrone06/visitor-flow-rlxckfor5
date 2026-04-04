@@ -66,6 +66,12 @@ export default function ChatPage() {
               return [...prev, newMsg]
             })
           } else {
+            if (newMsg.direction === 'inbound') {
+              toast({
+                title: 'Nova mensagem recebida',
+                description: 'Verifique a lista de contatos.',
+              })
+            }
             // Recarrega a lista de contatos para refletir as novas mensagens
             loadContacts()
           }
