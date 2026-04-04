@@ -14,11 +14,15 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { to, text, message } = await req.json()
-    const content = message || text
+    const body = await req.json()
+    console.log('Incoming request body:', body)
 
-    if (!to || !content) {
-      throw new Error('Parâmetros "to" e "message" são obrigatórios.')
+    // Mapeamento rígido conforme especificação do usuário
+    const to = body.to
+    const text = body.text
+
+    if (!to || !text) {
+      throw new Error('Parâmetros "to" e "text" são obrigatórios no body.')
     }
 
     const authHeader = req.headers.get('Authorization')
@@ -66,12 +70,19 @@ Deno.serve(async (req: Request) => {
       console.log('Aviso: falha ao iniciar sessão, tentando enviar mensagem mesmo assim.', e)
     }
 
-    const digits = to.replace(/\D/g, '')
+    const digits = String(to).replace(/\D/g, '')
+    const formattedNumber = String(to).includes('+')
+      ? String(to).replace(/[^\d+]/g, '')
+      : `+${digits}`
+
+    // Payload exato requerido pela VPS do cliente
     const payload = {
       sessionId,
-      number: to.includes('+') ? to.replace(/[^\d+]/g, '') : `+${digits}`,
-      message: content,
+      number: formattedNumber,
+      message: text,
     }
+
+    console.log('Payload construído para VPS:', payload)
 
     const response = await fetch(`${apiUrl}/messages/send`, {
       method: 'POST',

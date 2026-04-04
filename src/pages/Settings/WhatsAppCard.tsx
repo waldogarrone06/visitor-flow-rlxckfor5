@@ -123,6 +123,9 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
           text: 'Teste via Visitor Flow!',
         },
       })
+
+      console.log('Retorno da Edge Function (WhatsApp):', data, error)
+
       if (error) {
         throw new Error(`Erro de conexão: ${error.message}`)
       }
@@ -136,6 +139,7 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
         description: 'Verifique seu celular para confirmar o recebimento.',
       })
     } catch (error: any) {
+      console.error('Erro na chamada do WhatsApp:', error)
       toast({
         title: 'Falha no teste',
         description: error.message,
