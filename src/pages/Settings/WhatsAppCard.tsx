@@ -119,11 +119,10 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
     try {
       const { data, error } = await supabase.functions.invoke('whatsapp-send', {
         body: {
-          to: '5535988105718',
-          message: 'Mensagem de teste via Visitor Flow',
+          to: '5511980224076',
+          text: 'Teste via Visitor Flow!',
         },
       })
-
       if (error) {
         throw new Error(`Erro de conexão: ${error.message}`)
       }
