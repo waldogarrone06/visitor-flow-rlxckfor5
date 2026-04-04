@@ -21,44 +21,100 @@ Deno.serve(async (req: Request) => {
     const body = await req.json().catch(() => ({}))
     console.log('WEBHOOK RECEBIDO:', JSON.stringify(body, null, 2))
 
+    // Ignorar eventos que não são de mensagens se identificáveis (para evitar poluir o banco e logs)
+    if (body.event && body.event !== 'messages.upsert' && !body.event.includes('message')) {
+      console.warn(`Payload ignorado - evento não é de mensagem (${body.event})`)
+      return new Response(JSON.stringify({ success: true, warning: 'Non-message event ignored' }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
     // Extrair dados baseados em formatos comuns de API (Evolution, Z-API, Custom, WAPI)
     let sessionId = body.instance || body.sessionId || body.session || body.instanceId
     let phone =
-      body.from || body.number || body.remoteJid || body.sender || body.data?.key?.remoteJid
+      body.from ||
+      body.number ||
+      body.remoteJid ||
+      body.sender ||
+      body.data?.key?.remoteJid ||
+      body.key?.remoteJid
     let text = body.text || body.body || body.content || ''
-    let isFromMe = body.fromMe || false
+    let isFromMe = body.fromMe || body.key?.fromMe || body.data?.key?.fromMe || false
 
-    // Se "message" vier como string
-    if (typeof body.message === 'string') {
-      text = body.message
-    } else if (body.message?.conversation) {
-      text = body.message.conversation
-    } else if (body.message?.extendedTextMessage?.text) {
-      text = body.message.extendedTextMessage.text
+    const extractTextFromMessage = (msgObj: any): string => {
+      if (!msgObj) return ''
+      if (typeof msgObj === 'string') return msgObj
+      if (msgObj.conversation) return msgObj.conversation
+      if (msgObj.extendedTextMessage?.text) return msgObj.extendedTextMessage.text
+      if (msgObj.imageMessage) return msgObj.imageMessage.caption || '[Imagem]'
+      if (msgObj.videoMessage) return msgObj.videoMessage.caption || '[Vídeo]'
+      if (msgObj.audioMessage) return '[Áudio]'
+      if (msgObj.documentMessage)
+        return msgObj.documentMessage.title || msgObj.documentMessage.fileName || '[Documento]'
+      if (msgObj.stickerMessage) return '[Sticker]'
+      if (msgObj.contactMessage) return '[Contato]'
+      if (msgObj.locationMessage) return '[Localização]'
+      if (msgObj.protocolMessage) return '[Mensagem Apagada/Protocolo]'
+      if (
+        msgObj.buttonsResponseMessage ||
+        msgObj.templateButtonReplyMessage ||
+        msgObj.interactiveResponseMessage
+      )
+        return '[Resposta Interativa]'
+      return ''
     }
+
+    let msgObj = body.message || body.data?.message
 
     // Formato específico Evolution API / Baileys (messages.upsert)
     if (body.event === 'messages.upsert' && body.data?.messages?.length > 0) {
       const msg = body.data.messages[0]
       sessionId = body.instance || sessionId
-      phone = msg.key?.remoteJid?.split('@')[0] || phone
-      isFromMe = msg.key?.fromMe || isFromMe
-      text = msg.message?.conversation || msg.message?.extendedTextMessage?.text || text
+      phone = msg.key?.remoteJid || phone
+      isFromMe = msg.key?.fromMe ?? isFromMe
+      msgObj = msg.message || msgObj
     } else if (body.data && body.data.key) {
       // Outro formato com data.key
       sessionId = body.instance || sessionId
-      phone = body.data.key.remoteJid?.split('@')[0] || phone
-      isFromMe = body.data.key.fromMe || isFromMe
-      text = body.data.message?.conversation || body.data.message?.extendedTextMessage?.text || text
+      phone = body.data.key.remoteJid || phone
+      isFromMe = body.data.key.fromMe ?? isFromMe
+      msgObj = body.data.message || msgObj
     }
 
-    // Remover sufixo @s.whatsapp.net se vier no from
+    if (!text && msgObj) {
+      text = extractTextFromMessage(msgObj)
+    }
+
+    // Fallbacks baseados em 'type' genérico
+    if (!text && body.type) {
+      if (body.type === 'chat') text = body.body || ''
+      else if (body.type === 'image' || body.type === 'photo') text = body.caption || '[Imagem]'
+      else if (body.type === 'video') text = body.caption || '[Vídeo]'
+      else if (body.type === 'audio') text = '[Áudio]'
+      else if (body.type === 'document') text = body.fileName || '[Documento]'
+      else if (body.type === 'sticker') text = '[Sticker]'
+      else if (body.type === 'location') text = '[Localização]'
+      else if (body.type === 'contact') text = '[Contato]'
+    }
+
+    // Se ainda não houver texto, mas for uma mensagem identificada
+    if (!text && phone) {
+      text = '[Mensagem/Mídia]'
+    }
+
+    // Remover sufixo @s.whatsapp.net se vier no from ou remoteJid
     if (typeof phone === 'string' && phone.includes('@')) {
       phone = phone.split('@')[0]
     }
 
     if (!phone || !text) {
-      console.warn('Payload ignorado - campos ausentes:', { sessionId, phone, text, body })
+      console.warn('Payload ignorado - campos ausentes (não é mensagem reconhecida):', {
+        sessionId,
+        phone,
+        text,
+        body,
+      })
       return new Response(JSON.stringify({ success: true, warning: 'Missing fields' }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
