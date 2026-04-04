@@ -1,12 +1,6 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers':
-    'authorization, x-client-info, x-supabase-client-platform, apikey, content-type',
-}
+import { corsHeaders } from '../_shared/cors.ts'
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -45,24 +39,79 @@ Deno.serve(async (req: Request) => {
 
     const { data: integration } = await supabaseClient
       .from('user_integrations')
-      .select('whatsapp_instance_id')
+      .select('whatsapp_instance_id, whatsapp_api_token')
       .eq('user_id', user.id)
       .single()
 
     const sessionId = integration?.whatsapp_instance_id || 'Jr'
+    const apiKey = integration?.whatsapp_api_token || ''
     const number = to.replace(/\D/g, '')
 
     console.log(`Enviando para VPS - Session: ${sessionId}, Number: ${number}`)
 
-    const r = await fetch('http://129.121.44.86:3000/messages/send', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sessionId: sessionId,
-        number: number,
-        message: text,
-      }),
-    })
+    const payload = {
+      session: sessionId,
+      sessionId: sessionId,
+      instance: sessionId,
+      number: number,
+      to: number,
+      text: text,
+      message: text,
+      content: text,
+    }
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    }
+
+    if (apiKey) {
+      headers['Authorization'] = `Bearer ${apiKey}`
+      headers['apikey'] = apiKey
+    }
+
+    const baseUrl = 'http://129.121.44.86:3000'
+    let r: Response | undefined
+    let lastError = ''
+
+    try {
+      r = await fetch(`${baseUrl}/messages/send`, {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify(payload),
+      })
+    } catch (e: any) {
+      lastError = e.message
+    }
+
+    if (!r || (!r.ok && r.status === 404)) {
+      console.log(`Fallback para ${baseUrl}/send`)
+      try {
+        r = await fetch(`${baseUrl}/send`, {
+          method: 'POST',
+          headers: headers,
+          body: JSON.stringify(payload),
+        })
+      } catch (e: any) {
+        lastError = e.message
+      }
+    }
+
+    if (!r || (!r.ok && r.status === 404)) {
+      console.log(`Fallback para ${baseUrl}/message/sendText/${sessionId}`)
+      try {
+        r = await fetch(`${baseUrl}/message/sendText/${sessionId}`, {
+          method: 'POST',
+          headers: headers,
+          body: JSON.stringify(payload),
+        })
+      } catch (e: any) {
+        lastError = e.message
+      }
+    }
+
+    if (!r) {
+      throw new Error(`Falha ao conectar com a VPS (${baseUrl}): ${lastError}`)
+    }
 
     const responseText = await r.text().catch(() => '')
     console.log('VPS Response status:', r.status, 'text:', responseText)

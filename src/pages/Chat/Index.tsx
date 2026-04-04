@@ -27,6 +27,7 @@ export default function ChatPage() {
   const [search, setSearch] = useState('')
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [sending, setSending] = useState(false)
   const [loadingContacts, setLoadingContacts] = useState(true)
 
   const [newContact, setNewContact] = useState({ name: '', phone: '' })
@@ -138,10 +139,11 @@ export default function ChatPage() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newMessage.trim() || !selectedContact) return
+    if (!newMessage.trim() || !selectedContact || sending) return
 
     const content = newMessage
     setNewMessage('')
+    setSending(true)
 
     const optimisticMsg = {
       id: Math.random().toString(),
@@ -152,16 +154,30 @@ export default function ChatPage() {
     setMessages((prev) => [...prev, optimisticMsg])
 
     try {
-      await sendWhatsAppMessage(selectedContact.phone, content)
+      const response = await sendWhatsAppMessage(selectedContact.phone, content)
+
+      // Salva localmente se a API não retornou erro fatal
       const saved = await saveMessage(selectedContact.id, content, 'outbound')
       setMessages((prev) => prev.map((m) => (m.id === optimisticMsg.id ? saved : m)))
+
+      if (response?.warning) {
+        toast({
+          title: 'Aviso',
+          description: response.warning,
+          variant: 'default',
+        })
+      }
     } catch (e: any) {
+      console.error('Erro ao enviar mensagem:', e)
       toast({
-        title: 'Aviso de Envio',
-        description: 'Mensagem salva localmente. Falha na API: ' + e.message,
+        title: 'Falha no Envio',
+        description: 'Não foi possível enviar: ' + e.message,
+        variant: 'destructive',
       })
-      const saved = await saveMessage(selectedContact.id, content, 'outbound')
-      setMessages((prev) => prev.map((m) => (m.id === optimisticMsg.id ? saved : m)))
+      // Em caso de falha na API, removemos a mensagem otimista e NÃO salvamos no banco
+      setMessages((prev) => prev.filter((m) => m.id !== optimisticMsg.id))
+    } finally {
+      setSending(false)
     }
   }
 
@@ -312,9 +328,13 @@ export default function ChatPage() {
                   type="submit"
                   size="icon"
                   className="h-12 w-12 rounded-full shrink-0 shadow-sm"
-                  disabled={!newMessage.trim()}
+                  disabled={!newMessage.trim() || sending}
                 >
-                  <Send className="h-5 w-5" />
+                  {sending ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Send className="h-5 w-5" />
+                  )}
                 </Button>
               </form>
             </div>
