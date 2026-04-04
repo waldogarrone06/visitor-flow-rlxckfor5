@@ -17,34 +17,55 @@ Deno.serve(async (req: Request) => {
       throw new Error('Parâmetros "to" e "text" são obrigatórios.')
     }
 
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) {
-      throw new Error('Authorization header is required')
-    }
-
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || ''
 
-    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    })
+    const authHeader = req.headers.get('Authorization')
+    let userId = body.userId
 
-    const {
-      data: { user },
-      error: authError,
-    } = await supabaseClient.auth.getUser()
-    if (authError || !user) {
-      throw new Error('Usuário não autenticado.')
+    // Tenta autenticar se o header existir, mas não bloqueia se falhar ou não existir
+    if (authHeader) {
+      const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: authHeader } },
+      })
+
+      const {
+        data: { user },
+        error: authError,
+      } = await supabaseClient.auth.getUser()
+      if (!authError && user) {
+        userId = user.id
+      }
     }
 
-    const { data: integration } = await supabaseClient
-      .from('user_integrations')
-      .select('whatsapp_instance_id, whatsapp_api_token')
-      .eq('user_id', user.id)
-      .single()
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
 
-    const sessionId = integration?.whatsapp_instance_id || 'Jr'
-    const apiKey = integration?.whatsapp_api_token || ''
+    let sessionId = body.sessionId || 'Jr'
+    let apiKey = ''
+
+    if (userId) {
+      const { data: integration } = await supabaseAdmin
+        .from('user_integrations')
+        .select('whatsapp_instance_id, whatsapp_api_token')
+        .eq('user_id', userId)
+        .single()
+
+      if (integration) {
+        if (integration.whatsapp_instance_id) sessionId = integration.whatsapp_instance_id
+        if (integration.whatsapp_api_token) apiKey = integration.whatsapp_api_token
+      }
+    } else if (body.sessionId) {
+      const { data: integration } = await supabaseAdmin
+        .from('user_integrations')
+        .select('whatsapp_api_token')
+        .eq('whatsapp_instance_id', body.sessionId)
+        .single()
+
+      if (integration && integration.whatsapp_api_token) {
+        apiKey = integration.whatsapp_api_token
+      }
+    }
     const number = to.replace(/\D/g, '')
 
     console.log(`Enviando para VPS - Session: ${sessionId}, Number: ${number}`)
