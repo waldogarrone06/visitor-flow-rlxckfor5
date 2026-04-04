@@ -30,10 +30,10 @@ Deno.serve(async (req: Request) => {
       })
     }
 
-    // Extrair dados baseados em formatos comuns de API (Evolution, Z-API, Custom, WAPI)
+    // Extrair dados baseados em formatos comuns de API (Evolution, Z-API, Custom, WAPI, Listener Growth)
     let sessionId =
-      body.instance ||
       body.sessionId ||
+      body.instance ||
       body.session ||
       body.instanceId ||
       body.instance_name ||
@@ -56,7 +56,7 @@ Deno.serve(async (req: Request) => {
       phone = body.messages[0].from || body.messages[0].key?.remoteJid || ''
     }
 
-    let text = body.text || body.body || body.content || ''
+    let text = body.body || body.text || body.content || ''
     let isFromMe =
       body.fromMe === true ||
       body.isFromMe === true ||
@@ -142,7 +142,12 @@ Deno.serve(async (req: Request) => {
       text = '[Mídia/Outros]'
     }
 
-    // Remover sufixo @s.whatsapp.net se vier no from ou remoteJid
+    // Fallback absoluto: se não temos texto de forma alguma, definimos um genérico para não descartar
+    if (!text) {
+      text = body.classification ? `[Mensagem ${body.classification}]` : '[Mensagem Recebida]'
+    }
+
+    // Remover sufixo @s.whatsapp.net ou @c.us se vier no from ou remoteJid
     if (typeof phone === 'string' && phone.includes('@')) {
       if (phone.includes('@g.us')) {
         console.log('Mensagem de grupo ignorada:', phone)
@@ -161,14 +166,13 @@ Deno.serve(async (req: Request) => {
       phone = phone.split('@')[0]
     }
 
-    if (!phone || !text) {
-      console.warn('Payload ignorado - campos ausentes (não é mensagem reconhecida):', {
+    if (!phone) {
+      console.warn('Payload ignorado - número de telefone ausente:', {
         sessionId,
-        phone,
         text,
         body: JSON.stringify(body).substring(0, 200),
       })
-      return new Response(JSON.stringify({ success: true, warning: 'Missing fields' }), {
+      return new Response(JSON.stringify({ success: true, warning: 'Missing phone' }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
