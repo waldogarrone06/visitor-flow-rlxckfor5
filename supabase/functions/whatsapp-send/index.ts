@@ -61,10 +61,11 @@ Deno.serve(async (req: Request) => {
       console.log('Aviso: falha ao iniciar sessão, tentando enviar mensagem mesmo assim.', e)
     }
 
+    const digits = to.replace(/\D/g, '')
     const payload = {
       sessionId,
-      to: to.replace(/\D/g, ''),
-      text,
+      number: to.includes('+') ? to.replace(/[^\d+]/g, '') : `+${digits}`,
+      message: text,
     }
 
     const response = await fetch(`${apiUrl}/messages/send`, {
