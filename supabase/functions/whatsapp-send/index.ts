@@ -30,7 +30,6 @@ Deno.serve(async (req: Request) => {
     const authHeader = req.headers.get('Authorization')
     let userId = body.userId
 
-    // Tenta autenticar se o header existir, mas não bloqueia se falhar ou não existir
     if (authHeader) {
       const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
         global: { headers: { Authorization: authHeader } },
@@ -49,40 +48,44 @@ Deno.serve(async (req: Request) => {
 
     let sessionId = body.sessionId || 'Jr'
     let apiKey = ''
+    let apiUrl = 'http://129.121.44.86:8080'
 
     if (userId) {
       const { data: integration } = await supabaseAdmin
         .from('user_integrations')
-        .select('whatsapp_instance_id, whatsapp_api_token')
+        .select('whatsapp_instance_id, whatsapp_api_token, whatsapp_api_url')
         .eq('user_id', userId)
         .single()
 
       if (integration) {
         if (integration.whatsapp_instance_id) sessionId = integration.whatsapp_instance_id
         if (integration.whatsapp_api_token) apiKey = integration.whatsapp_api_token
+        if (integration.whatsapp_api_url) apiUrl = integration.whatsapp_api_url
       }
     } else if (body.sessionId) {
       const { data: integration } = await supabaseAdmin
         .from('user_integrations')
-        .select('whatsapp_api_token')
+        .select('whatsapp_api_token, whatsapp_api_url')
         .eq('whatsapp_instance_id', body.sessionId)
         .single()
 
-      if (integration && integration.whatsapp_api_token) {
-        apiKey = integration.whatsapp_api_token
+      if (integration) {
+        if (integration.whatsapp_api_token) apiKey = integration.whatsapp_api_token
+        if (integration.whatsapp_api_url) apiUrl = integration.whatsapp_api_url
       }
     }
     const number = to.replace(/\D/g, '')
 
-    console.log(`Enviando para VPS - Session: ${sessionId}, Number: ${number}`)
+    console.log(`Enviando para VPS - API: ${apiUrl}, Instância: ${sessionId}, Numero: ${number}`)
 
     const payload = {
+      number: number,
+      text: text,
+      // Propriedades adicionais para compatibilidade retroativa
       session: sessionId,
       sessionId: sessionId,
       instance: sessionId,
-      number: number,
       to: number,
-      text: text,
       message: text,
       content: text,
     }
@@ -96,12 +99,13 @@ Deno.serve(async (req: Request) => {
       headers['apikey'] = apiKey
     }
 
-    const baseUrl = 'http://129.121.44.86:3000'
+    const baseUrl = apiUrl.replace(/\/$/, '')
     let r: Response | undefined
     let lastError = ''
 
+    // 1. Tenta envio direto via padrão Evolution API
     try {
-      r = await fetch(`${baseUrl}/messages/send`, {
+      r = await fetch(`${baseUrl}/message/sendText/${sessionId}`, {
         method: 'POST',
         headers: headers,
         body: JSON.stringify(payload),
@@ -110,10 +114,11 @@ Deno.serve(async (req: Request) => {
       lastError = e.message
     }
 
+    // 2. Fallbacks para endpoints customizados caso não seja Evolution padrão
     if (!r || (!r.ok && r.status === 404)) {
-      console.log(`Fallback para ${baseUrl}/send`)
+      console.log(`Fallback para ${baseUrl}/messages/send`)
       try {
-        r = await fetch(`${baseUrl}/send`, {
+        r = await fetch(`${baseUrl}/messages/send`, {
           method: 'POST',
           headers: headers,
           body: JSON.stringify(payload),
@@ -124,9 +129,9 @@ Deno.serve(async (req: Request) => {
     }
 
     if (!r || (!r.ok && r.status === 404)) {
-      console.log(`Fallback para ${baseUrl}/message/sendText/${sessionId}`)
+      console.log(`Fallback para ${baseUrl}/send`)
       try {
-        r = await fetch(`${baseUrl}/message/sendText/${sessionId}`, {
+        r = await fetch(`${baseUrl}/send`, {
           method: 'POST',
           headers: headers,
           body: JSON.stringify(payload),

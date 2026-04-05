@@ -12,13 +12,14 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { toast } from '@/hooks/use-toast'
-import { MessageCircle, Link2, Send } from 'lucide-react'
+import { MessageCircle, Link2, Send, Key, Server } from 'lucide-react'
 import { getIntegrations, saveIntegrations } from '@/services/settings'
 import { supabase } from '@/lib/supabase/client'
 
 export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
   const [apiUrl, setApiUrl] = useState('')
-  const [sessionId, setSessionId] = useState('FourLab')
+  const [instanceName, setInstanceName] = useState('')
+  const [apiToken, setApiToken] = useState('')
   const [connected, setConnected] = useState(false)
   const [loading, setLoading] = useState(true)
   const [testing, setTesting] = useState(false)
@@ -28,23 +29,20 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
     setLoading(true)
     getIntegrations(targetUserId).then((data) => {
       if (data) {
-        setSessionId(data.whatsapp_instance_id || 'FourLab')
-        setApiUrl(data.whatsapp_api_token || '')
+        setApiUrl(data.whatsapp_api_url || '')
+        setInstanceName(data.whatsapp_instance_id || '')
+        setApiToken(data.whatsapp_api_token || '')
         setConnected(data.whatsapp_connected || false)
-      } else {
-        setSessionId('FourLab')
-        setApiUrl('')
-        setConnected(false)
       }
       setLoading(false)
     })
   }, [targetUserId])
 
   const handleSave = async () => {
-    if (!apiUrl || !sessionId) {
+    if (!apiUrl || !instanceName || !apiToken) {
       toast({
         title: 'Aviso',
-        description: 'Preencha a URL da API e o Session ID.',
+        description: 'Preencha a URL da API, Instância e Token.',
         variant: 'destructive',
       })
       return
@@ -54,36 +52,11 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
     try {
       const cleanUrl = apiUrl.replace(/\/$/, '')
 
-      const response = await fetch(`${cleanUrl}/sessions/start`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ sessionId }),
-      }).catch(() => {
-        throw new Error('Erro de rede ou CORS ao acessar a API.')
-      })
-
-      if (response && !response.ok) {
-        throw new Error(`Erro na API: ${response.statusText}`)
-      }
-
       await saveIntegrations(
         {
-          whatsapp_instance_id: sessionId,
-          whatsapp_api_token: cleanUrl,
-          whatsapp_connected: true,
-        },
-        targetUserId,
-      )
-      setConnected(true)
-      toast({ title: 'WhatsApp Conectado', description: 'Sessão iniciada e credenciais salvas!' })
-    } catch (error: any) {
-      // Salva de qualquer forma pois a API pode ter bloqueio de CORS no navegador
-      await saveIntegrations(
-        {
-          whatsapp_instance_id: sessionId,
-          whatsapp_api_token: apiUrl.replace(/\/$/, ''),
+          whatsapp_api_url: cleanUrl,
+          whatsapp_instance_id: instanceName,
+          whatsapp_api_token: apiToken,
           whatsapp_connected: true,
         },
         targetUserId,
@@ -91,8 +64,13 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
       setConnected(true)
       toast({
         title: 'Configuração Salva',
-        description:
-          'Credenciais salvas. Falha no teste local (CORS/Rede), mas o backend utilizará a configuração.',
+        description: 'Credenciais da Evolution API salvas com sucesso!',
+      })
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao salvar',
+        description: error.message,
+        variant: 'destructive',
       })
     } finally {
       setLoading(false)
@@ -102,6 +80,7 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
   const handleDisconnect = async () => {
     await saveIntegrations(
       {
+        whatsapp_api_url: null,
         whatsapp_instance_id: null,
         whatsapp_api_token: null,
         whatsapp_connected: false,
@@ -109,7 +88,8 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
       targetUserId,
     )
     setApiUrl('')
-    setSessionId('FourLab')
+    setInstanceName('')
+    setApiToken('')
     setConnected(false)
     toast({ title: 'WhatsApp Desconectado' })
   }
@@ -117,14 +97,37 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
   const handleTestConnection = async () => {
     setTesting(true)
     try {
+      const cleanUrl = apiUrl.replace(/\/$/, '')
+      let instanceReady = false
+
+      try {
+        const response = await fetch(`${cleanUrl}/instance/connectionState/${instanceName}`, {
+          method: 'GET',
+          headers: {
+            apikey: apiToken,
+            Authorization: `Bearer ${apiToken}`,
+          },
+        })
+        if (response.ok) {
+          const data = await response.json()
+          if (data?.instance?.state === 'open' || data?.state === 'open') {
+            instanceReady = true
+          }
+        }
+      } catch (err) {
+        console.warn(
+          'Não foi possível checar o estado da instância diretamente (CORS/Rede), testando envio de mensagem...',
+          err,
+        )
+      }
+
       const { data, error } = await supabase.functions.invoke('whatsapp-send', {
         body: {
-          to: '5511980224076',
-          text: 'Teste via Visitor Flow!',
+          to: '5511980224076', // Mock ou próprio número de teste
+          text: 'Teste de conexão Evolution API via Visitor Flow!',
+          userId: targetUserId,
         },
       })
-
-      console.log('Retorno da Edge Function (WhatsApp):', data, error)
 
       if (error) {
         throw new Error(`Erro de conexão: ${error.message}`)
@@ -136,7 +139,9 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
 
       toast({
         title: 'Mensagem enviada!',
-        description: 'Verifique seu celular para confirmar o recebimento.',
+        description: instanceReady
+          ? 'Instância conectada (Evolution API) e mensagem enviada.'
+          : 'Mensagem enviada com sucesso.',
       })
     } catch (error: any) {
       console.error('Erro na chamada do WhatsApp:', error)
@@ -166,14 +171,15 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
             {connected ? 'Ativo' : 'Inativo'}
           </Badge>
         </div>
-        <CardTitle>WhatsApp Custom API</CardTitle>
+        <CardTitle>WhatsApp (Evolution API)</CardTitle>
         <CardDescription>
-          Conecte sua API própria independente. Autenticação via Session ID.
+          Conecte sua instância da Evolution API hospedada no seu servidor VPS.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex-1 space-y-4">
         {loading ? (
           <div className="space-y-4 animate-pulse">
+            <div className="h-10 bg-muted rounded"></div>
             <div className="h-10 bg-muted rounded"></div>
             <div className="h-10 bg-muted rounded"></div>
           </div>
@@ -186,23 +192,38 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
                 <Input
                   value={apiUrl}
                   onChange={(e) => setApiUrl(e.target.value)}
-                  placeholder="http://sua-api.com:3000"
+                  placeholder="http://seu-ip-vps:8080"
                   className="pl-9"
                   disabled={connected}
                 />
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Session ID</Label>
-              <Input
-                value={sessionId}
-                onChange={(e) => setSessionId(e.target.value)}
-                placeholder="Ex: FourLab"
-                disabled={connected}
-              />
-              <p className="text-xs text-muted-foreground">
-                Usado para identificar o cliente em /sessions/start.
-              </p>
+              <Label>Nome da Instância</Label>
+              <div className="flex relative">
+                <Server className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={instanceName}
+                  onChange={(e) => setInstanceName(e.target.value)}
+                  placeholder="Ex: MyInstance"
+                  className="pl-9"
+                  disabled={connected}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Global API Key / Token</Label>
+              <div className="flex relative">
+                <Key className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={apiToken}
+                  onChange={(e) => setApiToken(e.target.value)}
+                  placeholder="Seu token de autenticação"
+                  type="password"
+                  className="pl-9"
+                  disabled={connected}
+                />
+              </div>
             </div>
           </>
         )}
@@ -217,14 +238,14 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
               className="flex-1 bg-green-600 hover:bg-green-700 text-white"
             >
               <Send className="w-4 h-4 mr-2" />
-              {testing ? 'Testando...' : 'Testar Conexão WhatsApp'}
+              {testing ? 'Testando...' : 'Testar Conexão'}
             </Button>
             <Button
               variant="outline"
               onClick={handleDisconnect}
               className="flex-1 text-destructive hover:bg-destructive/10"
             >
-              Desconectar Conta
+              Desconectar
             </Button>
           </div>
         ) : (
@@ -232,11 +253,11 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
             <Button
               onClick={handleSave}
               className="w-full"
-              disabled={loading || !apiUrl || !sessionId}
+              disabled={loading || !apiUrl || !instanceName || !apiToken}
             >
-              Salvar e Iniciar Sessão
+              Salvar Configuração
             </Button>
-            {apiUrl && sessionId && (
+            {apiUrl && instanceName && apiToken && (
               <Button
                 variant="outline"
                 onClick={async () => {
