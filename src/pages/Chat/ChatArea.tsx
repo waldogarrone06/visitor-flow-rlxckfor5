@@ -1,9 +1,20 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
 import { useMainStore } from '@/stores/main'
+import { useAuth } from '@/hooks/use-auth'
+import { supabase } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Send, Check, CheckCheck, ArrowLeft, User, Paperclip, FileText } from 'lucide-react'
+import {
+  Send,
+  Check,
+  CheckCheck,
+  ArrowLeft,
+  User,
+  Paperclip,
+  FileText,
+  AlertCircle,
+} from 'lucide-react'
 import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { Link } from 'react-router-dom'
@@ -12,19 +23,117 @@ import { useToast } from '@/hooks/use-toast'
 
 export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => void }) {
   const { state, dispatch } = useMainStore()
+  const { user } = useAuth()
   const { toast } = useToast()
   const [text, setText] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  const [dbMessages, setDbMessages] = useState<any[]>([])
+  const [contactId, setContactId] = useState<string | null>(null)
+
   const lead = useMemo(() => state.leads.find((l) => l.id === leadId), [state.leads, leadId])
-  const messages = useMemo(
-    () =>
-      state.messages
-        .filter((m) => m.leadId === leadId)
-        .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()),
-    [state.messages, leadId],
-  )
+
+  useEffect(() => {
+    if (!user || !lead?.phone) return
+
+    let isMounted = true
+
+    const fetchContactAndMessages = async () => {
+      const phone = lead.phone.replace(/\D/g, '')
+      const { data: contacts } = await supabase
+        .from('contacts')
+        .select('id')
+        .eq('phone', phone)
+        .eq('user_id', user.id)
+
+      let cId = null
+      if (contacts && contacts.length > 0) {
+        cId = contacts[0].id
+      } else {
+        const { data: newContact } = await supabase
+          .from('contacts')
+          .insert({
+            user_id: user.id,
+            phone,
+            name: lead.name,
+          })
+          .select()
+          .single()
+        if (newContact) {
+          cId = newContact.id
+        }
+      }
+
+      if (cId && isMounted) {
+        setContactId(cId)
+        const { data: msgs } = await supabase
+          .from('messages')
+          .select('*')
+          .eq('contact_id', cId)
+          .order('created_at', { ascending: true })
+        if (msgs) setDbMessages(msgs)
+      }
+    }
+
+    fetchContactAndMessages()
+
+    const subscription = supabase
+      .channel(`messages-${leadId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages' },
+        (payload) => {
+          if (!isMounted) return
+          setDbMessages((prev) => {
+            if (prev.find((m) => m.id === payload.new.id)) return prev
+            return [...prev, payload.new]
+          })
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'messages' },
+        (payload) => {
+          if (!isMounted) return
+          setDbMessages((prev) => prev.map((m) => (m.id === payload.new.id ? payload.new : m)))
+        },
+      )
+      .subscribe()
+
+    return () => {
+      isMounted = false
+      subscription.unsubscribe()
+    }
+  }, [user, lead?.phone, lead?.name, leadId])
+
+  const messages = useMemo(() => {
+    const storeMsgs = state.messages
+      .filter((m) => m.leadId === leadId)
+      .map((m) => ({
+        id: m.id,
+        text: m.text,
+        sender: m.sender,
+        timestamp: m.timestamp,
+        status: m.status,
+        type: m.type,
+        mediaUrl: m.mediaUrl,
+        mediaName: m.mediaName,
+      }))
+
+    const dbMsgs = dbMessages.map((m) => ({
+      id: m.id,
+      text: m.content,
+      sender: m.direction === 'outbound' ? 'me' : 'them',
+      timestamp: m.created_at,
+      status: m.status,
+      type: 'text',
+    }))
+
+    const combined = [...storeMsgs, ...dbMsgs]
+    const unique = Array.from(new Map(combined.map((item) => [item.id, item])).values())
+    return unique.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+  }, [state.messages, dbMessages, leadId])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -39,27 +148,67 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
     const messageText = text.trim()
     setText('')
 
+    let newMessageId = `m-${Date.now()}`
+
+    // 1. Persist to Supabase immediately if possible
+    if (user && contactId) {
+      const { data: dbMsg } = await supabase
+        .from('messages')
+        .insert({
+          user_id: user.id,
+          contact_id: contactId,
+          content: messageText,
+          direction: 'outbound',
+          status: 'sending',
+        })
+        .select()
+        .single()
+
+      if (dbMsg) newMessageId = dbMsg.id
+    }
+
+    // Optimistic UI updates
     dispatch({
       type: 'SEND_MESSAGE',
       payload: {
-        id: `m-${Date.now()}`,
+        id: newMessageId,
         leadId,
         text: messageText,
         sender: 'me',
         timestamp: new Date().toISOString(),
-        status: 'sent',
+        status: 'sending',
       },
+    })
+
+    setDbMessages((prev) => {
+      if (prev.find((m) => m.id === newMessageId)) return prev
+      return [
+        ...prev,
+        {
+          id: newMessageId,
+          user_id: user?.id,
+          contact_id: contactId,
+          content: messageText,
+          direction: 'outbound',
+          status: 'sending',
+          created_at: new Date().toISOString(),
+        },
+      ]
     })
 
     try {
       if (lead?.phone) {
         await sendWhatsAppMessage(lead.phone, messageText)
+
+        if (contactId) {
+          await supabase.from('messages').update({ status: 'delivered' }).eq('id', newMessageId)
+        }
+
+        setDbMessages((prev) =>
+          prev.map((m) => (m.id === newMessageId ? { ...m, status: 'delivered' } : m)),
+        )
       } else {
-        toast({
-          title: 'Aviso',
-          description: 'Este contato não possui um número de telefone configurado para envio.',
-          variant: 'destructive',
-        })
+        throw new Error('Este contato não possui um número de telefone configurado para envio.')
       }
     } catch (error: any) {
       toast({
@@ -67,6 +216,13 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
         description: error.message || 'Falha na comunicação com o servidor.',
         variant: 'destructive',
       })
+
+      if (contactId) {
+        await supabase.from('messages').update({ status: 'error' }).eq('id', newMessageId)
+      }
+      setDbMessages((prev) =>
+        prev.map((m) => (m.id === newMessageId ? { ...m, status: 'error' } : m)),
+      )
     }
   }
 
@@ -147,7 +303,9 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
               className={cn(
                 'px-3 sm:px-4 py-2 rounded-2xl shadow-sm relative group',
                 msg.sender === 'me'
-                  ? 'bg-primary text-primary-foreground rounded-br-sm'
+                  ? msg.status === 'error'
+                    ? 'bg-destructive text-destructive-foreground rounded-br-sm'
+                    : 'bg-primary text-primary-foreground rounded-br-sm'
                   : 'bg-white border text-foreground rounded-bl-sm',
               )}
             >
@@ -200,17 +358,25 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
               <div
                 className={cn(
                   'flex items-center justify-end gap-1 mt-1 text-[10px]',
-                  msg.sender === 'me' ? 'text-primary-foreground/70' : 'text-muted-foreground',
+                  msg.sender === 'me'
+                    ? msg.status === 'error'
+                      ? 'text-destructive-foreground/90 font-medium'
+                      : 'text-primary-foreground/70'
+                    : 'text-muted-foreground',
                 )}
               >
-                {format(new Date(msg.timestamp), 'HH:mm')}
-                {msg.sender === 'me' && (
+                {msg.status === 'error' && <AlertCircle className="h-3 w-3 mr-0.5" />}
+                {msg.status === 'error'
+                  ? 'Erro de envio'
+                  : format(new Date(msg.timestamp), 'HH:mm')}
+                {msg.sender === 'me' && msg.status !== 'error' && (
                   <span
                     className={cn(
                       msg.status === 'read' ? 'text-[#34B7F1]' : 'text-primary-foreground/60',
                       'ml-0.5 flex items-center',
                     )}
                   >
+                    {msg.status === 'sending' && <Check className="h-3 w-3 opacity-50" />}
                     {msg.status === 'sent' && <Check className="h-3 w-3" />}
                     {(msg.status === 'delivered' || msg.status === 'read') && (
                       <CheckCheck className="h-3 w-3" />

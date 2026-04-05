@@ -68,7 +68,7 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // 2. Se não achou (ex: admin logado testando, mas quem tem a conexao é outro), busca fallback global
+    // 2. Se não achou (ex: admin logado testando), busca fallback global
     if (!integrationFound) {
       console.log('Integração direta não encontrada, buscando fallback global...')
       const { data: fallbackIntegration } = await supabaseAdmin
@@ -118,6 +118,7 @@ Deno.serve(async (req: Request) => {
       'Content-Type': 'application/json',
     }
 
+    // Suporte universal Evolution API
     if (apiKey) {
       headers['Authorization'] = `Bearer ${apiKey}`
       headers['apikey'] = apiKey
@@ -128,7 +129,10 @@ Deno.serve(async (req: Request) => {
     let lastError = ''
     let usedEndpoint = ''
 
-    const endpoints = [`${baseUrl}/message/sendText/${sessionId}`, `${baseUrl}/messages/send`]
+    const endpoints = [
+      `${baseUrl}/message/sendText/${encodeURIComponent(sessionId)}`,
+      `${baseUrl}/messages/send`,
+    ]
 
     for (const endpoint of endpoints) {
       try {
@@ -141,7 +145,8 @@ Deno.serve(async (req: Request) => {
 
         usedEndpoint = endpoint
 
-        if (r.ok || r.status !== 404) {
+        // Se funcionou ou se falhou por auth/not found (que não são erros de rede), paramos
+        if (r.ok || r.status === 401 || r.status === 403 || r.status === 404) {
           break
         }
       } catch (e: any) {
@@ -151,13 +156,26 @@ Deno.serve(async (req: Request) => {
     }
 
     if (!r) {
-      throw new Error(`Falha de rede ao conectar com a VPS (${baseUrl}). Erro: ${lastError}`)
+      throw new Error(
+        `Falha de rede ao conectar com a VPS (${baseUrl}). Verifique CORS e conectividade. Erro: ${lastError}`,
+      )
     }
 
     const responseText = await r.text().catch(() => '')
     console.log(`VPS Response status: ${r.status} (${usedEndpoint}) - Text: ${responseText}`)
 
     if (!r.ok) {
+      console.error(`Evolution API Error ${r.status} na rota ${usedEndpoint}: ${responseText}`)
+      if (r.status === 403 || r.status === 401) {
+        throw new Error(
+          `Erro de Autenticação (${r.status}): Verifique se o Token/API Key está correto para a instância ${sessionId}. Detalhe: ${responseText}`,
+        )
+      }
+      if (r.status === 404) {
+        throw new Error(
+          `Instância não encontrada (404): A instância '${sessionId}' não existe ou a URL '${baseUrl}' está incorreta. Detalhe: ${responseText}`,
+        )
+      }
       throw new Error(`Erro na Evolution API (${r.status}): ${responseText || r.statusText}`)
     }
 
