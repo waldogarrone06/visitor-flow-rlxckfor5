@@ -15,7 +15,10 @@ Deno.serve(async (req: Request) => {
 
   try {
     const body = await req.json().catch(() => ({}))
-    console.log('RECEBIDO DO VISITOR FLOW (whatsapp-send):', JSON.stringify(body))
+    console.log(
+      'RECEBIDO DO VISITOR FLOW (whatsapp-send):',
+      JSON.stringify({ ...body, testCredentials: body.testCredentials ? '[HIDDEN]' : undefined }),
+    )
 
     const { to, text } = body
 
@@ -30,7 +33,7 @@ Deno.serve(async (req: Request) => {
     const authHeader = req.headers.get('Authorization')
     let userId = body.userId
 
-    if (authHeader) {
+    if (authHeader && !userId) {
       const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
         global: { headers: { Authorization: authHeader } },
       })
@@ -40,7 +43,7 @@ Deno.serve(async (req: Request) => {
         error: authError,
       } = await supabaseClient.auth.getUser()
       if (!authError && user) {
-        userId = userId || user.id
+        userId = user.id
       }
     }
 
@@ -51,8 +54,16 @@ Deno.serve(async (req: Request) => {
     let apiUrl = ''
     let integrationFound = false
 
+    // 0. Use test credentials if provided
+    if (body.testCredentials && body.testCredentials.apiUrl && body.testCredentials.instanceId) {
+      apiUrl = body.testCredentials.apiUrl
+      sessionId = body.testCredentials.instanceId
+      apiKey = body.testCredentials.apiToken || ''
+      integrationFound = true
+      console.log(`Usando credenciais de teste fornecidas para instância ${sessionId}`)
+    }
     // 1. Tenta buscar a integração do usuário logado ou passado no body
-    if (userId) {
+    else if (userId) {
       const { data: integration } = await supabaseAdmin
         .from('user_integrations')
         .select('whatsapp_instance_id, whatsapp_api_token, whatsapp_api_url')
@@ -102,7 +113,7 @@ Deno.serve(async (req: Request) => {
 
     console.log(`Enviando para VPS - API: ${apiUrl}, Instância: ${sessionId}, Numero: ${number}`)
 
-    // Payload otimizado com suporte duplo para Evolution API v1 e v2
+    // Payload Evolution API standard (simplificado para maximizar compatibilidade)
     const payload = {
       number: number,
       text: text,
@@ -129,14 +140,11 @@ Deno.serve(async (req: Request) => {
     let lastError = ''
     let usedEndpoint = ''
 
-    const endpoints = [
-      `${baseUrl}/message/sendText/${encodeURIComponent(sessionId)}`,
-      `${baseUrl}/messages/send`,
-    ]
+    const endpoints = [`${baseUrl}/message/sendText/${encodeURIComponent(sessionId)}`]
 
     for (const endpoint of endpoints) {
       try {
-        console.log(`Tentando POST ${endpoint}...`)
+        console.log(`Tentando POST ${endpoint}... Payload:`, JSON.stringify(payload))
         r = await fetch(endpoint, {
           method: 'POST',
           headers: headers,
@@ -145,8 +153,8 @@ Deno.serve(async (req: Request) => {
 
         usedEndpoint = endpoint
 
-        // Se funcionou ou se falhou por auth/not found (que não são erros de rede), paramos
-        if (r.ok || r.status === 401 || r.status === 403 || r.status === 404) {
+        // Se funcionou ou se falhou por auth/not found/bad request (que não são erros de rede), paramos
+        if (r.ok || r.status === 401 || r.status === 403 || r.status === 404 || r.status === 400) {
           break
         }
       } catch (e: any) {
@@ -174,6 +182,11 @@ Deno.serve(async (req: Request) => {
       if (r.status === 404) {
         throw new Error(
           `Instância não encontrada (404): A instância '${sessionId}' não existe ou a URL '${baseUrl}' está incorreta. Detalhe: ${responseText}`,
+        )
+      }
+      if (r.status === 400) {
+        throw new Error(
+          `Erro de Validação (400): O número destino '${number}' pode ser inválido ou a API não aceitou o formato. Detalhe: ${responseText}`,
         )
       }
       throw new Error(`Erro na Evolution API (${r.status}): ${responseText || r.statusText}`)

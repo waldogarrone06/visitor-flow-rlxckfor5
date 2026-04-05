@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { toast } from '@/hooks/use-toast'
-import { MessageCircle, Link2, Send, Key, Server } from 'lucide-react'
+import { MessageCircle, Link2, Send, Key, Server, Phone } from 'lucide-react'
 import { getIntegrations, saveIntegrations } from '@/services/settings'
 import { supabase } from '@/lib/supabase/client'
 
@@ -20,6 +20,7 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
   const [apiUrl, setApiUrl] = useState('')
   const [instanceName, setInstanceName] = useState('')
   const [apiToken, setApiToken] = useState('')
+  const [testNumber, setTestNumber] = useState('')
   const [connected, setConnected] = useState(false)
   const [loading, setLoading] = useState(true)
   const [testing, setTesting] = useState(false)
@@ -45,7 +46,7 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
         description: 'Preencha a URL da API, Instância e Token.',
         variant: 'destructive',
       })
-      return
+      return false
     }
 
     setLoading(true)
@@ -66,12 +67,14 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
         title: 'Configuração Salva',
         description: 'Credenciais da Evolution API salvas com sucesso!',
       })
+      return true
     } catch (error: any) {
       toast({
         title: 'Erro ao salvar',
         description: error.message,
         variant: 'destructive',
       })
+      return false
     } finally {
       setLoading(false)
     }
@@ -95,6 +98,15 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
   }
 
   const handleTestConnection = async () => {
+    if (!testNumber) {
+      toast({
+        title: 'Aviso',
+        description: 'Preencha o número para teste.',
+        variant: 'destructive',
+      })
+      return
+    }
+
     setTesting(true)
     try {
       const cleanUrl = apiUrl.replace(/\/$/, '')
@@ -123,9 +135,14 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
 
       const { data, error } = await supabase.functions.invoke('whatsapp-send', {
         body: {
-          to: '5511980224076', // Mock ou próprio número de teste
+          to: testNumber,
           text: 'Teste de conexão Evolution API via Visitor Flow!',
           userId: targetUserId,
+          testCredentials: {
+            apiUrl: cleanUrl,
+            instanceId: instanceName,
+            apiToken: apiToken,
+          },
         },
       })
 
@@ -141,7 +158,7 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
         title: 'Mensagem enviada!',
         description: instanceReady
           ? 'Instância conectada (Evolution API) e mensagem enviada.'
-          : 'Mensagem enviada com sucesso.',
+          : 'Mensagem enviada com sucesso. Verifique seu WhatsApp!',
       })
     } catch (error: any) {
       console.error('Erro na chamada do WhatsApp:', error)
@@ -225,6 +242,23 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
                 />
               </div>
             </div>
+
+            <div className="space-y-2 pt-4 border-t">
+              <Label>Número para Teste</Label>
+              <div className="flex relative">
+                <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={testNumber}
+                  onChange={(e) => setTestNumber(e.target.value)}
+                  placeholder="Ex: 5511999999999"
+                  className="pl-9"
+                  disabled={testing}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Insira o seu número com DDI e DDD para receber a mensagem de teste.
+              </p>
+            </div>
           </>
         )}
       </CardContent>
@@ -234,7 +268,7 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
             <Button
               variant="default"
               onClick={handleTestConnection}
-              disabled={testing}
+              disabled={testing || !testNumber}
               className="flex-1 bg-green-600 hover:bg-green-700 text-white"
             >
               <Send className="w-4 h-4 mr-2" />
@@ -257,18 +291,18 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
             >
               Salvar Configuração
             </Button>
-            {apiUrl && instanceName && apiToken && (
+            {apiUrl && instanceName && apiToken && testNumber && (
               <Button
                 variant="outline"
                 onClick={async () => {
-                  await handleSave()
-                  await handleTestConnection()
+                  const saved = await handleSave()
+                  if (saved) await handleTestConnection()
                 }}
                 disabled={testing || loading}
                 className="w-full border-green-600 text-green-600 hover:bg-green-50"
               >
                 <Send className="w-4 h-4 mr-2" />
-                {testing ? 'Testando...' : 'Testar Conexão WhatsApp'}
+                {testing ? 'Testando...' : 'Salvar e Testar Conexão'}
               </Button>
             )}
           </div>
