@@ -322,6 +322,7 @@ export type Database = {
           updated_at: string
           user_id: string
           whatsapp_api_token: string | null
+          whatsapp_api_url: string | null
           whatsapp_connected: boolean | null
           whatsapp_instance_id: string | null
           yampi_alias: string | null
@@ -339,6 +340,7 @@ export type Database = {
           updated_at?: string
           user_id: string
           whatsapp_api_token?: string | null
+          whatsapp_api_url?: string | null
           whatsapp_connected?: boolean | null
           whatsapp_instance_id?: string | null
           yampi_alias?: string | null
@@ -356,6 +358,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
           whatsapp_api_token?: string | null
+          whatsapp_api_url?: string | null
           whatsapp_connected?: boolean | null
           whatsapp_instance_id?: string | null
           yampi_alias?: string | null
@@ -600,6 +603,7 @@ export const Constants = {
 //   frenet_token: text (nullable)
 //   google_invitation_body: text (nullable)
 //   sync_enabled: boolean (nullable, default: false)
+//   whatsapp_api_url: text (nullable)
 
 // --- CONSTRAINTS ---
 // Table: appointments

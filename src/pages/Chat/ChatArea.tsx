@@ -7,9 +7,12 @@ import { Send, Check, CheckCheck, ArrowLeft, User, Paperclip, FileText } from 'l
 import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { Link } from 'react-router-dom'
+import { sendWhatsAppMessage } from '@/services/whatsapp'
+import { useToast } from '@/hooks/use-toast'
 
 export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => void }) {
   const { state, dispatch } = useMainStore()
+  const { toast } = useToast()
   const [text, setText] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -29,21 +32,42 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
 
   if (!lead) return null
 
-  const handleSend = (e: React.FormEvent) => {
+  const handleSend = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!text.trim()) return
+
+    const messageText = text.trim()
+    setText('')
+
     dispatch({
       type: 'SEND_MESSAGE',
       payload: {
         id: `m-${Date.now()}`,
         leadId,
-        text: text.trim(),
+        text: messageText,
         sender: 'me',
         timestamp: new Date().toISOString(),
         status: 'sent',
       },
     })
-    setText('')
+
+    try {
+      if (lead?.phone) {
+        await sendWhatsAppMessage(lead.phone, messageText)
+      } else {
+        toast({
+          title: 'Aviso',
+          description: 'Este contato não possui um número de telefone configurado para envio.',
+          variant: 'destructive',
+        })
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao enviar',
+        description: error.message || 'Falha na comunicação com o servidor.',
+        variant: 'destructive',
+      })
+    }
   }
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {

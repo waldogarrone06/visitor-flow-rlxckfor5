@@ -74,7 +74,11 @@ Deno.serve(async (req: Request) => {
         if (integration.whatsapp_api_url) apiUrl = integration.whatsapp_api_url
       }
     }
-    const number = to.replace(/\D/g, '')
+    let number = to.replace(/\D/g, '')
+
+    if (number.length === 10 || number.length === 11) {
+      number = '55' + number
+    }
 
     console.log(`Enviando para VPS - API: ${apiUrl}, Instância: ${sessionId}, Numero: ${number}`)
 
