@@ -15,7 +15,7 @@ Deno.serve(async (req: Request) => {
 
   try {
     const body = await req.json().catch(() => ({}))
-    console.log('RECEBIDO DO VISITOR FLOW:', body)
+    console.log('RECEBIDO DO VISITOR FLOW (whatsapp-send):', JSON.stringify(body))
 
     const { to, text } = body
 
@@ -40,16 +40,18 @@ Deno.serve(async (req: Request) => {
         error: authError,
       } = await supabaseClient.auth.getUser()
       if (!authError && user) {
-        userId = user.id
+        userId = userId || user.id
       }
     }
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
 
-    let sessionId = body.sessionId || 'Jr'
+    let sessionId = body.sessionId || ''
     let apiKey = ''
-    let apiUrl = 'http://129.121.44.86:8080'
+    let apiUrl = ''
+    let integrationFound = false
 
+    // 1. Tenta buscar a integração do usuário logado ou passado no body
     if (userId) {
       const { data: integration } = await supabaseAdmin
         .from('user_integrations')
@@ -57,23 +59,41 @@ Deno.serve(async (req: Request) => {
         .eq('user_id', userId)
         .single()
 
-      if (integration) {
-        if (integration.whatsapp_instance_id) sessionId = integration.whatsapp_instance_id
-        if (integration.whatsapp_api_token) apiKey = integration.whatsapp_api_token
-        if (integration.whatsapp_api_url) apiUrl = integration.whatsapp_api_url
-      }
-    } else if (body.sessionId) {
-      const { data: integration } = await supabaseAdmin
-        .from('user_integrations')
-        .select('whatsapp_api_token, whatsapp_api_url')
-        .eq('whatsapp_instance_id', body.sessionId)
-        .single()
-
-      if (integration) {
-        if (integration.whatsapp_api_token) apiKey = integration.whatsapp_api_token
-        if (integration.whatsapp_api_url) apiUrl = integration.whatsapp_api_url
+      if (integration && integration.whatsapp_api_url && integration.whatsapp_instance_id) {
+        sessionId = integration.whatsapp_instance_id
+        apiKey = integration.whatsapp_api_token || ''
+        apiUrl = integration.whatsapp_api_url
+        integrationFound = true
+        console.log(`Integração encontrada para o usuário ${userId}`)
       }
     }
+
+    // 2. Se não achou (ex: admin logado testando, mas quem tem a conexao é outro), busca fallback global
+    if (!integrationFound) {
+      console.log('Integração direta não encontrada, buscando fallback global...')
+      const { data: fallbackIntegration } = await supabaseAdmin
+        .from('user_integrations')
+        .select('whatsapp_instance_id, whatsapp_api_token, whatsapp_api_url')
+        .not('whatsapp_api_url', 'is', null)
+        .not('whatsapp_instance_id', 'is', null)
+        .limit(1)
+        .maybeSingle()
+
+      if (fallbackIntegration) {
+        sessionId = fallbackIntegration.whatsapp_instance_id
+        apiKey = fallbackIntegration.whatsapp_api_token || ''
+        apiUrl = fallbackIntegration.whatsapp_api_url
+        integrationFound = true
+        console.log(`Fallback global encontrado: Instância ${sessionId}`)
+      }
+    }
+
+    if (!apiUrl) {
+      throw new Error(
+        'Nenhuma URL de API (Evolution API) configurada. Vá em Configurações e configure o WhatsApp.',
+      )
+    }
+
     let number = to.replace(/\D/g, '')
 
     if (number.length === 10 || number.length === 11) {
@@ -82,16 +102,16 @@ Deno.serve(async (req: Request) => {
 
     console.log(`Enviando para VPS - API: ${apiUrl}, Instância: ${sessionId}, Numero: ${number}`)
 
+    // Payload otimizado com suporte duplo para Evolution API v1 e v2
     const payload = {
       number: number,
       text: text,
-      // Propriedades adicionais para compatibilidade retroativa
-      session: sessionId,
-      sessionId: sessionId,
-      instance: sessionId,
-      to: number,
-      message: text,
-      content: text,
+      textMessage: { text: text },
+      options: {
+        delay: 0,
+        presence: 'composing',
+        linkPreview: false,
+      },
     }
 
     const headers: Record<string, string> = {
@@ -106,54 +126,39 @@ Deno.serve(async (req: Request) => {
     const baseUrl = apiUrl.replace(/\/$/, '')
     let r: Response | undefined
     let lastError = ''
+    let usedEndpoint = ''
 
-    // 1. Tenta envio direto via padrão Evolution API
-    try {
-      r = await fetch(`${baseUrl}/message/sendText/${sessionId}`, {
-        method: 'POST',
-        headers: headers,
-        body: JSON.stringify(payload),
-      })
-    } catch (e: any) {
-      lastError = e.message
-    }
+    const endpoints = [`${baseUrl}/message/sendText/${sessionId}`, `${baseUrl}/messages/send`]
 
-    // 2. Fallbacks para endpoints customizados caso não seja Evolution padrão
-    if (!r || (!r.ok && r.status === 404)) {
-      console.log(`Fallback para ${baseUrl}/messages/send`)
+    for (const endpoint of endpoints) {
       try {
-        r = await fetch(`${baseUrl}/messages/send`, {
+        console.log(`Tentando POST ${endpoint}...`)
+        r = await fetch(endpoint, {
           method: 'POST',
           headers: headers,
           body: JSON.stringify(payload),
         })
-      } catch (e: any) {
-        lastError = e.message
-      }
-    }
 
-    if (!r || (!r.ok && r.status === 404)) {
-      console.log(`Fallback para ${baseUrl}/send`)
-      try {
-        r = await fetch(`${baseUrl}/send`, {
-          method: 'POST',
-          headers: headers,
-          body: JSON.stringify(payload),
-        })
+        usedEndpoint = endpoint
+
+        if (r.ok || r.status !== 404) {
+          break
+        }
       } catch (e: any) {
         lastError = e.message
+        console.log(`Falha fetch ${endpoint}: ${lastError}`)
       }
     }
 
     if (!r) {
-      throw new Error(`Falha ao conectar com a VPS (${baseUrl}): ${lastError}`)
+      throw new Error(`Falha de rede ao conectar com a VPS (${baseUrl}). Erro: ${lastError}`)
     }
 
     const responseText = await r.text().catch(() => '')
-    console.log('VPS Response status:', r.status, 'text:', responseText)
+    console.log(`VPS Response status: ${r.status} (${usedEndpoint}) - Text: ${responseText}`)
 
     if (!r.ok) {
-      throw new Error(`Falha na API externa (${r.status}): ${responseText}`)
+      throw new Error(`Erro na Evolution API (${r.status}): ${responseText || r.statusText}`)
     }
 
     let parsedResult
@@ -167,7 +172,7 @@ Deno.serve(async (req: Request) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (error: any) {
-    console.error('Erro no processamento:', error.message)
+    console.error('Erro no whatsapp-send:', error.message)
     return new Response(JSON.stringify({ error: error.message }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
