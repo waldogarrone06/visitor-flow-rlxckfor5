@@ -15,11 +15,6 @@ Deno.serve(async (req: Request) => {
 
   try {
     const body = await req.json().catch(() => ({}))
-    console.log(
-      'RECEBIDO DO VISITOR FLOW (whatsapp-send):',
-      JSON.stringify({ ...body, testCredentials: body.testCredentials ? '[HIDDEN]' : undefined }),
-    )
-
     const { to, text } = body
 
     if (!to || !text) {
@@ -33,19 +28,14 @@ Deno.serve(async (req: Request) => {
     const authHeader = req.headers.get('Authorization')
     let userId = body.userId
 
-    // Resolve userId if coming via frontend authorization bearer
     if (authHeader && !userId) {
       const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
         global: { headers: { Authorization: authHeader } },
       })
-
       const {
         data: { user },
-        error: authError,
       } = await supabaseClient.auth.getUser()
-      if (!authError && user) {
-        userId = user.id
-      }
+      if (user) userId = user.id
     }
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
@@ -53,37 +43,27 @@ Deno.serve(async (req: Request) => {
     let sessionId = body.sessionId || ''
     let apiKey = ''
     let apiUrl = ''
-    let integrationFound = false
 
-    // 0. Use test credentials se ativado (tela de Settings)
-    if (body.testCredentials && body.testCredentials.apiUrl && body.testCredentials.instanceId) {
+    if (body.testCredentials?.apiUrl && body.testCredentials?.instanceId) {
       apiUrl = body.testCredentials.apiUrl
       sessionId = body.testCredentials.instanceId
       apiKey = body.testCredentials.apiToken || ''
-      integrationFound = true
-      console.log(`Usando credenciais de teste fornecidas para instância ${sessionId}`)
-    }
-    // 1. Tenta buscar a integração do usuário logado
-    else if (userId) {
+    } else if (userId) {
       const { data: integration } = await supabaseAdmin
         .from('user_integrations')
         .select('whatsapp_instance_id, whatsapp_api_token, whatsapp_api_url')
         .eq('user_id', userId)
         .single()
 
-      if (integration && integration.whatsapp_api_url && integration.whatsapp_instance_id) {
+      if (integration?.whatsapp_api_url && integration?.whatsapp_instance_id) {
         sessionId = integration.whatsapp_instance_id
         apiKey = integration.whatsapp_api_token || ''
         apiUrl = integration.whatsapp_api_url
-        integrationFound = true
-        console.log(`Integração encontrada para o usuário ${userId} (Instância: ${sessionId})`)
       }
     }
 
-    // 2. Fallback global: se o usuário atual não tem config, busca a primeira globalmente (ex: Waldo/Wal Werner)
-    if (!integrationFound) {
-      console.log('Integração direta não encontrada, buscando fallback global na base...')
-      const { data: fallbackIntegration } = await supabaseAdmin
+    if (!apiUrl || !sessionId) {
+      const { data: fallback } = await supabaseAdmin
         .from('user_integrations')
         .select('whatsapp_instance_id, whatsapp_api_token, whatsapp_api_url')
         .not('whatsapp_api_url', 'is', null)
@@ -91,58 +71,48 @@ Deno.serve(async (req: Request) => {
         .limit(1)
         .maybeSingle()
 
-      if (fallbackIntegration) {
-        sessionId = fallbackIntegration.whatsapp_instance_id
-        apiKey = fallbackIntegration.whatsapp_api_token || ''
-        apiUrl = fallbackIntegration.whatsapp_api_url
-        integrationFound = true
-        console.log(`Fallback global encontrado: Instância ${sessionId}`)
+      if (fallback) {
+        sessionId = fallback.whatsapp_instance_id
+        apiKey = fallback.whatsapp_api_token || ''
+        apiUrl = fallback.whatsapp_api_url
       }
     }
 
-    if (!apiUrl) {
-      throw new Error(
-        'Nenhuma URL de API (Evolution API) configurada. Vá em Configurações e conecte o WhatsApp.',
-      )
-    }
+    let baseUrl = (apiUrl || 'http://129.121.44.86:8080').replace(/\/+$/, '')
 
-    // Normaliza número DDI/DDD
     let number = to.replace(/\D/g, '')
     if (number.length === 10 || number.length === 11) {
       number = '55' + number
     }
 
-    // Payload limpo e altamente compatível com Evolution API v1 e v2.2.3
+    // Evolution API v2.2.3 expected payload format
     const payload = {
       number: number,
-      text: text, // Suporte legado (v1)
       textMessage: {
-        text: text, // Suporte v2.2.3
+        text: text,
       },
       options: {
-        delay: 1000,
+        delay: 1200,
         presence: 'composing',
       },
     }
 
-    const headers: Record<string, string> = {
+    // STRICT HEADERS FOR EVOLUTION API
+    // We do NOT send any Supabase JWT tokens here to avoid 401 Unauthorized from VPS
+    const fetchHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
     }
 
-    // Suporte universal a tokens
     if (apiKey) {
-      headers['apikey'] = apiKey
-      headers['Authorization'] = `Bearer ${apiKey}` // Maior resiliência contra proxies em VPS
+      fetchHeaders['apikey'] = apiKey
+      // Many VPS setups require Bearer format for Evolution API v2.x
+      fetchHeaders['Authorization'] = `Bearer ${apiKey}`
     }
 
-    // Limpa barras finais acidentais
-    const baseUrl = apiUrl.replace(/\/+$/, '')
     const endpoint = `${baseUrl}/message/sendText/${encodeURIComponent(sessionId)}`
 
-    console.log(`Disparando requisição para VPS: POST ${endpoint}`)
-    console.log(`Payload: ${JSON.stringify(payload)}`)
+    console.log(`[send_whatsapp] POST ${endpoint} for instance ${sessionId}`)
 
-    // Implementação de Timeout de 15 segundos para evitar bloqueios longos
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 15000)
 
@@ -150,45 +120,22 @@ Deno.serve(async (req: Request) => {
     try {
       r = await fetch(endpoint, {
         method: 'POST',
-        headers: headers,
+        headers: fetchHeaders,
         body: JSON.stringify(payload),
         signal: controller.signal,
       })
     } catch (e: any) {
       if (e.name === 'AbortError') {
-        throw new Error(
-          `Timeout de Conexão: A sua VPS (${baseUrl}) demorou mais de 15s para responder.`,
-        )
+        throw new Error(`Timeout de Conexão na VPS (${baseUrl}). Servidor demorou a responder.`)
       }
-      throw new Error(
-        `Falha de rede ao conectar com a VPS (${baseUrl}). Verifique CORS e Firewall. Erro: ${e.message}`,
-      )
+      throw new Error(`Falha de rede VPS (${baseUrl}). Erro: ${e.message}`)
     } finally {
       clearTimeout(timeoutId)
     }
 
     const responseText = await r.text().catch(() => '')
-    console.log(`VPS Response Status: ${r.status} | Text: ${responseText}`)
 
     if (!r.ok) {
-      console.error(`Evolution API Error ${r.status}: ${responseText}`)
-
-      if (r.status === 401 || r.status === 403) {
-        throw new Error(
-          `Erro de Autenticação (403): O Token Global (API Key) está incorreto para a instância '${sessionId}'.`,
-        )
-      }
-      if (r.status === 404) {
-        throw new Error(
-          `Instância não encontrada (404): A instância '${sessionId}' não existe na sua Evolution API ou a URL (${baseUrl}) não possui a porta correta.`,
-        )
-      }
-      if (r.status === 400) {
-        throw new Error(
-          `Erro de Validação (400): O número '${number}' pode ser inválido ou a estrutura do payload não é suportada pela sua versão da API. Detalhe: ${responseText}`,
-        )
-      }
-
       throw new Error(`Erro na VPS (${r.status}): ${responseText || r.statusText}`)
     }
 
@@ -197,6 +144,18 @@ Deno.serve(async (req: Request) => {
       parsedResult = JSON.parse(responseText)
     } catch (e) {
       parsedResult = { rawText: responseText }
+    }
+
+    // Log Interaction
+    if (userId) {
+      await supabaseAdmin
+        .from('interaction_log')
+        .insert({
+          user_id: userId,
+          type: 'whatsapp_send',
+          details: { to: number, instance: sessionId, success: true },
+        })
+        .catch((err) => console.warn('Failed to insert interaction log:', err))
     }
 
     return new Response(JSON.stringify({ success: true, result: parsedResult }), {

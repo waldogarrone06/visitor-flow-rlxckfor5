@@ -214,7 +214,7 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
                 <Input
                   value={apiUrl}
                   onChange={(e) => setApiUrl(e.target.value)}
-                  placeholder="http://seu-ip-vps:8080"
+                  placeholder="http://129.121.44.86:8080"
                   className="pl-9"
                   disabled={connected}
                 />
@@ -227,7 +227,7 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
                 <Input
                   value={instanceName}
                   onChange={(e) => setInstanceName(e.target.value)}
-                  placeholder="Ex: MyInstance"
+                  placeholder="Ex: Wal ou Junior"
                   className="pl-9"
                   disabled={connected}
                 />
