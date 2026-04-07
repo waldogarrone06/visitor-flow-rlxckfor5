@@ -15,6 +15,7 @@ import { toast } from '@/hooks/use-toast'
 import { MessageCircle, Link2, Send, Key, Server, Phone } from 'lucide-react'
 import { getIntegrations, saveIntegrations } from '@/services/settings'
 import { supabase } from '@/lib/supabase/client'
+import { FunctionsHttpError } from '@supabase/supabase-js'
 
 export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
   const [apiUrl, setApiUrl] = useState('')
@@ -190,8 +191,11 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
         },
       })
 
-      if (error) {
-        // Verifique o status e a causa do erro nos logs
+      if (error && error instanceof FunctionsHttpError) {
+        const errorMessage = await error.context.json()
+        console.log('Function returned an error', errorMessage)
+        throw new Error(`Erro na chamada da função: ${errorMessage?.error || error.message}`)
+      } else if (error) {
         console.error('Status:', (error as any).status)
         console.error('Mensagem:', error.message)
         throw new Error(`Erro na chamada da função: ${error.message}`)
