@@ -51,7 +51,7 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
 
     setLoading(true)
     try {
-      const cleanUrl = apiUrl.replace(/\/$/, '')
+      const cleanUrl = apiUrl.trim().replace(/\/$/, '')
 
       await saveIntegrations(
         {
@@ -109,34 +109,7 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
 
     setTesting(true)
     try {
-      const cleanUrl = apiUrl.replace(/\/$/, '')
-      let instanceReady = false
-
-      try {
-        const response = await fetch(`${cleanUrl}/instance/connectionState/${instanceName}`, {
-          method: 'GET',
-          headers: {
-            apikey: apiToken,
-            Authorization: `Bearer ${apiToken}`,
-          },
-        })
-        if (response.ok) {
-          const data = await response.json()
-          if (
-            data?.instance?.state === 'open' ||
-            data?.state === 'open' ||
-            data?.instance?.state === 'connecting' ||
-            data?.state === 'connecting'
-          ) {
-            instanceReady = true
-          }
-        }
-      } catch (err) {
-        console.warn(
-          'Não foi possível checar o estado da instância diretamente (CORS/Rede), testando envio de mensagem...',
-          err,
-        )
-      }
+      const cleanUrl = apiUrl.trim().replace(/\/$/, '')
 
       const { data, error } = await supabase.functions.invoke('whatsapp-send', {
         body: {
@@ -152,7 +125,7 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
       })
 
       if (error) {
-        throw new Error(`Erro de conexão: ${error.message}`)
+        throw new Error(`Erro na chamada da função: ${error.message}`)
       }
 
       if (data?.error) {
@@ -161,9 +134,7 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
 
       toast({
         title: 'Mensagem enviada!',
-        description: instanceReady
-          ? 'Instância conectada (Evolution API) e mensagem enviada.'
-          : 'Mensagem enviada com sucesso. Verifique seu WhatsApp!',
+        description: 'Mensagem enviada com sucesso. Verifique seu WhatsApp!',
       })
     } catch (error: any) {
       console.error('Erro na chamada do WhatsApp:', error)

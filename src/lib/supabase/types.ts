@@ -96,6 +96,41 @@ export type Database = {
         }
         Relationships: []
       }
+      interaction_log: {
+        Row: {
+          contact_id: string | null
+          created_at: string
+          details: Json | null
+          id: string
+          type: string
+          user_id: string | null
+        }
+        Insert: {
+          contact_id?: string | null
+          created_at?: string
+          details?: Json | null
+          id?: string
+          type: string
+          user_id?: string | null
+        }
+        Update: {
+          contact_id?: string | null
+          created_at?: string
+          details?: Json | null
+          id?: string
+          type?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'interaction_log_contact_id_fkey'
+            columns: ['contact_id']
+            isOneToOne: false
+            referencedRelation: 'contacts'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       kit_items: {
         Row: {
           id: string
@@ -309,6 +344,27 @@ export type Database = {
         }
         Relationships: []
       }
+      session_state: {
+        Row: {
+          context: Json | null
+          current_step: string | null
+          last_interaction: string
+          phone: string
+        }
+        Insert: {
+          context?: Json | null
+          current_step?: string | null
+          last_interaction?: string
+          phone: string
+        }
+        Update: {
+          context?: Json | null
+          current_step?: string | null
+          last_interaction?: string
+          phone?: string
+        }
+        Relationships: []
+      }
       user_integrations: {
         Row: {
           created_at: string
@@ -363,6 +419,33 @@ export type Database = {
           whatsapp_instance_id?: string | null
           yampi_alias?: string | null
           yampi_token?: string | null
+        }
+        Relationships: []
+      }
+      whatsapp_events: {
+        Row: {
+          created_at: string
+          id: string
+          instance: string
+          message: Json
+          message_type: string
+          remote_jid: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          instance: string
+          message: Json
+          message_type: string
+          remote_jid: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          instance?: string
+          message?: Json
+          message_type?: string
+          remote_jid?: string
         }
         Relationships: []
       }
@@ -538,6 +621,13 @@ export const Constants = {
 //   name: text (not null)
 //   phone: text (not null)
 //   created_at: timestamp with time zone (not null, default: now())
+// Table: interaction_log
+//   id: uuid (not null, default: gen_random_uuid())
+//   user_id: uuid (nullable)
+//   contact_id: uuid (nullable)
+//   type: text (not null)
+//   details: jsonb (nullable)
+//   created_at: timestamp with time zone (not null, default: now())
 // Table: kit_items
 //   id: uuid (not null, default: gen_random_uuid())
 //   kit_id: uuid (not null)
@@ -587,6 +677,11 @@ export const Constants = {
 //   slot_type: text (not null)
 //   created_at: timestamp with time zone (not null, default: now())
 //   updated_at: timestamp with time zone (not null, default: now())
+// Table: session_state
+//   phone: text (not null)
+//   current_step: text (nullable)
+//   context: jsonb (nullable)
+//   last_interaction: timestamp with time zone (not null, default: now())
 // Table: user_integrations
 //   id: uuid (not null, default: gen_random_uuid())
 //   user_id: uuid (not null)
@@ -604,6 +699,13 @@ export const Constants = {
 //   google_invitation_body: text (nullable)
 //   sync_enabled: boolean (nullable, default: false)
 //   whatsapp_api_url: text (nullable)
+// Table: whatsapp_events
+//   id: uuid (not null, default: gen_random_uuid())
+//   instance: text (not null)
+//   remote_jid: text (not null)
+//   message_type: text (not null)
+//   message: jsonb (not null)
+//   created_at: timestamp with time zone (not null, default: now())
 
 // --- CONSTRAINTS ---
 // Table: appointments
@@ -612,6 +714,10 @@ export const Constants = {
 // Table: contacts
 //   PRIMARY KEY contacts_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY contacts_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+// Table: interaction_log
+//   FOREIGN KEY interaction_log_contact_id_fkey: FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE CASCADE
+//   PRIMARY KEY interaction_log_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY interaction_log_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
 // Table: kit_items
 //   FOREIGN KEY kit_items_kit_id_fkey: FOREIGN KEY (kit_id) REFERENCES kits(id) ON DELETE CASCADE
 //   PRIMARY KEY kit_items_pkey: PRIMARY KEY (id)
@@ -638,10 +744,14 @@ export const Constants = {
 //   PRIMARY KEY schedule_settings_pkey: PRIMARY KEY (id)
 //   CHECK schedule_settings_slot_type_check: CHECK ((slot_type = ANY (ARRAY['Prescritor Exclusivo'::text, 'Grupo'::text])))
 //   FOREIGN KEY schedule_settings_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+// Table: session_state
+//   PRIMARY KEY session_state_pkey: PRIMARY KEY (phone)
 // Table: user_integrations
 //   PRIMARY KEY user_integrations_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY user_integrations_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
 //   UNIQUE user_integrations_user_id_key: UNIQUE (user_id)
+// Table: whatsapp_events
+//   PRIMARY KEY whatsapp_events_pkey: PRIMARY KEY (id)
 
 // --- ROW LEVEL SECURITY POLICIES ---
 // Table: appointments
@@ -656,6 +766,10 @@ export const Constants = {
 //   Policy "Users manage own contacts" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: (auth.uid() = user_id)
 //     WITH CHECK: (auth.uid() = user_id)
+// Table: interaction_log
+//   Policy "interaction_log_all" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 // Table: kit_items
 //   Policy "Users manage own kit items" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: (EXISTS ( SELECT 1    FROM kits   WHERE ((kits.id = kit_items.kit_id) AND (kits.user_id = auth.uid()))))
@@ -698,6 +812,10 @@ export const Constants = {
 //   Policy "Users can manage their own schedule" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: (auth.uid() = user_id)
 //     WITH CHECK: (auth.uid() = user_id)
+// Table: session_state
+//   Policy "session_state_all" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 // Table: user_integrations
 //   Policy "user_integrations_delete" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: ((auth.uid() = user_id) OR is_admin())
@@ -707,6 +825,10 @@ export const Constants = {
 //     USING: ((auth.uid() = user_id) OR is_admin())
 //   Policy "user_integrations_update" (UPDATE, PERMISSIVE) roles={authenticated}
 //     USING: ((auth.uid() = user_id) OR is_admin())
+// Table: whatsapp_events
+//   Policy "whatsapp_events_all" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 
 // --- DATABASE FUNCTIONS ---
 // FUNCTION handle_new_user()

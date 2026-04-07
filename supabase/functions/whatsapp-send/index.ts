@@ -78,7 +78,7 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    let baseUrl = (apiUrl || 'http://129.121.44.86:8080').replace(/\/+$/, '')
+    let baseUrl = (apiUrl || 'http://129.121.44.86:8080').trim().replace(/\/+$/, '')
 
     let number = to.replace(/\D/g, '')
     if (number.length === 10 || number.length === 11) {
@@ -88,6 +88,7 @@ Deno.serve(async (req: Request) => {
     // Evolution API v2.2.3 expected payload format
     const payload = {
       number: number,
+      text: text,
       textMessage: {
         text: text,
       },
