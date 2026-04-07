@@ -27,6 +27,14 @@ Deno.serve(async (req: Request) => {
       body = JSON.parse(rawBodyText || '{}')
     } catch (e) {}
 
+    // Sanitizar log para evitar circular refs (como sugerido)
+    const safeLog = JSON.stringify(body, (_, value) =>
+      typeof value === 'object' && value !== null ? value : value,
+    )
+
+    console.log('📥 Webhook recebido da Evolution API:')
+    console.log(safeLog)
+
     let sessionId = body.sessionId || body.instance || body.instanceId || 'unknown'
     let eventType = body.event || body.messageType || 'unknown'
 
@@ -44,7 +52,9 @@ Deno.serve(async (req: Request) => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: { persistSession: false },
+    })
 
     // ALWAYS log to whatsapp_events safely
     if (sessionId && eventType) {
@@ -163,18 +173,16 @@ Deno.serve(async (req: Request) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (error: any) {
-    console.error('Webhook Error:', error.message)
+    console.error('❌ ERRO NA EDGE FUNCTION:', error.message)
+
     // CRITICAL: Always return 200 to Evolution API so it doesn't enter a retry loop
     return new Response(
       JSON.stringify({
-        success: false,
-        error: error.message,
+        error: true,
+        message: error?.message,
         note: 'Error caught but returning 200 to prevent retries',
       }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      },
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     )
   }
 })
