@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { sendWhatsAppMessage } from '@/services/whatsapp'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Send, User, Loader2, Image as ImageIcon, FileText, Mic, AlertCircle } from 'lucide-react'
@@ -175,15 +176,7 @@ export default function ChatPage() {
       setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, id: actualMessageId } : m)))
 
       // 3. Dispara a chamada assíncrona para a VPS rodando a Evolution API
-      const res = await supabase.functions.invoke('whatsapp-send', {
-        body: { to: selectedContact.phone, text: content },
-      })
-
-      if (res.error || res.data?.error) {
-        throw new Error(
-          res.error?.message || res.data?.error || 'Falha na comunicação com a API (Evolution)',
-        )
-      }
+      await sendWhatsAppMessage(selectedContact.phone, content)
 
       // 4. Sucesso: atualiza o status final para entregue
       await supabase.from('messages').update({ status: 'delivered' }).eq('id', actualMessageId)

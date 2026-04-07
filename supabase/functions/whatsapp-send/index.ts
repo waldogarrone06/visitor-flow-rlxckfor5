@@ -106,8 +106,6 @@ Deno.serve(async (req: Request) => {
 
     if (apiKey) {
       fetchHeaders['apikey'] = apiKey
-      // Many VPS setups require Bearer format for Evolution API v2.x
-      fetchHeaders['Authorization'] = `Bearer ${apiKey}`
     }
 
     const endpoint = `${baseUrl}/message/sendText/${encodeURIComponent(sessionId)}`
