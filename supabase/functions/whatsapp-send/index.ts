@@ -80,35 +80,30 @@ Deno.serve(async (req: Request) => {
 
     let baseUrl = (apiUrl || 'http://129.121.44.86:8080').trim().replace(/\/+$/, '')
 
+    // Fallbacks to user provided defaults if missing
+    if (!sessionId) sessionId = 'Junior'
+    if (!apiKey) apiKey = 'w1a2l3d4o5Waldo127206'
+
     let number = to.replace(/\D/g, '')
     if (number.length === 10 || number.length === 11) {
       number = '55' + number
     }
 
-    // Evolution API v2.2.3 expected payload format
+    // Evolution API exact expected payload format as requested by user
     const payload = {
       number: number,
-      text: text,
-      textMessage: {
-        text: text,
-      },
-      options: {
-        delay: 1200,
-        presence: 'composing',
-      },
+      message: text,
     }
 
     // STRICT HEADERS FOR EVOLUTION API
     // We do NOT send any Supabase JWT tokens here to avoid 401 Unauthorized from VPS
     const fetchHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
+      apikey: apiKey,
+      instancekey: '9FD535FE666E-452B-817B-D45B16FB50AC',
     }
 
-    if (apiKey) {
-      fetchHeaders['apikey'] = apiKey
-    }
-
-    const endpoint = `${baseUrl}/message/sendText/${encodeURIComponent(sessionId)}`
+    const endpoint = `${baseUrl}/message/send/${encodeURIComponent(sessionId)}`
 
     console.log(`[send_whatsapp] POST ${endpoint} for instance ${sessionId}`)
 
