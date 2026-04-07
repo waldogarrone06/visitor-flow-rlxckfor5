@@ -191,6 +191,9 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
       })
 
       if (error) {
+        // Verifique o status e a causa do erro nos logs
+        console.error('Status:', (error as any).status)
+        console.error('Mensagem:', error.message)
         throw new Error(`Erro na chamada da função: ${error.message}`)
       }
 
