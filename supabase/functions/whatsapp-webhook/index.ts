@@ -28,6 +28,7 @@ Deno.serve(async (req: Request) => {
     } catch (e) {}
 
     let sessionId = body.sessionId || body.instance || body.instanceId || 'unknown'
+    let eventType = body.event || body.messageType || 'unknown'
 
     let phone = body.from || body.number || body.remoteJid || body.sender || ''
     if (!phone && body.data) {
@@ -38,27 +39,31 @@ Deno.serve(async (req: Request) => {
     if (typeof phone === 'string') phone = phone.split('@')[0]
     phone = String(phone).replace(/\D/g, '')
 
-    if (!phone) {
-      return new Response(JSON.stringify({ success: true, warning: 'Missing phone' }), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
+    const isSystemEvent =
+      eventType.startsWith('connection') || eventType.startsWith('qrcode') || !phone
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
 
-    // Log to whatsapp_events
+    // ALWAYS log to whatsapp_events safely
     await supabaseAdmin
       .from('whatsapp_events')
       .insert({
         instance: sessionId,
-        remote_jid: phone,
-        message_type: body.data?.messageType || body.messageType || body.event || 'unknown',
+        remote_jid: phone || 'system',
+        message_type: eventType,
         message: body,
       })
       .catch((err) => console.warn('Failed to insert whatsapp_event:', err))
+
+    // If it's a system event (like connection.update), skip contacts logic
+    if (isSystemEvent) {
+      return new Response(JSON.stringify({ success: true, handled: 'system_event' }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
 
     // Manage session_state
     const { data: session } = await supabaseAdmin
@@ -90,11 +95,7 @@ Deno.serve(async (req: Request) => {
     if (!text && body.data?.message?.extendedTextMessage?.text)
       text = body.data.message.extendedTextMessage.text
 
-    if (
-      body.event === 'messages.upsert' ||
-      body.event === 'messages.update' ||
-      body.data?.message
-    ) {
+    if (eventType === 'messages.upsert' || eventType === 'messages.update' || body.data?.message) {
       let isFromMe = body.data?.key?.fromMe || body.data?.message?.key?.fromMe || false
 
       let userId = null
@@ -123,22 +124,26 @@ Deno.serve(async (req: Request) => {
         let contactId = contact?.id
 
         if (!contactId) {
+          // Use maybeSingle to prevent crashing if insert fails
           const { data: newContact } = await supabaseAdmin
             .from('contacts')
             .insert({ user_id: userId, phone: phone, name: `Contato (${phone})` })
             .select('id')
-            .single()
+            .maybeSingle()
           if (newContact) contactId = newContact.id
         }
 
         if (contactId) {
-          await supabaseAdmin.from('messages').insert({
-            user_id: userId,
-            contact_id: contactId,
-            content: text,
-            direction: isFromMe ? 'outbound' : 'inbound',
-            status: 'delivered',
-          })
+          await supabaseAdmin
+            .from('messages')
+            .insert({
+              user_id: userId,
+              contact_id: contactId,
+              content: text,
+              direction: isFromMe ? 'outbound' : 'inbound',
+              status: 'delivered',
+            })
+            .catch(() => {})
 
           await supabaseAdmin
             .from('interaction_log')
@@ -158,9 +163,18 @@ Deno.serve(async (req: Request) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+    console.error('Webhook Error:', error.message)
+    // CRITICAL: Always return 200 to Evolution API so it doesn't enter a retry loop
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: error.message,
+        note: 'Error caught but returning 200 to prevent retries',
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      },
+    )
   }
 })
