@@ -13,24 +13,25 @@ Deno.serve(async (req: Request) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
+  // Rota de Health Check para a Evolution API validar o webhook
   if (req.method === 'GET') {
-    return new Response(JSON.stringify({ success: true, status: 'online' }), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+    return new Response(
+      JSON.stringify({ success: true, status: 'online', mode: 'work-exchange' }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      },
+    )
   }
 
   try {
-    // Apenas POST é permitido a partir daqui
     if (req.method !== 'POST') {
       return new Response('Method Not Allowed', { status: 405, headers: corsHeaders })
     }
 
-    // Ler body UMA única vez
     const data = await req.json().catch(() => ({}))
 
-    // Log rápido (evita circular references)
-    console.log('📥 Webhook recebido da Evolution API:', {
+    console.log('📥 Work Exchange Event Recebido:', {
       event: data?.event || data?.messageType,
       instance: data?.instance || data?.sessionId || data?.instanceId,
       sender: data?.sender || data?.from || data?.remoteJid || data?.data?.key?.remoteJid,
@@ -54,31 +55,25 @@ Deno.serve(async (req: Request) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
 
-    // Exemplo: salvar no Supabase via fetch (conforme sugerido)
-    try {
-      const insert = await fetch(`${supabaseUrl}/rest/v1/whatsapp_events`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          apikey: supabaseServiceKey,
-          Authorization: `Bearer ${supabaseServiceKey}`,
-        },
-        body: JSON.stringify({
-          instance: sessionId,
-          message_type: eventType,
-          remote_jid: phone || 'system',
-          message: data || {},
-        }),
-      })
+    // Usamos o Service Role Key para garantir gravação independente de sessão do usuário
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: { persistSession: false },
+    })
 
-      if (!insert.ok) {
-        console.error('Erro ao inserir whatsapp_event no banco:', await insert.text())
-      }
+    // 1. Salvar o evento bruto no Supabase para histórico e debug (Work Exchange Sync)
+    try {
+      const { error: insertErr } = await supabaseAdmin.from('whatsapp_events').insert({
+        instance: sessionId,
+        message_type: eventType,
+        remote_jid: phone || 'system',
+        message: data || {},
+      })
+      if (insertErr) console.error('Erro ao inserir whatsapp_event:', insertErr)
     } catch (dbErr) {
       console.error('Erro DB (whatsapp_events):', dbErr)
     }
 
-    // Se for evento do sistema, não roda lógica de contatos
+    // Se for evento de sistema (qrcode, connection, etc), podemos encerrar aqui
     if (isSystemEvent) {
       return new Response(
         JSON.stringify({
@@ -90,11 +85,7 @@ Deno.serve(async (req: Request) => {
       )
     }
 
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: { persistSession: false },
-    })
-
-    // Manage session_state
+    // 2. Gerenciamento de Sessão de Contato (Work Exchange State)
     try {
       const { data: session } = await supabaseAdmin
         .from('session_state')
@@ -119,13 +110,39 @@ Deno.serve(async (req: Request) => {
       console.error('Erro ao gerenciar session_state:', e)
     }
 
+    // 3. Atualização de Status de Mensagem (Delivery, Read) - Atualização do Work Exchange
+    if (eventType === 'messages.update') {
+      let messageId = data?.data?.[0]?.key?.id || data?.data?.key?.id || null
+      let newStatus = data?.data?.[0]?.update?.status || data?.data?.update?.status
+
+      if (messageId && newStatus) {
+        let mappedStatus = 'sent'
+        if (newStatus === 'SERVER_ACK' || newStatus === 'PENDING') mappedStatus = 'sent'
+        if (newStatus === 'DELIVERY_ACK') mappedStatus = 'delivered'
+        if (newStatus === 'READ') mappedStatus = 'read'
+        if (newStatus === 'PLAYED') mappedStatus = 'played'
+        if (newStatus === 'ERROR') mappedStatus = 'failed'
+
+        try {
+          await supabaseAdmin
+            .from('messages')
+            .update({ status: mappedStatus })
+            .eq('client_id', messageId)
+        } catch (e) {
+          console.error('Erro ao atualizar status da mensagem:', e)
+        }
+      }
+    }
+
+    // 4. Recebimento de Nova Mensagem ou Disparo Enviado
     let text = data?.body || data?.text || data?.content || ''
     if (!text && data?.data?.message?.conversation) text = data.data.message.conversation
     if (!text && data?.data?.message?.extendedTextMessage?.text)
       text = data.data.message.extendedTextMessage.text
 
-    if (eventType === 'messages.upsert' || eventType === 'messages.update' || data?.data?.message) {
+    if ((eventType === 'messages.upsert' || data?.data?.message) && text) {
       let isFromMe = data?.data?.key?.fromMe || data?.data?.message?.key?.fromMe || false
+      let messageId = data?.data?.key?.id || data?.data?.message?.key?.id || null
 
       try {
         let userId = null
@@ -134,6 +151,7 @@ Deno.serve(async (req: Request) => {
           .select('user_id')
           .eq('whatsapp_instance_id', sessionId)
           .maybeSingle()
+
         if (integration) userId = integration.user_id
         else {
           const { data: mainProfile } = await supabaseAdmin
@@ -144,7 +162,7 @@ Deno.serve(async (req: Request) => {
           if (mainProfile) userId = mainProfile.id
         }
 
-        if (userId && text) {
+        if (userId && phone) {
           let { data: contact } = await supabaseAdmin
             .from('contacts')
             .select('id')
@@ -163,20 +181,34 @@ Deno.serve(async (req: Request) => {
           }
 
           if (contactId) {
-            await supabaseAdmin.from('messages').insert({
-              user_id: userId,
-              contact_id: contactId,
-              content: text,
-              direction: isFromMe ? 'outbound' : 'inbound',
-              status: 'delivered',
-            })
+            // Verifica se a mensagem já existe para não duplicar no upsert
+            let msgExists = false
+            if (messageId) {
+              const { data: existingMsg } = await supabaseAdmin
+                .from('messages')
+                .select('id')
+                .eq('client_id', messageId)
+                .maybeSingle()
+              if (existingMsg) msgExists = true
+            }
 
-            await supabaseAdmin.from('interaction_log').insert({
-              user_id: userId,
-              contact_id: contactId,
-              type: 'whatsapp_receive',
-              details: { text: text.substring(0, 50), isFromMe },
-            })
+            if (!msgExists) {
+              await supabaseAdmin.from('messages').insert({
+                user_id: userId,
+                contact_id: contactId,
+                content: text,
+                direction: isFromMe ? 'outbound' : 'inbound',
+                status: isFromMe ? 'sent' : 'delivered',
+                client_id: messageId,
+              })
+
+              await supabaseAdmin.from('interaction_log').insert({
+                user_id: userId,
+                contact_id: contactId,
+                type: 'whatsapp_receive',
+                details: { text: text.substring(0, 50), isFromMe, messageId, eventType },
+              })
+            }
           }
         }
       } catch (e) {
@@ -184,14 +216,13 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // ❗ RETORNO OBRIGATÓRIO — sem isso → erro 500
+    // ❗ RETORNO OBRIGATÓRIO — sem isso a Evolution API entra em Retry (Loop Infinito)
     return new Response(JSON.stringify({ status: 'ok', receivedAt: new Date().toISOString() }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (err: any) {
     console.error('❌ ERRO GERAL NA EDGE FUNCTION:', err)
-
     // Mesmo com erro, RETORNAR 200 evita retry infinito da Evolution
     return new Response(JSON.stringify({ status: 'error', message: String(err) }), {
       status: 200,
