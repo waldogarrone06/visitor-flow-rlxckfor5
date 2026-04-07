@@ -872,7 +872,13 @@ export const Constants = {
 //
 
 // --- INDEXES ---
+// Table: contacts
+//   CREATE INDEX idx_contacts_phone ON public.contacts USING btree (phone)
 // Table: messages
+//   CREATE INDEX idx_messages_client_id ON public.messages USING btree (client_id)
 //   CREATE INDEX messages_client_id_idx ON public.messages USING btree (client_id)
 // Table: user_integrations
 //   CREATE UNIQUE INDEX user_integrations_user_id_key ON public.user_integrations USING btree (user_id)
+// Table: whatsapp_events
+//   CREATE INDEX idx_whatsapp_events_instance ON public.whatsapp_events USING btree (instance)
+//   CREATE INDEX idx_whatsapp_events_message_type ON public.whatsapp_events USING btree (message_type)

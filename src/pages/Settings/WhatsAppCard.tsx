@@ -118,12 +118,14 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
     setLoading(true)
     try {
       const cleanUrl = apiUrl.trim().replace(/\/$/, '')
+      const cleanToken = apiToken.trim()
+      const cleanInstance = instanceName.trim()
 
       await saveIntegrations(
         {
           whatsapp_api_url: cleanUrl,
-          whatsapp_instance_id: instanceName,
-          whatsapp_api_token: apiToken,
+          whatsapp_instance_id: cleanInstance,
+          whatsapp_api_token: cleanToken,
           whatsapp_connected: true,
         },
         targetUserId,
@@ -177,6 +179,8 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
     setTesting(true)
     try {
       const cleanUrl = apiUrl.trim().replace(/\/$/, '')
+      const cleanToken = apiToken.trim()
+      const cleanInstance = instanceName.trim()
 
       const { data, error } = await supabase.functions.invoke('whatsapp-send', {
         body: {
@@ -185,8 +189,8 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
           userId: targetUserId,
           testCredentials: {
             apiUrl: cleanUrl,
-            instanceId: instanceName,
-            apiToken: apiToken,
+            instanceId: cleanInstance,
+            apiToken: cleanToken,
           },
         },
       })

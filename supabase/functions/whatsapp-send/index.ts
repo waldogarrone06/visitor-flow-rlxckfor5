@@ -78,6 +78,9 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    apiKey = apiKey.trim()
+    sessionId = sessionId.trim()
+
     let baseUrl = (apiUrl || 'http://129.121.44.86:8080').trim().replace(/\/+$/, '')
 
     // Fallbacks to user provided defaults if missing
@@ -101,7 +104,7 @@ Deno.serve(async (req: Request) => {
     const fetchHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
       apikey: apiKey,
-      instancekey: '9FD535FE666E-452B-817B-D45B16FB50AC',
+      Authorization: `Bearer ${apiKey}`,
     }
 
     const endpoint = `${baseUrl}/message/sendText/${encodeURIComponent(sessionId)}`
@@ -131,6 +134,11 @@ Deno.serve(async (req: Request) => {
     const responseText = await r.text().catch(() => '')
 
     if (!r.ok) {
+      if (r.status === 401) {
+        throw new Error(
+          `Não Autorizado (401). Verifique se a Global API Key / Token está correta e se a Evolution API aceita o formato. Resposta da VPS: ${responseText || r.statusText}`,
+        )
+      }
       throw new Error(`Erro na VPS (${r.status}): ${responseText || r.statusText}`)
     }
 
