@@ -21,27 +21,28 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const rawBodyText = await req.text().catch(() => '')
-    let body: any = {}
-    try {
-      body = JSON.parse(rawBodyText || '{}')
-    } catch (e) {}
+    // Apenas POST é permitido a partir daqui
+    if (req.method !== 'POST') {
+      return new Response('Method Not Allowed', { status: 405, headers: corsHeaders })
+    }
 
-    // Sanitizar log para evitar circular refs (como sugerido)
-    const safeLog = JSON.stringify(body, (_, value) =>
-      typeof value === 'object' && value !== null ? value : value,
-    )
+    // Ler body UMA única vez
+    const data = await req.json().catch(() => ({}))
 
-    console.log('📥 Webhook recebido da Evolution API:')
-    console.log(safeLog)
+    // Log rápido (evita circular references)
+    console.log('📥 Webhook recebido da Evolution API:', {
+      event: data?.event || data?.messageType,
+      instance: data?.instance || data?.sessionId || data?.instanceId,
+      sender: data?.sender || data?.from || data?.remoteJid || data?.data?.key?.remoteJid,
+    })
 
-    let sessionId = body.sessionId || body.instance || body.instanceId || 'unknown'
-    let eventType = body.event || body.messageType || 'unknown'
+    let sessionId = data?.instance || data?.sessionId || data?.instanceId || 'unknown'
+    let eventType = data?.event || data?.messageType || 'unknown'
 
-    let phone = body.from || body.number || body.remoteJid || body.sender || ''
-    if (!phone && body.data) {
+    let phone = data?.sender || data?.from || data?.number || data?.remoteJid || ''
+    if (!phone && data?.data) {
       phone =
-        body.data.key?.remoteJid || body.data.remoteJid || body.data.from || body.data.sender || ''
+        data.data.key?.remoteJid || data.data.remoteJid || data.data.from || data.data.sender || ''
     }
 
     if (typeof phone === 'string') phone = phone.split('@')[0]
@@ -52,137 +53,149 @@ Deno.serve(async (req: Request) => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
+
+    // Exemplo: salvar no Supabase via fetch (conforme sugerido)
+    try {
+      const insert = await fetch(`${supabaseUrl}/rest/v1/whatsapp_events`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: supabaseServiceKey,
+          Authorization: `Bearer ${supabaseServiceKey}`,
+        },
+        body: JSON.stringify({
+          instance: sessionId,
+          message_type: eventType,
+          remote_jid: phone || 'system',
+          message: data || {},
+        }),
+      })
+
+      if (!insert.ok) {
+        console.error('Erro ao inserir whatsapp_event no banco:', await insert.text())
+      }
+    } catch (dbErr) {
+      console.error('Erro DB (whatsapp_events):', dbErr)
+    }
+
+    // Se for evento do sistema, não roda lógica de contatos
+    if (isSystemEvent) {
+      return new Response(
+        JSON.stringify({
+          status: 'ok',
+          handled: 'system_event',
+          receivedAt: new Date().toISOString(),
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
+
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
       auth: { persistSession: false },
     })
 
-    // ALWAYS log to whatsapp_events safely
-    if (sessionId && eventType) {
-      const { error: insertErr } = await supabaseAdmin.from('whatsapp_events').insert({
-        instance: sessionId,
-        remote_jid: phone || 'system',
-        message_type: eventType,
-        message: body || {},
-      })
-      if (insertErr) console.error('Failed to insert whatsapp_event:', insertErr)
-    }
-
-    // If it's a system event (like connection.update), skip contacts logic
-    if (isSystemEvent) {
-      return new Response(JSON.stringify({ success: true, handled: 'system_event' }), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
-
     // Manage session_state
-    const { data: session } = await supabaseAdmin
-      .from('session_state')
-      .select('current_step')
-      .eq('phone', phone)
-      .maybeSingle()
-    if (!session) {
-      await supabaseAdmin
+    try {
+      const { data: session } = await supabaseAdmin
         .from('session_state')
-        .insert({
+        .select('current_step')
+        .eq('phone', phone)
+        .maybeSingle()
+      if (!session) {
+        await supabaseAdmin.from('session_state').insert({
           phone: phone,
           current_step: 'start',
           context: { first_interaction: new Date().toISOString() },
         })
-        .catch(() => {})
-    } else {
-      await supabaseAdmin
-        .from('session_state')
-        .update({
-          last_interaction: new Date().toISOString(),
-        })
-        .eq('phone', phone)
-        .catch(() => {})
+      } else {
+        await supabaseAdmin
+          .from('session_state')
+          .update({
+            last_interaction: new Date().toISOString(),
+          })
+          .eq('phone', phone)
+      }
+    } catch (e) {
+      console.error('Erro ao gerenciar session_state:', e)
     }
 
-    let text = body.body || body.text || body.content || ''
-    if (!text && body.data?.message?.conversation) text = body.data.message.conversation
-    if (!text && body.data?.message?.extendedTextMessage?.text)
-      text = body.data.message.extendedTextMessage.text
+    let text = data?.body || data?.text || data?.content || ''
+    if (!text && data?.data?.message?.conversation) text = data.data.message.conversation
+    if (!text && data?.data?.message?.extendedTextMessage?.text)
+      text = data.data.message.extendedTextMessage.text
 
-    if (eventType === 'messages.upsert' || eventType === 'messages.update' || body.data?.message) {
-      let isFromMe = body.data?.key?.fromMe || body.data?.message?.key?.fromMe || false
+    if (eventType === 'messages.upsert' || eventType === 'messages.update' || data?.data?.message) {
+      let isFromMe = data?.data?.key?.fromMe || data?.data?.message?.key?.fromMe || false
 
-      let userId = null
-      const { data: integration } = await supabaseAdmin
-        .from('user_integrations')
-        .select('user_id')
-        .eq('whatsapp_instance_id', sessionId)
-        .maybeSingle()
-      if (integration) userId = integration.user_id
-      else {
-        const { data: mainProfile } = await supabaseAdmin
-          .from('profiles')
-          .select('id')
-          .limit(1)
+      try {
+        let userId = null
+        const { data: integration } = await supabaseAdmin
+          .from('user_integrations')
+          .select('user_id')
+          .eq('whatsapp_instance_id', sessionId)
           .maybeSingle()
-        if (mainProfile) userId = mainProfile.id
-      }
-
-      if (userId && text) {
-        let { data: contact } = await supabaseAdmin
-          .from('contacts')
-          .select('id')
-          .eq('user_id', userId)
-          .eq('phone', phone)
-          .maybeSingle()
-        let contactId = contact?.id
-
-        if (!contactId) {
-          // Use maybeSingle to prevent crashing if insert fails
-          const { data: newContact } = await supabaseAdmin
-            .from('contacts')
-            .insert({ user_id: userId, phone: phone, name: `Contato (${phone})` })
+        if (integration) userId = integration.user_id
+        else {
+          const { data: mainProfile } = await supabaseAdmin
+            .from('profiles')
             .select('id')
+            .limit(1)
             .maybeSingle()
-          if (newContact) contactId = newContact.id
+          if (mainProfile) userId = mainProfile.id
         }
 
-        if (contactId) {
-          await supabaseAdmin
-            .from('messages')
-            .insert({
+        if (userId && text) {
+          let { data: contact } = await supabaseAdmin
+            .from('contacts')
+            .select('id')
+            .eq('user_id', userId)
+            .eq('phone', phone)
+            .maybeSingle()
+          let contactId = contact?.id
+
+          if (!contactId) {
+            const { data: newContact } = await supabaseAdmin
+              .from('contacts')
+              .insert({ user_id: userId, phone: phone, name: `Contato (${phone})` })
+              .select('id')
+              .maybeSingle()
+            if (newContact) contactId = newContact.id
+          }
+
+          if (contactId) {
+            await supabaseAdmin.from('messages').insert({
               user_id: userId,
               contact_id: contactId,
               content: text,
               direction: isFromMe ? 'outbound' : 'inbound',
               status: 'delivered',
             })
-            .catch(() => {})
 
-          await supabaseAdmin
-            .from('interaction_log')
-            .insert({
+            await supabaseAdmin.from('interaction_log').insert({
               user_id: userId,
               contact_id: contactId,
               type: 'whatsapp_receive',
               details: { text: text.substring(0, 50), isFromMe },
             })
-            .catch(() => {})
+          }
         }
+      } catch (e) {
+        console.error('Erro na lógica de contatos/mensagens:', e)
       }
     }
 
-    return new Response(JSON.stringify({ success: true }), {
+    // ❗ RETORNO OBRIGATÓRIO — sem isso → erro 500
+    return new Response(JSON.stringify({ status: 'ok', receivedAt: new Date().toISOString() }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
-  } catch (error: any) {
-    console.error('❌ ERRO NA EDGE FUNCTION:', error.message)
+  } catch (err: any) {
+    console.error('❌ ERRO GERAL NA EDGE FUNCTION:', err)
 
-    // CRITICAL: Always return 200 to Evolution API so it doesn't enter a retry loop
-    return new Response(
-      JSON.stringify({
-        error: true,
-        message: error?.message,
-        note: 'Error caught but returning 200 to prevent retries',
-      }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    )
+    // Mesmo com erro, RETORNAR 200 evita retry infinito da Evolution
+    return new Response(JSON.stringify({ status: 'error', message: String(err) }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
   }
 })
