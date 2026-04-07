@@ -22,6 +22,9 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
   const [apiToken, setApiToken] = useState('')
   const [testNumber, setTestNumber] = useState('')
   const [connected, setConnected] = useState(false)
+  const [connectionState, setConnectionState] = useState<
+    'connected' | 'connecting' | 'disconnected' | 'unknown'
+  >('unknown')
   const [loading, setLoading] = useState(true)
   const [testing, setTesting] = useState(false)
 
@@ -34,10 +37,72 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
         setInstanceName(data.whatsapp_instance_id || '')
         setApiToken(data.whatsapp_api_token || '')
         setConnected(data.whatsapp_connected || false)
+        setConnectionState(data.whatsapp_connected ? 'connected' : 'disconnected')
       }
       setLoading(false)
     })
   }, [targetUserId])
+
+  useEffect(() => {
+    if (!instanceName) return
+
+    const fetchLatestStatus = async () => {
+      const { data } = await supabase
+        .from('whatsapp_events')
+        .select('message')
+        .eq('instance', instanceName)
+        .eq('message_type', 'connection.update')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (data && data.message) {
+        const payload = data.message as any
+        const state = payload?.data?.state || payload?.state
+        if (state === 'connecting') setConnectionState('connecting')
+        else if (state === 'open') {
+          setConnectionState('connected')
+          setConnected(true)
+        } else if (state === 'close') {
+          setConnectionState('disconnected')
+          setConnected(false)
+        }
+      }
+    }
+
+    fetchLatestStatus()
+
+    const channel = supabase
+      .channel('whatsapp_status_events')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'whatsapp_events',
+          filter: `instance=eq.${instanceName}`,
+        },
+        (payload) => {
+          const newEvent = payload.new as any
+          if (newEvent.message_type === 'connection.update') {
+            const state = newEvent.message?.data?.state || newEvent.message?.state
+            if (state === 'connecting') setConnectionState('connecting')
+            else if (state === 'open') {
+              setConnectionState('connected')
+              setConnected(true)
+            } else if (state === 'close') {
+              setConnectionState('disconnected')
+              setConnected(false)
+            }
+          }
+        },
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [instanceName])
 
   const handleSave = async () => {
     if (!apiUrl || !instanceName || !apiToken) {
@@ -94,6 +159,7 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
     setInstanceName('')
     setApiToken('')
     setConnected(false)
+    setConnectionState('disconnected')
     toast({ title: 'WhatsApp Desconectado' })
   }
 
@@ -158,10 +224,26 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
             <MessageCircle className="h-6 w-6" />
           </div>
           <Badge
-            variant={connected ? 'default' : 'secondary'}
-            className={connected ? 'bg-green-600 hover:bg-green-700' : ''}
+            variant={
+              connectionState === 'connected'
+                ? 'default'
+                : connectionState === 'connecting'
+                  ? 'secondary'
+                  : 'destructive'
+            }
+            className={
+              connectionState === 'connected'
+                ? 'bg-green-600 hover:bg-green-700'
+                : connectionState === 'connecting'
+                  ? 'bg-yellow-500 hover:bg-yellow-600 text-white'
+                  : ''
+            }
           >
-            {connected ? 'Ativo' : 'Inativo'}
+            {connectionState === 'connected'
+              ? 'Conectado'
+              : connectionState === 'connecting'
+                ? 'Conectando...'
+                : 'Desconectado'}
           </Badge>
         </div>
         <CardTitle>WhatsApp (Evolution API)</CardTitle>

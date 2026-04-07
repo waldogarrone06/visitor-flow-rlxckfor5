@@ -47,15 +47,15 @@ Deno.serve(async (req: Request) => {
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
 
     // ALWAYS log to whatsapp_events safely
-    await supabaseAdmin
-      .from('whatsapp_events')
-      .insert({
+    if (sessionId && eventType) {
+      const { error: insertErr } = await supabaseAdmin.from('whatsapp_events').insert({
         instance: sessionId,
         remote_jid: phone || 'system',
         message_type: eventType,
-        message: body,
+        message: body || {},
       })
-      .catch((err) => console.warn('Failed to insert whatsapp_event:', err))
+      if (insertErr) console.error('Failed to insert whatsapp_event:', insertErr)
+    }
 
     // If it's a system event (like connection.update), skip contacts logic
     if (isSystemEvent) {
