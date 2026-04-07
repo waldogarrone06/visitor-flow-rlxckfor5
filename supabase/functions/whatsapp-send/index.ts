@@ -92,7 +92,8 @@ Deno.serve(async (req: Request) => {
     // Evolution API exact expected payload format as requested by user
     const payload = {
       number: number,
-      message: text,
+      text: text, // Padrão Evolution API
+      message: text, // Mantido para retrocompatibilidade
     }
 
     // STRICT HEADERS FOR EVOLUTION API
@@ -103,7 +104,7 @@ Deno.serve(async (req: Request) => {
       instancekey: '9FD535FE666E-452B-817B-D45B16FB50AC',
     }
 
-    const endpoint = `${baseUrl}/message/send/${encodeURIComponent(sessionId)}`
+    const endpoint = `${baseUrl}/message/sendText/${encodeURIComponent(sessionId)}`
 
     console.log(`[send_whatsapp] POST ${endpoint} for instance ${sessionId}`)
 
