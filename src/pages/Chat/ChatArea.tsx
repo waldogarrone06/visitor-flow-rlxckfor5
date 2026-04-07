@@ -201,11 +201,11 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
         await sendWhatsAppMessage(lead.phone, messageText)
 
         if (contactId) {
-          await supabase.from('messages').update({ status: 'delivered' }).eq('id', newMessageId)
+          await supabase.from('messages').update({ status: 'sent' }).eq('id', newMessageId)
         }
 
         setDbMessages((prev) =>
-          prev.map((m) => (m.id === newMessageId ? { ...m, status: 'delivered' } : m)),
+          prev.map((m) => (m.id === newMessageId ? { ...m, status: 'sent' } : m)),
         )
       } else {
         throw new Error('Este contato não possui um número de telefone configurado para envio.')

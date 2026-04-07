@@ -122,7 +122,12 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
         })
         if (response.ok) {
           const data = await response.json()
-          if (data?.instance?.state === 'open' || data?.state === 'open') {
+          if (
+            data?.instance?.state === 'open' ||
+            data?.state === 'open' ||
+            data?.instance?.state === 'connecting' ||
+            data?.state === 'connecting'
+          ) {
             instanceReady = true
           }
         }

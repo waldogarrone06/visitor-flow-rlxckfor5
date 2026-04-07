@@ -58,6 +58,9 @@ Deno.serve(async (req: Request) => {
       if (!phone && body.data.message?.key?.remoteJid) {
         phone = body.data.message.key.remoteJid
       }
+      if (!phone && body.data.message?.remoteJid) {
+        phone = body.data.message.remoteJid
+      }
     }
     if (!phone && body.message) {
       phone = body.message.from || body.message.key?.remoteJid || ''
@@ -93,6 +96,7 @@ Deno.serve(async (req: Request) => {
     const extractDeep = (msg: any): string => {
       if (!msg) return ''
       if (typeof msg === 'string') return msg
+      if (msg.message) return extractDeep(msg.message)
       if (msg.text) return typeof msg.text === 'string' ? msg.text : extractDeep(msg.text)
       if (msg.body) return typeof msg.body === 'string' ? msg.body : extractDeep(msg.body)
       if (msg.conversation) return msg.conversation
@@ -118,6 +122,8 @@ Deno.serve(async (req: Request) => {
       body.type === 'echo' ||
       body.event === 'connection.update' ||
       body.event === 'presence.update' ||
+      body.event === 'contacts.update' ||
+      body.event === 'messages.update' ||
       body.echo === true ||
       text.trim().toLowerCase() === '/echo'
     ) {
@@ -134,7 +140,7 @@ Deno.serve(async (req: Request) => {
       )
     }
 
-    const isFromMe =
+    let isFromMe =
       body.fromMe === true ||
       body.id?.fromMe === true ||
       body.message?.fromMe === true ||
@@ -143,6 +149,14 @@ Deno.serve(async (req: Request) => {
       body.data?.message?.key?.fromMe === true ||
       body.direction === 'outbound' ||
       false
+
+    if (body.data?.key?.fromMe !== undefined) {
+      isFromMe = body.data.key.fromMe
+    } else if (body.data?.message?.key?.fromMe !== undefined) {
+      isFromMe = body.data.message.key.fromMe
+    } else if (body.data?.fromMe !== undefined) {
+      isFromMe = body.data.fromMe
+    }
 
     console.log('=== [WEBHOOK] PARSED DATA ===')
     console.log(`- SessionId: ${sessionId}`)
@@ -231,7 +245,11 @@ Deno.serve(async (req: Request) => {
       status: 'delivered',
     }
 
-    const msgTimestamp = body.timestamp || body.message?.timestamp || body.data?.messageTimestamp
+    const msgTimestamp =
+      body.timestamp ||
+      body.message?.timestamp ||
+      body.data?.messageTimestamp ||
+      body.data?.message?.messageTimestamp
     if (msgTimestamp) {
       try {
         let parsedDate: Date

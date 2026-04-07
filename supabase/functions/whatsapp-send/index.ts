@@ -112,10 +112,17 @@ Deno.serve(async (req: Request) => {
       number = '55' + number
     }
 
-    // Payload limpo e altamente compatível com Evolution API v1 e v2
+    // Payload limpo e altamente compatível com Evolution API v1 e v2.2.3
     const payload = {
       number: number,
-      text: text,
+      text: text, // Suporte legado (v1)
+      textMessage: {
+        text: text, // Suporte v2.2.3
+      },
+      options: {
+        delay: 1000,
+        presence: 'composing',
+      },
     }
 
     const headers: Record<string, string> = {
