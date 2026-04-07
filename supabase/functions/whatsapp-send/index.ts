@@ -33,6 +33,7 @@ Deno.serve(async (req: Request) => {
     const authHeader = req.headers.get('Authorization')
     let userId = body.userId
 
+    // Resolve userId if coming via frontend authorization bearer
     if (authHeader && !userId) {
       const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
         global: { headers: { Authorization: authHeader } },
@@ -54,7 +55,7 @@ Deno.serve(async (req: Request) => {
     let apiUrl = ''
     let integrationFound = false
 
-    // 0. Use test credentials if provided
+    // 0. Use test credentials se ativado (tela de Settings)
     if (body.testCredentials && body.testCredentials.apiUrl && body.testCredentials.instanceId) {
       apiUrl = body.testCredentials.apiUrl
       sessionId = body.testCredentials.instanceId
@@ -62,7 +63,7 @@ Deno.serve(async (req: Request) => {
       integrationFound = true
       console.log(`Usando credenciais de teste fornecidas para instância ${sessionId}`)
     }
-    // 1. Tenta buscar a integração do usuário logado ou passado no body
+    // 1. Tenta buscar a integração do usuário logado
     else if (userId) {
       const { data: integration } = await supabaseAdmin
         .from('user_integrations')
@@ -75,13 +76,13 @@ Deno.serve(async (req: Request) => {
         apiKey = integration.whatsapp_api_token || ''
         apiUrl = integration.whatsapp_api_url
         integrationFound = true
-        console.log(`Integração encontrada para o usuário ${userId}`)
+        console.log(`Integração encontrada para o usuário ${userId} (Instância: ${sessionId})`)
       }
     }
 
-    // 2. Se não achou (ex: admin logado testando), busca fallback global
+    // 2. Fallback global: se o usuário atual não tem config, busca a primeira globalmente (ex: Waldo/Wal Werner)
     if (!integrationFound) {
-      console.log('Integração direta não encontrada, buscando fallback global...')
+      console.log('Integração direta não encontrada, buscando fallback global na base...')
       const { data: fallbackIntegration } = await supabaseAdmin
         .from('user_integrations')
         .select('whatsapp_instance_id, whatsapp_api_token, whatsapp_api_url')
@@ -101,95 +102,87 @@ Deno.serve(async (req: Request) => {
 
     if (!apiUrl) {
       throw new Error(
-        'Nenhuma URL de API (Evolution API) configurada. Vá em Configurações e configure o WhatsApp.',
+        'Nenhuma URL de API (Evolution API) configurada. Vá em Configurações e conecte o WhatsApp.',
       )
     }
 
+    // Normaliza número DDI/DDD
     let number = to.replace(/\D/g, '')
-
     if (number.length === 10 || number.length === 11) {
       number = '55' + number
     }
 
-    console.log(`Enviando para VPS - API: ${apiUrl}, Instância: ${sessionId}, Numero: ${number}`)
-
-    // Payload Evolution API standard (simplificado para maximizar compatibilidade)
+    // Payload limpo e altamente compatível com Evolution API v1 e v2
     const payload = {
       number: number,
       text: text,
-      textMessage: { text: text },
-      options: {
-        delay: 0,
-        presence: 'composing',
-        linkPreview: false,
-      },
     }
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     }
 
-    // Suporte universal Evolution API
+    // Suporte universal a tokens
     if (apiKey) {
-      headers['Authorization'] = `Bearer ${apiKey}`
       headers['apikey'] = apiKey
+      headers['Authorization'] = `Bearer ${apiKey}` // Maior resiliência contra proxies em VPS
     }
 
-    const baseUrl = apiUrl.replace(/\/$/, '')
-    let r: Response | undefined
-    let lastError = ''
-    let usedEndpoint = ''
+    // Limpa barras finais acidentais
+    const baseUrl = apiUrl.replace(/\/+$/, '')
+    const endpoint = `${baseUrl}/message/sendText/${encodeURIComponent(sessionId)}`
 
-    const endpoints = [`${baseUrl}/message/sendText/${encodeURIComponent(sessionId)}`]
+    console.log(`Disparando requisição para VPS: POST ${endpoint}`)
+    console.log(`Payload: ${JSON.stringify(payload)}`)
 
-    for (const endpoint of endpoints) {
-      try {
-        console.log(`Tentando POST ${endpoint}... Payload:`, JSON.stringify(payload))
-        r = await fetch(endpoint, {
-          method: 'POST',
-          headers: headers,
-          body: JSON.stringify(payload),
-        })
+    // Implementação de Timeout de 15 segundos para evitar bloqueios longos
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 15000)
 
-        usedEndpoint = endpoint
-
-        // Se funcionou ou se falhou por auth/not found/bad request (que não são erros de rede), paramos
-        if (r.ok || r.status === 401 || r.status === 403 || r.status === 404 || r.status === 400) {
-          break
-        }
-      } catch (e: any) {
-        lastError = e.message
-        console.log(`Falha fetch ${endpoint}: ${lastError}`)
+    let r: Response
+    try {
+      r = await fetch(endpoint, {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      })
+    } catch (e: any) {
+      if (e.name === 'AbortError') {
+        throw new Error(
+          `Timeout de Conexão: A sua VPS (${baseUrl}) demorou mais de 15s para responder.`,
+        )
       }
-    }
-
-    if (!r) {
       throw new Error(
-        `Falha de rede ao conectar com a VPS (${baseUrl}). Verifique CORS e conectividade. Erro: ${lastError}`,
+        `Falha de rede ao conectar com a VPS (${baseUrl}). Verifique CORS e Firewall. Erro: ${e.message}`,
       )
+    } finally {
+      clearTimeout(timeoutId)
     }
 
     const responseText = await r.text().catch(() => '')
-    console.log(`VPS Response status: ${r.status} (${usedEndpoint}) - Text: ${responseText}`)
+    console.log(`VPS Response Status: ${r.status} | Text: ${responseText}`)
 
     if (!r.ok) {
-      console.error(`Evolution API Error ${r.status} na rota ${usedEndpoint}: ${responseText}`)
-      if (r.status === 403 || r.status === 401) {
+      console.error(`Evolution API Error ${r.status}: ${responseText}`)
+
+      if (r.status === 401 || r.status === 403) {
         throw new Error(
-          `Erro de Autenticação (${r.status}): Verifique se o Token/API Key está correto para a instância ${sessionId}. Detalhe: ${responseText}`,
+          `Erro de Autenticação (403): O Token Global (API Key) está incorreto para a instância '${sessionId}'.`,
         )
       }
       if (r.status === 404) {
         throw new Error(
-          `Instância não encontrada (404): A instância '${sessionId}' não existe ou a URL '${baseUrl}' está incorreta. Detalhe: ${responseText}`,
+          `Instância não encontrada (404): A instância '${sessionId}' não existe na sua Evolution API ou a URL (${baseUrl}) não possui a porta correta.`,
         )
       }
       if (r.status === 400) {
         throw new Error(
-          `Erro de Validação (400): O número destino '${number}' pode ser inválido ou a API não aceitou o formato. Detalhe: ${responseText}`,
+          `Erro de Validação (400): O número '${number}' pode ser inválido ou a estrutura do payload não é suportada pela sua versão da API. Detalhe: ${responseText}`,
         )
       }
-      throw new Error(`Erro na Evolution API (${r.status}): ${responseText || r.statusText}`)
+
+      throw new Error(`Erro na VPS (${r.status}): ${responseText || r.statusText}`)
     }
 
     let parsedResult
@@ -203,7 +196,7 @@ Deno.serve(async (req: Request) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (error: any) {
-    console.error('Erro no whatsapp-send:', error.message)
+    console.error('Erro na Edge Function whatsapp-send:', error.message)
     return new Response(JSON.stringify({ error: error.message }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

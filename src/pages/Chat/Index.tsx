@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Send, User, Loader2, Image as ImageIcon, FileText, Mic } from 'lucide-react'
+import { Send, User, Loader2, Image as ImageIcon, FileText, Mic, AlertCircle } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { toast } from 'sonner'
@@ -40,7 +40,6 @@ export default function ChatPage() {
     if (!user) return
     loadContacts()
 
-    // Configura inscrição em tempo real para otimizar atualizações no DOM
     const channel = supabase
       .channel('messages_changes')
       .on(
@@ -49,18 +48,14 @@ export default function ChatPage() {
         (payload) => {
           const newMsg = payload.new as Message
 
-          // Adiciona a mensagem dinamicamente
           setMessages((prev) => {
             if (prev.some((m) => m.id === newMsg.id)) return prev
-
-            // Só exibe no painel principal se for do contato selecionado
             if (selectedContact && newMsg.contact_id !== selectedContact.id) {
               return prev
             }
             return [...prev, newMsg]
           })
 
-          // Atualiza a sidebar com a última mensagem imediatamente
           setContacts((prev) =>
             prev
               .map((c) =>
@@ -73,6 +68,14 @@ export default function ChatPage() {
                   new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime(),
               ),
           )
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'messages', filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          const updatedMsg = payload.new as Message
+          setMessages((prev) => prev.map((m) => (m.id === updatedMsg.id ? updatedMsg : m)))
         },
       )
       .subscribe()
@@ -91,7 +94,6 @@ export default function ChatPage() {
   }, [selectedContact])
 
   useEffect(() => {
-    // Auto scroll otimizado
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }
@@ -135,47 +137,79 @@ export default function ChatPage() {
     setNewMessage('')
     setSending(true)
 
-    // Optimistic Update: Adiciona mensagem instantaneamente na UI
     const tempId = `temp-${Date.now()}`
-    const optimisticMsg: Message = {
-      id: tempId,
-      content,
-      direction: 'outbound',
-      created_at: new Date().toISOString(),
-      contact_id: selectedContact.id,
-      status: 'sending',
-    }
-    setMessages((prev) => [...prev, optimisticMsg])
+
+    // 1. Optimistic UI update (aparece imediatamente na tela)
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: tempId,
+        content,
+        direction: 'outbound',
+        created_at: new Date().toISOString(),
+        contact_id: selectedContact.id,
+        status: 'sending',
+      },
+    ])
+
+    let actualMessageId = tempId
 
     try {
-      // Chamada ao Edge Function para despachar mensagem na VPS do listener
+      // 2. Persistir localmente PRIMEIRO, garantindo que o histórico nunca seja perdido
+      const { data: dbMsg, error: dbError } = await supabase
+        .from('messages')
+        .insert({
+          user_id: user.id,
+          contact_id: selectedContact.id,
+          content,
+          direction: 'outbound',
+          status: 'sending',
+        })
+        .select()
+        .single()
+
+      if (dbError) throw new Error('Erro ao salvar no banco de dados local.')
+      actualMessageId = dbMsg.id
+
+      // Atualiza a UI para o ID real retornado pelo banco
+      setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, id: actualMessageId } : m)))
+
+      // 3. Dispara a chamada assíncrona para a VPS rodando a Evolution API
       const res = await supabase.functions.invoke('whatsapp-send', {
         body: { to: selectedContact.phone, text: content },
       })
 
-      if (res.error) throw new Error(res.error.message || 'Falha na comunicação com a API')
+      if (res.error || res.data?.error) {
+        throw new Error(
+          res.error?.message || res.data?.error || 'Falha na comunicação com a API (Evolution)',
+        )
+      }
 
-      // Grava no banco e substitui a mensagem otimista via real-time (ou re-load silencioso)
-      await supabase.from('messages').insert({
-        user_id: user.id,
-        contact_id: selectedContact.id,
-        content,
-        direction: 'outbound',
-        status: 'delivered',
-      })
+      // 4. Sucesso: atualiza o status final para entregue
+      await supabase.from('messages').update({ status: 'delivered' }).eq('id', actualMessageId)
 
-      // Remove temp message as the real-time subscription will push the real one
-      setMessages((prev) => prev.filter((m) => m.id !== tempId))
-    } catch (error) {
+      setMessages((prev) =>
+        prev.map((m) => (m.id === actualMessageId ? { ...m, status: 'delivered' } : m)),
+      )
+    } catch (error: any) {
       console.error('Falha ao enviar mensagem:', error)
-      setMessages((prev) => prev.filter((m) => m.id !== tempId))
-      toast.error('Falha ao enviar mensagem. Tente novamente.')
+
+      // 5. Tratamento de Erro Visual - não deleta a mensagem, apenas marca como Erro
+      if (actualMessageId && !actualMessageId.startsWith('temp-')) {
+        await supabase.from('messages').update({ status: 'error' }).eq('id', actualMessageId)
+      }
+
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === actualMessageId || m.id === tempId ? { ...m, status: 'error' } : m,
+        ),
+      )
+      toast.error(error.message || 'Falha ao enviar mensagem. Tente novamente.')
     } finally {
       setSending(false)
     }
   }
 
-  // Renderizador Dinâmico para mídias ou formatos anômalos
   const renderMessageContent = (content: string) => {
     if (!content) return <span className="italic text-muted-foreground">[vazio]</span>
 
@@ -205,13 +239,11 @@ export default function ChatPage() {
       )
     }
 
-    // Fallback para exibir qualquer outro tipo de conteúdo sem quebrar o render
     return <span className="whitespace-pre-wrap break-words">{content}</span>
   }
 
   return (
     <div className="flex h-[calc(100vh-6rem)] border rounded-lg overflow-hidden bg-background shadow-sm">
-      {/* Sidebar */}
       <div className="w-80 border-r flex flex-col bg-muted/20">
         <div className="p-4 border-b bg-background">
           <h2 className="font-semibold text-lg flex items-center gap-2">Conversas</h2>
@@ -251,7 +283,6 @@ export default function ChatPage() {
         </ScrollArea>
       </div>
 
-      {/* Chat Area */}
       <div className="flex-1 flex flex-col bg-muted/5 relative">
         {selectedContact ? (
           <>
@@ -268,6 +299,7 @@ export default function ChatPage() {
             <div className="flex-1 overflow-y-auto p-4 space-y-4" ref={scrollRef as any}>
               {messages.map((msg) => {
                 const isOutbound = msg.direction === 'outbound'
+                const isError = msg.status === 'error'
                 return (
                   <div
                     key={msg.id}
@@ -276,7 +308,9 @@ export default function ChatPage() {
                     <div
                       className={`max-w-[75%] rounded-2xl px-4 py-2 shadow-sm ${
                         isOutbound
-                          ? 'bg-primary text-primary-foreground rounded-br-sm'
+                          ? isError
+                            ? 'bg-destructive text-destructive-foreground rounded-br-sm'
+                            : 'bg-primary text-primary-foreground rounded-br-sm'
                           : 'bg-background border rounded-bl-sm'
                       } ${msg.status === 'sending' ? 'opacity-70' : ''}`}
                     >
@@ -286,6 +320,12 @@ export default function ChatPage() {
                       >
                         {format(new Date(msg.created_at), 'HH:mm')}
                         {msg.status === 'sending' && <Loader2 className="w-3 h-3 animate-spin" />}
+                        {isError && (
+                          <span className="flex items-center text-destructive-foreground font-medium ml-1">
+                            <AlertCircle className="w-3 h-3 mr-0.5" />
+                            Erro
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>

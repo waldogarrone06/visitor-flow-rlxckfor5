@@ -49,7 +49,7 @@ Deno.serve(async (req: Request) => {
       body = {}
     }
 
-    let sessionId = body.sessionId || body.instance || body.session || body.instanceId || 'Jr'
+    let sessionId = body.sessionId || body.instance || body.session || body.instanceId
 
     let phone = body.from || body.number || body.remoteJid || body.sender || ''
     if (!phone && body.data) {
@@ -110,7 +110,7 @@ Deno.serve(async (req: Request) => {
     }
 
     if (!text || text.trim() === '') {
-      text = '[mensagem sem texto]'
+      text = '[mensagem sem texto ou mídia não identificada]'
     }
 
     if (
@@ -163,25 +163,40 @@ Deno.serve(async (req: Request) => {
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
 
-    // Option A: Fixar temporariamente para testes contínuos sem restrições
+    // Localiza o usuário específico mapeado com base na Instância que recebeu o evento
     let userId = null
-    const { data: mainProfile } = await supabaseAdmin
-      .from('profiles')
-      .select('id')
-      .eq('email', 'wal@fourlabnutri.com.br')
-      .maybeSingle()
+    if (sessionId) {
+      const { data: integration } = await supabaseAdmin
+        .from('user_integrations')
+        .select('user_id')
+        .eq('whatsapp_instance_id', sessionId)
+        .maybeSingle()
 
-    if (mainProfile) {
-      userId = mainProfile.id
-    } else {
-      const { data: anyProfile } = await supabaseAdmin.from('profiles').select('id').limit(1)
-      if (anyProfile && anyProfile.length > 0) {
-        userId = anyProfile[0].id
+      if (integration) {
+        userId = integration.user_id
+      }
+    }
+
+    // Fallback: Se não encontrou por sessionId, atrela ao admin ou a primeira conta disponível
+    if (!userId) {
+      const { data: mainProfile } = await supabaseAdmin
+        .from('profiles')
+        .select('id')
+        .eq('email', 'wal@fourlabnutri.com.br')
+        .maybeSingle()
+
+      if (mainProfile) {
+        userId = mainProfile.id
+      } else {
+        const { data: anyProfile } = await supabaseAdmin.from('profiles').select('id').limit(1)
+        if (anyProfile && anyProfile.length > 0) {
+          userId = anyProfile[0].id
+        }
       }
     }
 
     if (!userId) {
-      console.error('Nenhum usuário válido encontrado.')
+      console.error('Nenhum usuário válido encontrado para registrar mensagem.')
       return new Response(JSON.stringify({ error: 'No user configured' }), {
         status: 500,
         headers: corsHeaders,
