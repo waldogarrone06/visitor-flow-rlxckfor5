@@ -1,34 +1,49 @@
 import { supabase } from '@/lib/supabase/client'
 
 export async function getIntegrations(targetUserId?: string) {
-  const userId = targetUserId || (await supabase.auth.getUser()).data.user?.id
-  if (!userId) return null
+  try {
+    const userId = targetUserId || (await supabase.auth.getUser()).data.user?.id
+    if (!userId) return null
 
-  const { data } = await supabase
-    .from('user_integrations' as any)
-    .select('*')
-    .eq('user_id', userId)
-    .maybeSingle()
+    const { data, error } = await supabase
+      .from('user_integrations' as any)
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle()
 
-  return data
+    if (error) {
+      console.error('Error fetching integrations:', error)
+      return null
+    }
+
+    return data
+  } catch (err) {
+    console.error('Exception fetching integrations:', err)
+    return null
+  }
 }
 
 export async function saveIntegrations(updates: any, targetUserId?: string) {
-  const userId = targetUserId || (await supabase.auth.getUser()).data.user?.id
-  if (!userId) return null
+  try {
+    const userId = targetUserId || (await supabase.auth.getUser()).data.user?.id
+    if (!userId) return null
 
-  const payload = {
-    user_id: userId,
-    ...updates,
-    updated_at: new Date().toISOString(),
+    const payload = {
+      user_id: userId,
+      ...updates,
+      updated_at: new Date().toISOString(),
+    }
+
+    const { data, error } = await supabase
+      .from('user_integrations' as any)
+      .upsert(payload, { onConflict: 'user_id' })
+
+    if (error) throw error
+    return data
+  } catch (err) {
+    console.error('Error saving integrations:', err)
+    throw err
   }
-
-  const { data, error } = await supabase
-    .from('user_integrations' as any)
-    .upsert(payload, { onConflict: 'user_id' })
-
-  if (error) console.error('Error saving integrations:', error)
-  return data
 }
 
 export async function getSchedule() {
@@ -86,29 +101,40 @@ export async function clearSchedule() {
 }
 
 export async function getProfiles() {
-  const { data, error } = await supabase
-    .from('profiles' as any)
-    .select('*')
-    .order('name')
-  if (error) console.error('Error fetching profiles:', error)
-  return data || []
+  try {
+    const { data, error } = await supabase
+      .from('profiles' as any)
+      .select('*')
+      .order('name')
+    if (error) console.error('Error fetching profiles:', error)
+    return data || []
+  } catch (err) {
+    console.error('Exception fetching profiles:', err)
+    return []
+  }
 }
 
 export async function getCurrentProfile() {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return null
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) return null
 
-  const { data, error } = await supabase
-    .from('profiles' as any)
-    .select('*')
-    .eq('id', user.id)
-    .maybeSingle()
+    const { data, error } = await supabase
+      .from('profiles' as any)
+      .select('*')
+      .eq('id', user.id)
+      .maybeSingle()
 
-  if (error) {
-    console.error('Error fetching current profile:', error)
+    if (error) {
+      console.error('Error fetching current profile:', error)
+      return null
+    }
+
+    return data
+  } catch (err) {
+    console.error('Exception fetching current profile:', err)
+    return null
   }
-
-  return data
 }

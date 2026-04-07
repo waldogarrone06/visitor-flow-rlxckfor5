@@ -38,13 +38,12 @@ export default function SettingsPage() {
     if (!user) return
     setLoadingProfiles(true)
     try {
-      const profile = await getCurrentProfile()
+      const profile = await getCurrentProfile().catch(() => null)
 
       if (!profile) {
         toast({
-          title: 'Perfil não encontrado',
-          description:
-            'Seu perfil parece estar ausente no banco de dados. Funcionalidades podem ser limitadas.',
+          title: 'Perfil não encontrado ou erro no servidor',
+          description: 'Não foi possível carregar seu perfil. Funcionalidades podem ser limitadas.',
           variant: 'destructive',
         })
         const fallbackProfile = {
@@ -58,13 +57,19 @@ export default function SettingsPage() {
       } else {
         setCurrentProfile(profile)
         if (profile.is_admin) {
-          const allProfiles = await getProfiles()
-          const safeProfiles = Array.isArray(allProfiles) ? allProfiles : []
-          setProfiles(safeProfiles)
-          setSelectedUserId((prev) => {
-            if (prev && safeProfiles.find((p) => p.id === prev)) return prev
-            return user.id
-          })
+          try {
+            const allProfiles = await getProfiles()
+            const safeProfiles = Array.isArray(allProfiles) ? allProfiles : []
+            setProfiles(safeProfiles)
+            setSelectedUserId((prev) => {
+              if (prev && safeProfiles.find((p) => p.id === prev)) return prev
+              return user.id
+            })
+          } catch (profileErr) {
+            console.error('Erro ao carregar lista de perfis', profileErr)
+            setProfiles([])
+            setSelectedUserId(user.id)
+          }
         } else {
           setSelectedUserId(user.id)
         }

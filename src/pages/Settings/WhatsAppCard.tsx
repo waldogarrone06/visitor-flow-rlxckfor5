@@ -32,16 +32,21 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
   useEffect(() => {
     if (!targetUserId) return
     setLoading(true)
-    getIntegrations(targetUserId).then((data) => {
-      if (data) {
-        setApiUrl(data.whatsapp_api_url || '')
-        setInstanceName(data.whatsapp_instance_id || '')
-        setApiToken(data.whatsapp_api_token || '')
-        setConnected(data.whatsapp_connected || false)
-        setConnectionState(data.whatsapp_connected ? 'connected' : 'disconnected')
-      }
-      setLoading(false)
-    })
+    getIntegrations(targetUserId)
+      .then((data) => {
+        if (data) {
+          setApiUrl(data.whatsapp_api_url || '')
+          setInstanceName(data.whatsapp_instance_id || '')
+          setApiToken(data.whatsapp_api_token || '')
+          setConnected(data.whatsapp_connected || false)
+          setConnectionState(data.whatsapp_connected ? 'connected' : 'disconnected')
+        }
+        setLoading(false)
+      })
+      .catch((err) => {
+        console.error('Error fetching integrations:', err)
+        setLoading(false)
+      })
   }, [targetUserId])
 
   useEffect(() => {
@@ -196,7 +201,12 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
       })
 
       if (error && error instanceof FunctionsHttpError) {
-        const errorMessage = await error.context.json()
+        let errorMessage
+        try {
+          errorMessage = await error.context.json()
+        } catch (e) {
+          errorMessage = { error: await error.context.text() }
+        }
         console.log('Function returned an error', errorMessage)
         throw new Error(`Erro na chamada da função: ${errorMessage?.error || error.message}`)
       } else if (error) {
