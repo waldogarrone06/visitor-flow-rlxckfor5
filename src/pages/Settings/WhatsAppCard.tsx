@@ -192,7 +192,7 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
       const { data, error } = await supabase.functions.invoke('whatsapp-send', {
         body: {
           to: testNumber,
-          text: 'Teste de conexão Evolution API v2.2.3 via Visitor Flow!',
+          text: 'Testando envio via Exchange Mode',
           userId: targetUserId,
           testCredentials: {
             apiUrl: cleanUrl,
@@ -277,10 +277,10 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
                 : 'Desconectado'}
           </Badge>
         </div>
-        <CardTitle>WhatsApp (Evolution API v2.2.3)</CardTitle>
+        <CardTitle>WhatsApp (Evolution API Work-Exchange)</CardTitle>
         <CardDescription>
-          Conecte sua instância da Evolution API hospedada no seu servidor VPS para trocar mensagens
-          em tempo real.
+          Conecte sua instância do Evolution Manager hospedada no seu servidor para trocar mensagens
+          no modo Work-Exchange.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex-1 space-y-4">
@@ -299,7 +299,7 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
                 <Input
                   value={apiUrl}
                   onChange={(e) => setApiUrl(e.target.value)}
-                  placeholder="http://129.121.44.86:8080"
+                  placeholder="http://evolution-manager:8080/v1/messages"
                   className="pl-9"
                   disabled={connected}
                 />
@@ -319,13 +319,13 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Global API Key / Token</Label>
+              <Label>Global API Key / Access Key Secret</Label>
               <div className="flex relative">
                 <Key className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   value={apiToken}
                   onChange={(e) => setApiToken(e.target.value)}
-                  placeholder="Seu token de autenticação"
+                  placeholder="SUA_ACCESS_KEY_SECRET"
                   type="password"
                   className="pl-9"
                   disabled={connected}
@@ -345,10 +345,9 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Na Evolution API 2.2.3, configure a integração do tipo <strong>WEBHOOK</strong> (não
-                Work Exchange/RabbitMQ) e cole esta URL. Marque os eventos:{' '}
-                <code>messages-upsert</code>, <code>messages-update</code> e{' '}
-                <code>connection-update</code>.
+                Na Evolution API 2.2.3, configure a integração do tipo <strong>WEBHOOK</strong> para
+                retorno de status e cole esta URL. Marque os eventos: <code>messages-upsert</code>,{' '}
+                <code>messages-update</code> e <code>connection-update</code>.
               </p>
             </div>
 

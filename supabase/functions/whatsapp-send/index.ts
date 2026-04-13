@@ -1,12 +1,6 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers':
-    'authorization, x-client-info, x-supabase-client-platform, apikey, content-type',
-}
+import { corsHeaders } from '../_shared/cors.ts'
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -40,9 +34,9 @@ Deno.serve(async (req: Request) => {
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
 
-    let sessionId = body.sessionId || ''
-    let apiKey = ''
-    let apiUrl = ''
+    let sessionId = body.instanceId || body.sessionId || ''
+    let apiKey = body.apiToken || ''
+    let apiUrl = body.apiUrl || ''
 
     if (body.testCredentials?.apiUrl && body.testCredentials?.instanceId) {
       apiUrl = body.testCredentials.apiUrl
@@ -81,46 +75,47 @@ Deno.serve(async (req: Request) => {
     apiKey = apiKey.trim()
     sessionId = sessionId.trim()
 
-    let baseUrl = (apiUrl || 'http://129.121.44.86:8080').trim().replace(/\/+$/, '')
+    // Default to the Evolution Manager URL for Work-Exchange mode
+    let baseUrl = (apiUrl || 'http://evolution-manager:8080/v1/messages').trim()
 
-    // Fallbacks to user provided defaults if missing
-    if (!sessionId) sessionId = 'Junior'
-    if (!apiKey) apiKey = 'w1a2l3d4o5Waldo127206'
+    // Automatically append /v1/messages if the user just provided a host IP/Domain
+    if (
+      apiUrl &&
+      !baseUrl.includes('/v1/messages') &&
+      !baseUrl.includes('/message/sendText') &&
+      !baseUrl.includes('supabase.co')
+    ) {
+      baseUrl = baseUrl.replace(/\/+$/, '') + '/v1/messages'
+    }
+
+    if (!sessionId) sessionId = 'Wal'
+    if (!apiKey) apiKey = 'SUA_ACCESS_KEY_SECRET'
 
     let number = to.replace(/\D/g, '')
     if (number.length === 10 || number.length === 11) {
       number = '55' + number
     }
 
-    // Evolution API v2.2.3 expected payload format
+    // Evolution API Work-Exchange Mode expected payload format
     const payload = {
       number: number,
-      text: text, // Padrão Evolution API v2
-      options: {
-        delay: 1200,
-        presence: 'composing',
-        linkPreview: false,
-      },
+      message: text,
+      instanceId: sessionId,
+      api_key: apiKey,
     }
 
-    // STRICT HEADERS FOR EVOLUTION API
-    // We do NOT send any Supabase JWT tokens here to avoid 401 Unauthorized from VPS
     const fetchHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
-      apikey: apiKey,
-      Authorization: `Bearer ${apiKey}`,
     }
 
-    const endpoint = `${baseUrl}/message/sendText/${encodeURIComponent(sessionId)}`
-
-    console.log(`[send_whatsapp] POST ${endpoint} for instance ${sessionId}`)
+    console.log(`[send_whatsapp] POST ${baseUrl} for instance ${sessionId}`)
 
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 15000)
 
     let r: Response
     try {
-      r = await fetch(endpoint, {
+      r = await fetch(baseUrl, {
         method: 'POST',
         headers: fetchHeaders,
         body: JSON.stringify(payload),
@@ -128,9 +123,9 @@ Deno.serve(async (req: Request) => {
       })
     } catch (e: any) {
       if (e.name === 'AbortError') {
-        throw new Error(`Timeout de Conexão na VPS (${baseUrl}). Servidor demorou a responder.`)
+        throw new Error(`Timeout de Conexão na API (${baseUrl}). Servidor demorou a responder.`)
       }
-      throw new Error(`Falha de rede VPS (${baseUrl}). Erro: ${e.message}`)
+      throw new Error(`Falha de rede (${baseUrl}). Erro: ${e.message}`)
     } finally {
       clearTimeout(timeoutId)
     }
@@ -138,12 +133,7 @@ Deno.serve(async (req: Request) => {
     const responseText = await r.text().catch(() => '')
 
     if (!r.ok) {
-      if (r.status === 401) {
-        throw new Error(
-          `Não Autorizado (401). Verifique se a Global API Key / Token está correta e se a Evolution API aceita o formato. Resposta da VPS: ${responseText || r.statusText}`,
-        )
-      }
-      throw new Error(`Erro na VPS (${r.status}): ${responseText || r.statusText}`)
+      throw new Error(`Erro na API (${r.status}): ${responseText || r.statusText}`)
     }
 
     let parsedResult
@@ -160,18 +150,18 @@ Deno.serve(async (req: Request) => {
         .insert({
           user_id: userId,
           type: 'whatsapp_send',
-          details: { to: number, instance: sessionId, success: true },
+          details: { to: number, instance: sessionId, success: true, mode: 'work-exchange' },
         })
         .catch((err) => console.warn('Failed to insert interaction log:', err))
     }
 
-    return new Response(JSON.stringify({ success: true, result: parsedResult }), {
+    return new Response(JSON.stringify({ success: true, evolutionResponse: parsedResult }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (error: any) {
     console.error('Erro na Edge Function whatsapp-send:', error.message)
     return new Response(JSON.stringify({ error: error.message }), {
-      status: 400,
+      status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   }
