@@ -75,17 +75,22 @@ Deno.serve(async (req: Request) => {
     apiKey = apiKey.trim()
     sessionId = sessionId.trim()
 
-    // Default to the Evolution Manager URL for Work-Exchange mode
-    let baseUrl = (apiUrl || 'http://evolution-manager:8080/v1/messages').trim()
+    // Default to the Tiny API URL for Work-Exchange mode
+    let baseUrl = (apiUrl || 'http://129.121.44.86:9000/send').trim()
 
-    // Automatically append /v1/messages if the user just provided a host IP/Domain
+    // Automatically append /send or /v1/messages se o usuário apenas forneceu IP/Domínio
     if (
       apiUrl &&
       !baseUrl.includes('/v1/messages') &&
       !baseUrl.includes('/message/sendText') &&
-      !baseUrl.includes('supabase.co')
+      !baseUrl.includes('supabase.co') &&
+      !baseUrl.includes('/send')
     ) {
-      baseUrl = baseUrl.replace(/\/+$/, '') + '/v1/messages'
+      if (baseUrl.includes(':9000')) {
+        baseUrl = baseUrl.replace(/\/+$/, '') + '/send'
+      } else {
+        baseUrl = baseUrl.replace(/\/+$/, '') + '/v1/messages'
+      }
     }
 
     if (!sessionId) sessionId = 'Wal'
