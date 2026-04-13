@@ -92,11 +92,15 @@ Deno.serve(async (req: Request) => {
       number = '55' + number
     }
 
-    // Evolution API exact expected payload format as requested by user
+    // Evolution API v2.2.3 expected payload format
     const payload = {
       number: number,
-      text: text, // Padrão Evolution API
-      message: text, // Mantido para retrocompatibilidade
+      text: text, // Padrão Evolution API v2
+      options: {
+        delay: 1200,
+        presence: 'composing',
+        linkPreview: false,
+      },
     }
 
     // STRICT HEADERS FOR EVOLUTION API

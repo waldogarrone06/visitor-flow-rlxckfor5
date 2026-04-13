@@ -16,7 +16,7 @@ Deno.serve(async (req: Request) => {
   // Rota de Health Check para a Evolution API validar o webhook
   if (req.method === 'GET') {
     return new Response(
-      JSON.stringify({ success: true, status: 'online', mode: 'work-exchange' }),
+      JSON.stringify({ success: true, status: 'online', mode: 'evolution-v2.2.3' }),
       {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -31,7 +31,7 @@ Deno.serve(async (req: Request) => {
 
     const data = await req.json().catch(() => ({}))
 
-    console.log('📥 Work Exchange Event Recebido:', {
+    console.log('📥 Evolution API v2.2.3 Event Recebido:', {
       event: data?.event || data?.messageType,
       instance: data?.instance || data?.sessionId || data?.instanceId,
       sender: data?.sender || data?.from || data?.remoteJid || data?.data?.key?.remoteJid,
@@ -60,7 +60,7 @@ Deno.serve(async (req: Request) => {
       auth: { persistSession: false },
     })
 
-    // 1. Salvar o evento bruto no Supabase para histórico e debug (Work Exchange Sync)
+    // 1. Salvar o evento bruto no Supabase para histórico e debug (Evolution API v2)
     try {
       const { error: insertErr } = await supabaseAdmin.from('whatsapp_events').insert({
         instance: sessionId,
@@ -85,7 +85,7 @@ Deno.serve(async (req: Request) => {
       )
     }
 
-    // 2. Gerenciamento de Sessão de Contato (Work Exchange State)
+    // 2. Gerenciamento de Sessão de Contato (Evolution Work Exchange State)
     try {
       const { data: session } = await supabaseAdmin
         .from('session_state')
@@ -110,7 +110,7 @@ Deno.serve(async (req: Request) => {
       console.error('Erro ao gerenciar session_state:', e)
     }
 
-    // 3. Atualização de Status de Mensagem (Delivery, Read) - Atualização do Work Exchange
+    // 3. Atualização de Status de Mensagem (Delivery, Read) - Atualização do Evolution
     if (eventType === 'messages.update') {
       let messageId = data?.data?.[0]?.key?.id || data?.data?.key?.id || null
       let newStatus = data?.data?.[0]?.update?.status || data?.data?.update?.status

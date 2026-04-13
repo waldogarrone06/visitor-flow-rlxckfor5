@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { toast } from '@/hooks/use-toast'
-import { MessageCircle, Link2, Send, Key, Server, Phone } from 'lucide-react'
+import { MessageCircle, Link2, Send, Key, Server, Phone, Copy } from 'lucide-react'
 import { getIntegrations, saveIntegrations } from '@/services/settings'
 import { supabase } from '@/lib/supabase/client'
 import { FunctionsHttpError } from '@supabase/supabase-js'
@@ -28,6 +28,8 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
   >('unknown')
   const [loading, setLoading] = useState(true)
   const [testing, setTesting] = useState(false)
+
+  const webhookUrl = 'https://zbtaxosxmxoidrtmojfx.supabase.co/functions/v1/whatsapp-webhook'
 
   useEffect(() => {
     if (!targetUserId) return
@@ -190,7 +192,7 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
       const { data, error } = await supabase.functions.invoke('whatsapp-send', {
         body: {
           to: testNumber,
-          text: 'Teste de conexão Evolution API via Visitor Flow!',
+          text: 'Teste de conexão Evolution API v2.2.3 via Visitor Flow!',
           userId: targetUserId,
           testCredentials: {
             apiUrl: cleanUrl,
@@ -235,6 +237,14 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
     }
   }
 
+  const copyWebhook = () => {
+    navigator.clipboard.writeText(webhookUrl)
+    toast({
+      title: 'Copiado!',
+      description: 'URL do Webhook copiada para a área de transferência.',
+    })
+  }
+
   if (!targetUserId) return null
 
   return (
@@ -267,9 +277,10 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
                 : 'Desconectado'}
           </Badge>
         </div>
-        <CardTitle>WhatsApp (Evolution API)</CardTitle>
+        <CardTitle>WhatsApp (Evolution API v2.2.3)</CardTitle>
         <CardDescription>
-          Conecte sua instância da Evolution API hospedada no seu servidor VPS.
+          Conecte sua instância da Evolution API hospedada no seu servidor VPS para trocar mensagens
+          em tempo real.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex-1 space-y-4">
@@ -320,6 +331,25 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
                   disabled={connected}
                 />
               </div>
+            </div>
+
+            <div className="space-y-2 pt-4 border-t">
+              <Label>URL do Webhook (Retorno de Dados)</Label>
+              <div className="flex gap-2">
+                <div className="flex-1 relative">
+                  <Link2 className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input readOnly value={webhookUrl} className="pl-9 bg-muted/50 text-xs" />
+                </div>
+                <Button variant="outline" size="icon" onClick={copyWebhook}>
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Na Evolution API 2.2.3, configure a integração do tipo <strong>WEBHOOK</strong> (não
+                Work Exchange/RabbitMQ) e cole esta URL. Marque os eventos:{' '}
+                <code>messages-upsert</code>, <code>messages-update</code> e{' '}
+                <code>connection-update</code>.
+              </p>
             </div>
 
             <div className="space-y-2 pt-4 border-t">
