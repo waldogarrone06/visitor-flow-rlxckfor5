@@ -42,18 +42,48 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
     let subscription: any = null
 
     const fetchContactAndMessages = async () => {
+      console.log('🔍 [ChatArea] Buscando contato para o telefone:', lead.phone)
+
       const phone = lead.phone.replace(/\D/g, '')
-      const { data: contacts } = await supabase
+      let cId = null
+
+      // Busca por match exato
+      const { data: exactContacts } = await supabase
         .from('contacts')
         .select('id')
         .eq('phone', phone)
         .eq('user_id', user.id)
 
-      let cId = null
-      if (contacts && contacts.length > 0) {
-        cId = contacts[0].id
-      } else {
-        const { data: newContact } = await supabase
+      if (exactContacts && exactContacts.length > 0) {
+        cId = exactContacts[0].id
+        console.log('✅ [ChatArea] Contato encontrado (match exato):', cId)
+      } else if (!phone.startsWith('55') && phone.length >= 10) {
+        // Busca com prefixo 55
+        const { data: contacts55 } = await supabase
+          .from('contacts')
+          .select('id')
+          .eq('phone', '55' + phone)
+          .eq('user_id', user.id)
+        if (contacts55 && contacts55.length > 0) {
+          cId = contacts55[0].id
+          console.log('✅ [ChatArea] Contato encontrado (com prefixo 55):', cId)
+        }
+      } else if (phone.startsWith('55') && phone.length >= 12) {
+        // Busca sem prefixo 55
+        const { data: contactsNo55 } = await supabase
+          .from('contacts')
+          .select('id')
+          .eq('phone', phone.substring(2))
+          .eq('user_id', user.id)
+        if (contactsNo55 && contactsNo55.length > 0) {
+          cId = contactsNo55[0].id
+          console.log('✅ [ChatArea] Contato encontrado (sem prefixo 55):', cId)
+        }
+      }
+
+      if (!cId) {
+        console.log('👤 [ChatArea] Contato não encontrado. Criando novo...', phone)
+        const { data: newContact, error: createErr } = await supabase
           .from('contacts')
           .insert({
             user_id: user.id,
@@ -64,18 +94,28 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
           .single()
         if (newContact) {
           cId = newContact.id
+          console.log('✅ [ChatArea] Novo contato criado com sucesso:', cId)
         }
+        if (createErr) console.error('❌ [ChatArea] Erro ao criar contato:', createErr)
       }
 
       if (cId && isMounted) {
         setContactId(cId)
-        const { data: msgs } = await supabase
+        console.log('📡 [ChatArea] Buscando histórico de mensagens para o contato:', cId)
+
+        const { data: msgs, error: msgsErr } = await supabase
           .from('messages')
           .select('*')
           .eq('contact_id', cId)
           .order('created_at', { ascending: true })
-        if (msgs) setDbMessages(msgs)
 
+        if (msgsErr) console.error('❌ [ChatArea] Erro ao buscar histórico:', msgsErr)
+        if (msgs) {
+          console.log(`💬 [ChatArea] ${msgs.length} mensagens carregadas do banco.`)
+          setDbMessages(msgs)
+        }
+
+        console.log('🔄 [ChatArea] Assinando canal Realtime para:', `messages-${leadId}`)
         subscription = supabase
           .channel(`messages-${leadId}`)
           .on(
@@ -87,7 +127,7 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
               filter: `contact_id=eq.${cId}`,
             },
             (payload) => {
-              console.log('🟢 Nova mensagem recebida via Realtime no ChatArea:', payload.new)
+              console.log('🟢 [ChatArea] Nova mensagem via Realtime (INSERT):', payload.new)
               if (!isMounted) return
               setDbMessages((prev) => {
                 if (prev.find((m) => m.id === payload.new.id)) return prev
@@ -104,11 +144,14 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
               filter: `contact_id=eq.${cId}`,
             },
             (payload) => {
+              console.log('🔄 [ChatArea] Status de mensagem via Realtime (UPDATE):', payload.new)
               if (!isMounted) return
               setDbMessages((prev) => prev.map((m) => (m.id === payload.new.id ? payload.new : m)))
             },
           )
-          .subscribe()
+          .subscribe((status) => {
+            console.log('📡 [ChatArea] Status da assinatura Realtime:', status)
+          })
       }
     }
 

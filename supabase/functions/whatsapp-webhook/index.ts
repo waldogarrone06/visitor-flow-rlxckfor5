@@ -27,11 +27,9 @@ Deno.serve(async (req: Request) => {
 
     const data = await req.json().catch(() => ({}))
 
-    console.log('📥 Webhook Recebido (Completo):', JSON.stringify(data, null, 2))
+    console.log('📥 Webhook Recebido (Payload Completo):', JSON.stringify(data, null, 2))
 
     const eventType = data?.event || data?.messageType || 'unknown'
-    const sessionId = (data?.instance || data?.sessionId || data?.instanceId || 'unknown').trim()
-
     const payloadData = data?.data || data?.message || data
     const firstItem = Array.isArray(payloadData) ? payloadData[0] : payloadData
 
@@ -53,7 +51,7 @@ Deno.serve(async (req: Request) => {
     if (typeof phone === 'string' && phone.includes(':')) phone = phone.split(':')[0]
     phone = String(phone).replace(/\D/g, '')
 
-    console.log('🧩 Webhook Extraído:', JSON.stringify({ eventType, sessionId, phone, remoteJid }))
+    console.log('🧩 Webhook Extraído:', JSON.stringify({ eventType, phone, remoteJid }))
 
     const isSystemEvent =
       eventType.startsWith('connection') ||
@@ -70,7 +68,7 @@ Deno.serve(async (req: Request) => {
 
     try {
       await supabaseAdmin.from('whatsapp_events').insert({
-        instance: sessionId,
+        instance: String(data?.instance || data?.sessionId || data?.instanceId || 'unknown').trim(),
         message_type: eventType,
         remote_jid: phone || 'system',
         message: data || {},
@@ -116,6 +114,7 @@ Deno.serve(async (req: Request) => {
           if (updErr) console.error('❌ Erro ao atualizar status no Supabase:', updErr)
           else if (updatedMsg)
             console.log('✅ Status atualizado com sucesso no banco:', updatedMsg.id)
+          else console.log(`⚠️ Mensagem com ID ${messageId} não encontrada para atualizar status.`)
         } catch (e) {
           console.error('❌ Exceção ao atualizar status:', e)
         }
@@ -177,17 +176,39 @@ Deno.serve(async (req: Request) => {
         `💬 Processando nova mensagem [fromMe: ${isFromMe}, id: ${messageId}]: ${phone} -> ${text.substring(0, 30)}...`,
       )
       try {
+        const sessionId = String(data?.instance || data?.sessionId || data?.instanceId || '').trim()
         let userId = null
 
-        const { data: integrations } = await supabaseAdmin
-          .from('user_integrations')
-          .select('user_id')
-          .ilike('whatsapp_instance_id', sessionId)
-          .limit(1)
+        const searchInstances = [
+          sessionId,
+          data?.data?.instanceId,
+          data?.instanceId,
+          data?.instance,
+        ]
+          .filter(Boolean)
+          .map((s) => String(s).trim().toLowerCase())
 
-        if (integrations && integrations.length > 0) {
-          userId = integrations[0].user_id
-        } else {
+        console.log('🔍 Procurando user_id para as instâncias:', searchInstances)
+
+        if (searchInstances.length > 0) {
+          const { data: allIntegrations } = await supabaseAdmin
+            .from('user_integrations')
+            .select('user_id, whatsapp_instance_id')
+            .not('whatsapp_instance_id', 'is', null)
+
+          if (allIntegrations) {
+            const match = allIntegrations.find((int) =>
+              searchInstances.includes(String(int.whatsapp_instance_id).trim().toLowerCase()),
+            )
+            if (match) {
+              userId = match.user_id
+              console.log(`✅ Instância encontrada via match dinâmico. User ID: ${userId}`)
+            }
+          }
+        }
+
+        if (!userId) {
+          console.log('⚠️ Nenhuma instância correspondente encontrada. Usando fallback...')
           const { data: fallbackIntegration } = await supabaseAdmin
             .from('user_integrations')
             .select('user_id')
@@ -205,6 +226,7 @@ Deno.serve(async (req: Request) => {
               .maybeSingle()
             if (mainProfile) userId = mainProfile.id
           }
+          console.log(`⚠️ User ID definido via fallback: ${userId}`)
         }
 
         if (userId && phone) {
@@ -297,19 +319,25 @@ Deno.serve(async (req: Request) => {
               console.log(
                 `📝 Inserindo mensagem na tabela messages... (user_id: ${userId}, contact_id: ${contactId})`,
               )
-              const { error: insErr } = await supabaseAdmin.from('messages').insert({
-                user_id: userId,
-                contact_id: contactId,
-                content: text,
-                direction: isFromMe ? 'outbound' : 'inbound',
-                status: isFromMe ? 'sent' : 'delivered',
-                client_id: messageId,
-              })
+              const { data: insertedMsg, error: insErr } = await supabaseAdmin
+                .from('messages')
+                .insert({
+                  user_id: userId,
+                  contact_id: contactId,
+                  content: text,
+                  direction: isFromMe ? 'outbound' : 'inbound',
+                  status: isFromMe ? 'sent' : 'delivered',
+                  client_id: messageId,
+                })
+                .select()
+                .maybeSingle()
 
               if (insErr) {
                 console.error('❌ Erro ao inserir nova mensagem no banco:', insErr)
               } else {
-                console.log('✅ Nova mensagem persistida no banco com sucesso.')
+                console.log(
+                  `✅ Nova mensagem persistida com sucesso no banco! ID: ${insertedMsg?.id}`,
+                )
               }
 
               await supabaseAdmin.from('interaction_log').insert({
