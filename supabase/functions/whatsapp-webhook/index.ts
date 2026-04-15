@@ -197,12 +197,21 @@ Deno.serve(async (req: Request) => {
             .not('whatsapp_instance_id', 'is', null)
 
           if (allIntegrations) {
-            const match = allIntegrations.find((int) =>
-              searchInstances.includes(String(int.whatsapp_instance_id).trim().toLowerCase()),
-            )
+            const match = allIntegrations.find((int) => {
+              const dbInstance = String(int.whatsapp_instance_id).trim().toLowerCase()
+              return searchInstances.some(
+                (s) =>
+                  s === dbInstance ||
+                  (dbInstance.length >= 2 && s.includes(dbInstance)) ||
+                  (s.length >= 2 && dbInstance.includes(s)) ||
+                  (s === 'junior' && dbInstance === 'jr') ||
+                  (s === 'jr' && dbInstance === 'junior'),
+              )
+            })
+
             if (match) {
               userId = match.user_id
-              console.log(`✅ Instância encontrada via match dinâmico. User ID: ${userId}`)
+              console.log(`✅ Instância encontrada via match dinâmico flexível. User ID: ${userId}`)
             }
           }
         }
