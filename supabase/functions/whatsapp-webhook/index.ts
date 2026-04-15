@@ -30,14 +30,24 @@ Deno.serve(async (req: Request) => {
     const eventType = data?.event || data?.messageType || 'unknown'
     const sessionId = (data?.instance || data?.sessionId || data?.instanceId || 'unknown').trim()
 
-    const payloadData = data?.data || data
+    const payloadData = data?.data || data?.message || data
     const firstItem = Array.isArray(payloadData) ? payloadData[0] : payloadData
 
     const keyData = firstItem?.key || firstItem?.message?.key || data?.key || {}
     const msgData = firstItem?.message || firstItem
 
-    let phone =
+    let remoteJid =
       keyData?.remoteJid || firstItem?.remoteJid || data?.sender || data?.from || data?.number || ''
+
+    // Ignorar mensagens de grupos para evitar lixo no CRM
+    if (typeof remoteJid === 'string' && remoteJid.includes('@g.us')) {
+      return new Response(JSON.stringify({ status: 'ok', handled: 'group_message_ignored' }), {
+        status: 200,
+        headers: corsHeaders,
+      })
+    }
+
+    let phone = remoteJid
     if (typeof phone === 'string') phone = phone.split('@')[0]
     phone = String(phone).replace(/\D/g, '')
 
@@ -47,7 +57,10 @@ Deno.serve(async (req: Request) => {
     )
 
     const isSystemEvent =
-      eventType.startsWith('connection') || eventType.startsWith('qrcode') || !phone
+      eventType.startsWith('connection') ||
+      eventType.startsWith('qrcode') ||
+      !phone ||
+      phone.length < 8
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
@@ -99,6 +112,7 @@ Deno.serve(async (req: Request) => {
       msgData?.conversation ||
       msgData?.extendedTextMessage?.text ||
       firstItem?.text ||
+      firstItem?.message?.text ||
       data?.body ||
       data?.text ||
       data?.content ||
@@ -127,20 +141,34 @@ Deno.serve(async (req: Request) => {
     if ((eventType === 'messages.upsert' || data?.data?.message || msgData) && text) {
       try {
         let userId = null
-        const { data: integration } = await supabaseAdmin
+        // Tenta buscar a integração ignorando maiúsculas/minúsculas no sessionId
+        const { data: integrations } = await supabaseAdmin
           .from('user_integrations')
           .select('user_id')
-          .eq('whatsapp_instance_id', sessionId)
-          .maybeSingle()
+          .ilike('whatsapp_instance_id', sessionId)
+          .limit(1)
 
-        if (integration) userId = integration.user_id
-        else {
-          const { data: mainProfile } = await supabaseAdmin
-            .from('profiles')
-            .select('id')
+        if (integrations && integrations.length > 0) {
+          userId = integrations[0].user_id
+        } else {
+          // Se não encontrou, tenta buscar por quem tem URL configurada (fallback seguro para mono-tenant)
+          const { data: fallbackIntegration } = await supabaseAdmin
+            .from('user_integrations')
+            .select('user_id')
+            .not('whatsapp_api_url', 'is', null)
             .limit(1)
             .maybeSingle()
-          if (mainProfile) userId = mainProfile.id
+
+          if (fallbackIntegration) {
+            userId = fallbackIntegration.user_id
+          } else {
+            const { data: mainProfile } = await supabaseAdmin
+              .from('profiles')
+              .select('id')
+              .limit(1)
+              .maybeSingle()
+            if (mainProfile) userId = mainProfile.id
+          }
         }
 
         if (userId && phone) {
@@ -199,6 +227,31 @@ Deno.serve(async (req: Request) => {
                 .eq('client_id', messageId)
                 .maybeSingle()
               if (existingMsg) msgExists = true
+            }
+
+            // Deduplicação por texto para mensagens enviadas por mim nos últimos 30 segundos
+            if (!msgExists && isFromMe && text) {
+              const thirtySecondsAgo = new Date(Date.now() - 30000).toISOString()
+              const { data: recentMsg } = await supabaseAdmin
+                .from('messages')
+                .select('id, client_id')
+                .eq('contact_id', contactId)
+                .eq('direction', 'outbound')
+                .eq('content', text)
+                .gte('created_at', thirtySecondsAgo)
+                .limit(1)
+                .maybeSingle()
+
+              if (recentMsg) {
+                msgExists = true
+                // Opcional: atualizar o client_id da mensagem existente
+                if (!recentMsg.client_id && messageId) {
+                  await supabaseAdmin
+                    .from('messages')
+                    .update({ client_id: messageId })
+                    .eq('id', recentMsg.id)
+                }
+              }
             }
 
             if (!msgExists) {

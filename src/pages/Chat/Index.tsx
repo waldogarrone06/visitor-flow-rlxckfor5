@@ -52,6 +52,7 @@ export default function ChatPage() {
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages', filter: `user_id=eq.${user.id}` },
         (payload) => {
+          console.log('🟢 Nova mensagem recebida via Realtime no ChatPage:', payload.new)
           const newMsg = payload.new as Message
 
           setMessages((prev) => {
@@ -65,28 +66,31 @@ export default function ChatPage() {
           setContacts((prev) => {
             const exists = prev.find((c) => c.id === newMsg.contact_id)
             if (!exists) {
-              supabase
-                .from('contacts')
-                .select('*')
-                .eq('id', newMsg.contact_id)
-                .single()
-                .then(({ data }) => {
-                  if (data) {
-                    setContacts((curr) => {
-                      if (curr.some((c) => c.id === data.id)) return curr
-                      return [
-                        { ...data, lastMessage: newMsg.content, updatedAt: newMsg.created_at },
-                        ...curr,
-                      ].sort(
-                        (a, b) =>
-                          new Date(b.updatedAt || 0).getTime() -
-                          new Date(a.updatedAt || 0).getTime(),
-                      )
-                    })
-                  }
-                })
+              // Buscar novo contato assincronamente sem mutar estado diretamente aqui
+              setTimeout(async () => {
+                const { data } = await supabase
+                  .from('contacts')
+                  .select('*')
+                  .eq('id', newMsg.contact_id)
+                  .single()
+
+                if (data) {
+                  setContacts((curr) => {
+                    if (curr.some((c) => c.id === data.id)) return curr
+                    return [
+                      { ...data, lastMessage: newMsg.content, updatedAt: newMsg.created_at },
+                      ...curr,
+                    ].sort(
+                      (a, b) =>
+                        new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime(),
+                    )
+                  })
+                }
+              }, 100)
               return prev
             }
+
+            // Contato já existe, apenas move para o topo e atualiza a última mensagem
             return prev
               .map((c) =>
                 c.id === newMsg.contact_id
@@ -125,7 +129,12 @@ export default function ChatPage() {
 
   useEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+      // Pequeno timeout para garantir que a UI atualizou antes do scroll
+      setTimeout(() => {
+        if (scrollRef.current) {
+          scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+        }
+      }, 50)
     }
   }, [messages])
 
@@ -205,10 +214,22 @@ export default function ChatPage() {
       setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, id: actualMessageId } : m)))
 
       // 3. Dispara a chamada assíncrona para a VPS rodando a Evolution API
-      await sendWhatsAppMessage(selectedContact.phone, content)
+      const response: any = await sendWhatsAppMessage(selectedContact.phone, content)
 
-      // 4. Sucesso: atualiza o status final para entregue
-      await supabase.from('messages').update({ status: 'delivered' }).eq('id', actualMessageId)
+      let clientId = null
+      if (response && response.evolutionResponse) {
+        // Tenta extrair o ID da mensagem retornado pela API para salvar na tabela
+        clientId =
+          response.evolutionResponse?.key?.id ||
+          response.evolutionResponse?.messageId ||
+          response.evolutionResponse?.id
+      }
+
+      // 4. Sucesso: atualiza o status final para entregue e registra o clientId se disponível
+      const updatePayload: any = { status: 'delivered' }
+      if (clientId) updatePayload.client_id = clientId
+
+      await supabase.from('messages').update(updatePayload).eq('id', actualMessageId)
 
       setMessages((prev) =>
         prev.map((m) => (m.id === actualMessageId ? { ...m, status: 'delivered' } : m)),

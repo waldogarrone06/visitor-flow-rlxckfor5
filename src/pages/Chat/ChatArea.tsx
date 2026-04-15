@@ -87,6 +87,7 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
               filter: `contact_id=eq.${cId}`,
             },
             (payload) => {
+              console.log('🟢 Nova mensagem recebida via Realtime no ChatArea:', payload.new)
               if (!isMounted) return
               setDbMessages((prev) => {
                 if (prev.find((m) => m.id === payload.new.id)) return prev
@@ -212,10 +213,17 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
 
     try {
       if (lead?.phone) {
-        await sendWhatsAppMessage(lead.phone, messageText)
+        const response: any = await sendWhatsAppMessage(lead.phone, messageText)
+        let clientId =
+          response?.evolutionResponse?.key?.id ||
+          response?.evolutionResponse?.messageId ||
+          response?.evolutionResponse?.id
 
         if (contactId) {
-          await supabase.from('messages').update({ status: 'sent' }).eq('id', newMessageId)
+          const updatePayload: any = { status: 'sent' }
+          if (clientId) updatePayload.client_id = clientId
+
+          await supabase.from('messages').update(updatePayload).eq('id', newMessageId)
         }
 
         setDbMessages((prev) =>
