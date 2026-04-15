@@ -27,7 +27,6 @@ Deno.serve(async (req: Request) => {
 
     const data = await req.json().catch(() => ({}))
 
-    // Robust parsing for Evolution API v1/v2 and Baileys structures
     const eventType = data?.event || data?.messageType || 'unknown'
     const sessionId = (data?.instance || data?.sessionId || data?.instanceId || 'unknown').trim()
 
@@ -57,7 +56,6 @@ Deno.serve(async (req: Request) => {
       auth: { persistSession: false },
     })
 
-    // 1. Raw event log
     try {
       await supabaseAdmin.from('whatsapp_events').insert({
         instance: sessionId,
@@ -74,7 +72,6 @@ Deno.serve(async (req: Request) => {
       })
     }
 
-    // 2. Status Updates
     if (eventType === 'messages.update') {
       let messageId = keyData?.id || firstItem?.update?.id || null
       let newStatus = firstItem?.update?.status
@@ -96,8 +93,9 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // 3. New Messages
     let text =
+      msgData?.message?.conversation ||
+      msgData?.message?.extendedTextMessage?.text ||
       msgData?.conversation ||
       msgData?.extendedTextMessage?.text ||
       firstItem?.text ||
@@ -105,6 +103,24 @@ Deno.serve(async (req: Request) => {
       data?.text ||
       data?.content ||
       ''
+
+    if (!text) {
+      if (msgData?.message?.imageMessage || msgData?.imageMessage)
+        text =
+          msgData?.message?.imageMessage?.caption || msgData?.imageMessage?.caption || '[Imagem]'
+      else if (msgData?.message?.videoMessage || msgData?.videoMessage)
+        text =
+          msgData?.message?.videoMessage?.caption || msgData?.videoMessage?.caption || '[Vídeo]'
+      else if (msgData?.message?.audioMessage || msgData?.audioMessage) text = '[Áudio]'
+      else if (msgData?.message?.documentMessage || msgData?.documentMessage)
+        text =
+          msgData?.message?.documentMessage?.fileName ||
+          msgData?.documentMessage?.fileName ||
+          '[Documento]'
+      else if (msgData?.message?.stickerMessage || msgData?.stickerMessage) text = '[Sticker]'
+      else if (msgData?.message?.contactMessage || msgData?.contactMessage) text = '[Contato]'
+    }
+
     let isFromMe = keyData?.fromMe || false
     let messageId = keyData?.id || data?.messageId || null
 
@@ -128,14 +144,42 @@ Deno.serve(async (req: Request) => {
         }
 
         if (userId && phone) {
+          let contactId = null
+
+          // Tenta encontrar o contato exatamente como veio
           let { data: contact } = await supabaseAdmin
             .from('contacts')
             .select('id')
             .eq('user_id', userId)
             .eq('phone', phone)
             .maybeSingle()
-          let contactId = contact?.id
+          if (contact) contactId = contact.id
 
+          // Tenta encontrar sem o 55 (caso esteja cadastrado assim)
+          if (!contactId && phone.startsWith('55') && phone.length >= 12) {
+            const phoneWithout55 = phone.substring(2)
+            let { data: contact2 } = await supabaseAdmin
+              .from('contacts')
+              .select('id')
+              .eq('user_id', userId)
+              .eq('phone', phoneWithout55)
+              .maybeSingle()
+            if (contact2) contactId = contact2.id
+          }
+
+          // Tenta encontrar com o 55 (caso esteja cadastrado com 55 e veio sem)
+          if (!contactId && !phone.startsWith('55') && phone.length >= 10) {
+            const phoneWith55 = '55' + phone
+            let { data: contact3 } = await supabaseAdmin
+              .from('contacts')
+              .select('id')
+              .eq('user_id', userId)
+              .eq('phone', phoneWith55)
+              .maybeSingle()
+            if (contact3) contactId = contact3.id
+          }
+
+          // Cria um novo contato se não achou em nenhuma variação
           if (!contactId) {
             const pushName = firstItem?.pushName || `Contato (${phone})`
             const { data: newContact } = await supabaseAdmin

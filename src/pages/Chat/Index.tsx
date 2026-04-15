@@ -36,6 +36,11 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const selectedContactRef = useRef<Contact | null>(null)
+
+  useEffect(() => {
+    selectedContactRef.current = selectedContact
+  }, [selectedContact])
 
   useEffect(() => {
     if (!user) return
@@ -51,7 +56,7 @@ export default function ChatPage() {
 
           setMessages((prev) => {
             if (prev.some((m) => m.id === newMsg.id)) return prev
-            if (selectedContact && newMsg.contact_id !== selectedContact.id) {
+            if (selectedContactRef.current && newMsg.contact_id !== selectedContactRef.current.id) {
               return prev
             }
             return [...prev, newMsg]
@@ -72,7 +77,11 @@ export default function ChatPage() {
                       return [
                         { ...data, lastMessage: newMsg.content, updatedAt: newMsg.created_at },
                         ...curr,
-                      ]
+                      ].sort(
+                        (a, b) =>
+                          new Date(b.updatedAt || 0).getTime() -
+                          new Date(a.updatedAt || 0).getTime(),
+                      )
                     })
                   }
                 })
@@ -104,7 +113,7 @@ export default function ChatPage() {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [user, selectedContact])
+  }, [user])
 
   useEffect(() => {
     if (selectedContact) {
