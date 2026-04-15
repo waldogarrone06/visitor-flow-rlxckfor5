@@ -57,8 +57,28 @@ export default function ChatPage() {
             return [...prev, newMsg]
           })
 
-          setContacts((prev) =>
-            prev
+          setContacts((prev) => {
+            const exists = prev.find((c) => c.id === newMsg.contact_id)
+            if (!exists) {
+              supabase
+                .from('contacts')
+                .select('*')
+                .eq('id', newMsg.contact_id)
+                .single()
+                .then(({ data }) => {
+                  if (data) {
+                    setContacts((curr) => {
+                      if (curr.some((c) => c.id === data.id)) return curr
+                      return [
+                        { ...data, lastMessage: newMsg.content, updatedAt: newMsg.created_at },
+                        ...curr,
+                      ]
+                    })
+                  }
+                })
+              return prev
+            }
+            return prev
               .map((c) =>
                 c.id === newMsg.contact_id
                   ? { ...c, lastMessage: newMsg.content, updatedAt: newMsg.created_at }
@@ -67,8 +87,8 @@ export default function ChatPage() {
               .sort(
                 (a, b) =>
                   new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime(),
-              ),
-          )
+              )
+          })
         },
       )
       .on(

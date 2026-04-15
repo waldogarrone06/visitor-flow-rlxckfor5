@@ -39,6 +39,8 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
 
     let isMounted = true
 
+    let subscription: any = null
+
     const fetchContactAndMessages = async () => {
       const phone = lead.phone.replace(/\D/g, '')
       const { data: contacts } = await supabase
@@ -73,37 +75,49 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
           .eq('contact_id', cId)
           .order('created_at', { ascending: true })
         if (msgs) setDbMessages(msgs)
+
+        subscription = supabase
+          .channel(`messages-${leadId}`)
+          .on(
+            'postgres_changes',
+            {
+              event: 'INSERT',
+              schema: 'public',
+              table: 'messages',
+              filter: `contact_id=eq.${cId}`,
+            },
+            (payload) => {
+              if (!isMounted) return
+              setDbMessages((prev) => {
+                if (prev.find((m) => m.id === payload.new.id)) return prev
+                return [...prev, payload.new]
+              })
+            },
+          )
+          .on(
+            'postgres_changes',
+            {
+              event: 'UPDATE',
+              schema: 'public',
+              table: 'messages',
+              filter: `contact_id=eq.${cId}`,
+            },
+            (payload) => {
+              if (!isMounted) return
+              setDbMessages((prev) => prev.map((m) => (m.id === payload.new.id ? payload.new : m)))
+            },
+          )
+          .subscribe()
       }
     }
 
     fetchContactAndMessages()
 
-    const subscription = supabase
-      .channel(`messages-${leadId}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages' },
-        (payload) => {
-          if (!isMounted) return
-          setDbMessages((prev) => {
-            if (prev.find((m) => m.id === payload.new.id)) return prev
-            return [...prev, payload.new]
-          })
-        },
-      )
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'messages' },
-        (payload) => {
-          if (!isMounted) return
-          setDbMessages((prev) => prev.map((m) => (m.id === payload.new.id ? payload.new : m)))
-        },
-      )
-      .subscribe()
-
     return () => {
       isMounted = false
-      subscription.unsubscribe()
+      if (subscription) {
+        supabase.removeChannel(subscription)
+      }
     }
   }, [user, lead?.phone, lead?.name, leadId])
 
