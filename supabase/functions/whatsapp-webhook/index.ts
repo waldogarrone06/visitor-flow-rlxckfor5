@@ -39,6 +39,17 @@ Deno.serve(async (req: Request) => {
     let rawRemoteJid =
       keyData?.remoteJid || firstItem?.remoteJid || data?.sender || data?.from || data?.number || ''
 
+    // Utilizar remoteJidAlt caso o principal seja um @lid e exista um número real no Alt
+    const remoteJidAlt = keyData?.remoteJidAlt || firstItem?.remoteJidAlt
+    if (
+      typeof rawRemoteJid === 'string' &&
+      rawRemoteJid.includes('@lid') &&
+      typeof remoteJidAlt === 'string' &&
+      remoteJidAlt.includes('@s.whatsapp.net')
+    ) {
+      rawRemoteJid = remoteJidAlt
+    }
+
     if (typeof rawRemoteJid === 'string' && rawRemoteJid.includes('@g.us')) {
       return new Response(JSON.stringify({ status: 'ok', handled: 'group_message_ignored' }), {
         status: 200,
