@@ -91,16 +91,21 @@ export default function ChatPage() {
             }
 
             // Contato já existe, apenas move para o topo e atualiza a última mensagem
-            return prev
-              .map((c) =>
-                c.id === newMsg.contact_id
-                  ? { ...c, lastMessage: newMsg.content, updatedAt: newMsg.created_at }
-                  : c,
-              )
-              .sort(
-                (a, b) =>
-                  new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime(),
-              )
+            const updated = prev.map((c) =>
+              c.id === newMsg.contact_id
+                ? { ...c, lastMessage: newMsg.content, updatedAt: newMsg.created_at }
+                : c,
+            )
+
+            return updated.sort((a, b) => {
+              const timeA = a.updatedAt
+                ? new Date(a.updatedAt).getTime()
+                : new Date(a.created_at || 0).getTime()
+              const timeB = b.updatedAt
+                ? new Date(b.updatedAt).getTime()
+                : new Date(b.created_at || 0).getTime()
+              return timeB - timeA
+            })
           })
         },
       )
@@ -141,13 +146,35 @@ export default function ChatPage() {
   const loadContacts = async () => {
     setLoading(true)
     try {
-      const { data, error } = await supabase
+      const { data: contactsData, error } = await supabase
         .from('contacts')
-        .select('*')
+        .select(`
+          *,
+          messages (
+            content,
+            created_at
+          )
+        `)
+        .order('created_at', { foreignTable: 'messages', ascending: false })
+        .limit(1, { foreignTable: 'messages' })
         .order('created_at', { ascending: false })
 
-      if (!error && data) {
-        setContacts(data)
+      if (!error && contactsData) {
+        const formatted = contactsData.map((c: any) => {
+          const msgs = c.messages || []
+          const lastMsg = msgs[0]
+          return {
+            id: c.id,
+            name: c.name,
+            phone: c.phone,
+            created_at: c.created_at,
+            lastMessage: lastMsg?.content,
+            updatedAt: lastMsg?.created_at || c.created_at,
+          }
+        })
+
+        formatted.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+        setContacts(formatted)
       }
     } catch (e) {
       console.error('Erro ao carregar contatos', e)

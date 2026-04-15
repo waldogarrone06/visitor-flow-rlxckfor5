@@ -131,15 +131,15 @@ Deno.serve(async (req: Request) => {
     let text =
       msgData?.conversation ||
       msgData?.extendedTextMessage?.text ||
-      msgData?.message?.conversation ||
-      msgData?.message?.extendedTextMessage?.text ||
+      firstItem?.message?.conversation ||
+      firstItem?.message?.extendedTextMessage?.text ||
       firstItem?.text ||
-      firstItem?.message?.text ||
       data?.body ||
       data?.text ||
       data?.content ||
       ''
 
+    // Se o texto ainda estiver vazio, tenta extrair de possíveis campos aninhados ou mídias
     if (!text) {
       if (msgData?.imageMessage || msgData?.message?.imageMessage)
         text =
@@ -191,42 +191,65 @@ Deno.serve(async (req: Request) => {
         console.log('🔍 Procurando user_id para as instâncias:', searchInstances)
 
         if (searchInstances.length > 0) {
-          const { data: allIntegrations } = await supabaseAdmin
+          const { data: allIntegrations, error: intErr } = await supabaseAdmin
             .from('user_integrations')
             .select('user_id, whatsapp_instance_id')
             .not('whatsapp_instance_id', 'is', null)
 
-          if (allIntegrations) {
-            const match = allIntegrations.find((int) => {
+          if (intErr) console.error('❌ Erro ao buscar integrações:', intErr)
+
+          if (allIntegrations && allIntegrations.length > 0) {
+            // 1. Tentativa de match exato primeiro
+            let match = allIntegrations.find((int) => {
               const dbInstance = String(int.whatsapp_instance_id).trim().toLowerCase()
-              return searchInstances.some(
-                (s) =>
-                  s === dbInstance ||
-                  (dbInstance.length >= 2 && s.includes(dbInstance)) ||
-                  (s.length >= 2 && dbInstance.includes(s)) ||
-                  (s === 'junior' && dbInstance === 'jr') ||
-                  (s === 'jr' && dbInstance === 'junior'),
-              )
+              return searchInstances.includes(dbInstance)
             })
+
+            // 2. Match com fallback ("jr" / "junior")
+            if (!match) {
+              match = allIntegrations.find((int) => {
+                const dbInstance = String(int.whatsapp_instance_id).trim().toLowerCase()
+                return searchInstances.some(
+                  (s) =>
+                    (s === 'junior' && dbInstance === 'jr') ||
+                    (s === 'jr' && dbInstance === 'junior'),
+                )
+              })
+            }
+
+            // 3. Match solto com includes
+            if (!match) {
+              match = allIntegrations.find((int) => {
+                const dbInstance = String(int.whatsapp_instance_id).trim().toLowerCase()
+                return searchInstances.some(
+                  (s) =>
+                    (dbInstance.length >= 3 && s.includes(dbInstance)) ||
+                    (s.length >= 3 && dbInstance.includes(s)),
+                )
+              })
+            }
 
             if (match) {
               userId = match.user_id
-              console.log(`✅ Instância encontrada via match dinâmico flexível. User ID: ${userId}`)
+              console.log(
+                `✅ Instância encontrada: ${match.whatsapp_instance_id}. User ID: ${userId}`,
+              )
             }
           }
         }
 
         if (!userId) {
-          console.log('⚠️ Nenhuma instância correspondente encontrada. Usando fallback...')
-          const { data: fallbackIntegration } = await supabaseAdmin
+          console.log('⚠️ Nenhuma instância correspondente encontrada. Usando fallback seguro...')
+          // Usar fallback apenas se houver APENAS UMA integração com WhatsApp configurado,
+          // caso contrário pode mandar a mensagem para o usuário errado
+          const { data: allConfigured } = await supabaseAdmin
             .from('user_integrations')
             .select('user_id')
-            .not('whatsapp_api_url', 'is', null)
-            .limit(1)
-            .maybeSingle()
+            .not('whatsapp_instance_id', 'is', null)
 
-          if (fallbackIntegration) {
-            userId = fallbackIntegration.user_id
+          if (allConfigured && allConfigured.length === 1) {
+            userId = allConfigured[0].user_id
+            console.log(`✅ Fallback usado: Só existe 1 usuário configurado. User ID: ${userId}`)
           } else {
             const { data: mainProfile } = await supabaseAdmin
               .from('profiles')
@@ -234,8 +257,8 @@ Deno.serve(async (req: Request) => {
               .limit(1)
               .maybeSingle()
             if (mainProfile) userId = mainProfile.id
+            console.log(`⚠️ Fallback genérico usado. User ID: ${userId}`)
           }
-          console.log(`⚠️ User ID definido via fallback: ${userId}`)
         }
 
         if (userId && phone) {
@@ -325,19 +348,23 @@ Deno.serve(async (req: Request) => {
             }
 
             if (!msgExists) {
+              const msgPayload = {
+                user_id: userId,
+                contact_id: contactId,
+                content: text,
+                direction: isFromMe ? 'outbound' : 'inbound',
+                status: isFromMe ? 'sent' : 'delivered',
+                client_id: messageId,
+              }
+
               console.log(
-                `📝 Inserindo mensagem na tabela messages... (user_id: ${userId}, contact_id: ${contactId})`,
+                `📝 Inserindo mensagem na tabela messages... payload:`,
+                JSON.stringify(msgPayload),
               )
+
               const { data: insertedMsg, error: insErr } = await supabaseAdmin
                 .from('messages')
-                .insert({
-                  user_id: userId,
-                  contact_id: contactId,
-                  content: text,
-                  direction: isFromMe ? 'outbound' : 'inbound',
-                  status: isFromMe ? 'sent' : 'delivered',
-                  client_id: messageId,
-                })
+                .insert(msgPayload)
                 .select()
                 .maybeSingle()
 
