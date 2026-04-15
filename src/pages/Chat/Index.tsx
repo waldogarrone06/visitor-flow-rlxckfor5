@@ -5,7 +5,17 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { sendWhatsAppMessage } from '@/services/whatsapp'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Send, User, Loader2, Image as ImageIcon, FileText, Mic, AlertCircle } from 'lucide-react'
+import {
+  Send,
+  User,
+  Loader2,
+  Image as ImageIcon,
+  FileText,
+  Mic,
+  AlertCircle,
+  Check,
+  CheckCheck,
+} from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { toast } from 'sonner'
@@ -390,6 +400,15 @@ export default function ChatPage() {
                       >
                         {format(new Date(msg.created_at), 'HH:mm')}
                         {msg.status === 'sending' && <Loader2 className="w-3 h-3 animate-spin" />}
+                        {isOutbound && msg.status === 'sent' && <Check className="w-3 h-3" />}
+                        {isOutbound &&
+                          (msg.status === 'delivered' ||
+                            msg.status === 'read' ||
+                            msg.status === 'played') && (
+                            <CheckCheck
+                              className={`w-3 h-3 ${msg.status === 'read' || msg.status === 'played' ? 'text-[#34B7F1]' : ''}`}
+                            />
+                          )}
                         {isError && (
                           <span className="flex items-center text-destructive-foreground font-medium ml-1">
                             <AlertCircle className="w-3 h-3 mr-0.5" />

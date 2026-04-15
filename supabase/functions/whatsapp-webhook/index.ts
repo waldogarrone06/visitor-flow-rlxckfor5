@@ -36,22 +36,22 @@ Deno.serve(async (req: Request) => {
     const keyData = firstItem?.key || firstItem?.message?.key || data?.key || data?.data?.key || {}
     const msgData = firstItem?.message || firstItem
 
-    let remoteJid =
+    let rawRemoteJid =
       keyData?.remoteJid || firstItem?.remoteJid || data?.sender || data?.from || data?.number || ''
 
-    if (typeof remoteJid === 'string' && remoteJid.includes('@g.us')) {
+    if (typeof rawRemoteJid === 'string' && rawRemoteJid.includes('@g.us')) {
       return new Response(JSON.stringify({ status: 'ok', handled: 'group_message_ignored' }), {
         status: 200,
         headers: corsHeaders,
       })
     }
 
-    let phone = remoteJid
+    let phone = rawRemoteJid
     if (typeof phone === 'string') phone = phone.split('@')[0]
     if (typeof phone === 'string' && phone.includes(':')) phone = phone.split(':')[0]
     phone = String(phone).replace(/\D/g, '')
 
-    console.log('🧩 Webhook Extraído:', JSON.stringify({ eventType, phone, remoteJid }))
+    console.log('🧩 Webhook Extraído:', JSON.stringify({ eventType, phone, rawRemoteJid }))
 
     const isSystemEvent =
       eventType.startsWith('connection') ||
@@ -120,7 +120,6 @@ Deno.serve(async (req: Request) => {
         }
       }
 
-      // Retorna cedo, pois é apenas um update de status, não uma mensagem nova
       return new Response(JSON.stringify({ status: 'ok', handled: 'status_update' }), {
         status: 200,
         headers: corsHeaders,
@@ -139,7 +138,6 @@ Deno.serve(async (req: Request) => {
       data?.content ||
       ''
 
-    // Se o texto ainda estiver vazio, tenta extrair de possíveis campos aninhados ou mídias
     if (!text) {
       if (msgData?.imageMessage || msgData?.message?.imageMessage)
         text =
@@ -199,13 +197,11 @@ Deno.serve(async (req: Request) => {
           if (intErr) console.error('❌ Erro ao buscar integrações:', intErr)
 
           if (allIntegrations && allIntegrations.length > 0) {
-            // 1. Tentativa de match exato primeiro
             let match = allIntegrations.find((int) => {
               const dbInstance = String(int.whatsapp_instance_id).trim().toLowerCase()
               return searchInstances.includes(dbInstance)
             })
 
-            // 2. Match com fallback ("jr" / "junior")
             if (!match) {
               match = allIntegrations.find((int) => {
                 const dbInstance = String(int.whatsapp_instance_id).trim().toLowerCase()
@@ -217,7 +213,6 @@ Deno.serve(async (req: Request) => {
               })
             }
 
-            // 3. Match solto com includes
             if (!match) {
               match = allIntegrations.find((int) => {
                 const dbInstance = String(int.whatsapp_instance_id).trim().toLowerCase()
@@ -240,8 +235,6 @@ Deno.serve(async (req: Request) => {
 
         if (!userId) {
           console.log('⚠️ Nenhuma instância correspondente encontrada. Usando fallback seguro...')
-          // Usar fallback apenas se houver APENAS UMA integração com WhatsApp configurado,
-          // caso contrário pode mandar a mensagem para o usuário errado
           const { data: allConfigured } = await supabaseAdmin
             .from('user_integrations')
             .select('user_id')
