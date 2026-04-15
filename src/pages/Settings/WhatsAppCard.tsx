@@ -124,7 +124,10 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
 
     setLoading(true)
     try {
-      const cleanUrl = apiUrl.trim().replace(/\/$/, '')
+      const cleanUrl = apiUrl
+        .trim()
+        .replace(/^(POST|GET|PUT|DELETE)\s+/i, '')
+        .replace(/\/$/, '')
       const cleanToken = apiToken.trim()
       const cleanInstance = instanceName.trim()
 
@@ -185,7 +188,10 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
 
     setTesting(true)
     try {
-      const cleanUrl = apiUrl.trim().replace(/\/$/, '')
+      const cleanUrl = apiUrl
+        .trim()
+        .replace(/^(POST|GET|PUT|DELETE)\s+/i, '')
+        .replace(/\/$/, '')
       const cleanToken = apiToken.trim()
       const cleanInstance = instanceName.trim()
 
@@ -298,8 +304,10 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
                 <Link2 className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   value={apiUrl}
-                  onChange={(e) => setApiUrl(e.target.value)}
-                  placeholder="http://evolution-manager:8080/v1/messages"
+                  onChange={(e) =>
+                    setApiUrl(e.target.value.replace(/^(POST|GET|PUT|DELETE)\s+/i, ''))
+                  }
+                  placeholder="Ex: https://4labnutri.online"
                   className="pl-9"
                   disabled={connected}
                 />

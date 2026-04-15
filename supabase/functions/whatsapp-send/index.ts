@@ -75,21 +75,25 @@ Deno.serve(async (req: Request) => {
     apiKey = apiKey.trim()
     sessionId = sessionId.trim()
 
-    // Default to the Tiny API URL for Work-Exchange mode
-    let baseUrl = (apiUrl || 'http://129.121.44.86:9000/send').trim()
+    // Remove HTTP methods from URL if pasted by mistake (e.g., "POST https://...")
+    apiUrl = apiUrl.replace(/^(POST|GET|PUT|DELETE)\s+/i, '').trim()
 
-    // Automatically append /send or /v1/messages se o usuário apenas forneceu IP/Domínio
-    if (
-      apiUrl &&
-      !baseUrl.includes('/v1/messages') &&
-      !baseUrl.includes('/message/sendText') &&
-      !baseUrl.includes('supabase.co') &&
-      !baseUrl.includes('/send')
-    ) {
-      if (baseUrl.includes(':9000')) {
+    // Default to the Tiny API URL for Work-Exchange mode
+    let baseUrl = (apiUrl || 'http://129.121.44.86:9000').trim()
+
+    // Safely format the Endpoint URL
+    if (baseUrl.includes(':9000')) {
+      // Tiny API mode
+      if (!baseUrl.includes('/send')) {
         baseUrl = baseUrl.replace(/\/+$/, '') + '/send'
-      } else {
-        baseUrl = baseUrl.replace(/\/+$/, '') + '/v1/messages'
+      }
+    } else {
+      // Evolution API Direct Mode
+      baseUrl = baseUrl.replace(/\/+$/, '')
+      if (!baseUrl.includes('/message/sendText') && !baseUrl.includes('/v1/messages')) {
+        baseUrl = `${baseUrl}/message/sendText/${sessionId}`
+      } else if (baseUrl.endsWith('/message/sendText')) {
+        baseUrl = `${baseUrl}/${sessionId}`
       }
     }
 
@@ -101,16 +105,32 @@ Deno.serve(async (req: Request) => {
       number = '55' + number
     }
 
-    // Evolution API Work-Exchange Mode expected payload format
-    const payload = {
+    // Payload for Tiny API or Evolution API
+    // Evolution API natively expects "number" and "text" or "textMessage.text" depending on the endpoint
+    // We send a combined payload that satisfies both the Tiny API script and Evolution API natively
+    const payload: any = {
       number: number,
-      message: text,
+      text: text, // Evolution natively uses 'text' inside options or directly
+      message: text, // Some custom middlewares/tiny API use 'message'
       instanceId: sessionId,
       api_key: apiKey,
     }
 
+    // Include text inside options as required by newer Evolution API v2
+    if (!baseUrl.includes(':9000')) {
+      payload.options = {
+        delay: 1200,
+        presence: 'composing',
+      }
+      payload.textMessage = {
+        text: text,
+      }
+    }
+
     const fetchHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
+      apikey: apiKey,
+      Authorization: `Bearer ${apiKey}`,
     }
 
     console.log(`[send_whatsapp] POST ${baseUrl} for instance ${sessionId}`)
