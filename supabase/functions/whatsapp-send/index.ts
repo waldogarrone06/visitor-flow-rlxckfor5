@@ -84,13 +84,20 @@ Deno.serve(async (req: Request) => {
     // Remove HTTP methods from URL if pasted by mistake (e.g., "POST https://...")
     apiUrl = apiUrl.replace(/^(POST|GET|PUT|DELETE)\s+/i, '').trim()
 
+    // Force Tiny API if the user has the VPS IP
+    if (apiUrl.includes('129.121.44.86')) {
+      apiUrl = 'http://129.121.44.86:9000'
+    }
+
     // Default to the Tiny API URL for Work-Exchange mode
     let baseUrl = (apiUrl || 'http://129.121.44.86:9000').trim()
 
     // Safely format the Endpoint URL
     if (baseUrl.includes(':9000')) {
       // Tiny API mode
-      if (!baseUrl.includes('/send')) {
+      baseUrl = baseUrl.split('/message')[0] // clean up if user pasted evolution full path
+      baseUrl = baseUrl.split('/v1')[0]
+      if (!baseUrl.endsWith('/send')) {
         baseUrl = baseUrl.replace(/\/+$/, '') + '/send'
       }
     } else {
