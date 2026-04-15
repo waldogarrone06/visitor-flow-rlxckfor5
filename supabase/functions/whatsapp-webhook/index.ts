@@ -94,7 +94,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // Processamento de Atualização de Status (DELIVERY_ACK, READ, etc)
-    if (eventType === 'messages.update') {
+    if (eventType === 'messages.update' || data?.event === 'messages.update') {
       let messageId =
         keyData?.id ||
         firstItem?.update?.id ||
@@ -141,6 +141,7 @@ Deno.serve(async (req: Request) => {
     let text =
       msgData?.conversation ||
       msgData?.extendedTextMessage?.text ||
+      msgData?.text ||
       firstItem?.message?.conversation ||
       firstItem?.message?.extendedTextMessage?.text ||
       firstItem?.text ||

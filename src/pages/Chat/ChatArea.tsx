@@ -257,10 +257,9 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
     try {
       if (lead?.phone) {
         const response: any = await sendWhatsAppMessage(lead.phone, messageText)
+        const ev = response?.evolutionResponse
         let clientId =
-          response?.evolutionResponse?.key?.id ||
-          response?.evolutionResponse?.messageId ||
-          response?.evolutionResponse?.id
+          ev?.key?.id || ev?.message?.key?.id || ev?.messageId || ev?.id || ev?.data?.key?.id
 
         if (contactId) {
           const updatePayload: any = { status: 'sent' }

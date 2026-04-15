@@ -143,6 +143,7 @@ Deno.serve(async (req: Request) => {
     const fetchHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
       apikey: apiKey,
+      GlobalApiKey: apiKey,
       Authorization: `Bearer ${apiKey}`,
     }
 

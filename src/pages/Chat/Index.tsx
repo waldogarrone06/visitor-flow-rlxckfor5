@@ -255,11 +255,10 @@ export default function ChatPage() {
 
       let clientId = null
       if (response && response.evolutionResponse) {
+        const ev = response.evolutionResponse
         // Tenta extrair o ID da mensagem retornado pela API para salvar na tabela
         clientId =
-          response.evolutionResponse?.key?.id ||
-          response.evolutionResponse?.messageId ||
-          response.evolutionResponse?.id
+          ev?.key?.id || ev?.message?.key?.id || ev?.messageId || ev?.id || ev?.data?.key?.id
       }
 
       // 4. Sucesso: atualiza o status final para entregue e registra o clientId se disponível
