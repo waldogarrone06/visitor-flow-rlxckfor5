@@ -27,6 +27,9 @@ Deno.serve(async (req: Request) => {
 
     const data = await req.json().catch(() => ({}))
 
+    // Logs detalhados para diagnóstico do payload recebido da Evolution API
+    console.log('📥 Webhook Recebido (Completo):', JSON.stringify(data, null, 2))
+
     const eventType = data?.event || data?.messageType || 'unknown'
     const sessionId = (data?.instance || data?.sessionId || data?.instanceId || 'unknown').trim()
 
@@ -37,9 +40,9 @@ Deno.serve(async (req: Request) => {
     const msgData = firstItem?.message || firstItem
 
     let remoteJid =
-      keyData?.remoteJid || firstItem?.remoteJid || data?.sender || data?.from || data?.number || ''
+      data?.sender || keyData?.remoteJid || firstItem?.remoteJid || data?.from || data?.number || ''
 
-    // Ignorar mensagens de grupos para evitar lixo no CRM
+    // Ignorar mensagens de grupos para evitar lixo no banco
     if (typeof remoteJid === 'string' && remoteJid.includes('@g.us')) {
       return new Response(JSON.stringify({ status: 'ok', handled: 'group_message_ignored' }), {
         status: 200,
@@ -49,11 +52,12 @@ Deno.serve(async (req: Request) => {
 
     let phone = remoteJid
     if (typeof phone === 'string') phone = phone.split('@')[0]
+    if (typeof phone === 'string' && phone.includes(':')) phone = phone.split(':')[0] // Correção para IDs linked (lid) da Evolution
     phone = String(phone).replace(/\D/g, '')
 
     console.log(
-      '📥 Webhook Recebido:',
-      JSON.stringify({ eventType, sessionId, phone, fromMe: keyData?.fromMe }),
+      '🧩 Webhook Extraído:',
+      JSON.stringify({ eventType, sessionId, phone, sender: data?.sender }),
     )
 
     const isSystemEvent =
@@ -85,9 +89,18 @@ Deno.serve(async (req: Request) => {
       })
     }
 
+    // Processamento de Atualização de Status (DELIVERY_ACK, READ, etc)
     if (eventType === 'messages.update') {
-      let messageId = keyData?.id || firstItem?.update?.id || null
-      let newStatus = firstItem?.update?.status
+      let messageId =
+        keyData?.id ||
+        firstItem?.update?.id ||
+        firstItem?.keyId ||
+        firstItem?.messageId ||
+        data?.data?.keyId ||
+        null
+      let newStatus = firstItem?.update?.status || firstItem?.status || data?.data?.status
+
+      console.log(`🔄 Atualização de Status detectada: MSG ID ${messageId} -> ${newStatus}`)
 
       if (messageId && newStatus) {
         let mappedStatus = 'sent'
@@ -98,14 +111,29 @@ Deno.serve(async (req: Request) => {
         if (newStatus === 'ERROR') mappedStatus = 'failed'
 
         try {
-          await supabaseAdmin
+          const { data: updatedMsg, error: updErr } = await supabaseAdmin
             .from('messages')
             .update({ status: mappedStatus })
             .eq('client_id', messageId)
-        } catch (e) {}
+            .select('id')
+            .maybeSingle()
+
+          if (updErr) console.error('❌ Erro ao atualizar status no Supabase:', updErr)
+          else if (updatedMsg)
+            console.log('✅ Status atualizado com sucesso no banco:', updatedMsg.id)
+        } catch (e) {
+          console.error('❌ Exceção ao atualizar status:', e)
+        }
       }
+
+      // Retorna cedo, pois é apenas um update de status, não uma mensagem nova
+      return new Response(JSON.stringify({ status: 'ok', handled: 'status_update' }), {
+        status: 200,
+        headers: corsHeaders,
+      })
     }
 
+    // Processamento de Novas Mensagens
     let text =
       msgData?.message?.conversation ||
       msgData?.message?.extendedTextMessage?.text ||
@@ -135,13 +163,16 @@ Deno.serve(async (req: Request) => {
       else if (msgData?.message?.contactMessage || msgData?.contactMessage) text = '[Contato]'
     }
 
-    let isFromMe = keyData?.fromMe || false
-    let messageId = keyData?.id || data?.messageId || null
+    let isFromMe = keyData?.fromMe || firstItem?.fromMe || data?.data?.fromMe || false
+    let messageId = keyData?.id || data?.messageId || firstItem?.keyId || null
 
     if ((eventType === 'messages.upsert' || data?.data?.message || msgData) && text) {
+      console.log(
+        `💬 Processando nova mensagem [fromMe: ${isFromMe}]: ${phone} -> ${text.substring(0, 30)}...`,
+      )
       try {
         let userId = null
-        // Tenta buscar a integração ignorando maiúsculas/minúsculas no sessionId
+
         const { data: integrations } = await supabaseAdmin
           .from('user_integrations')
           .select('user_id')
@@ -151,7 +182,6 @@ Deno.serve(async (req: Request) => {
         if (integrations && integrations.length > 0) {
           userId = integrations[0].user_id
         } else {
-          // Se não encontrou, tenta buscar por quem tem URL configurada (fallback seguro para mono-tenant)
           const { data: fallbackIntegration } = await supabaseAdmin
             .from('user_integrations')
             .select('user_id')
@@ -174,7 +204,6 @@ Deno.serve(async (req: Request) => {
         if (userId && phone) {
           let contactId = null
 
-          // Tenta encontrar o contato exatamente como veio
           let { data: contact } = await supabaseAdmin
             .from('contacts')
             .select('id')
@@ -183,7 +212,6 @@ Deno.serve(async (req: Request) => {
             .maybeSingle()
           if (contact) contactId = contact.id
 
-          // Tenta encontrar sem o 55 (caso esteja cadastrado assim)
           if (!contactId && phone.startsWith('55') && phone.length >= 12) {
             const phoneWithout55 = phone.substring(2)
             let { data: contact2 } = await supabaseAdmin
@@ -195,7 +223,6 @@ Deno.serve(async (req: Request) => {
             if (contact2) contactId = contact2.id
           }
 
-          // Tenta encontrar com o 55 (caso esteja cadastrado com 55 e veio sem)
           if (!contactId && !phone.startsWith('55') && phone.length >= 10) {
             const phoneWith55 = '55' + phone
             let { data: contact3 } = await supabaseAdmin
@@ -207,7 +234,6 @@ Deno.serve(async (req: Request) => {
             if (contact3) contactId = contact3.id
           }
 
-          // Cria um novo contato se não achou em nenhuma variação
           if (!contactId) {
             const pushName = firstItem?.pushName || `Contato (${phone})`
             const { data: newContact } = await supabaseAdmin
@@ -229,7 +255,6 @@ Deno.serve(async (req: Request) => {
               if (existingMsg) msgExists = true
             }
 
-            // Deduplicação por texto para mensagens enviadas por mim nos últimos 30 segundos
             if (!msgExists && isFromMe && text) {
               const thirtySecondsAgo = new Date(Date.now() - 30000).toISOString()
               const { data: recentMsg } = await supabaseAdmin
@@ -244,7 +269,6 @@ Deno.serve(async (req: Request) => {
 
               if (recentMsg) {
                 msgExists = true
-                // Opcional: atualizar o client_id da mensagem existente
                 if (!recentMsg.client_id && messageId) {
                   await supabaseAdmin
                     .from('messages')
@@ -255,7 +279,7 @@ Deno.serve(async (req: Request) => {
             }
 
             if (!msgExists) {
-              await supabaseAdmin.from('messages').insert({
+              const { error: insErr } = await supabaseAdmin.from('messages').insert({
                 user_id: userId,
                 contact_id: contactId,
                 content: text,
@@ -264,23 +288,33 @@ Deno.serve(async (req: Request) => {
                 client_id: messageId,
               })
 
+              if (insErr) console.error('❌ Erro ao inserir nova mensagem no banco:', insErr)
+              else console.log('✅ Nova mensagem persistida no banco com sucesso.')
+
               await supabaseAdmin.from('interaction_log').insert({
                 user_id: userId,
                 contact_id: contactId,
                 type: 'whatsapp_receive',
                 details: { text: text.substring(0, 50), isFromMe, messageId, eventType },
               })
+            } else {
+              console.log('⚠️ Mensagem ignorada (já existe ou recém-enviada por mim via painel).')
             }
           }
         }
       } catch (e) {
-        console.error('Erro processando mensagem:', e)
+        console.error('❌ Erro interno processando mensagem:', e)
       }
+    } else {
+      console.log('ℹ️ Nenhum texto extraído ou evento não mapeado para inserção de conteúdo.')
     }
 
     return new Response(JSON.stringify({ status: 'ok' }), { status: 200, headers: corsHeaders })
   } catch (err: any) {
-    console.error('❌ ERRO GERAL:', err)
-    return new Response(JSON.stringify({ status: 'error' }), { status: 200, headers: corsHeaders })
+    console.error('❌ ERRO GERAL NO WEBHOOK:', err)
+    return new Response(JSON.stringify({ status: 'error', message: err.message }), {
+      status: 200,
+      headers: corsHeaders,
+    })
   }
 })
