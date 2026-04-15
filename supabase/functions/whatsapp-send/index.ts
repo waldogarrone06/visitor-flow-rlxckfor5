@@ -176,14 +176,18 @@ Deno.serve(async (req: Request) => {
 
     // Log Interaction
     if (userId) {
-      await supabaseAdmin
-        .from('interaction_log')
-        .insert({
+      try {
+        const { error: logError } = await supabaseAdmin.from('interaction_log').insert({
           user_id: userId,
           type: 'whatsapp_send',
           details: { to: number, instance: sessionId, success: true, mode: 'work-exchange' },
         })
-        .catch((err) => console.warn('Failed to insert interaction log:', err))
+        if (logError) {
+          console.warn('Failed to insert interaction log:', logError)
+        }
+      } catch (err) {
+        console.warn('Exception during interaction log insert:', err)
+      }
     }
 
     return new Response(JSON.stringify({ success: true, evolutionResponse: parsedResult }), {
