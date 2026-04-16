@@ -139,9 +139,13 @@ Deno.serve(async (req: Request) => {
 
     // Processamento de Novas Mensagens
     let text =
+      msgData?.message?.conversation ||
+      msgData?.message?.extendedTextMessage?.text ||
       msgData?.conversation ||
       msgData?.extendedTextMessage?.text ||
       msgData?.text ||
+      firstItem?.message?.message?.conversation ||
+      firstItem?.message?.message?.extendedTextMessage?.text ||
       firstItem?.message?.conversation ||
       firstItem?.message?.extendedTextMessage?.text ||
       firstItem?.text ||
@@ -151,39 +155,48 @@ Deno.serve(async (req: Request) => {
       ''
 
     if (!text) {
-      if (msgData?.imageMessage || msgData?.message?.imageMessage)
+      if (msgData?.message?.imageMessage || msgData?.imageMessage)
         text =
-          msgData?.imageMessage?.caption || msgData?.message?.imageMessage?.caption || '[Imagem]'
-      else if (msgData?.videoMessage || msgData?.message?.videoMessage)
+          msgData?.message?.imageMessage?.caption || msgData?.imageMessage?.caption || '[Imagem]'
+      else if (msgData?.message?.videoMessage || msgData?.videoMessage)
         text =
-          msgData?.videoMessage?.caption || msgData?.message?.videoMessage?.caption || '[Vídeo]'
-      else if (msgData?.audioMessage || msgData?.message?.audioMessage) text = '[Áudio]'
-      else if (msgData?.documentMessage || msgData?.message?.documentMessage)
+          msgData?.message?.videoMessage?.caption || msgData?.videoMessage?.caption || '[Vídeo]'
+      else if (msgData?.message?.audioMessage || msgData?.audioMessage) text = '[Áudio]'
+      else if (msgData?.message?.documentMessage || msgData?.documentMessage)
         text =
-          msgData?.documentMessage?.fileName ||
           msgData?.message?.documentMessage?.fileName ||
+          msgData?.documentMessage?.fileName ||
           '[Documento]'
-      else if (msgData?.stickerMessage || msgData?.message?.stickerMessage) text = '[Sticker]'
-      else if (msgData?.contactMessage || msgData?.message?.contactMessage) text = '[Contato]'
+      else if (msgData?.message?.stickerMessage || msgData?.stickerMessage) text = '[Sticker]'
+      else if (msgData?.message?.contactMessage || msgData?.contactMessage) text = '[Contato]'
     }
 
     let isFromMe = false
     if (keyData?.fromMe !== undefined) isFromMe = keyData.fromMe
+    else if (firstItem?.message?.key?.fromMe !== undefined) isFromMe = firstItem.message.key.fromMe
     else if (firstItem?.fromMe !== undefined) isFromMe = firstItem.fromMe
     else if (data?.data?.fromMe !== undefined) isFromMe = data.data.fromMe
     else if (data?.fromMe !== undefined) isFromMe = data.fromMe
 
     let messageId =
       keyData?.id ||
+      firstItem?.message?.key?.id ||
       data?.messageId ||
       firstItem?.keyId ||
       firstItem?.id ||
       data?.data?.messageId ||
       null
 
+    console.log(
+      `🔎 Extração de payload: isFromMe=${isFromMe}, id=${messageId}, text=${text?.substring(0, 30)}`,
+    )
+
     if ((eventType === 'messages.upsert' || eventType === 'messages.add') && text) {
       console.log(
         `💬 Processando nova mensagem [fromMe: ${isFromMe}, id: ${messageId}]: ${phone} -> ${text.substring(0, 30)}...`,
+      )
+      console.log(
+        `[DEBUG] eventType: ${eventType}, text: ${text}, phone: ${phone}, isFromMe: ${isFromMe}`,
       )
       try {
         const sessionId = String(data?.instance || data?.sessionId || data?.instanceId || '').trim()
@@ -223,6 +236,12 @@ Deno.serve(async (req: Request) => {
                     (s === 'jr' && dbInstance === 'junior'),
                 )
               })
+            }
+
+            if (!match) {
+              console.log(
+                `⚠️ Match exato não encontrado para ${searchInstances.join(', ')}. Buscando match parcial (case-insensitive)...`,
+              )
             }
 
             if (!match) {
@@ -301,8 +320,12 @@ Deno.serve(async (req: Request) => {
 
           if (!contactId) {
             const pushName =
-              firstItem?.pushName || data?.data?.pushName || data?.pushName || `Contato (${phone})`
-            console.log(`👤 Criando novo contato para o phone ${phone}...`)
+              firstItem?.pushName ||
+              firstItem?.message?.pushName ||
+              data?.data?.pushName ||
+              data?.pushName ||
+              `Contato (${phone})`
+            console.log(`👤 Criando novo contato para o phone ${phone}... com nome: ${pushName}`)
             const { data: newContact, error: createContactErr } = await supabaseAdmin
               .from('contacts')
               .insert({ user_id: userId, phone: phone, name: pushName })
