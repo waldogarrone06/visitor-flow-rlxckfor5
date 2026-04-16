@@ -417,8 +417,22 @@ Deno.serve(async (req: Request) => {
             )
           }
         }
-      } catch (e) {
+      } catch (e: any) {
         console.error('❌ Erro interno processando mensagem:', e)
+        try {
+          await supabaseAdmin.from('whatsapp_events').insert({
+            instance: String(
+              data?.instance || data?.sessionId || data?.instanceId || 'unknown',
+            ).trim(),
+            message_type: 'processing.error',
+            remote_jid: phone || 'system',
+            message: {
+              error: e.message,
+              stack: e.stack,
+              context: 'Error processing new message',
+            },
+          })
+        } catch (err2) {}
       }
     } else {
       console.log('ℹ️ Nenhum texto extraído ou evento não mapeado para inserção de conteúdo.')
@@ -427,6 +441,26 @@ Deno.serve(async (req: Request) => {
     return new Response(JSON.stringify({ status: 'ok' }), { status: 200, headers: corsHeaders })
   } catch (err: any) {
     console.error('❌ ERRO GERAL NO WEBHOOK:', err)
+    try {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
+      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
+      if (supabaseUrl && supabaseServiceKey) {
+        const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+          auth: { persistSession: false },
+        })
+        await supabaseAdmin.from('whatsapp_events').insert({
+          instance: 'system-error',
+          message_type: 'webhook.error',
+          remote_jid: 'system',
+          message: {
+            error: err.message,
+            stack: err.stack,
+            type: 'General Webhook Error',
+          },
+        })
+      }
+    } catch (e) {}
+
     return new Response(JSON.stringify({ status: 'error', message: err.message }), {
       status: 200,
       headers: corsHeaders,
