@@ -12,6 +12,7 @@ import SchedulingPage from './pages/Scheduling/Index'
 import CrmPage from './pages/Crm/Index'
 import KitsPage from './pages/Kits/Index'
 import SettingsPage from './pages/Settings/Index'
+import LogsPage from './pages/Logs/Index'
 import LeadDetailPage from './pages/Crm/LeadDetail'
 import ChatPage from './pages/Chat/Index'
 import PublicBookingPage from './pages/PublicBooking/Index'
@@ -38,6 +39,7 @@ const App = () => (
               <Route path="/crm/prescritor/:id" element={<LeadDetailPage />} />
               <Route path="/chat" element={<ChatPage />} />
               <Route path="/kits" element={<KitsPage />} />
+              <Route path="/logs" element={<LogsPage />} />
               <Route path="/config" element={<SettingsPage />} />
             </Route>
             <Route path="*" element={<NotFound />} />

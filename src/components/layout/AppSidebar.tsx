@@ -6,6 +6,7 @@ import {
   Package,
   Settings,
   MessageCircle,
+  Activity,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -25,6 +26,7 @@ const menuItems = [
   { title: 'CRM', url: '/crm', icon: Users },
   { title: 'Mensagens', url: '/chat', icon: MessageCircle },
   { title: 'Gestão de Kits', url: '/kits', icon: Package },
+  { title: 'Logs do WhatsApp', url: '/logs', icon: Activity },
   { title: 'Configurações', url: '/config', icon: Settings },
 ]
 
