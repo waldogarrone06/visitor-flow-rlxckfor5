@@ -771,10 +771,14 @@ export const Constants = {
 //     USING: true
 //     WITH CHECK: true
 // Table: kit_items
+//   Policy "Anyone can view kit items" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: true
 //   Policy "Users manage own kit items" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: (EXISTS ( SELECT 1    FROM kits   WHERE ((kits.id = kit_items.kit_id) AND (kits.user_id = auth.uid()))))
 //     WITH CHECK: (EXISTS ( SELECT 1    FROM kits   WHERE ((kits.id = kit_items.kit_id) AND (kits.user_id = auth.uid()))))
 // Table: kits
+//   Policy "Anyone can view kits" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: true
 //   Policy "Users manage own kits" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: (auth.uid() = user_id)
 //     WITH CHECK: (auth.uid() = user_id)

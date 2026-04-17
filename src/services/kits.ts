@@ -1,10 +1,9 @@
 import { supabase } from '@/lib/supabase/client'
 
-export async function getKits(userId: string) {
+export async function getKits(userId?: string) {
   const { data, error } = await supabase
     .from('kits' as any)
     .select('*, kit_items(*)')
-    .eq('user_id', userId)
     .order('created_at', { ascending: false })
 
   if (error) throw error

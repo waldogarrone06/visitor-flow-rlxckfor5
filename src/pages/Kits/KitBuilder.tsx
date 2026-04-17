@@ -24,6 +24,7 @@ export function KitBuilder() {
   const [prescribers, setPrescribers] = useState<any[]>([])
 
   // Form State
+  const [selectedCatalogKit, setSelectedCatalogKit] = useState<string>('new')
   const [name, setName] = useState('')
   const [isPersonalized, setIsPersonalized] = useState(false)
   const [prescriberEmail, setPrescriberEmail] = useState('')
@@ -32,10 +33,12 @@ export function KitBuilder() {
   ])
   const [loading, setLoading] = useState(false)
 
+  const catalogKits = kits.filter((k) => !k.is_personalized)
+
   const loadData = async () => {
     if (!user) return
     const [fetchedKits, fetchedPrescribers] = await Promise.all([
-      getKits(user.id),
+      getKits(),
       getPrescribers(user.id),
     ])
     setKits(fetchedKits)
@@ -45,6 +48,25 @@ export function KitBuilder() {
   useEffect(() => {
     loadData()
   }, [user])
+
+  const handleCatalogSelect = (kitId: string) => {
+    setSelectedCatalogKit(kitId)
+    if (kitId === 'new') {
+      setName('')
+      setItems([{ product_name: '', quantity: 1 }])
+    } else {
+      const kit = catalogKits.find((k) => k.id === kitId)
+      if (kit) {
+        setName(kit.name)
+        setItems(
+          kit.kit_items?.map((i: any) => ({
+            product_name: i.product_name,
+            quantity: i.quantity,
+          })) || [{ product_name: '', quantity: 1 }],
+        )
+      }
+    }
+  }
 
   const handleAddItem = () => {
     setItems([...items, { product_name: '', quantity: 1 }])
@@ -86,6 +108,7 @@ export function KitBuilder() {
       )
       toast({ title: 'Sucesso', description: 'Kit criado com sucesso!' })
       setName('')
+      setSelectedCatalogKit('new')
       setIsPersonalized(false)
       setPrescriberEmail('')
       setItems([{ product_name: '', quantity: 1 }])
@@ -118,15 +141,32 @@ export function KitBuilder() {
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-3">
-            <Label>Nome do Kit</Label>
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Ex: Kit Introdução 2026"
-            />
+            <Label>Catálogo de Kits</Label>
+            <Select value={selectedCatalogKit} onValueChange={handleCatalogSelect}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione um kit para usar como base..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="new">-- Criar Novo Kit Personalizado --</SelectItem>
+                {catalogKits.map((k) => (
+                  <SelectItem key={k.id} value={k.id}>
+                    {k.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="pt-2">
+              <Label className="text-xs text-muted-foreground">Nome do Kit</Label>
+              <Input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Nome do kit (Ex: Kit Introdução 2026)"
+                className="mt-1"
+              />
+            </div>
           </div>
 
-          <div className="flex items-center space-x-2 bg-muted/30 p-3 rounded-md border">
+          <div className="flex items-center space-x-2 bg-muted/30 p-3 rounded-md border mt-2">
             <Checkbox
               id="personalized"
               checked={isPersonalized}
@@ -211,7 +251,7 @@ export function KitBuilder() {
       </Card>
 
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold tracking-tight">Kits Cadastrados</h3>
+        <h3 className="text-lg font-semibold tracking-tight">Catálogo Geral de Kits</h3>
         {kits.length === 0 ? (
           <div className="p-8 text-center text-muted-foreground border border-dashed rounded-lg bg-slate-50/50">
             <PackageSearch className="h-10 w-10 mx-auto mb-3 opacity-20" />
@@ -249,14 +289,16 @@ export function KitBuilder() {
                       ))}
                     </div>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-destructive hover:bg-destructive/10 shrink-0"
-                    onClick={() => handleDelete(kit.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  {kit.user_id === user?.id && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive hover:bg-destructive/10 shrink-0"
+                      onClick={() => handleDelete(kit.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             ))}

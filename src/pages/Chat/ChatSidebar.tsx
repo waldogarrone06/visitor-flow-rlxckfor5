@@ -24,16 +24,24 @@ export function ChatSidebar({
     })
 
     if (search.trim()) {
-      const q = search.toLowerCase()
+      const q = search.trim().toLowerCase()
+      const normalize = (str: string | null | undefined) =>
+        (str || '')
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .toLowerCase()
+
+      const searchNormalized = normalize(q)
+
       list = list.filter((c) => {
         const matchLead =
-          c.lead.name.toLowerCase().includes(q) ||
-          (c.lead.company && c.lead.company.toLowerCase().includes(q)) ||
+          normalize(c.lead.name).includes(searchNormalized) ||
+          normalize(c.lead.company).includes(searchNormalized) ||
           (c.lead.phone && c.lead.phone.includes(q))
 
         const matchMessages = state.messages
           .filter((m) => m.leadId === c.lead.id)
-          .some((m) => m.text.toLowerCase().includes(q))
+          .some((m) => normalize(m.text).includes(searchNormalized))
 
         return matchLead || matchMessages
       })
