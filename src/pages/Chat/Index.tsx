@@ -15,6 +15,7 @@ import {
   AlertCircle,
   Check,
   CheckCheck,
+  Search,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -45,6 +46,7 @@ export default function ChatPage() {
   const [newMessage, setNewMessage] = useState('')
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
   const selectedContactRef = useRef<Contact | null>(null)
 
@@ -321,24 +323,51 @@ export default function ChatPage() {
     return <span className="whitespace-pre-wrap break-words">{content}</span>
   }
 
+  const filteredContacts = contacts.filter((contact) => {
+    if (!searchQuery.trim()) return true
+    const q = searchQuery.toLowerCase()
+    const normalize = (str: string | null | undefined) =>
+      (str || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+
+    return (
+      normalize(contact.name).includes(normalize(q)) ||
+      (contact.phone && contact.phone.includes(q)) ||
+      (contact.lastMessage && normalize(contact.lastMessage).includes(normalize(q)))
+    )
+  })
+
   return (
     <div className="flex h-[calc(100vh-6rem)] border rounded-lg overflow-hidden bg-background shadow-sm">
       <div className="w-80 border-r flex flex-col bg-muted/20">
-        <div className="p-4 border-b bg-background">
+        <div className="p-4 border-b bg-background space-y-4">
           <h2 className="font-semibold text-lg flex items-center gap-2">Conversas</h2>
+          <div className="relative">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar contato ou conversa..."
+              className="pl-9 bg-muted/50 border-transparent focus-visible:bg-background"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
         </div>
         <ScrollArea className="flex-1">
           {loading ? (
             <div className="flex justify-center p-8">
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             </div>
-          ) : contacts.length === 0 ? (
+          ) : filteredContacts.length === 0 ? (
             <div className="p-8 text-center text-sm text-muted-foreground">
-              Nenhum contato encontrado. Mensagens recebidas aparecerão aqui.
+              {searchQuery
+                ? 'Nenhum contato encontrado para a busca.'
+                : 'Nenhum contato encontrado. Mensagens recebidas aparecerão aqui.'}
             </div>
           ) : (
             <div className="flex flex-col divide-y divide-border/50">
-              {contacts.map((contact) => (
+              {filteredContacts.map((contact) => (
                 <button
                   key={contact.id}
                   onClick={() => setSelectedContact(contact)}
