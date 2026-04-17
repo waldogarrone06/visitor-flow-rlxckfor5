@@ -24,11 +24,19 @@ export function ChatSidebar({
     })
 
     if (search.trim()) {
-      list = list.filter(
-        (c) =>
-          c.lead.name.toLowerCase().includes(search.toLowerCase()) ||
-          (c.lead.company && c.lead.company.toLowerCase().includes(search.toLowerCase())),
-      )
+      const q = search.toLowerCase()
+      list = list.filter((c) => {
+        const matchLead =
+          c.lead.name.toLowerCase().includes(q) ||
+          (c.lead.company && c.lead.company.toLowerCase().includes(q)) ||
+          (c.lead.phone && c.lead.phone.includes(q))
+
+        const matchMessages = state.messages
+          .filter((m) => m.leadId === c.lead.id)
+          .some((m) => m.text.toLowerCase().includes(q))
+
+        return matchLead || matchMessages
+      })
     }
 
     return list.sort((a, b) => {
@@ -46,7 +54,7 @@ export function ChatSidebar({
         <div className="relative">
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Buscar contato..."
+            placeholder="Buscar contato ou conversa..."
             className="pl-9 bg-muted/50 border-transparent focus-visible:bg-background"
             value={search}
             onChange={(e) => setSearch(e.target.value)}

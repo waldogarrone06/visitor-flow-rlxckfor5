@@ -1,6 +1,7 @@
 import { KitInventory } from './Inventory'
 import { KitShipments } from './Shipments'
 import { KitBuilder } from './KitBuilder'
+import { KitCatalog } from './KitCatalog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 export default function KitsPage() {
@@ -13,11 +14,16 @@ export default function KitsPage() {
         </p>
       </div>
 
-      <Tabs defaultValue="builder" className="w-full">
-        <TabsList className="grid w-full md:w-[400px] grid-cols-2">
+      <Tabs defaultValue="catalog" className="w-full">
+        <TabsList className="grid w-full md:w-[600px] grid-cols-3">
+          <TabsTrigger value="catalog">Catálogo de Kits</TabsTrigger>
           <TabsTrigger value="builder">Montagem de Kits</TabsTrigger>
           <TabsTrigger value="inventory">Estoque & Envios</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="catalog" className="mt-6">
+          <KitCatalog />
+        </TabsContent>
 
         <TabsContent value="builder" className="mt-6">
           <KitBuilder />
