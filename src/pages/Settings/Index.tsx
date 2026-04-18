@@ -10,6 +10,7 @@ import { DatabaseStatusCard } from './DatabaseStatusCard'
 import { SecretsVaultCard } from './SecretsVaultCard'
 import { PersonalScheduleCard } from './PersonalScheduleCard'
 import { FrenetCard } from './FrenetCard'
+import { ReminderSettingsCard } from './ReminderSettingsCard'
 import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -203,6 +204,7 @@ export default function SettingsPage() {
           <FrenetCard targetUserId={selectedUserId} />
         </div>
         <div className="grid gap-6">
+          <ReminderSettingsCard targetUserId={selectedUserId} />
           <PersonalScheduleCard />
         </div>
       </div>
