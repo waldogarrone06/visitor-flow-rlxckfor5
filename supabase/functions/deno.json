@@ -8,8 +8,9 @@
     "create-user": 10,
     "google-oauth-exchange": 7,
     "google-oauth-url": 1,
-    "send-email": 6,
+    "send-email": 7,
     "whatsapp-send": 30,
-    "whatsapp-webhook": 35
+    "whatsapp-webhook": 35,
+    "trigger-reminders": 1
   }
 }
