@@ -8,14 +8,24 @@ import { ptBR } from 'date-fns/locale'
 import { FourLabLogo } from '@/components/FourLabLogo'
 import { getDayScheduleData, MAX_CAPACITY_PER_SLOT } from '@/services/public-booking'
 import { BookingForm } from './BookingForm'
-import { CheckCircle2 } from 'lucide-react'
+import {
+  CheckCircle2,
+  Calendar as CalendarIcon,
+  Clock,
+  User,
+  Check,
+  Sun,
+  Sunset,
+  CalendarPlus,
+} from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 export default function PublicBookingPage() {
   const { userId } = useParams()
   const [date, setDate] = useState<Date | undefined>(new Date())
   const [loading, setLoading] = useState(true)
   const [selectedSlot, setSelectedSlot] = useState<any>(null)
-  const [success, setSuccess] = useState(false)
+  const [successApp, setSuccessApp] = useState<any>(null)
   const [dayData, setDayData] = useState<{
     schedule: any[]
     appointments: any[]
@@ -44,19 +54,61 @@ export default function PublicBookingPage() {
     })
     .sort((a, b) => a.start_time.localeCompare(b.start_time))
 
-  if (success) {
+  const morningSlots = availableSlots.filter((s) => parseInt(s.start_time.split(':')[0]) < 12)
+  const afternoonSlots = availableSlots.filter((s) => parseInt(s.start_time.split(':')[0]) >= 12)
+
+  const currentStep = successApp ? 4 : !date ? 1 : !selectedSlot ? 2 : 3
+
+  const getGoogleCalLink = () => {
+    if (!successApp) return '#'
+    const dStr = successApp.appointment_date.replace(/-/g, '')
+    const sTime = successApp.start_time.replace(':', '') + '00'
+    const eTime = successApp.end_time.replace(':', '') + '00'
+    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=Visita+FourLab+Nutrition&dates=${dStr}T${sTime}/${dStr}T${eTime}&details=Agendamento+confirmado`
+  }
+
+  const getOutlookLink = () => {
+    if (!successApp) return '#'
+    const startIso = `${successApp.appointment_date}T${successApp.start_time}:00`
+    const endIso = `${successApp.appointment_date}T${successApp.end_time}:00`
+    return `https://outlook.live.com/calendar/0/deeplink/compose?path=/calendar/action/compose&rru=addevent&startdt=${startIso}&enddt=${endIso}&subject=Visita+FourLab+Nutrition`
+  }
+
+  if (successApp) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 animate-fade-in-up">
         <Card className="max-w-md w-full text-center py-10 border-border/50 shadow-lg">
           <CardHeader>
             <div className="mx-auto bg-green-100 rounded-full p-4 mb-4 text-green-600 shadow-sm w-fit">
-              <CheckCircle2 className="w-10 h-10" />
+              <CheckCircle2 className="w-12 h-12" />
             </div>
             <CardTitle className="text-2xl font-bold">Agendamento Confirmado!</CardTitle>
             <CardDescription className="text-base mt-2">
-              Seu convite do Google Calendar foi enviado para o seu e-mail.
+              Sua visita foi agendada para{' '}
+              <strong>
+                {format(new Date(successApp.appointment_date + 'T12:00:00'), 'dd/MM/yyyy')}
+              </strong>{' '}
+              às <strong>{successApp.start_time}</strong>.
             </CardDescription>
           </CardHeader>
+          <CardContent className="space-y-4 pt-4">
+            <p className="text-sm text-muted-foreground mb-4">
+              Adicione o compromisso à sua agenda para não esquecer:
+            </p>
+            <Button variant="outline" className="w-full gap-2 justify-start h-12" asChild>
+              <a href={getGoogleCalLink()} target="_blank" rel="noreferrer">
+                <CalendarIcon className="w-5 h-5 text-blue-500" /> Adicionar ao Google Calendar
+              </a>
+            </Button>
+            <Button variant="outline" className="w-full gap-2 justify-start h-12" asChild>
+              <a href={getOutlookLink()} target="_blank" rel="noreferrer">
+                <CalendarPlus className="w-5 h-5 text-blue-500" /> Adicionar ao Outlook
+              </a>
+            </Button>
+            <Button variant="ghost" className="mt-4" onClick={() => window.location.reload()}>
+              Fazer novo agendamento
+            </Button>
+          </CardContent>
         </Card>
       </div>
     )
@@ -70,23 +122,85 @@ export default function PublicBookingPage() {
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Agendar Visita</h1>
             <p className="text-muted-foreground mt-2">
-              Selecione um horário disponível para atendimento.
+              Siga os passos abaixo para selecionar o melhor horário.
             </p>
           </div>
         </div>
 
+        {/* Wizard Progress */}
+        <div className="relative max-w-2xl mx-auto mb-10">
+          <div className="absolute top-1/2 left-0 w-full h-1 bg-slate-200 -translate-y-1/2 rounded-full z-0" />
+          <div
+            className="absolute top-1/2 left-0 h-1 bg-primary -translate-y-1/2 rounded-full z-0 transition-all duration-500"
+            style={{ width: `${(currentStep - 1) * 50}%` }}
+          />
+
+          <div className="relative z-10 flex justify-between">
+            {[
+              { num: 1, label: 'Data', icon: CalendarIcon },
+              { num: 2, label: 'Horário', icon: Clock },
+              { num: 3, label: 'Dados', icon: User },
+            ].map((step) => {
+              const isCompleted = currentStep > step.num
+              const isCurrent = currentStep === step.num
+
+              return (
+                <div key={step.num} className="flex flex-col items-center">
+                  <div
+                    className={cn(
+                      'w-10 h-10 rounded-full flex items-center justify-center border-2 transition-colors duration-300',
+                      isCompleted
+                        ? 'bg-primary border-primary text-primary-foreground'
+                        : isCurrent
+                          ? 'bg-background border-primary text-primary'
+                          : 'bg-background border-slate-300 text-slate-400',
+                    )}
+                  >
+                    {isCompleted ? (
+                      <Check className="w-5 h-5" />
+                    ) : (
+                      <step.icon className="w-5 h-5" />
+                    )}
+                  </div>
+                  <span
+                    className={cn(
+                      'mt-2 text-xs font-medium',
+                      isCurrent || isCompleted ? 'text-slate-900' : 'text-slate-400',
+                    )}
+                  >
+                    {step.label}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
         <div className="grid md:grid-cols-2 gap-8 items-start">
-          <Card className="shadow-subtle border-border/50">
+          {/* Step 1: Date */}
+          <Card
+            className={cn(
+              'shadow-subtle border-border/50 transition-opacity duration-300',
+              currentStep < 1 && 'opacity-50 pointer-events-none',
+            )}
+          >
             <CardHeader>
-              <CardTitle>1. Escolha a Data</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <span className="bg-primary/10 text-primary w-6 h-6 rounded-full flex items-center justify-center text-sm">
+                  1
+                </span>
+                Escolha a Data
+              </CardTitle>
             </CardHeader>
             <CardContent className="flex justify-center pb-6">
               <Calendar
                 mode="single"
                 selected={date}
                 onSelect={(d) => {
-                  setDate(d)
-                  setSelectedSlot(null)
+                  if (d) {
+                    setDate(d)
+                    setSelectedSlot(null)
+                  }
                 }}
                 locale={ptBR}
                 className="rounded-md border shadow-sm p-4 w-full flex justify-center bg-white"
@@ -96,13 +210,24 @@ export default function PublicBookingPage() {
           </Card>
 
           <div className="space-y-6">
-            <Card className="shadow-subtle border-border/50">
+            {/* Step 2: Time */}
+            <Card
+              className={cn(
+                'shadow-subtle border-border/50 transition-opacity duration-300',
+                currentStep < 2 && 'opacity-50 pointer-events-none',
+              )}
+            >
               <CardHeader>
-                <CardTitle>2. Horários Disponíveis</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <span className="bg-primary/10 text-primary w-6 h-6 rounded-full flex items-center justify-center text-sm">
+                    2
+                  </span>
+                  Horários Disponíveis
+                </CardTitle>
                 <CardDescription>
                   {date
                     ? format(date, "dd 'de' MMMM, yyyy", { locale: ptBR })
-                    : 'Selecione uma data'}
+                    : 'Selecione uma data primeiro'}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -113,33 +238,70 @@ export default function PublicBookingPage() {
                     Nenhum horário disponível para esta data.
                   </p>
                 ) : (
-                  <div className="grid grid-cols-2 gap-3">
-                    {availableSlots.map((slot, idx) => (
-                      <Button
-                        key={idx}
-                        variant={selectedSlot === slot ? 'default' : 'outline'}
-                        className="w-full justify-center"
-                        onClick={() => setSelectedSlot(slot)}
-                      >
-                        {slot.start_time} - {slot.end_time}
-                      </Button>
-                    ))}
+                  <div className="space-y-6 animate-fade-in-up">
+                    {morningSlots.length > 0 && (
+                      <div>
+                        <h4 className="text-sm font-medium flex items-center gap-2 text-slate-600 mb-3">
+                          <Sun className="w-4 h-4 text-amber-500" /> Manhã
+                        </h4>
+                        <div className="grid grid-cols-3 gap-2">
+                          {morningSlots.map((slot, idx) => (
+                            <Button
+                              key={`m-${idx}`}
+                              variant={selectedSlot === slot ? 'default' : 'outline'}
+                              className="w-full justify-center text-sm"
+                              size="sm"
+                              onClick={() => setSelectedSlot(slot)}
+                            >
+                              {slot.start_time}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {afternoonSlots.length > 0 && (
+                      <div>
+                        <h4 className="text-sm font-medium flex items-center gap-2 text-slate-600 mb-3">
+                          <Sunset className="w-4 h-4 text-orange-500" /> Tarde
+                        </h4>
+                        <div className="grid grid-cols-3 gap-2">
+                          {afternoonSlots.map((slot, idx) => (
+                            <Button
+                              key={`a-${idx}`}
+                              variant={selectedSlot === slot ? 'default' : 'outline'}
+                              className="w-full justify-center text-sm"
+                              size="sm"
+                              onClick={() => setSelectedSlot(slot)}
+                            >
+                              {slot.start_time}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>
             </Card>
 
+            {/* Step 3: Form */}
             {selectedSlot && userId && date && (
-              <Card className="shadow-subtle border-border/50">
+              <Card className="shadow-subtle border-border/50 animate-fade-in-up">
                 <CardHeader>
-                  <CardTitle>3. Seus Dados</CardTitle>
+                  <CardTitle className="flex items-center gap-2">
+                    <span className="bg-primary/10 text-primary w-6 h-6 rounded-full flex items-center justify-center text-sm">
+                      3
+                    </span>
+                    Confirme Seus Dados
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <BookingForm
                     userId={userId}
                     date={date}
                     slot={selectedSlot}
-                    onSuccess={() => setSuccess(true)}
+                    onSuccess={(app) => setSuccessApp(app)}
                   />
                 </CardContent>
               </Card>

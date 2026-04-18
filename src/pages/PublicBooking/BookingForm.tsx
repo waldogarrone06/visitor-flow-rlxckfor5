@@ -10,12 +10,25 @@ interface BookingFormProps {
   userId: string
   date: Date
   slot: any
-  onSuccess: () => void
+  onSuccess: (appointment: any) => void
 }
 
 export function BookingForm({ userId, date, slot, onSuccess }: BookingFormProps) {
   const [submitting, setSubmitting] = useState(false)
   const [formData, setFormData] = useState({ name: '', email: '', phone: '' })
+
+  useEffect(() => {
+    const savedName = localStorage.getItem('fourlab_booking_name')
+    const savedEmail = localStorage.getItem('fourlab_booking_email')
+    const savedPhone = localStorage.getItem('fourlab_booking_phone')
+    if (savedName || savedEmail || savedPhone) {
+      setFormData({
+        name: savedName || '',
+        email: savedEmail || '',
+        phone: savedPhone || '',
+      })
+    }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -26,7 +39,11 @@ export function BookingForm({ userId, date, slot, onSuccess }: BookingFormProps)
 
     setSubmitting(true)
     try {
-      await createPublicAppointment({
+      localStorage.setItem('fourlab_booking_name', formData.name)
+      localStorage.setItem('fourlab_booking_email', formData.email)
+      localStorage.setItem('fourlab_booking_phone', formData.phone)
+
+      const newApp = await createPublicAppointment({
         user_id: userId,
         client_name: formData.name,
         client_email: formData.email,
@@ -36,7 +53,7 @@ export function BookingForm({ userId, date, slot, onSuccess }: BookingFormProps)
         end_time: slot.end_time,
         status: 'scheduled',
       })
-      onSuccess()
+      onSuccess(newApp)
     } catch (error) {
       toast({
         title: 'Erro',

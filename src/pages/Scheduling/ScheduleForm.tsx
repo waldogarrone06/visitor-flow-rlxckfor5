@@ -96,6 +96,8 @@ export function ScheduleForm({
 }) {
   const { state, dispatch } = useMainStore()
   const [loading, setLoading] = useState(false)
+  const [searchLead, setSearchLead] = useState('')
+  const [showSuggestions, setShowSuggestions] = useState(false)
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -277,9 +279,60 @@ export function ScheduleForm({
     return val
   }
 
+  const filteredLeads = state.leads.filter(
+    (l) =>
+      searchLead.length > 2 &&
+      (l.name.toLowerCase().includes(searchLead.toLowerCase()) || l.document.includes(searchLead)),
+  )
+
+  const handleSelectLead = (lead: Lead) => {
+    form.reset({
+      ...form.getValues(),
+      name: lead.name || '',
+      cpf: lead.document || '',
+      email: lead.email || '',
+      phone: lead.phone || '',
+      profession: (lead.profession as any) || undefined,
+      registrationNumber: lead.registrationNumber || '',
+    })
+    setSearchLead('')
+    setShowSuggestions(false)
+    toast({
+      title: 'Lead Selecionado',
+      description: 'Dados preenchidos com sucesso.',
+    })
+  }
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <div className="relative mb-6 animate-fade-in">
+          <Input
+            placeholder="🔍 Busca Rápida: Digite nome ou CPF do cliente existente..."
+            value={searchLead}
+            onChange={(e) => {
+              setSearchLead(e.target.value)
+              setShowSuggestions(true)
+            }}
+            onFocus={() => setShowSuggestions(true)}
+            className="border-primary/50 focus-visible:ring-primary/30"
+          />
+          {showSuggestions && filteredLeads.length > 0 && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded-md shadow-lg z-50 max-h-48 overflow-y-auto">
+              {filteredLeads.map((l) => (
+                <div
+                  key={l.id}
+                  className="p-3 hover:bg-muted cursor-pointer flex flex-col text-sm border-b last:border-0"
+                  onClick={() => handleSelectLead(l)}
+                >
+                  <span className="font-medium">{l.name}</span>
+                  <span className="text-muted-foreground text-xs">{l.document}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         <div className="bg-muted/30 p-4 rounded-md mb-4 border border-border">
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm font-medium">Data Visita:</p>
