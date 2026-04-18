@@ -1,13 +1,13 @@
 {
   "_versions": {
-    "sync-calendar": 9,
+    "sync-calendar": 10,
     "yampi-service": 5,
     "track-shipping": 5,
     "trigger-nps": 5,
-    "check-availability": 5,
+    "check-availability": 6,
     "create-user": 10,
-    "google-oauth-exchange": 7,
-    "google-oauth-url": 1,
+    "google-oauth-exchange": 8,
+    "google-oauth-url": 2,
     "send-email": 7,
     "whatsapp-send": 30,
     "whatsapp-webhook": 35,
