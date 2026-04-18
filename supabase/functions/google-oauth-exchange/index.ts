@@ -54,7 +54,8 @@ Deno.serve(async (req: Request) => {
     }
 
     if (user.id !== targetUserId) {
-      const { data: profile } = await supabaseUserClient
+      const supabaseAdminCheck = createClient(supabaseUrl, supabaseServiceKey)
+      const { data: profile } = await supabaseAdminCheck
         .from('profiles')
         .select('is_admin')
         .eq('id', user.id)
@@ -62,7 +63,8 @@ Deno.serve(async (req: Request) => {
       if (!profile?.is_admin) {
         return new Response(
           JSON.stringify({
-            error: 'Acesso negado: Apenas administradores podem configurar outros usuários',
+            error:
+              'Acesso negado: Apenas administradores podem configurar as integrações de outros usuários.',
           }),
           {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },

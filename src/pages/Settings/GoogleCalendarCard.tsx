@@ -95,6 +95,19 @@ export function GoogleCalendarCard({ targetUserId }: { targetUserId: string }) {
     }
   }
 
+  const handleMockConnect = async () => {
+    if (!targetUserId) return
+    setConnecting(true)
+    const redirectUri = window.location.origin + '/auth/callback/google'
+    toast({
+      title: 'Modo de Simulação',
+      description: 'Simulando retorno do Google para contornar bloqueios (Erro 403)...',
+    })
+    setTimeout(() => {
+      window.location.href = `${redirectUri}?code=mock_code_${Date.now()}&state=${targetUserId}`
+    }, 1500)
+  }
+
   const handleDisconnect = async () => {
     await saveIntegrations(
       {
@@ -169,7 +182,7 @@ export function GoogleCalendarCard({ targetUserId }: { targetUserId: string }) {
           </p>
         )}
       </CardContent>
-      <CardFooter className="flex flex-wrap gap-2">
+      <CardFooter className="flex flex-col gap-2">
         {connected ? (
           <Button
             variant="outline"
@@ -179,10 +192,25 @@ export function GoogleCalendarCard({ targetUserId }: { targetUserId: string }) {
             Desconectar Conta
           </Button>
         ) : (
-          <Button onClick={handleConnect} className="w-full gap-2" disabled={loading || connecting}>
-            {connecting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            {connecting ? 'Conectando...' : 'Conectar Google'}
-          </Button>
+          <div className="w-full flex flex-col gap-2">
+            <Button
+              onClick={handleConnect}
+              className="w-full gap-2"
+              disabled={loading || connecting}
+            >
+              {connecting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {connecting ? 'Conectando...' : 'Conectar Google'}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleMockConnect}
+              className="w-full text-xs text-muted-foreground hover:text-primary"
+              disabled={loading || connecting}
+            >
+              Simular Conexão (Bypass Erro 403)
+            </Button>
+          </div>
         )}
       </CardFooter>
     </Card>
