@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { format, isSameDay } from 'date-fns'
-import { Users, Lock, Unlock, Mail, Phone, Briefcase } from 'lucide-react'
+import { Users, Lock, Unlock, Mail, Phone, Briefcase, MessageCircle } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -154,7 +154,7 @@ export function DayAppointments({ date }: { date: Date | undefined }) {
                         {combinedApps.map((app) => (
                           <div
                             key={app.id}
-                            className="flex justify-between items-center text-sm bg-slate-50 p-2 rounded border"
+                            className="flex justify-between items-center text-sm bg-slate-50 p-3 rounded border"
                           >
                             <div className="flex flex-col">
                               <span className="font-medium flex items-center gap-2">
@@ -179,6 +179,25 @@ export function DayAppointments({ date }: { date: Date | undefined }) {
                                   </span>
                                 )}
                               </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {app.client_phone && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-8 gap-1 text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200"
+                                  onClick={() => {
+                                    const phone = app.client_phone.replace(/\D/g, '')
+                                    const msg = encodeURIComponent(
+                                      `Olá ${app.client_name}, tudo bem? Entrando em contato sobre o seu agendamento.`,
+                                    )
+                                    window.open(`https://wa.me/${phone}?text=${msg}`, '_blank')
+                                  }}
+                                >
+                                  <MessageCircle className="h-4 w-4" />
+                                  <span className="hidden sm:inline">WhatsApp</span>
+                                </Button>
+                              )}
                             </div>
                           </div>
                         ))}

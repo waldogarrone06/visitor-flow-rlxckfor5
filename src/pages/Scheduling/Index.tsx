@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Calendar } from '@/components/ui/calendar'
 import { FourLabLogo } from '@/components/FourLabLogo'
 import { ptBR } from 'date-fns/locale'
+import { startOfMonth, endOfMonth, format } from 'date-fns'
 import { Copy } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { Button } from '@/components/ui/button'
@@ -16,10 +17,41 @@ import {
 } from '@/components/ui/select'
 import { DayAppointments } from './DayAppointments'
 import { ScheduleForm } from './ScheduleForm'
+import { supabase } from '@/lib/supabase/client'
+import { useMainStore } from '@/stores/main'
 
 export default function SchedulingPage() {
   const [date, setDate] = useState<Date | undefined>(new Date())
+  const [currentMonth, setCurrentMonth] = useState<Date>(new Date())
+  const [monthAppointments, setMonthAppointments] = useState<Date[]>([])
   const { user } = useAuth()
+  const { state } = useMainStore()
+
+  useEffect(() => {
+    if (!user) return
+
+    const loadAppointments = async () => {
+      const start = startOfMonth(currentMonth)
+      const end = endOfMonth(currentMonth)
+
+      const { data } = await supabase
+        .from('appointments')
+        .select('appointment_date')
+        .eq('user_id', user.id)
+        .gte('appointment_date', format(start, 'yyyy-MM-dd'))
+        .lte('appointment_date', format(end, 'yyyy-MM-dd'))
+
+      const publicDates = data ? data.map((d) => new Date(d.appointment_date + 'T12:00:00')) : []
+
+      const crmDates = state.appointments
+        .map((a) => new Date(a.date))
+        .filter((d) => d >= start && d <= end)
+
+      setMonthAppointments([...publicDates, ...crmDates])
+    }
+
+    loadAppointments()
+  }, [currentMonth, user, state.appointments])
 
   const handleCopyLink = () => {
     if (!user?.id) return
@@ -71,6 +103,8 @@ export default function SchedulingPage() {
                 mode="single"
                 selected={date}
                 onSelect={setDate}
+                onMonthChange={setCurrentMonth}
+                modifiers={{ hasAppointment: monthAppointments }}
                 locale={ptBR}
                 className="rounded-md border shadow-sm p-4 sm:p-6 w-full max-w-full flex justify-center [--cell-size:2.5rem] sm:[--cell-size:3.5rem] md:[--cell-size:4.5rem] bg-white"
               />
