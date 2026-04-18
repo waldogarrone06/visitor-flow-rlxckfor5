@@ -16,7 +16,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: integration } = await supabase
       .from('user_integrations')
-      .select('google_access_token, sync_enabled')
+      .select('google_access_token, google_refresh_token, sync_enabled')
       .eq('user_id', userId)
       .single()
 
@@ -26,29 +26,64 @@ Deno.serve(async (req: Request) => {
       })
     }
 
-    const token = integration.google_access_token
+    let token = integration.google_access_token
+    const refreshToken = integration.google_refresh_token
     let busySlots: { start: string; end: string }[] = []
 
-    // Simulate busy block at 14:00 if using mock token to demonstrate sync
-    if (token.includes('mock')) {
+    const clientId = Deno.env.get('GOOGLE_CLIENT_ID') || Deno.env.get('VITE_GOOGLE_CLIENT_ID') || ''
+    const clientSecret =
+      Deno.env.get('GOOGLE_CLIENT_SECRET') || Deno.env.get('VITE_GOOGLE_CLIENT_SECRET') || ''
+
+    if (token.includes('mock') || !clientId || !clientSecret) {
       busySlots = [{ start: '14:00', end: '15:00' }]
     } else {
-      // Real API Call
       const startOfDay = new Date(`${date}T00:00:00-03:00`).toISOString()
       const endOfDay = new Date(`${date}T23:59:59-03:00`).toISOString()
 
-      const response = await fetch('https://www.googleapis.com/calendar/v3/freeBusy', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          timeMin: startOfDay,
-          timeMax: endOfDay,
-          items: [{ id: 'primary' }],
-        }),
-      })
+      const makeRequest = async (accessToken: string) => {
+        return fetch('https://www.googleapis.com/calendar/v3/freeBusy', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            timeMin: startOfDay,
+            timeMax: endOfDay,
+            items: [{ id: 'primary' }],
+          }),
+        })
+      }
+
+      let response = await makeRequest(token)
+
+      if (response.status === 401 && refreshToken) {
+        const refreshRes = await fetch('https://oauth2.googleapis.com/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            client_id: clientId,
+            client_secret: clientSecret,
+            refresh_token: refreshToken,
+            grant_type: 'refresh_token',
+          }),
+        })
+
+        if (refreshRes.ok) {
+          const refreshData = await refreshRes.json()
+          token = refreshData.access_token
+
+          await supabase
+            .from('user_integrations')
+            .update({
+              google_access_token: token,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('user_id', userId)
+
+          response = await makeRequest(token)
+        }
+      }
 
       if (response.ok) {
         const data = await response.json()

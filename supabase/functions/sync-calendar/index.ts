@@ -30,7 +30,9 @@ Deno.serve(async (req: Request) => {
       .eq('user_id', appointment.user_id)
       .single()
 
-    const token = integration?.google_access_token
+    let token = integration?.google_access_token
+    const refreshToken = integration?.google_refresh_token
+
     if (!token) {
       return new Response(
         JSON.stringify({ success: true, message: 'No Google integration found, skipping.' }),
@@ -38,41 +40,78 @@ Deno.serve(async (req: Request) => {
       )
     }
 
+    const clientId = Deno.env.get('GOOGLE_CLIENT_ID') || Deno.env.get('VITE_GOOGLE_CLIENT_ID') || ''
+    const clientSecret =
+      Deno.env.get('GOOGLE_CLIENT_SECRET') || Deno.env.get('VITE_GOOGLE_CLIENT_SECRET') || ''
+
     let eventId = `mock-event-${Date.now()}`
     let meetLink = `https://meet.google.com/mock-abc-xyz`
 
     // Only call real API if it's not a mocked token
-    if (!token.includes('mock_access_token')) {
-      const response = await fetch(
-        'https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1',
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            summary: `Reunião: ${appointment.client_name}`,
-            description:
-              integration.google_invitation_body ||
-              'Agendamento confirmado. Acesse o link do Meet no horário marcado.',
-            start: {
-              dateTime: `${appointment.appointment_date}T${appointment.start_time}:00-03:00`,
-              timeZone: 'America/Sao_Paulo',
+    if (!token.includes('mock_access_token') && clientId && clientSecret) {
+      const makeRequest = async (accessToken: string) => {
+        return fetch(
+          'https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1',
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
             },
-            end: {
-              dateTime: `${appointment.appointment_date}T${appointment.end_time}:00-03:00`,
-              timeZone: 'America/Sao_Paulo',
-            },
-            conferenceData: {
-              createRequest: {
-                requestId: appointment.id,
-                conferenceSolutionKey: { type: 'hangoutsMeet' },
+            body: JSON.stringify({
+              summary: `Reunião: ${appointment.client_name}`,
+              description:
+                integration.google_invitation_body ||
+                'Agendamento confirmado. Acesse o link do Meet no horário marcado.',
+              start: {
+                dateTime: `${appointment.appointment_date}T${appointment.start_time}:00-03:00`,
+                timeZone: 'America/Sao_Paulo',
               },
-            },
+              end: {
+                dateTime: `${appointment.appointment_date}T${appointment.end_time}:00-03:00`,
+                timeZone: 'America/Sao_Paulo',
+              },
+              conferenceData: {
+                createRequest: {
+                  requestId: appointment.id,
+                  conferenceSolutionKey: { type: 'hangoutsMeet' },
+                },
+              },
+            }),
+          },
+        )
+      }
+
+      let response = await makeRequest(token)
+
+      // Refresh logic
+      if (response.status === 401 && refreshToken) {
+        const refreshRes = await fetch('https://oauth2.googleapis.com/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            client_id: clientId,
+            client_secret: clientSecret,
+            refresh_token: refreshToken,
+            grant_type: 'refresh_token',
           }),
-        },
-      )
+        })
+
+        if (refreshRes.ok) {
+          const refreshData = await refreshRes.json()
+          token = refreshData.access_token
+
+          await supabase
+            .from('user_integrations')
+            .update({
+              google_access_token: token,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('user_id', appointment.user_id)
+
+          response = await makeRequest(token)
+        }
+      }
 
       if (response.ok) {
         const data = await response.json()
@@ -80,7 +119,6 @@ Deno.serve(async (req: Request) => {
         meetLink = data.hangoutLink || meetLink
       } else {
         console.error('Google API Error:', await response.text())
-        // Do not throw, allow the mock fallback for resilience in this demo
       }
     }
 

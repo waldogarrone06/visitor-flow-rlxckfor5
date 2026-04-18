@@ -25,6 +25,7 @@ export type Database = {
           google_meet_link: string | null
           id: string
           kit_status: string | null
+          reminder_sent: boolean | null
           start_time: string
           status: string | null
           tracking_number: string | null
@@ -45,6 +46,7 @@ export type Database = {
           google_meet_link?: string | null
           id?: string
           kit_status?: string | null
+          reminder_sent?: boolean | null
           start_time: string
           status?: string | null
           tracking_number?: string | null
@@ -65,6 +67,7 @@ export type Database = {
           google_meet_link?: string | null
           id?: string
           kit_status?: string | null
+          reminder_sent?: boolean | null
           start_time?: string
           status?: string | null
           tracking_number?: string | null
@@ -374,6 +377,9 @@ export type Database = {
           google_invitation_body: string | null
           google_refresh_token: string | null
           id: string
+          reminder_email_template: string | null
+          reminder_enabled: boolean | null
+          reminder_whatsapp_template: string | null
           sync_enabled: boolean | null
           updated_at: string
           user_id: string
@@ -392,6 +398,9 @@ export type Database = {
           google_invitation_body?: string | null
           google_refresh_token?: string | null
           id?: string
+          reminder_email_template?: string | null
+          reminder_enabled?: boolean | null
+          reminder_whatsapp_template?: string | null
           sync_enabled?: boolean | null
           updated_at?: string
           user_id: string
@@ -410,6 +419,9 @@ export type Database = {
           google_invitation_body?: string | null
           google_refresh_token?: string | null
           id?: string
+          reminder_email_template?: string | null
+          reminder_enabled?: boolean | null
+          reminder_whatsapp_template?: string | null
           sync_enabled?: boolean | null
           updated_at?: string
           user_id?: string
@@ -615,6 +627,7 @@ export const Constants = {
 //   delivered_at: timestamp with time zone (nullable)
 //   google_event_id: text (nullable)
 //   google_meet_link: text (nullable)
+//   reminder_sent: boolean (nullable, default: false)
 // Table: contacts
 //   id: uuid (not null, default: gen_random_uuid())
 //   user_id: uuid (not null)
@@ -699,6 +712,9 @@ export const Constants = {
 //   google_invitation_body: text (nullable)
 //   sync_enabled: boolean (nullable, default: false)
 //   whatsapp_api_url: text (nullable)
+//   reminder_email_template: text (nullable)
+//   reminder_whatsapp_template: text (nullable)
+//   reminder_enabled: boolean (nullable, default: false)
 // Table: whatsapp_events
 //   id: uuid (not null, default: gen_random_uuid())
 //   instance: text (not null)

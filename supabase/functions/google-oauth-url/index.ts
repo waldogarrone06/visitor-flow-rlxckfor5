@@ -61,7 +61,7 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    const clientId = Deno.env.get('GOOGLE_CLIENT_ID')
+    const clientId = Deno.env.get('GOOGLE_CLIENT_ID') || Deno.env.get('VITE_GOOGLE_CLIENT_ID')
 
     if (!clientId || clientId === 'your-client-id') {
       return new Response(
