@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
-import { ScrollArea } from '@/components/ui/scroll-area'
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
 import { sendWhatsAppMessage } from '@/services/whatsapp'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -17,6 +17,8 @@ import {
   CheckCheck,
   Search,
   Plus,
+  Tag as TagIcon,
+  X,
 } from 'lucide-react'
 import {
   Dialog,
@@ -26,9 +28,16 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
+import { Badge } from '@/components/ui/badge'
 import { format } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
+
+interface ContactTag {
+  id: string
+  name: string
+  color: string
+}
 
 interface Contact {
   id: string
@@ -36,6 +45,7 @@ interface Contact {
   phone: string
   lastMessage?: string
   updatedAt?: string
+  tags?: ContactTag[]
 }
 
 interface Message {
@@ -47,19 +57,49 @@ interface Message {
   status?: string | null
 }
 
+const PRESET_COLORS = [
+  '#ef4444',
+  '#f97316',
+  '#f59e0b',
+  '#eab308',
+  '#84cc16',
+  '#22c55e',
+  '#10b981',
+  '#14b8a6',
+  '#06b6d4',
+  '#0ea5e9',
+  '#0284c7',
+  '#3b82f6',
+  '#6366f1',
+  '#8b5cf6',
+  '#a855f7',
+  '#d946ef',
+  '#ec4899',
+  '#f43f5e',
+]
+
 export default function ChatPage() {
   const { user } = useAuth()
   const [contacts, setContacts] = useState<Contact[]>([])
+  const [allTags, setAllTags] = useState<ContactTag[]>([])
   const [messages, setMessages] = useState<Message[]>([])
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null)
   const [newMessage, setNewMessage] = useState('')
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [selectedFilterTag, setSelectedFilterTag] = useState<string | null>(null)
+
   const [newContactOpen, setNewContactOpen] = useState(false)
   const [newContactName, setNewContactName] = useState('')
   const [newContactPhone, setNewContactPhone] = useState('')
   const [creatingContact, setCreatingContact] = useState(false)
+
+  const [manageTagsOpen, setManageTagsOpen] = useState(false)
+  const [newTagName, setNewTagName] = useState('')
+  const [newTagColor, setNewTagColor] = useState(PRESET_COLORS[0])
+  const [creatingTag, setCreatingTag] = useState(false)
+
   const scrollRef = useRef<HTMLDivElement>(null)
   const selectedContactRef = useRef<Contact | null>(null)
 
@@ -69,6 +109,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     if (!user) return
+    loadAllTags()
     loadContacts()
 
     const channel = supabase
@@ -77,7 +118,6 @@ export default function ChatPage() {
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages', filter: `user_id=eq.${user.id}` },
         (payload) => {
-          console.log('🟢 Nova mensagem recebida via Realtime no ChatPage:', payload.new)
           const newMsg = payload.new as Message
 
           setMessages((prev) => {
@@ -91,19 +131,22 @@ export default function ChatPage() {
           setContacts((prev) => {
             const exists = prev.find((c) => c.id === newMsg.contact_id)
             if (!exists) {
-              // Buscar novo contato assincronamente sem mutar estado diretamente aqui
               setTimeout(async () => {
                 const { data } = await supabase
                   .from('contacts')
-                  .select('*')
+                  .select(`*, contact_tag_relations(contact_tags(id, name, color))`)
                   .eq('id', newMsg.contact_id)
                   .single()
 
                 if (data) {
+                  const tags = (data.contact_tag_relations || [])
+                    .map((r: any) => r.contact_tags)
+                    .filter(Boolean)
+
                   setContacts((curr) => {
                     if (curr.some((c) => c.id === data.id)) return curr
                     return [
-                      { ...data, lastMessage: newMsg.content, updatedAt: newMsg.created_at },
+                      { ...data, tags, lastMessage: newMsg.content, updatedAt: newMsg.created_at },
                       ...curr,
                     ].sort(
                       (a, b) =>
@@ -115,7 +158,6 @@ export default function ChatPage() {
               return prev
             }
 
-            // Contato já existe, apenas move para o topo e atualiza a última mensagem
             const updated = prev.map((c) =>
               c.id === newMsg.contact_id
                 ? { ...c, lastMessage: newMsg.content, updatedAt: newMsg.created_at }
@@ -155,11 +197,10 @@ export default function ChatPage() {
     } else {
       setMessages([])
     }
-  }, [selectedContact])
+  }, [selectedContact?.id])
 
   useEffect(() => {
     if (scrollRef.current) {
-      // Pequeno timeout para garantir que a UI atualizou antes do scroll
       setTimeout(() => {
         if (scrollRef.current) {
           scrollRef.current.scrollTop = scrollRef.current.scrollHeight
@@ -167,6 +208,11 @@ export default function ChatPage() {
       }, 50)
     }
   }, [messages])
+
+  const loadAllTags = async () => {
+    const { data } = await supabase.from('contact_tags').select('*').order('name')
+    if (data) setAllTags(data)
+  }
 
   const loadContacts = async () => {
     setLoading(true)
@@ -178,6 +224,13 @@ export default function ChatPage() {
           messages (
             content,
             created_at
+          ),
+          contact_tag_relations (
+            contact_tags (
+              id,
+              name,
+              color
+            )
           )
         `)
         .order('created_at', { foreignTable: 'messages', ascending: false })
@@ -188,6 +241,11 @@ export default function ChatPage() {
         const formatted = contactsData.map((c: any) => {
           const msgs = c.messages || []
           const lastMsg = msgs[0]
+
+          const tags = (c.contact_tag_relations || [])
+            .map((r: any) => r.contact_tags)
+            .filter(Boolean)
+
           return {
             id: c.id,
             name: c.name,
@@ -195,11 +253,17 @@ export default function ChatPage() {
             created_at: c.created_at,
             lastMessage: lastMsg?.content,
             updatedAt: lastMsg?.created_at || c.created_at,
+            tags,
           }
         })
 
         formatted.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
         setContacts(formatted)
+
+        if (selectedContactRef.current) {
+          const current = formatted.find((f) => f.id === selectedContactRef.current?.id)
+          if (current) setSelectedContact(current)
+        }
       }
     } catch (e) {
       console.error('Erro ao carregar contatos', e)
@@ -262,6 +326,7 @@ export default function ChatPage() {
           phone: finalContact.phone,
           created_at: finalContact.created_at,
           updatedAt: finalContact.created_at,
+          tags: [],
         }
 
         setContacts((prev) => {
@@ -292,7 +357,6 @@ export default function ChatPage() {
 
     const tempId = `temp-${Date.now()}`
 
-    // 1. Optimistic UI update (aparece imediatamente na tela)
     setMessages((prev) => [
       ...prev,
       {
@@ -308,7 +372,6 @@ export default function ChatPage() {
     let actualMessageId = tempId
 
     try {
-      // 2. Persistir localmente PRIMEIRO, garantindo que o histórico nunca seja perdido
       const { data: dbMsg, error: dbError } = await supabase
         .from('messages')
         .insert({
@@ -324,21 +387,17 @@ export default function ChatPage() {
       if (dbError) throw new Error('Erro ao salvar no banco de dados local.')
       actualMessageId = dbMsg.id
 
-      // Atualiza a UI para o ID real retornado pelo banco
       setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, id: actualMessageId } : m)))
 
-      // 3. Dispara a chamada assíncrona para a VPS rodando a Evolution API
       const response: any = await sendWhatsAppMessage(selectedContact.phone, content)
 
       let clientId = null
       if (response && response.evolutionResponse) {
         const ev = response.evolutionResponse
-        // Tenta extrair o ID da mensagem retornado pela API para salvar na tabela
         clientId =
           ev?.key?.id || ev?.message?.key?.id || ev?.messageId || ev?.id || ev?.data?.key?.id
       }
 
-      // 4. Sucesso: atualiza o status final para entregue e registra o clientId se disponível
       const updatePayload: any = { status: 'delivered' }
       if (clientId) updatePayload.client_id = clientId
 
@@ -350,7 +409,6 @@ export default function ChatPage() {
     } catch (error: any) {
       console.error('Falha ao enviar mensagem:', error)
 
-      // 5. Tratamento de Erro Visual - não deleta a mensagem, apenas marca como Erro
       if (actualMessageId && !actualMessageId.startsWith('temp-')) {
         await supabase.from('messages').update({ status: 'error' }).eq('id', actualMessageId)
       }
@@ -364,6 +422,92 @@ export default function ChatPage() {
     } finally {
       setSending(false)
     }
+  }
+
+  const handleCreateTag = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newTagName.trim() || !user) return
+    setCreatingTag(true)
+    try {
+      const { data, error } = await supabase
+        .from('contact_tags')
+        .insert({
+          user_id: user.id,
+          name: newTagName.trim(),
+          color: newTagColor,
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+      if (data) {
+        setAllTags((prev) => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)))
+        setNewTagName('')
+
+        if (selectedContact) {
+          await toggleContactTag(data, true)
+        }
+        toast.success('Tag criada com sucesso!')
+      }
+    } catch (error: any) {
+      toast.error('Erro ao criar tag: ' + error.message)
+    } finally {
+      setCreatingTag(false)
+    }
+  }
+
+  const handleDeleteTag = async (tagId: string) => {
+    if (
+      !confirm('Tem certeza que deseja excluir esta tag? Ela será removida de todos os contatos.')
+    )
+      return
+    try {
+      await supabase.from('contact_tags').delete().eq('id', tagId)
+      setAllTags((prev) => prev.filter((t) => t.id !== tagId))
+
+      const updateTags = (tags: ContactTag[] | undefined) => tags?.filter((t) => t.id !== tagId)
+
+      setContacts((prev) => prev.map((c) => ({ ...c, tags: updateTags(c.tags) })))
+      if (selectedContact) {
+        setSelectedContact((prev) => (prev ? { ...prev, tags: updateTags(prev.tags) } : null))
+      }
+      if (selectedFilterTag === tagId) setSelectedFilterTag(null)
+      toast.success('Tag removida com sucesso.')
+    } catch (error: any) {
+      toast.error('Erro ao excluir tag: ' + error.message)
+    }
+  }
+
+  const toggleContactTag = async (tag: ContactTag, forceAdd?: boolean) => {
+    if (!selectedContact) return
+    const hasTag = selectedContact.tags?.some((t) => t.id === tag.id)
+
+    try {
+      if (hasTag && !forceAdd) {
+        await supabase
+          .from('contact_tag_relations')
+          .delete()
+          .eq('contact_id', selectedContact.id)
+          .eq('tag_id', tag.id)
+
+        const newTags = selectedContact.tags!.filter((t) => t.id !== tag.id)
+        updateContactTagsLocally(selectedContact.id, newTags)
+      } else if (!hasTag) {
+        await supabase
+          .from('contact_tag_relations')
+          .insert({ contact_id: selectedContact.id, tag_id: tag.id })
+
+        const newTags = [...(selectedContact.tags || []), tag]
+        updateContactTagsLocally(selectedContact.id, newTags)
+      }
+    } catch (error: any) {
+      toast.error('Erro ao atualizar tag do contato')
+    }
+  }
+
+  const updateContactTagsLocally = (contactId: string, tags: ContactTag[]) => {
+    setContacts((prev) => prev.map((c) => (c.id === contactId ? { ...c, tags } : c)))
+    setSelectedContact((prev) => (prev?.id === contactId ? { ...prev, tags } : prev))
   }
 
   const renderMessageContent = (content: string) => {
@@ -399,6 +543,10 @@ export default function ChatPage() {
   }
 
   const filteredContacts = contacts.filter((contact) => {
+    if (selectedFilterTag && !contact.tags?.some((t) => t.id === selectedFilterTag)) {
+      return false
+    }
+
     if (!searchQuery.trim()) return true
     const q = searchQuery.toLowerCase()
     const normalize = (str: string | null | undefined) =>
@@ -417,7 +565,7 @@ export default function ChatPage() {
   return (
     <div className="flex h-[calc(100vh-6rem)] border rounded-lg overflow-hidden bg-background shadow-sm">
       <div className="w-80 border-r flex flex-col bg-muted/20">
-        <div className="p-4 border-b bg-background space-y-4">
+        <div className="p-4 border-b bg-background space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-lg flex items-center gap-2">Conversas</h2>
             <Button
@@ -438,6 +586,38 @@ export default function ChatPage() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
+
+          {allTags.length > 0 && (
+            <ScrollArea className="w-full whitespace-nowrap pb-1">
+              <div className="flex gap-1.5">
+                <Badge
+                  variant={selectedFilterTag === null ? 'default' : 'secondary'}
+                  onClick={() => setSelectedFilterTag(null)}
+                  className="cursor-pointer font-normal hover:bg-primary/90"
+                >
+                  Todos
+                </Badge>
+                {allTags.map((tag) => (
+                  <Badge
+                    key={tag.id}
+                    style={{
+                      backgroundColor: selectedFilterTag === tag.id ? tag.color : 'transparent',
+                      borderColor: tag.color,
+                      color: selectedFilterTag === tag.id ? '#fff' : tag.color,
+                    }}
+                    onClick={() =>
+                      setSelectedFilterTag(selectedFilterTag === tag.id ? null : tag.id)
+                    }
+                    className="cursor-pointer font-normal"
+                    variant="outline"
+                  >
+                    {tag.name}
+                  </Badge>
+                ))}
+              </div>
+              <ScrollBar orientation="horizontal" className="h-1.5" />
+            </ScrollArea>
+          )}
         </div>
         <ScrollArea className="flex-1">
           {loading ? (
@@ -446,8 +626,8 @@ export default function ChatPage() {
             </div>
           ) : filteredContacts.length === 0 ? (
             <div className="p-8 text-center text-sm text-muted-foreground">
-              {searchQuery
-                ? 'Nenhum contato encontrado para a busca.'
+              {searchQuery || selectedFilterTag
+                ? 'Nenhum contato encontrado para a busca ou tag selecionada.'
                 : 'Nenhum contato encontrado. Mensagens recebidas aparecerão aqui.'}
             </div>
           ) : (
@@ -462,7 +642,28 @@ export default function ChatPage() {
                     <User className="w-5 h-5 text-primary" />
                   </div>
                   <div className="flex-1 overflow-hidden">
-                    <div className="font-medium truncate">{contact.name || contact.phone}</div>
+                    <div className="font-medium truncate flex items-center gap-2">
+                      <span className="truncate">{contact.name || contact.phone}</span>
+                    </div>
+
+                    {contact.tags && contact.tags.length > 0 && (
+                      <div className="flex gap-1 mt-0.5 mb-1 overflow-hidden items-center">
+                        {contact.tags.slice(0, 3).map((t) => (
+                          <div
+                            key={t.id}
+                            className="w-2 h-2 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: t.color }}
+                            title={t.name}
+                          />
+                        ))}
+                        {contact.tags.length > 3 && (
+                          <span className="text-[10px] text-muted-foreground ml-1">
+                            +{contact.tags.length - 3}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
                     <div className="text-xs text-muted-foreground truncate">
                       {contact.lastMessage
                         ? renderMessageContent(contact.lastMessage)
@@ -479,14 +680,42 @@ export default function ChatPage() {
       <div className="flex-1 flex flex-col bg-muted/5 relative">
         {selectedContact ? (
           <>
-            <div className="p-4 border-b bg-background flex items-center gap-3 shadow-sm z-10">
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <User className="w-5 h-5 text-primary" />
+            <div className="p-4 border-b bg-background flex items-center justify-between shadow-sm z-10">
+              <div className="flex items-center gap-3 overflow-hidden">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <User className="w-5 h-5 text-primary" />
+                </div>
+                <div className="overflow-hidden">
+                  <h3 className="font-semibold truncate">{selectedContact.name}</h3>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-xs text-muted-foreground">{selectedContact.phone}</p>
+
+                    {selectedContact.tags && selectedContact.tags.length > 0 && (
+                      <div className="flex gap-1 items-center border-l pl-2">
+                        {selectedContact.tags.map((t) => (
+                          <Badge
+                            key={t.id}
+                            variant="outline"
+                            className="text-[10px] px-1 h-4 font-normal whitespace-nowrap"
+                            style={{ borderColor: t.color, color: t.color }}
+                          >
+                            {t.name}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
-              <div>
-                <h3 className="font-semibold">{selectedContact.name}</h3>
-                <p className="text-xs text-muted-foreground">{selectedContact.phone}</p>
-              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setManageTagsOpen(true)}
+                className="flex-shrink-0 ml-2"
+              >
+                <TagIcon className="w-4 h-4 md:mr-2" />
+                <span className="hidden md:inline">Tags</span>
+              </Button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-4" ref={scrollRef as any}>
@@ -560,7 +789,7 @@ export default function ChatPage() {
             </div>
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground">
+          <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-4 text-center">
             <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mb-4">
               <User className="w-8 h-8 opacity-50" />
             </div>
@@ -603,6 +832,139 @@ export default function ChatPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={manageTagsOpen} onOpenChange={setManageTagsOpen}>
+        <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Gerenciar Tags: {selectedContact?.name}</DialogTitle>
+          </DialogHeader>
+
+          <ScrollArea className="flex-1 -mx-6 px-6">
+            <div className="space-y-6 my-2 pb-4">
+              <div className="space-y-3">
+                <Label>Tags do Contato</Label>
+                <div className="flex flex-wrap gap-2 p-4 bg-muted/30 rounded-lg min-h-[4rem] border border-border/50">
+                  {allTags.length === 0 ? (
+                    <span className="text-sm text-muted-foreground italic w-full text-center py-2">
+                      Nenhuma tag cadastrada no sistema.
+                    </span>
+                  ) : (
+                    allTags.map((tag) => {
+                      const isSelected = selectedContact?.tags?.some((t) => t.id === tag.id)
+                      return (
+                        <Badge
+                          key={tag.id}
+                          style={{
+                            backgroundColor: isSelected ? tag.color : 'transparent',
+                            borderColor: tag.color,
+                            color: isSelected ? '#fff' : tag.color,
+                          }}
+                          onClick={() => toggleContactTag(tag)}
+                          className="cursor-pointer hover:opacity-80 transition-all flex items-center gap-1 py-1"
+                          variant={isSelected ? 'default' : 'outline'}
+                        >
+                          {tag.name}
+                          {isSelected && <Check className="w-3 h-3 ml-1" />}
+                        </Badge>
+                      )
+                    })
+                  )}
+                </div>
+                <p className="text-[11px] text-muted-foreground text-center">
+                  Clique numa tag acima para adicionar ou remover do contato atual.
+                </p>
+              </div>
+
+              <div className="border-t pt-4">
+                <Label className="text-base font-medium">Criar Nova Tag</Label>
+                <form onSubmit={handleCreateTag} className="flex flex-col gap-4 mt-3">
+                  <div className="flex gap-3">
+                    <Input
+                      value={newTagName}
+                      onChange={(e) => setNewTagName(e.target.value)}
+                      placeholder="Nome da tag (ex: VIP, Retorno)..."
+                      className="flex-1"
+                      maxLength={20}
+                    />
+                    <div className="w-10 h-10 rounded-md border flex-shrink-0 overflow-hidden relative">
+                      <input
+                        type="color"
+                        value={newTagColor}
+                        onChange={(e) => setNewTagColor(e.target.value)}
+                        className="absolute -inset-2 w-16 h-16 cursor-pointer"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 flex-wrap bg-muted/30 p-2 rounded-lg justify-center">
+                    {PRESET_COLORS.map((color) => (
+                      <button
+                        key={color}
+                        type="button"
+                        className={cn(
+                          'w-5 h-5 rounded-full transition-transform hover:scale-110',
+                          newTagColor === color
+                            ? 'ring-2 ring-foreground ring-offset-2 ring-offset-background'
+                            : 'opacity-80',
+                        )}
+                        style={{ backgroundColor: color }}
+                        onClick={() => setNewTagColor(color)}
+                        title={color}
+                      />
+                    ))}
+                  </div>
+
+                  <Button
+                    type="submit"
+                    disabled={!newTagName.trim() || creatingTag}
+                    className="w-full"
+                  >
+                    {creatingTag ? (
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    ) : (
+                      <Plus className="w-4 h-4 mr-2" />
+                    )}
+                    Criar e Atribuir ao Contato
+                  </Button>
+                </form>
+              </div>
+
+              {allTags.length > 0 && (
+                <div className="border-t pt-4">
+                  <Label className="text-sm font-medium mb-3 block">
+                    Gerenciar Tags do Sistema
+                  </Label>
+                  <div className="space-y-1 bg-muted/20 p-2 rounded-lg border border-border/50">
+                    {allTags.map((tag) => (
+                      <div
+                        key={tag.id}
+                        className="flex items-center justify-between group p-2 hover:bg-muted/50 rounded-md transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="w-4 h-4 rounded-full shadow-sm"
+                            style={{ backgroundColor: tag.color }}
+                          />
+                          <span className="text-sm font-medium">{tag.name}</span>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => handleDeleteTag(tag.id)}
+                          title="Excluir tag do sistema"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </ScrollArea>
         </DialogContent>
       </Dialog>
     </div>
