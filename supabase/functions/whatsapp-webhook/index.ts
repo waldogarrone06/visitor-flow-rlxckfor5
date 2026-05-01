@@ -149,6 +149,9 @@ Deno.serve(async (req: Request) => {
       firstItem?.message?.conversation ||
       firstItem?.message?.extendedTextMessage?.text ||
       firstItem?.text ||
+      msgData?.message?.buttonsResponseMessage?.selectedDisplayText ||
+      msgData?.message?.templateButtonReplyMessage?.selectedDisplayText ||
+      msgData?.message?.listResponseMessage?.title ||
       data?.body ||
       data?.text ||
       data?.content ||

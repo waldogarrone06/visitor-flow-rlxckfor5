@@ -75,6 +75,63 @@ export type Database = {
         }
         Relationships: []
       }
+      contact_tag_relations: {
+        Row: {
+          contact_id: string
+          created_at: string
+          tag_id: string
+        }
+        Insert: {
+          contact_id: string
+          created_at?: string
+          tag_id: string
+        }
+        Update: {
+          contact_id?: string
+          created_at?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'contact_tag_relations_contact_id_fkey'
+            columns: ['contact_id']
+            isOneToOne: false
+            referencedRelation: 'contacts'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'contact_tag_relations_tag_id_fkey'
+            columns: ['tag_id']
+            isOneToOne: false
+            referencedRelation: 'contact_tags'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      contact_tags: {
+        Row: {
+          color: string
+          created_at: string
+          id: string
+          name: string
+          user_id: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          id?: string
+          name: string
+          user_id: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          id?: string
+          name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       contacts: {
         Row: {
           created_at: string
@@ -628,6 +685,16 @@ export const Constants = {
 //   google_event_id: text (nullable)
 //   google_meet_link: text (nullable)
 //   reminder_sent: boolean (nullable, default: false)
+// Table: contact_tag_relations
+//   contact_id: uuid (not null)
+//   tag_id: uuid (not null)
+//   created_at: timestamp with time zone (not null, default: now())
+// Table: contact_tags
+//   id: uuid (not null, default: gen_random_uuid())
+//   user_id: uuid (not null)
+//   name: text (not null)
+//   color: text (not null, default: '#64748b'::text)
+//   created_at: timestamp with time zone (not null, default: now())
 // Table: contacts
 //   id: uuid (not null, default: gen_random_uuid())
 //   user_id: uuid (not null)
@@ -727,6 +794,14 @@ export const Constants = {
 // Table: appointments
 //   PRIMARY KEY appointments_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY appointments_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+// Table: contact_tag_relations
+//   FOREIGN KEY contact_tag_relations_contact_id_fkey: FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE CASCADE
+//   PRIMARY KEY contact_tag_relations_pkey: PRIMARY KEY (contact_id, tag_id)
+//   FOREIGN KEY contact_tag_relations_tag_id_fkey: FOREIGN KEY (tag_id) REFERENCES contact_tags(id) ON DELETE CASCADE
+// Table: contact_tags
+//   PRIMARY KEY contact_tags_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY contact_tags_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+//   UNIQUE contact_tags_user_id_name_key: UNIQUE (user_id, name)
 // Table: contacts
 //   PRIMARY KEY contacts_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY contacts_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
@@ -776,6 +851,14 @@ export const Constants = {
 //   Policy "Anon can view appointments for capacity" (SELECT, PERMISSIVE) roles={anon}
 //     USING: true
 //   Policy "Users manage own appointments" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: (auth.uid() = user_id)
+//     WITH CHECK: (auth.uid() = user_id)
+// Table: contact_tag_relations
+//   Policy "Users manage own tag relations" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: (EXISTS ( SELECT 1    FROM contacts   WHERE ((contacts.id = contact_tag_relations.contact_id) AND (contacts.user_id = auth.uid()))))
+//     WITH CHECK: (EXISTS ( SELECT 1    FROM contacts   WHERE ((contacts.id = contact_tag_relations.contact_id) AND (contacts.user_id = auth.uid()))))
+// Table: contact_tags
+//   Policy "Users manage own tags" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: (auth.uid() = user_id)
 //     WITH CHECK: (auth.uid() = user_id)
 // Table: contacts
@@ -892,6 +975,11 @@ export const Constants = {
 //
 
 // --- INDEXES ---
+// Table: contact_tag_relations
+//   CREATE INDEX idx_contact_tag_relations_contact_id ON public.contact_tag_relations USING btree (contact_id)
+//   CREATE INDEX idx_contact_tag_relations_tag_id ON public.contact_tag_relations USING btree (tag_id)
+// Table: contact_tags
+//   CREATE UNIQUE INDEX contact_tags_user_id_name_key ON public.contact_tags USING btree (user_id, name)
 // Table: contacts
 //   CREATE INDEX idx_contacts_phone ON public.contacts USING btree (phone)
 // Table: messages
