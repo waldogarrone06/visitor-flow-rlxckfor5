@@ -16,7 +16,16 @@ import {
   Check,
   CheckCheck,
   Search,
+  Plus,
 } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { toast } from 'sonner'
@@ -47,6 +56,10 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [newContactOpen, setNewContactOpen] = useState(false)
+  const [newContactName, setNewContactName] = useState('')
+  const [newContactPhone, setNewContactPhone] = useState('')
+  const [creatingContact, setCreatingContact] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
   const selectedContactRef = useRef<Contact | null>(null)
 
@@ -207,6 +220,68 @@ export default function ChatPage() {
     }
   }
 
+  const handleCreateContact = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newContactName.trim() || !newContactPhone.trim() || !user) return
+
+    setCreatingContact(true)
+    try {
+      let phone = newContactPhone.replace(/\D/g, '')
+      if (phone.length === 10 || phone.length === 11) {
+        phone = '55' + phone
+      }
+
+      const { data: existing } = await supabase
+        .from('contacts')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('phone', phone)
+        .maybeSingle()
+
+      let finalContact = existing
+
+      if (!existing) {
+        const { data: newContact, error } = await supabase
+          .from('contacts')
+          .insert({
+            user_id: user.id,
+            name: newContactName,
+            phone,
+          })
+          .select()
+          .single()
+
+        if (error) throw error
+        finalContact = newContact
+      }
+
+      if (finalContact) {
+        const newFormattedContact = {
+          id: finalContact.id,
+          name: finalContact.name,
+          phone: finalContact.phone,
+          created_at: finalContact.created_at,
+          updatedAt: finalContact.created_at,
+        }
+
+        setContacts((prev) => {
+          if (prev.some((c) => c.id === finalContact.id)) return prev
+          return [newFormattedContact, ...prev]
+        })
+
+        setSelectedContact(newFormattedContact)
+        setNewContactOpen(false)
+        setNewContactName('')
+        setNewContactPhone('')
+        toast.success('Contato pronto para conversar!')
+      }
+    } catch (error: any) {
+      toast.error('Erro ao criar contato: ' + error.message)
+    } finally {
+      setCreatingContact(false)
+    }
+  }
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newMessage.trim() || !selectedContact || !user) return
@@ -343,7 +418,17 @@ export default function ChatPage() {
     <div className="flex h-[calc(100vh-6rem)] border rounded-lg overflow-hidden bg-background shadow-sm">
       <div className="w-80 border-r flex flex-col bg-muted/20">
         <div className="p-4 border-b bg-background space-y-4">
-          <h2 className="font-semibold text-lg flex items-center gap-2">Conversas</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-lg flex items-center gap-2">Conversas</h2>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setNewContactOpen(true)}
+              title="Nova Conversa"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
           <div className="relative">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
@@ -483,6 +568,43 @@ export default function ChatPage() {
           </div>
         )}
       </div>
+
+      <Dialog open={newContactOpen} onOpenChange={setNewContactOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Nova Conversa</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleCreateContact} className="space-y-4 mt-4">
+            <div className="space-y-2">
+              <Label>Nome do Contato</Label>
+              <Input
+                value={newContactName}
+                onChange={(e) => setNewContactName(e.target.value)}
+                placeholder="Ex: João Silva"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Telefone (WhatsApp)</Label>
+              <Input
+                value={newContactPhone}
+                onChange={(e) => setNewContactPhone(e.target.value)}
+                placeholder="Ex: 11999999999"
+                required
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setNewContactOpen(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={creatingContact}>
+                {creatingContact && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                Iniciar Conversa
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

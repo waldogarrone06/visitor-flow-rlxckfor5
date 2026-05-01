@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { RefreshCcw, Eye, Search, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { RefreshCcw, Eye, Search, AlertCircle, CheckCircle2, ShieldAlert } from 'lucide-react'
 import { getWhatsAppEvents } from '@/services/logs'
 import { supabase } from '@/lib/supabase/client'
+import { useAuth } from '@/hooks/use-auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
@@ -22,9 +23,11 @@ import { Badge } from '@/components/ui/badge'
 export default function LogsPage() {
   const [events, setEvents] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const { user } = useAuth()
   const [searchTerm, setSearchTerm] = useState('')
   const [showOnlyErrors, setShowOnlyErrors] = useState(false)
   const [selectedPayload, setSelectedPayload] = useState<any | null>(null)
+  const [hasAccess, setHasAccess] = useState<boolean | null>(null)
 
   const loadEvents = async () => {
     setLoading(true)
@@ -39,6 +42,29 @@ export default function LogsPage() {
   }
 
   useEffect(() => {
+    if (user) {
+      supabase
+        .from('profiles')
+        .select('is_admin, name, email')
+        .eq('id', user.id)
+        .single()
+        .then(({ data }) => {
+          if (data) {
+            const isJunior =
+              data.name?.toLowerCase().includes('junior') ||
+              data.email?.toLowerCase().includes('junior') ||
+              data.name?.toLowerCase().includes('jr')
+            setHasAccess(!!data.is_admin || isJunior)
+          } else {
+            setHasAccess(false)
+          }
+        })
+    }
+  }, [user])
+
+  useEffect(() => {
+    if (hasAccess === false) return
+
     loadEvents()
 
     const channel = supabase
@@ -55,7 +81,7 @@ export default function LogsPage() {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [])
+  }, [hasAccess])
 
   const isErrorEvent = (e: any) => {
     return (
@@ -81,6 +107,19 @@ export default function LogsPage() {
   })
 
   const selectedIsError = selectedPayload ? isErrorEvent({ message: selectedPayload }) : false
+
+  if (hasAccess === false) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[80vh] text-center animate-fade-in-up">
+        <ShieldAlert className="h-16 w-16 text-muted-foreground mb-4 opacity-50" />
+        <h2 className="text-2xl font-bold tracking-tight text-foreground">Acesso Restrito</h2>
+        <p className="text-muted-foreground mt-2 max-w-md">
+          Apenas administradores e o perfil Junior têm permissão para visualizar os logs detalhados
+          do sistema.
+        </p>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6 animate-slide-up pb-8 h-full flex flex-col">

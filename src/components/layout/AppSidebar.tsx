@@ -1,4 +1,7 @@
 import { Link, useLocation } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useAuth } from '@/hooks/use-auth'
+import { supabase } from '@/lib/supabase/client'
 import {
   LayoutDashboard,
   CalendarDays,
@@ -32,6 +35,27 @@ const menuItems = [
 
 export function AppSidebar() {
   const location = useLocation()
+  const { user } = useAuth()
+  const [isAdminOrJunior, setIsAdminOrJunior] = useState(false)
+
+  useEffect(() => {
+    if (user) {
+      supabase
+        .from('profiles')
+        .select('is_admin, name, email')
+        .eq('id', user.id)
+        .single()
+        .then(({ data }) => {
+          if (data) {
+            const isJunior =
+              data.name?.toLowerCase().includes('junior') ||
+              data.email?.toLowerCase().includes('junior') ||
+              data.name?.toLowerCase().includes('jr')
+            setIsAdminOrJunior(!!data.is_admin || isJunior)
+          }
+        })
+    }
+  }, [user])
 
   return (
     <Sidebar className="border-r border-border/50 bg-sidebar">
@@ -46,6 +70,8 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => {
+                if (item.title === 'Logs do WhatsApp' && !isAdminOrJunior) return null
+
                 const isActive =
                   location.pathname === item.url ||
                   (item.url !== '/' && location.pathname.startsWith(item.url))
