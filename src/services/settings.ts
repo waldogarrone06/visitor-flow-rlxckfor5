@@ -29,17 +29,35 @@ export async function saveIntegrations(updates: any, targetUserId?: string) {
     if (!userId) return null
 
     const payload = {
-      user_id: userId,
       ...updates,
       updated_at: new Date().toISOString(),
     }
 
-    const { data, error } = await supabase
+    const { data: existing } = await supabase
       .from('user_integrations' as any)
-      .upsert(payload, { onConflict: 'user_id' })
+      .select('id')
+      .eq('user_id', userId)
+      .maybeSingle()
 
-    if (error) throw error
-    return data
+    let resultData
+    if (existing) {
+      const { data, error } = await supabase
+        .from('user_integrations' as any)
+        .update(payload)
+        .eq('user_id', userId)
+        .select()
+      if (error) throw error
+      resultData = data
+    } else {
+      const { data, error } = await supabase
+        .from('user_integrations' as any)
+        .insert({ user_id: userId, ...payload })
+        .select()
+      if (error) throw error
+      resultData = data
+    }
+
+    return resultData
   } catch (err) {
     console.error('Error saving integrations:', err)
     throw err

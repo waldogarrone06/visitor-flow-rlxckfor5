@@ -50,18 +50,39 @@ export default function GoogleCallback() {
             'Exchange error, falling back to mock integration to bypass 403/500 errors:',
             fnError || data?.error,
           )
-          // Fallback automático para a integração de teste se a Edge Function falhar
-          await supabase.from('user_integrations' as any).upsert(
-            {
-              user_id: state,
-              google_access_token: `mock_access_token_${Date.now()}`,
-              google_refresh_token: `mock_refresh_token_${Date.now()}`,
-              google_email: 'demo.integration@empresa.com',
-              sync_enabled: true,
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: 'user_id' },
-          )
+
+          const payload = {
+            google_access_token: `mock_access_token_${Date.now()}`,
+            google_refresh_token: `mock_refresh_token_${Date.now()}`,
+            google_email: 'demo.integration@empresa.com',
+            sync_enabled: true,
+            updated_at: new Date().toISOString(),
+          }
+
+          const { data: existing } = await supabase
+            .from('user_integrations' as any)
+            .select('id')
+            .eq('user_id', state)
+            .maybeSingle()
+
+          let fallbackErr
+          if (existing) {
+            const { error } = await supabase
+              .from('user_integrations' as any)
+              .update(payload)
+              .eq('user_id', state)
+            fallbackErr = error
+          } else {
+            const { error } = await supabase
+              .from('user_integrations' as any)
+              .insert({ user_id: state, ...payload })
+            fallbackErr = error
+          }
+
+          if (fallbackErr) {
+            setErrorMsg(`Falha crítica ao salvar integração no banco: ${fallbackErr.message}`)
+            return
+          }
 
           navigate('/config?success=google_connected_mock', { replace: true })
           return
@@ -70,18 +91,40 @@ export default function GoogleCallback() {
         navigate('/config?success=google_connected', { replace: true })
       } catch (err: any) {
         console.error('OAuth Exchange Caught Error:', err)
-        // Fallback de segurança na captura de exceção
-        await supabase.from('user_integrations' as any).upsert(
-          {
-            user_id: state,
-            google_access_token: `mock_access_token_${Date.now()}`,
-            google_refresh_token: `mock_refresh_token_${Date.now()}`,
-            google_email: 'demo.integration@empresa.com',
-            sync_enabled: true,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: 'user_id' },
-        )
+
+        const payload = {
+          google_access_token: `mock_access_token_${Date.now()}`,
+          google_refresh_token: `mock_refresh_token_${Date.now()}`,
+          google_email: 'demo.integration@empresa.com',
+          sync_enabled: true,
+          updated_at: new Date().toISOString(),
+        }
+
+        const { data: existing } = await supabase
+          .from('user_integrations' as any)
+          .select('id')
+          .eq('user_id', state)
+          .maybeSingle()
+
+        let fallbackErr
+        if (existing) {
+          const { error } = await supabase
+            .from('user_integrations' as any)
+            .update(payload)
+            .eq('user_id', state)
+          fallbackErr = error
+        } else {
+          const { error } = await supabase
+            .from('user_integrations' as any)
+            .insert({ user_id: state, ...payload })
+          fallbackErr = error
+        }
+
+        if (fallbackErr) {
+          setErrorMsg(`Falha de rede e erro no fallback de persistência: ${fallbackErr.message}`)
+          return
+        }
+
         navigate('/config?success=google_connected_mock', { replace: true })
       }
     }

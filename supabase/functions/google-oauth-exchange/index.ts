@@ -87,17 +87,42 @@ Deno.serve(async (req: Request) => {
       clientId === 'your-client-id'
     ) {
       console.warn('Using mock tokens due to missing credentials or mock code in request.')
-      await supabaseAdmin.from('user_integrations').upsert(
-        {
-          user_id: targetUserId,
-          google_access_token: `mock_access_token_${code.substring(0, 8)}`,
-          google_refresh_token: `mock_refresh_token_${code.substring(0, 8)}`,
-          google_email: 'demo.integration@empresa.com',
-          sync_enabled: true,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'user_id' },
-      )
+
+      const payload = {
+        google_access_token: `mock_access_token_${code.substring(0, 8)}`,
+        google_refresh_token: `mock_refresh_token_${code.substring(0, 8)}`,
+        google_email: 'demo.integration@empresa.com',
+        sync_enabled: true,
+        updated_at: new Date().toISOString(),
+      }
+
+      const { data: existing } = await supabaseAdmin
+        .from('user_integrations')
+        .select('id')
+        .eq('user_id', targetUserId)
+        .maybeSingle()
+
+      let dbErr
+      if (existing) {
+        const { error } = await supabaseAdmin
+          .from('user_integrations')
+          .update(payload)
+          .eq('user_id', targetUserId)
+        dbErr = error
+      } else {
+        const { error } = await supabaseAdmin
+          .from('user_integrations')
+          .insert({ user_id: targetUserId, ...payload })
+        dbErr = error
+      }
+
+      if (dbErr) {
+        console.error('Mock DB Error:', dbErr)
+        return new Response(JSON.stringify({ error: `Mock DB Error: ${dbErr.message}` }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+
       return new Response(JSON.stringify({ success: true, mocked: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
@@ -155,7 +180,6 @@ Deno.serve(async (req: Request) => {
     }
 
     const payload: any = {
-      user_id: targetUserId,
       google_access_token: access_token,
       google_email: userInfo.email || 'unknown@example.com',
       sync_enabled: true,
@@ -166,11 +190,28 @@ Deno.serve(async (req: Request) => {
       payload.google_refresh_token = refresh_token
     }
 
-    const { error: dbError } = await supabaseAdmin
+    const { data: existing } = await supabaseAdmin
       .from('user_integrations')
-      .upsert(payload, { onConflict: 'user_id' })
+      .select('id')
+      .eq('user_id', targetUserId)
+      .maybeSingle()
+
+    let dbError
+    if (existing) {
+      const { error } = await supabaseAdmin
+        .from('user_integrations')
+        .update(payload)
+        .eq('user_id', targetUserId)
+      dbError = error
+    } else {
+      const { error } = await supabaseAdmin
+        .from('user_integrations')
+        .insert({ user_id: targetUserId, ...payload })
+      dbError = error
+    }
 
     if (dbError) {
+      console.error('DB Error:', dbError)
       return new Response(
         JSON.stringify({ error: `Erro no banco de dados ao salvar tokens: ${dbError.message}` }),
         {
