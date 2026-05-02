@@ -97,7 +97,7 @@ Deno.serve(async (req: Request) => {
     }
     baseUrl = `${baseUrl}/message/sendText/${sessionId}`
 
-    if (!sessionId) sessionId = 'fourlab'
+    if (!sessionId) sessionId = 'Junior'
     if (!apiKey) apiKey = 'W1A2L3D4O5W1A2L3'
 
     let number = to.replace(/\D/g, '')

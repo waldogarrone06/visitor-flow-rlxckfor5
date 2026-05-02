@@ -9,7 +9,7 @@
     "google-oauth-exchange": 10,
     "google-oauth-url": 3,
     "send-email": 7,
-    "whatsapp-send": 32,
+    "whatsapp-send": 33,
     "whatsapp-webhook": 39,
     "trigger-reminders": 1
   }
