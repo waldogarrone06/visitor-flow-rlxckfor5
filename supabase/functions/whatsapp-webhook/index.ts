@@ -62,6 +62,11 @@ Deno.serve(async (req: Request) => {
       rawRemoteJid = remoteJidAlt
     }
 
+    // Fallback for some Evolution v2 payloads where data.key is missing
+    if (!rawRemoteJid && data?.data?.remoteJid) {
+      rawRemoteJid = data.data.remoteJid
+    }
+
     // Evolution API v2 sometimes puts the JID in data.key.remoteJid
     if (!rawRemoteJid && data?.data?.key?.remoteJid) {
       rawRemoteJid = data.data.key.remoteJid
@@ -87,6 +92,8 @@ Deno.serve(async (req: Request) => {
     const isSystemEvent =
       eventType.startsWith('connection') ||
       eventType.startsWith('qrcode') ||
+      eventType === 'presence.update' ||
+      eventType === 'presence_update' ||
       !phone ||
       phone.length < 8
 
@@ -114,7 +121,11 @@ Deno.serve(async (req: Request) => {
     }
 
     // Processamento de Atualização de Status (DELIVERY_ACK, READ, etc)
-    if (eventType === 'messages.update' || eventType === 'messages-update') {
+    if (
+      eventType === 'messages.update' ||
+      eventType === 'messages-update' ||
+      eventType === 'messages_update'
+    ) {
       let messageId =
         keyData?.id ||
         firstItem?.update?.id ||
@@ -164,16 +175,19 @@ Deno.serve(async (req: Request) => {
       msgData?.conversation ||
       msgData?.extendedTextMessage?.text ||
       msgData?.text ||
+      msgData?.textMessage?.text ||
       firstItem?.message?.message?.conversation ||
       firstItem?.message?.message?.extendedTextMessage?.text ||
       firstItem?.message?.conversation ||
       firstItem?.message?.extendedTextMessage?.text ||
       firstItem?.text ||
+      firstItem?.textMessage?.text ||
       data?.data?.message?.message?.conversation ||
       data?.data?.message?.message?.extendedTextMessage?.text ||
       data?.data?.message?.conversation ||
       data?.data?.message?.extendedTextMessage?.text ||
       data?.data?.message?.text ||
+      data?.data?.textMessage?.text ||
       data?.data?.text ||
       msgData?.message?.buttonsResponseMessage?.selectedDisplayText ||
       msgData?.message?.templateButtonReplyMessage?.selectedDisplayText ||
@@ -262,11 +276,13 @@ Deno.serve(async (req: Request) => {
     const isUpsert =
       eventType === 'messages.upsert' ||
       eventType === 'messages-upsert' ||
+      eventType === 'messages_upsert' ||
       eventType === 'messages.add'
 
     // Handle Webhook Verification from Evolution v2
     if (
       eventType === 'webhook.verify' ||
+      eventType === 'webhook_verify' ||
       data?.event === 'webhook.verify' ||
       data?.webhook_verify
     ) {

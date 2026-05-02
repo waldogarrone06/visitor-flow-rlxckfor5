@@ -81,6 +81,10 @@ Deno.serve(async (req: Request) => {
     apiKey = apiKey.trim()
     sessionId = sessionId.trim()
 
+    if (!apiUrl) apiUrl = 'https://4labnutri.online'
+    if (!sessionId) sessionId = 'Junior'
+    if (!apiKey) apiKey = 'W1A2L3D4O5W1A2L3'
+
     // Remove HTTP methods from URL if pasted by mistake (e.g., "POST https://...")
     let baseUrl = apiUrl.replace(/^(POST|GET|PUT|DELETE)\s+/i, '').trim()
 
@@ -96,9 +100,6 @@ Deno.serve(async (req: Request) => {
       baseUrl = baseUrl.split('/v1/messages')[0]
     }
     baseUrl = `${baseUrl}/message/sendText/${sessionId}`
-
-    if (!sessionId) sessionId = 'Junior'
-    if (!apiKey) apiKey = 'W1A2L3D4O5W1A2L3'
 
     let number = to.replace(/\D/g, '')
     if (number.length === 10 || number.length === 11) {
