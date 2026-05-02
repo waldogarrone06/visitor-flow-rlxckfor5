@@ -129,6 +129,10 @@ export default function ChatPage() {
             if (newMsg.direction === 'inbound') {
               supabase.from('messages').update({ status: 'read' }).eq('id', newMsg.id).then()
             }
+          } else if (newMsg.direction === 'inbound') {
+            toast.info('Nova mensagem recebida!', {
+              description: newMsg.content.substring(0, 50) + '...',
+            })
           }
 
           setContacts((prev) => {

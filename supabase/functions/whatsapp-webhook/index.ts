@@ -29,15 +29,27 @@ Deno.serve(async (req: Request) => {
 
     console.log('📥 Webhook Recebido (Payload Completo):', JSON.stringify(data, null, 2))
 
-    const eventType = data?.event || data?.messageType || 'unknown'
+    const eventType = String(data?.event || data?.messageType || 'unknown').toLowerCase()
     const payloadData = data?.data || data?.message || data
     const firstItem = Array.isArray(payloadData) ? payloadData[0] : payloadData
 
-    const keyData = firstItem?.key || firstItem?.message?.key || data?.key || data?.data?.key || {}
-    const msgData = firstItem?.message || firstItem
+    const keyData =
+      firstItem?.key ||
+      firstItem?.message?.key ||
+      data?.key ||
+      data?.data?.key ||
+      data?.data?.message?.key ||
+      {}
+    const msgData = firstItem?.message || firstItem || data?.data?.message || {}
 
     let rawRemoteJid =
-      keyData?.remoteJid || firstItem?.remoteJid || data?.sender || data?.from || data?.number || ''
+      keyData?.remoteJid ||
+      firstItem?.remoteJid ||
+      data?.sender ||
+      data?.from ||
+      data?.number ||
+      data?.data?.message?.key?.remoteJid ||
+      ''
 
     // Utilizar remoteJidAlt caso o principal seja um @lid e exista um número real no Alt
     const remoteJidAlt = keyData?.remoteJidAlt || firstItem?.remoteJidAlt
@@ -94,7 +106,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // Processamento de Atualização de Status (DELIVERY_ACK, READ, etc)
-    if (eventType === 'messages.update' || data?.event === 'messages.update') {
+    if (eventType === 'messages.update' || eventType === 'messages-update') {
       let messageId =
         keyData?.id ||
         firstItem?.update?.id ||
@@ -149,6 +161,10 @@ Deno.serve(async (req: Request) => {
       firstItem?.message?.conversation ||
       firstItem?.message?.extendedTextMessage?.text ||
       firstItem?.text ||
+      data?.data?.message?.conversation ||
+      data?.data?.message?.extendedTextMessage?.text ||
+      data?.data?.message?.text ||
+      data?.data?.text ||
       msgData?.message?.buttonsResponseMessage?.selectedDisplayText ||
       msgData?.message?.templateButtonReplyMessage?.selectedDisplayText ||
       msgData?.message?.listResponseMessage?.title ||
@@ -160,20 +176,55 @@ Deno.serve(async (req: Request) => {
       ''
 
     if (!text) {
-      if (msgData?.message?.imageMessage || msgData?.imageMessage)
+      if (
+        msgData?.message?.imageMessage ||
+        msgData?.imageMessage ||
+        data?.data?.message?.imageMessage
+      )
         text =
-          msgData?.message?.imageMessage?.caption || msgData?.imageMessage?.caption || '[Imagem]'
-      else if (msgData?.message?.videoMessage || msgData?.videoMessage)
+          msgData?.message?.imageMessage?.caption ||
+          msgData?.imageMessage?.caption ||
+          data?.data?.message?.imageMessage?.caption ||
+          '[Imagem]'
+      else if (
+        msgData?.message?.videoMessage ||
+        msgData?.videoMessage ||
+        data?.data?.message?.videoMessage
+      )
         text =
-          msgData?.message?.videoMessage?.caption || msgData?.videoMessage?.caption || '[Vídeo]'
-      else if (msgData?.message?.audioMessage || msgData?.audioMessage) text = '[Áudio]'
-      else if (msgData?.message?.documentMessage || msgData?.documentMessage)
+          msgData?.message?.videoMessage?.caption ||
+          msgData?.videoMessage?.caption ||
+          data?.data?.message?.videoMessage?.caption ||
+          '[Vídeo]'
+      else if (
+        msgData?.message?.audioMessage ||
+        msgData?.audioMessage ||
+        data?.data?.message?.audioMessage
+      )
+        text = '[Áudio]'
+      else if (
+        msgData?.message?.documentMessage ||
+        msgData?.documentMessage ||
+        data?.data?.message?.documentMessage
+      )
         text =
           msgData?.message?.documentMessage?.fileName ||
           msgData?.documentMessage?.fileName ||
+          data?.data?.message?.documentMessage?.fileName ||
           '[Documento]'
-      else if (msgData?.message?.stickerMessage || msgData?.stickerMessage) text = '[Sticker]'
-      else if (msgData?.message?.contactMessage || msgData?.contactMessage) text = '[Contato]'
+      else if (
+        msgData?.message?.stickerMessage ||
+        msgData?.stickerMessage ||
+        data?.data?.message?.stickerMessage
+      )
+        text = '[Sticker]'
+      else if (
+        msgData?.message?.contactMessage ||
+        msgData?.contactMessage ||
+        data?.data?.message?.contactMessage
+      )
+        text = '[Contato]'
+      else text = '[Mídia/Documento Recebido]'
     }
 
     let isFromMe = false
@@ -182,6 +233,7 @@ Deno.serve(async (req: Request) => {
     else if (firstItem?.fromMe !== undefined) isFromMe = firstItem.fromMe
     else if (data?.data?.fromMe !== undefined) isFromMe = data.data.fromMe
     else if (data?.fromMe !== undefined) isFromMe = data.fromMe
+    else if (data?.data?.message?.key?.fromMe !== undefined) isFromMe = data.data.message.key.fromMe
 
     let messageId =
       keyData?.id ||
@@ -190,13 +242,19 @@ Deno.serve(async (req: Request) => {
       firstItem?.keyId ||
       firstItem?.id ||
       data?.data?.messageId ||
+      data?.data?.message?.key?.id ||
       null
 
     console.log(
       `🔎 Extração de payload: isFromMe=${isFromMe}, id=${messageId}, text=${text?.substring(0, 30)}`,
     )
 
-    if ((eventType === 'messages.upsert' || eventType === 'messages.add') && text) {
+    const isUpsert =
+      eventType === 'messages.upsert' ||
+      eventType === 'messages-upsert' ||
+      eventType === 'messages.add'
+
+    if (isUpsert && text) {
       console.log(
         `💬 Processando nova mensagem [fromMe: ${isFromMe}, id: ${messageId}]: ${phone} -> ${text.substring(0, 30)}...`,
       )
@@ -214,7 +272,7 @@ Deno.serve(async (req: Request) => {
           .map((s) => String(s).trim().toLowerCase())
 
         if (searchInstances.length > 0) {
-          const { data: allIntegrations, error: intErr } = await supabaseAdmin
+          const { data: allIntegrations } = await supabaseAdmin
             .from('user_integrations')
             .select('user_id, whatsapp_instance_id')
             .not('whatsapp_instance_id', 'is', null)
@@ -230,6 +288,8 @@ Deno.serve(async (req: Request) => {
                 const dbInstance = String(int.whatsapp_instance_id).trim().toLowerCase()
                 return searchInstances.some(
                   (s) =>
+                    (s === 'juliana' && dbInstance === 'ju') ||
+                    (s === 'ju' && dbInstance === 'juliana') ||
                     (s === 'junior' && dbInstance === 'jr') ||
                     (s === 'jr' && dbInstance === 'junior'),
                 )
@@ -261,6 +321,15 @@ Deno.serve(async (req: Request) => {
 
           if (allConfigured && allConfigured.length === 1) {
             userId = allConfigured[0].user_id
+          } else if (allConfigured && allConfigured.length > 1) {
+            const { data: mainProfile } = await supabaseAdmin
+              .from('profiles')
+              .select('id')
+              .eq('is_admin', true)
+              .limit(1)
+              .maybeSingle()
+            if (mainProfile) userId = mainProfile.id
+            else userId = allConfigured[0].user_id
           } else {
             const { data: mainProfile } = await supabaseAdmin
               .from('profiles')
@@ -274,7 +343,6 @@ Deno.serve(async (req: Request) => {
         if (userId && phone) {
           let contactId = null
 
-          // Melhoria no match de telefone (Resolve o problema do 9º dígito e DDI)
           let searchPhones = [phone]
 
           if (phone.startsWith('55')) {
@@ -321,6 +389,7 @@ Deno.serve(async (req: Request) => {
               firstItem?.message?.pushName ||
               data?.data?.pushName ||
               data?.pushName ||
+              data?.data?.message?.pushName ||
               `Contato (${phone})`
             console.log(`👤 Criando novo contato para o phone ${phone}... com nome: ${pushName}`)
             const { data: newContact, error: createContactErr } = await supabaseAdmin

@@ -119,7 +119,7 @@ export function AppSidebar() {
                         {item.title === 'Mensagens' && unreadCount > 0 && (
                           <Badge
                             variant="destructive"
-                            className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px]"
+                            className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] animate-pulse shadow-sm shadow-destructive/50"
                           >
                             {unreadCount > 99 ? '99+' : unreadCount}
                           </Badge>
