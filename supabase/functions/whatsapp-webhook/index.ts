@@ -152,6 +152,8 @@ Deno.serve(async (req: Request) => {
       msgData?.message?.buttonsResponseMessage?.selectedDisplayText ||
       msgData?.message?.templateButtonReplyMessage?.selectedDisplayText ||
       msgData?.message?.listResponseMessage?.title ||
+      msgData?.message?.interactiveResponseMessage?.body?.text ||
+      msgData?.message?.interactiveResponseMessage?.nativeFlowResponseMessage?.name ||
       data?.body ||
       data?.text ||
       data?.content ||
@@ -198,9 +200,6 @@ Deno.serve(async (req: Request) => {
       console.log(
         `💬 Processando nova mensagem [fromMe: ${isFromMe}, id: ${messageId}]: ${phone} -> ${text.substring(0, 30)}...`,
       )
-      console.log(
-        `[DEBUG] eventType: ${eventType}, text: ${text}, phone: ${phone}, isFromMe: ${isFromMe}`,
-      )
       try {
         const sessionId = String(data?.instance || data?.sessionId || data?.instanceId || '').trim()
         let userId = null
@@ -214,15 +213,11 @@ Deno.serve(async (req: Request) => {
           .filter(Boolean)
           .map((s) => String(s).trim().toLowerCase())
 
-        console.log('🔍 Procurando user_id para as instâncias:', searchInstances)
-
         if (searchInstances.length > 0) {
           const { data: allIntegrations, error: intErr } = await supabaseAdmin
             .from('user_integrations')
             .select('user_id, whatsapp_instance_id')
             .not('whatsapp_instance_id', 'is', null)
-
-          if (intErr) console.error('❌ Erro ao buscar integrações:', intErr)
 
           if (allIntegrations && allIntegrations.length > 0) {
             let match = allIntegrations.find((int) => {
@@ -242,12 +237,6 @@ Deno.serve(async (req: Request) => {
             }
 
             if (!match) {
-              console.log(
-                `⚠️ Match exato não encontrado para ${searchInstances.join(', ')}. Buscando match parcial (case-insensitive)...`,
-              )
-            }
-
-            if (!match) {
               match = allIntegrations.find((int) => {
                 const dbInstance = String(int.whatsapp_instance_id).trim().toLowerCase()
                 return searchInstances.some(
@@ -260,15 +249,11 @@ Deno.serve(async (req: Request) => {
 
             if (match) {
               userId = match.user_id
-              console.log(
-                `✅ Instância encontrada: ${match.whatsapp_instance_id}. User ID: ${userId}`,
-              )
             }
           }
         }
 
         if (!userId) {
-          console.log('⚠️ Nenhuma instância correspondente encontrada. Usando fallback seguro...')
           const { data: allConfigured } = await supabaseAdmin
             .from('user_integrations')
             .select('user_id')
@@ -276,7 +261,6 @@ Deno.serve(async (req: Request) => {
 
           if (allConfigured && allConfigured.length === 1) {
             userId = allConfigured[0].user_id
-            console.log(`✅ Fallback usado: Só existe 1 usuário configurado. User ID: ${userId}`)
           } else {
             const { data: mainProfile } = await supabaseAdmin
               .from('profiles')
@@ -284,41 +268,51 @@ Deno.serve(async (req: Request) => {
               .limit(1)
               .maybeSingle()
             if (mainProfile) userId = mainProfile.id
-            console.log(`⚠️ Fallback genérico usado. User ID: ${userId}`)
           }
         }
 
         if (userId && phone) {
           let contactId = null
 
-          let { data: contact } = await supabaseAdmin
+          // Melhoria no match de telefone (Resolve o problema do 9º dígito e DDI)
+          let searchPhones = [phone]
+
+          if (phone.startsWith('55')) {
+            searchPhones.push(phone.substring(2))
+            const ddd = phone.substring(2, 4)
+            const num = phone.substring(4)
+            if (num.length === 9 && num.startsWith('9')) {
+              searchPhones.push(`55${ddd}${num.substring(1)}`)
+              searchPhones.push(`${ddd}${num.substring(1)}`)
+            } else if (num.length === 8) {
+              searchPhones.push(`55${ddd}9${num}`)
+              searchPhones.push(`${ddd}9${num}`)
+            }
+          } else if (phone.length === 10 || phone.length === 11) {
+            searchPhones.push(`55${phone}`)
+            const ddd = phone.substring(0, 2)
+            const num = phone.substring(2)
+            if (num.length === 9 && num.startsWith('9')) {
+              searchPhones.push(`55${ddd}${num.substring(1)}`)
+              searchPhones.push(`${ddd}${num.substring(1)}`)
+            } else if (num.length === 8) {
+              searchPhones.push(`55${ddd}9${num}`)
+              searchPhones.push(`${ddd}9${num}`)
+            }
+          }
+
+          searchPhones = [...new Set(searchPhones)]
+
+          const { data: matchedContacts } = await supabaseAdmin
             .from('contacts')
             .select('id')
             .eq('user_id', userId)
-            .eq('phone', phone)
+            .in('phone', searchPhones)
+            .limit(1)
             .maybeSingle()
-          if (contact) contactId = contact.id
 
-          if (!contactId && phone.startsWith('55') && phone.length >= 12) {
-            const phoneWithout55 = phone.substring(2)
-            let { data: contact2 } = await supabaseAdmin
-              .from('contacts')
-              .select('id')
-              .eq('user_id', userId)
-              .eq('phone', phoneWithout55)
-              .maybeSingle()
-            if (contact2) contactId = contact2.id
-          }
-
-          if (!contactId && !phone.startsWith('55') && phone.length >= 10) {
-            const phoneWith55 = '55' + phone
-            let { data: contact3 } = await supabaseAdmin
-              .from('contacts')
-              .select('id')
-              .eq('user_id', userId)
-              .eq('phone', phoneWith55)
-              .maybeSingle()
-            if (contact3) contactId = contact3.id
+          if (matchedContacts) {
+            contactId = matchedContacts.id
           }
 
           if (!contactId) {
@@ -366,9 +360,6 @@ Deno.serve(async (req: Request) => {
 
               if (recentMsg) {
                 msgExists = true
-                console.log(
-                  `ℹ️ Mensagem outbound idêntica encontrada nos últimos 30s. Atualizando client_id para ${messageId}.`,
-                )
                 if (!recentMsg.client_id && messageId) {
                   await supabaseAdmin
                     .from('messages')
@@ -387,11 +378,6 @@ Deno.serve(async (req: Request) => {
                 status: isFromMe ? 'sent' : 'delivered',
                 client_id: messageId,
               }
-
-              console.log(
-                `📝 Inserindo mensagem na tabela messages... payload:`,
-                JSON.stringify(msgPayload),
-              )
 
               const { data: insertedMsg, error: insErr } = await supabaseAdmin
                 .from('messages')
@@ -429,41 +415,15 @@ Deno.serve(async (req: Request) => {
             ).trim(),
             message_type: 'processing.error',
             remote_jid: phone || 'system',
-            message: {
-              error: e.message,
-              stack: e.stack,
-              context: 'Error processing new message',
-            },
+            message: { error: e.message, stack: e.stack, context: 'Error processing new message' },
           })
         } catch (err2) {}
       }
-    } else {
-      console.log('ℹ️ Nenhum texto extraído ou evento não mapeado para inserção de conteúdo.')
     }
 
     return new Response(JSON.stringify({ status: 'ok' }), { status: 200, headers: corsHeaders })
   } catch (err: any) {
     console.error('❌ ERRO GERAL NO WEBHOOK:', err)
-    try {
-      const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
-      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
-      if (supabaseUrl && supabaseServiceKey) {
-        const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-          auth: { persistSession: false },
-        })
-        await supabaseAdmin.from('whatsapp_events').insert({
-          instance: 'system-error',
-          message_type: 'webhook.error',
-          remote_jid: 'system',
-          message: {
-            error: err.message,
-            stack: err.stack,
-            type: 'General Webhook Error',
-          },
-        })
-      }
-    } catch (e) {}
-
     return new Response(JSON.stringify({ status: 'error', message: err.message }), {
       status: 200,
       headers: corsHeaders,

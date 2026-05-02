@@ -21,6 +21,7 @@ import {
   SidebarMenuButton,
   SidebarHeader,
 } from '@/components/ui/sidebar'
+import { Badge } from '@/components/ui/badge'
 import { FourLabLogo } from '@/components/FourLabLogo'
 
 const menuItems = [
@@ -37,6 +38,7 @@ export function AppSidebar() {
   const location = useLocation()
   const { user } = useAuth()
   const [isAdminOrJunior, setIsAdminOrJunior] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
 
   useEffect(() => {
     if (user) {
@@ -54,6 +56,35 @@ export function AppSidebar() {
             setIsAdminOrJunior(!!data.is_admin || isJunior)
           }
         })
+
+      const fetchUnread = () => {
+        supabase
+          .from('messages')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('direction', 'inbound')
+          .neq('status', 'read')
+          .then(({ count }) => {
+            setUnreadCount(count || 0)
+          })
+      }
+
+      fetchUnread()
+
+      const channel = supabase
+        .channel('sidebar_unread')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'messages', filter: `user_id=eq.${user.id}` },
+          () => {
+            fetchUnread()
+          },
+        )
+        .subscribe()
+
+      return () => {
+        supabase.removeChannel(channel)
+      }
     }
   }, [user])
 
@@ -82,9 +113,17 @@ export function AppSidebar() {
                       isActive={isActive}
                       className={`h-11 ${isActive ? 'text-primary border-l-4 border-primary bg-primary/10 rounded-none' : 'text-muted-foreground'}`}
                     >
-                      <Link to={item.url} className="flex items-center gap-3 px-4">
-                        <item.icon className="h-5 w-5" />
-                        <span className="font-medium">{item.title}</span>
+                      <Link to={item.url} className="flex items-center gap-3 px-4 w-full">
+                        <item.icon className="h-5 w-5 shrink-0" />
+                        <span className="font-medium flex-1 truncate">{item.title}</span>
+                        {item.title === 'Mensagens' && unreadCount > 0 && (
+                          <Badge
+                            variant="destructive"
+                            className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px]"
+                          >
+                            {unreadCount > 99 ? '99+' : unreadCount}
+                          </Badge>
+                        )}
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

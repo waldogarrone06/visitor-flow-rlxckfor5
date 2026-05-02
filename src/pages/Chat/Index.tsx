@@ -46,6 +46,7 @@ interface Contact {
   lastMessage?: string
   updatedAt?: string
   tags?: ContactTag[]
+  hasUnread?: boolean
 }
 
 interface Message {
@@ -120,16 +121,20 @@ export default function ChatPage() {
         (payload) => {
           const newMsg = payload.new as Message
 
-          setMessages((prev) => {
-            if (prev.some((m) => m.id === newMsg.id)) return prev
-            if (selectedContactRef.current && newMsg.contact_id !== selectedContactRef.current.id) {
-              return prev
+          if (selectedContactRef.current && newMsg.contact_id === selectedContactRef.current.id) {
+            setMessages((prev) => {
+              if (prev.some((m) => m.id === newMsg.id)) return prev
+              return [...prev, newMsg]
+            })
+            if (newMsg.direction === 'inbound') {
+              supabase.from('messages').update({ status: 'read' }).eq('id', newMsg.id).then()
             }
-            return [...prev, newMsg]
-          })
+          }
 
           setContacts((prev) => {
             const exists = prev.find((c) => c.id === newMsg.contact_id)
+            const isCurrentlySelected = selectedContactRef.current?.id === newMsg.contact_id
+
             if (!exists) {
               setTimeout(async () => {
                 const { data } = await supabase
@@ -146,7 +151,13 @@ export default function ChatPage() {
                   setContacts((curr) => {
                     if (curr.some((c) => c.id === data.id)) return curr
                     return [
-                      { ...data, tags, lastMessage: newMsg.content, updatedAt: newMsg.created_at },
+                      {
+                        ...data,
+                        tags,
+                        lastMessage: newMsg.content,
+                        updatedAt: newMsg.created_at,
+                        hasUnread: newMsg.direction === 'inbound' && !isCurrentlySelected,
+                      },
                       ...curr,
                     ].sort(
                       (a, b) =>
@@ -160,7 +171,13 @@ export default function ChatPage() {
 
             const updated = prev.map((c) =>
               c.id === newMsg.contact_id
-                ? { ...c, lastMessage: newMsg.content, updatedAt: newMsg.created_at }
+                ? {
+                    ...c,
+                    lastMessage: newMsg.content,
+                    updatedAt: newMsg.created_at,
+                    hasUnread:
+                      newMsg.direction === 'inbound' && !isCurrentlySelected ? true : c.hasUnread,
+                  }
                 : c,
             )
 
@@ -223,7 +240,9 @@ export default function ChatPage() {
           *,
           messages (
             content,
-            created_at
+            created_at,
+            direction,
+            status
           ),
           contact_tag_relations (
             contact_tags (
@@ -241,6 +260,7 @@ export default function ChatPage() {
         const formatted = contactsData.map((c: any) => {
           const msgs = c.messages || []
           const lastMsg = msgs[0]
+          const hasUnread = lastMsg?.direction === 'inbound' && lastMsg?.status !== 'read'
 
           const tags = (c.contact_tag_relations || [])
             .map((r: any) => r.contact_tags)
@@ -254,6 +274,7 @@ export default function ChatPage() {
             lastMessage: lastMsg?.content,
             updatedAt: lastMsg?.created_at || c.created_at,
             tags,
+            hasUnread,
           }
         })
 
@@ -272,6 +293,20 @@ export default function ChatPage() {
     }
   }
 
+  const markAsRead = async (contactId: string, msgs: Message[]) => {
+    const unreadIds = msgs
+      .filter((m) => m.direction === 'inbound' && m.status !== 'read')
+      .map((m) => m.id)
+
+    if (unreadIds.length > 0) {
+      await supabase.from('messages').update({ status: 'read' }).in('id', unreadIds)
+      setMessages((prev) =>
+        prev.map((m) => (unreadIds.includes(m.id) ? { ...m, status: 'read' } : m)),
+      )
+      setContacts((prev) => prev.map((c) => (c.id === contactId ? { ...c, hasUnread: false } : c)))
+    }
+  }
+
   const loadMessages = async (contactId: string) => {
     const { data, error } = await supabase
       .from('messages')
@@ -281,6 +316,7 @@ export default function ChatPage() {
 
     if (!error && data) {
       setMessages(data)
+      markAsRead(contactId, data)
     }
   }
 
@@ -327,6 +363,7 @@ export default function ChatPage() {
           created_at: finalContact.created_at,
           updatedAt: finalContact.created_at,
           tags: [],
+          hasUnread: false,
         }
 
         setContacts((prev) => {
@@ -642,8 +679,13 @@ export default function ChatPage() {
                     <User className="w-5 h-5 text-primary" />
                   </div>
                   <div className="flex-1 overflow-hidden">
-                    <div className="font-medium truncate flex items-center gap-2">
+                    <div
+                      className={`font-medium truncate flex items-center gap-2 ${contact.hasUnread ? 'font-bold text-foreground' : ''}`}
+                    >
                       <span className="truncate">{contact.name || contact.phone}</span>
+                      {contact.hasUnread && (
+                        <div className="w-2 h-2 rounded-full bg-destructive flex-shrink-0" />
+                      )}
                     </div>
 
                     {contact.tags && contact.tags.length > 0 && (
@@ -664,7 +706,9 @@ export default function ChatPage() {
                       </div>
                     )}
 
-                    <div className="text-xs text-muted-foreground truncate">
+                    <div
+                      className={`text-xs truncate ${contact.hasUnread ? 'text-foreground font-medium' : 'text-muted-foreground'}`}
+                    >
                       {contact.lastMessage
                         ? renderMessageContent(contact.lastMessage)
                         : 'Nova conversa'}
