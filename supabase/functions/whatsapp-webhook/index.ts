@@ -29,9 +29,40 @@ Deno.serve(async (req: Request) => {
 
     console.log('📥 Webhook Recebido (Payload Completo):', JSON.stringify(data, null, 2))
 
+    // Handle global base64
+    if (data?.base64 && typeof data.base64 === 'string') {
+      try {
+        const decoded = JSON.parse(atob(data.base64))
+        Object.assign(data, decoded)
+      } catch (e) {
+        console.log('Base64 decode failed for data.base64')
+      }
+    }
+    if (data?.data?.base64 && typeof data.data.base64 === 'string') {
+      try {
+        const decoded = JSON.parse(atob(data.data.base64))
+        data.data = { ...data.data, ...decoded }
+      } catch (e) {
+        console.log('Base64 decode failed for data.data.base64')
+      }
+    }
+
     const eventType = String(data?.event || data?.messageType || 'unknown').toLowerCase()
     const payloadData = data?.data || data?.message || data
-    const firstItem = Array.isArray(payloadData) ? payloadData[0] : payloadData
+    let firstItem = Array.isArray(payloadData) ? payloadData[0] : payloadData
+
+    if (firstItem?.message?.base64 && typeof firstItem.message.base64 === 'string') {
+      try {
+        const decoded = JSON.parse(atob(firstItem.message.base64))
+        firstItem.message = { ...firstItem.message, ...decoded }
+      } catch (e) {}
+    }
+    if (firstItem?.base64 && typeof firstItem.base64 === 'string') {
+      try {
+        const decoded = JSON.parse(atob(firstItem.base64))
+        firstItem = { ...firstItem, ...decoded }
+      } catch (e) {}
+    }
 
     const keyData =
       firstItem?.key ||
@@ -40,7 +71,13 @@ Deno.serve(async (req: Request) => {
       data?.data?.key ||
       data?.data?.message?.key ||
       {}
-    const msgData = firstItem?.message || firstItem || data?.data?.message || {}
+    let msgData = firstItem?.message || firstItem || data?.data?.message || {}
+
+    if (typeof msgData === 'string') {
+      try {
+        msgData = JSON.parse(atob(msgData))
+      } catch (e) {}
+    }
 
     let rawRemoteJid =
       keyData?.remoteJid ||
@@ -49,6 +86,7 @@ Deno.serve(async (req: Request) => {
       data?.from ||
       data?.number ||
       data?.data?.message?.key?.remoteJid ||
+      data?.data?.key?.remoteJid ||
       ''
 
     // Utilizar remoteJidAlt caso o principal seja um @lid e exista um número real no Alt
@@ -65,14 +103,6 @@ Deno.serve(async (req: Request) => {
     // Fallback for some Evolution v2 payloads where data.key is missing
     if (!rawRemoteJid && data?.data?.remoteJid) {
       rawRemoteJid = data.data.remoteJid
-    }
-
-    // Evolution API v2 sometimes puts the JID in data.key.remoteJid
-    if (!rawRemoteJid && data?.data?.key?.remoteJid) {
-      rawRemoteJid = data.data.key.remoteJid
-    }
-    if (!rawRemoteJid && data?.data?.message?.key?.remoteJid) {
-      rawRemoteJid = data.data.message.key.remoteJid
     }
 
     if (typeof rawRemoteJid === 'string' && rawRemoteJid.includes('@g.us')) {

@@ -100,6 +100,9 @@ export default function ChatPage() {
   const [newTagName, setNewTagName] = useState('')
   const [newTagColor, setNewTagColor] = useState(PRESET_COLORS[0])
   const [creatingTag, setCreatingTag] = useState(false)
+  const [instanceStatus, setInstanceStatus] = useState<'online' | 'offline' | 'checking'>(
+    'checking',
+  )
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const selectedContactRef = useRef<Contact | null>(null)
@@ -112,6 +115,7 @@ export default function ChatPage() {
     if (!user) return
     loadAllTags()
     loadContacts()
+    checkConnection()
 
     const channel = supabase
       .channel('messages_changes')
@@ -140,36 +144,37 @@ export default function ChatPage() {
             const isCurrentlySelected = selectedContactRef.current?.id === newMsg.contact_id
 
             if (!exists) {
-              setTimeout(async () => {
-                const { data } = await supabase
-                  .from('contacts')
-                  .select(`*, contact_tag_relations(contact_tags(id, name, color))`)
-                  .eq('id', newMsg.contact_id)
-                  .single()
+              // Async fetch for new contact, avoid blocking the sync state update
+              supabase
+                .from('contacts')
+                .select(`*, contact_tag_relations(contact_tags(id, name, color))`)
+                .eq('id', newMsg.contact_id)
+                .single()
+                .then(({ data }) => {
+                  if (data) {
+                    const tags = (data.contact_tag_relations || [])
+                      .map((r: any) => r.contact_tags)
+                      .filter(Boolean)
 
-                if (data) {
-                  const tags = (data.contact_tag_relations || [])
-                    .map((r: any) => r.contact_tags)
-                    .filter(Boolean)
-
-                  setContacts((curr) => {
-                    if (curr.some((c) => c.id === data.id)) return curr
-                    return [
-                      {
-                        ...data,
-                        tags,
-                        lastMessage: newMsg.content,
-                        updatedAt: newMsg.created_at,
-                        hasUnread: newMsg.direction === 'inbound' && !isCurrentlySelected,
-                      },
-                      ...curr,
-                    ].sort(
-                      (a, b) =>
-                        new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime(),
-                    )
-                  })
-                }
-              }, 100)
+                    setContacts((curr) => {
+                      if (curr.some((c) => c.id === data.id)) return curr
+                      return [
+                        {
+                          ...data,
+                          tags,
+                          lastMessage: newMsg.content,
+                          updatedAt: newMsg.created_at,
+                          hasUnread: newMsg.direction === 'inbound' && !isCurrentlySelected,
+                        },
+                        ...curr,
+                      ].sort(
+                        (a, b) =>
+                          new Date(b.updatedAt || 0).getTime() -
+                          new Date(a.updatedAt || 0).getTime(),
+                      )
+                    })
+                  }
+                })
               return prev
             }
 
@@ -229,6 +234,18 @@ export default function ChatPage() {
       }, 50)
     }
   }, [messages])
+
+  const checkConnection = async () => {
+    if (!user) return
+    const { data } = await supabase
+      .from('user_integrations')
+      .select('whatsapp_connected')
+      .eq('user_id', user.id)
+      .maybeSingle()
+    if (data) {
+      setInstanceStatus(data.whatsapp_connected ? 'online' : 'offline')
+    }
+  }
 
   const loadAllTags = async () => {
     const { data } = await supabase.from('contact_tags').select('*').order('name')
@@ -608,7 +625,13 @@ export default function ChatPage() {
       <div className="w-80 border-r flex flex-col bg-muted/20">
         <div className="p-4 border-b bg-background space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-lg flex items-center gap-2">Conversas</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="font-semibold text-lg">Conversas</h2>
+              <div
+                className={`w-2 h-2 rounded-full ${instanceStatus === 'online' ? 'bg-green-500' : instanceStatus === 'checking' ? 'bg-yellow-500' : 'bg-red-500'}`}
+                title={instanceStatus === 'online' ? 'WhatsApp Conectado' : 'WhatsApp Desconectado'}
+              />
+            </div>
             <Button
               variant="outline"
               size="icon"
