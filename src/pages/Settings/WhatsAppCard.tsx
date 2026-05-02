@@ -124,10 +124,15 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
 
     setLoading(true)
     try {
-      const cleanUrl = apiUrl
+      let cleanUrl = apiUrl
         .trim()
         .replace(/^(POST|GET|PUT|DELETE)\s+/i, '')
         .replace(/\/$/, '')
+
+      if (cleanUrl.includes('/message/sendText')) {
+        cleanUrl = cleanUrl.split('/message/sendText')[0]
+      }
+
       const cleanToken = apiToken.trim()
       const cleanInstance = instanceName.trim()
 
@@ -188,10 +193,15 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
 
     setTesting(true)
     try {
-      const cleanUrl = apiUrl
+      let cleanUrl = apiUrl
         .trim()
         .replace(/^(POST|GET|PUT|DELETE)\s+/i, '')
         .replace(/\/$/, '')
+
+      if (cleanUrl.includes('/message/sendText')) {
+        cleanUrl = cleanUrl.split('/message/sendText')[0]
+      }
+
       const cleanToken = apiToken.trim()
       const cleanInstance = instanceName.trim()
 
@@ -353,9 +363,10 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Na Evolution API 2.2.3, configure a integração do tipo <strong>WEBHOOK</strong> para
-                retorno de status e cole esta URL. Marque os eventos: <code>messages-upsert</code>,{' '}
-                <code>messages-update</code> e <code>connection-update</code>.
+                Na Evolution API v2, configure a integração do tipo <strong>WEBHOOK</strong> e cole
+                esta URL. Marque os eventos: <code>messages.upsert</code>,{' '}
+                <code>messages.update</code> e <code>connection.update</code>. (Verifique se a opção
+                "Inbound" e "Outbound" estão ativas se houver).
               </p>
             </div>
 

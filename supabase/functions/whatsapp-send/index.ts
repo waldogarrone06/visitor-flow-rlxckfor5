@@ -103,11 +103,12 @@ Deno.serve(async (req: Request) => {
     } else {
       // Evolution API Direct Mode
       baseUrl = baseUrl.replace(/\/+$/, '')
-      if (!baseUrl.includes('/message/sendText') && !baseUrl.includes('/v1/messages')) {
-        baseUrl = `${baseUrl}/message/sendText/${sessionId}`
-      } else if (baseUrl.endsWith('/message/sendText')) {
-        baseUrl = `${baseUrl}/${sessionId}`
+      if (baseUrl.includes('/message/sendText')) {
+        baseUrl = baseUrl.split('/message/sendText')[0]
+      } else if (baseUrl.includes('/v1/messages')) {
+        baseUrl = baseUrl.split('/v1/messages')[0]
       }
+      baseUrl = `${baseUrl}/message/sendText/${sessionId}`
     }
 
     if (!sessionId) sessionId = 'Wal'

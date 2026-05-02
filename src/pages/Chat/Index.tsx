@@ -117,7 +117,7 @@ export default function ChatPage() {
       .channel('messages_changes')
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages', filter: `user_id=eq.${user.id}` },
+        { event: 'INSERT', schema: 'public', table: 'messages' },
         (payload) => {
           const newMsg = payload.new as Message
 
@@ -199,7 +199,7 @@ export default function ChatPage() {
       )
       .on(
         'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'messages', filter: `user_id=eq.${user.id}` },
+        { event: 'UPDATE', schema: 'public', table: 'messages' },
         (payload) => {
           const updatedMsg = payload.new as Message
           setMessages((prev) => prev.map((m) => (m.id === updatedMsg.id ? updatedMsg : m)))

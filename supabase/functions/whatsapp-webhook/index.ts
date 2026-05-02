@@ -62,6 +62,14 @@ Deno.serve(async (req: Request) => {
       rawRemoteJid = remoteJidAlt
     }
 
+    // Evolution API v2 sometimes puts the JID in data.key.remoteJid
+    if (!rawRemoteJid && data?.data?.key?.remoteJid) {
+      rawRemoteJid = data.data.key.remoteJid
+    }
+    if (!rawRemoteJid && data?.data?.message?.key?.remoteJid) {
+      rawRemoteJid = data.data.message.key.remoteJid
+    }
+
     if (typeof rawRemoteJid === 'string' && rawRemoteJid.includes('@g.us')) {
       return new Response(JSON.stringify({ status: 'ok', handled: 'group_message_ignored' }), {
         status: 200,
@@ -161,6 +169,8 @@ Deno.serve(async (req: Request) => {
       firstItem?.message?.conversation ||
       firstItem?.message?.extendedTextMessage?.text ||
       firstItem?.text ||
+      data?.data?.message?.message?.conversation ||
+      data?.data?.message?.message?.extendedTextMessage?.text ||
       data?.data?.message?.conversation ||
       data?.data?.message?.extendedTextMessage?.text ||
       data?.data?.message?.text ||
@@ -253,6 +263,18 @@ Deno.serve(async (req: Request) => {
       eventType === 'messages.upsert' ||
       eventType === 'messages-upsert' ||
       eventType === 'messages.add'
+
+    // Handle Webhook Verification from Evolution v2
+    if (
+      eventType === 'webhook.verify' ||
+      data?.event === 'webhook.verify' ||
+      data?.webhook_verify
+    ) {
+      return new Response(JSON.stringify({ status: 'success', message: 'Webhook Verified' }), {
+        status: 200,
+        headers: corsHeaders,
+      })
+    }
 
     if (isUpsert && text) {
       console.log(

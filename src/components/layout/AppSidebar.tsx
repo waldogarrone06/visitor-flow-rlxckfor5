@@ -61,7 +61,6 @@ export function AppSidebar() {
         supabase
           .from('messages')
           .select('id', { count: 'exact', head: true })
-          .eq('user_id', user.id)
           .eq('direction', 'inbound')
           .neq('status', 'read')
           .then(({ count }) => {
@@ -73,13 +72,9 @@ export function AppSidebar() {
 
       const channel = supabase
         .channel('sidebar_unread')
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'messages', filter: `user_id=eq.${user.id}` },
-          () => {
-            fetchUnread()
-          },
-        )
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => {
+          fetchUnread()
+        })
         .subscribe()
 
       return () => {
