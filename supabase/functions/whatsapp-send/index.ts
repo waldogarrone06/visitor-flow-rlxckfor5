@@ -82,63 +82,40 @@ Deno.serve(async (req: Request) => {
     sessionId = sessionId.trim()
 
     // Remove HTTP methods from URL if pasted by mistake (e.g., "POST https://...")
-    apiUrl = apiUrl.replace(/^(POST|GET|PUT|DELETE)\s+/i, '').trim()
+    let baseUrl = apiUrl.replace(/^(POST|GET|PUT|DELETE)\s+/i, '').trim()
 
-    // Force Tiny API if the user has the VPS IP
-    if (apiUrl.includes('129.121.44.86')) {
-      apiUrl = 'http://129.121.44.86:9000'
+    if (!baseUrl) {
+      throw new Error('URL da API não configurada.')
     }
 
-    // Default to the Tiny API URL for Work-Exchange mode
-    let baseUrl = (apiUrl || 'http://129.121.44.86:9000').trim()
-
-    // Safely format the Endpoint URL
-    if (baseUrl.includes(':9000')) {
-      // Tiny API mode
-      baseUrl = baseUrl.split('/message')[0] // clean up if user pasted evolution full path
-      baseUrl = baseUrl.split('/v1')[0]
-      if (!baseUrl.endsWith('/send')) {
-        baseUrl = baseUrl.replace(/\/+$/, '') + '/send'
-      }
-    } else {
-      // Evolution API Direct Mode
-      baseUrl = baseUrl.replace(/\/+$/, '')
-      if (baseUrl.includes('/message/sendText')) {
-        baseUrl = baseUrl.split('/message/sendText')[0]
-      } else if (baseUrl.includes('/v1/messages')) {
-        baseUrl = baseUrl.split('/v1/messages')[0]
-      }
-      baseUrl = `${baseUrl}/message/sendText/${sessionId}`
+    // Evolution API Direct Mode
+    baseUrl = baseUrl.replace(/\/+$/, '')
+    if (baseUrl.includes('/message/sendText')) {
+      baseUrl = baseUrl.split('/message/sendText')[0]
+    } else if (baseUrl.includes('/v1/messages')) {
+      baseUrl = baseUrl.split('/v1/messages')[0]
     }
+    baseUrl = `${baseUrl}/message/sendText/${sessionId}`
 
-    if (!sessionId) sessionId = 'Wal'
-    if (!apiKey) apiKey = 'SUA_ACCESS_KEY_SECRET'
+    if (!sessionId) sessionId = 'fourlab'
+    if (!apiKey) apiKey = 'W1A2L3D4O5W1A2L3'
 
     let number = to.replace(/\D/g, '')
     if (number.length === 10 || number.length === 11) {
       number = '55' + number
     }
 
-    // Payload for Tiny API or Evolution API
-    // Evolution API natively expects "number" and "text" or "textMessage.text" depending on the endpoint
-    // We send a combined payload that satisfies both the Tiny API script and Evolution API natively
+    // Payload for Evolution API
     const payload: any = {
       number: number,
-      text: text, // Evolution natively uses 'text' inside options or directly
-      message: text, // Some custom middlewares/tiny API use 'message'
-      instanceId: sessionId,
-      api_key: apiKey,
-    }
-
-    // Include text inside options as required by newer Evolution API v2
-    if (!baseUrl.includes(':9000')) {
-      payload.options = {
+      text: text,
+      options: {
         delay: 1200,
         presence: 'composing',
-      }
-      payload.textMessage = {
+      },
+      textMessage: {
         text: text,
-      }
+      },
     }
 
     const fetchHeaders: Record<string, string> = {
