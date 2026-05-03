@@ -115,6 +115,61 @@ export default function ChatPage() {
     if (!user) return
     loadAllTags()
     loadContacts()
+
+    let connChannel: any = null
+    const checkConnection = async () => {
+      const { data: integration } = await supabase
+        .from('user_integrations')
+        .select('whatsapp_connected, whatsapp_instance_id')
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      if (integration) {
+        setInstanceStatus(integration.whatsapp_connected ? 'online' : 'offline')
+
+        if (integration.whatsapp_instance_id) {
+          const { data: latestEvent } = await supabase
+            .from('whatsapp_events')
+            .select('message')
+            .eq('instance', integration.whatsapp_instance_id)
+            .eq('message_type', 'connection.update')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle()
+
+          if (latestEvent && latestEvent.message) {
+            const state =
+              (latestEvent.message as any)?.data?.state || (latestEvent.message as any)?.state
+            if (state === 'open') setInstanceStatus('online')
+            else if (state === 'close') setInstanceStatus('offline')
+          }
+
+          connChannel = supabase
+            .channel('chat_conn_status')
+            .on(
+              'postgres_changes',
+              {
+                event: 'INSERT',
+                schema: 'public',
+                table: 'whatsapp_events',
+                filter: `instance=eq.${integration.whatsapp_instance_id}`,
+              },
+              (payload) => {
+                const newEvent = payload.new as any
+                if (
+                  newEvent.message_type === 'connection.update' ||
+                  newEvent.message_type === 'connection_update'
+                ) {
+                  const state = newEvent.message?.data?.state || newEvent.message?.state
+                  if (state === 'open') setInstanceStatus('online')
+                  else if (state === 'close') setInstanceStatus('offline')
+                }
+              },
+            )
+            .subscribe()
+        }
+      }
+    }
     checkConnection()
 
     const channel = supabase
@@ -214,6 +269,7 @@ export default function ChatPage() {
 
     return () => {
       supabase.removeChannel(channel)
+      if (connChannel) supabase.removeChannel(connChannel)
     }
   }, [user])
 
@@ -234,18 +290,6 @@ export default function ChatPage() {
       }, 50)
     }
   }, [messages])
-
-  const checkConnection = async () => {
-    if (!user) return
-    const { data } = await supabase
-      .from('user_integrations')
-      .select('whatsapp_connected')
-      .eq('user_id', user.id)
-      .maybeSingle()
-    if (data) {
-      setInstanceStatus(data.whatsapp_connected ? 'online' : 'offline')
-    }
-  }
 
   const loadAllTags = async () => {
     const { data } = await supabase.from('contact_tags').select('*').order('name')
