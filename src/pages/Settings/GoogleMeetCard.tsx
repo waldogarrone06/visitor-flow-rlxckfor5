@@ -18,6 +18,7 @@ import { supabase } from '@/lib/supabase/client'
 
 export function GoogleMeetCard({ targetUserId }: { targetUserId: string }) {
   const [connected, setConnected] = useState(false)
+  const [isMock, setIsMock] = useState(false)
   const [loading, setLoading] = useState(true)
   const [bodyText, setBodyText] = useState('')
   const [saving, setSaving] = useState(false)
@@ -30,9 +31,11 @@ export function GoogleMeetCard({ targetUserId }: { targetUserId: string }) {
       const data = await getIntegrations(targetUserId)
       if (data?.google_access_token) {
         setConnected(true)
+        setIsMock(data.google_email?.includes('demo.integration') || false)
         setBodyText(data.google_invitation_body || '')
       } else {
         setConnected(false)
+        setIsMock(false)
         setBodyText('')
       }
     } finally {
@@ -93,6 +96,19 @@ export function GoogleMeetCard({ targetUserId }: { targetUserId: string }) {
     }
   }
 
+  const handleMockConnect = async () => {
+    if (!targetUserId) return
+    setConnecting(true)
+    const redirectUri = window.location.origin + '/auth/callback/google'
+    toast({
+      title: 'Modo de Simulação',
+      description: 'Simulando retorno do Google para contornar bloqueios (Erro 403)...',
+    })
+    setTimeout(() => {
+      window.location.href = `${redirectUri}?code=mock_code_${Date.now()}&state=${targetUserId}`
+    }, 1500)
+  }
+
   const handleSaveBody = async () => {
     setSaving(true)
     await saveIntegrations({ google_invitation_body: bodyText }, targetUserId)
@@ -109,12 +125,19 @@ export function GoogleMeetCard({ targetUserId }: { targetUserId: string }) {
           <div className="p-3 bg-teal-50 text-teal-600 rounded-lg mb-2">
             <Video className="h-6 w-6" />
           </div>
-          <Badge
-            variant={connected ? 'default' : 'secondary'}
-            className={connected ? 'bg-green-600 hover:bg-green-700' : ''}
-          >
-            {connected ? 'Conectado' : 'Desconectado'}
-          </Badge>
+          <div className="flex gap-2">
+            {isMock && (
+              <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200">
+                Simulação
+              </Badge>
+            )}
+            <Badge
+              variant={connected ? 'default' : 'secondary'}
+              className={connected ? 'bg-green-600 hover:bg-green-700' : ''}
+            >
+              {connected ? 'Conectado' : 'Desconectado'}
+            </Badge>
+          </div>
         </div>
         <CardTitle>Google Meet</CardTitle>
         <CardDescription>Gere links de reunião únicos para agendamentos.</CardDescription>
@@ -154,10 +177,19 @@ export function GoogleMeetCard({ targetUserId }: { targetUserId: string }) {
         )}
       </CardContent>
       {!connected && (
-        <CardFooter className="flex flex-wrap gap-2">
+        <CardFooter className="flex flex-col gap-2">
           <Button onClick={handleConnect} className="w-full gap-2" disabled={loading || connecting}>
             {connecting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
             {connecting ? 'Conectando...' : 'Conectar Google'}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleMockConnect}
+            className="w-full text-xs text-muted-foreground hover:text-primary"
+            disabled={loading || connecting}
+          >
+            Simular Conexão (Bypass Erro 403)
           </Button>
         </CardFooter>
       )}

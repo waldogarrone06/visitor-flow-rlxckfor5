@@ -168,11 +168,21 @@ export function GoogleCalendarCard({ targetUserId }: { targetUserId: string }) {
           <div className="animate-pulse h-10 bg-muted rounded-md w-full"></div>
         ) : connected ? (
           <div className="space-y-4">
-            <div className="p-3 bg-muted/40 border border-border/50 rounded-md flex items-center gap-2 overflow-hidden">
-              <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" />
-              <span className="text-sm font-medium truncate" title={email}>
-                <span className="text-muted-foreground font-normal">{email}</span>
-              </span>
+            <div className="p-3 bg-muted/40 border border-border/50 rounded-md flex items-center justify-between gap-2 overflow-hidden">
+              <div className="flex items-center gap-2 truncate">
+                <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <span className="text-sm font-medium truncate" title={email}>
+                  <span className="text-muted-foreground font-normal">{email}</span>
+                </span>
+              </div>
+              {email.includes('demo.integration') && (
+                <Badge
+                  variant="outline"
+                  className="text-[10px] h-5 bg-amber-50 text-amber-600 border-amber-200 shrink-0"
+                >
+                  Simulação
+                </Badge>
+              )}
             </div>
             <div className="flex items-center justify-between pt-2 border-t">
               <Label
