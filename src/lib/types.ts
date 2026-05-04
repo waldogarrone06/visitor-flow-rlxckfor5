@@ -34,6 +34,7 @@ export interface Lead {
   assignedKitId?: string
   avatarSeed?: number
   profession?: string
+  specialty?: string
   registrationNumber?: string
   phone?: string
   email?: string

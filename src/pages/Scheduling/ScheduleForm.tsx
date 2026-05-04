@@ -73,6 +73,7 @@ const formSchema = z.object({
   profession: z.enum(['médico', 'nutricionista', 'treinador'], {
     required_error: 'Selecione uma profissão',
   }),
+  specialty: z.string().max(20, 'Máximo 20 caracteres').optional(),
   registrationNumber: z.string().min(2, 'Registro inválido'),
   time: z.string().min(4, 'Selecione um horário'),
   cep: z.string().min(9, 'CEP inválido'),
@@ -106,6 +107,7 @@ export function ScheduleForm({
       cpf: '',
       phone: '',
       email: '',
+      specialty: '',
       registrationNumber: '',
       time: '',
       cep: '',
@@ -132,6 +134,7 @@ export function ScheduleForm({
           email: existing.email || '',
           phone: existing.phone || '',
           profession: (existing.profession as any) || undefined,
+          specialty: existing.specialty || '',
           registrationNumber: existing.registrationNumber || '',
         })
         toast({
@@ -185,6 +188,7 @@ export function ScheduleForm({
         document: values.cpf,
         address: fullAddress,
         profession: values.profession,
+        specialty: values.specialty,
         registrationNumber: values.registrationNumber,
         phone: values.phone,
         email: values.email,
@@ -293,6 +297,7 @@ export function ScheduleForm({
       email: lead.email || '',
       phone: lead.phone || '',
       profession: (lead.profession as any) || undefined,
+      specialty: lead.specialty || '',
       registrationNumber: lead.registrationNumber || '',
     })
     setSearchLead('')
@@ -437,7 +442,7 @@ export function ScheduleForm({
           />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <FormField
             control={form.control}
             name="profession"
@@ -456,6 +461,19 @@ export function ScheduleForm({
                     <SelectItem value="treinador">Treinador(a)</SelectItem>
                   </SelectContent>
                 </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="specialty"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Especialidade</FormLabel>
+                <FormControl>
+                  <Input {...field} placeholder="Ex: Esportiva" maxLength={20} />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
