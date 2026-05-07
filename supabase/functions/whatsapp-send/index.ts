@@ -59,31 +59,17 @@ Deno.serve(async (req: Request) => {
         sessionId = integration.whatsapp_instance_id
         apiKey = integration.whatsapp_api_token || ''
         apiUrl = integration.whatsapp_api_url
+      } else {
+        throw new Error(
+          'Você não possui uma integração do WhatsApp configurada. Configure sua instância nas Configurações.',
+        )
       }
-    }
-
-    if (!apiUrl || !sessionId) {
-      const { data: fallback } = await supabaseAdmin
-        .from('user_integrations')
-        .select('whatsapp_instance_id, whatsapp_api_token, whatsapp_api_url')
-        .not('whatsapp_api_url', 'is', null)
-        .not('whatsapp_instance_id', 'is', null)
-        .limit(1)
-        .maybeSingle()
-
-      if (fallback) {
-        sessionId = fallback.whatsapp_instance_id
-        apiKey = fallback.whatsapp_api_token || ''
-        apiUrl = fallback.whatsapp_api_url
-      }
+    } else {
+      throw new Error('Usuário não autenticado e credenciais de teste não fornecidas.')
     }
 
     apiKey = apiKey.trim()
     sessionId = sessionId.trim()
-
-    if (!apiUrl) apiUrl = 'https://4labnutri.online'
-    if (!sessionId) sessionId = 'Junior'
-    if (!apiKey) apiKey = 'W1A2L3D4O5W1A2L3'
 
     // Remove HTTP methods from URL if pasted by mistake (e.g., "POST https://...")
     let baseUrl = apiUrl.replace(/^(POST|GET|PUT|DELETE)\s+/i, '').trim()
@@ -99,7 +85,7 @@ Deno.serve(async (req: Request) => {
     } else if (baseUrl.includes('/v1/messages')) {
       baseUrl = baseUrl.split('/v1/messages')[0]
     }
-    baseUrl = `${baseUrl}/message/sendText/${sessionId}`
+    baseUrl = `${baseUrl}/message/sendText/${encodeURIComponent(sessionId)}`
 
     let number = to.replace(/\D/g, '')
     if (number.length === 10 || number.length === 11) {

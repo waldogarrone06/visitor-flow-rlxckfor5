@@ -349,7 +349,7 @@ Deno.serve(async (req: Request) => {
 
         if (isUpsert && text) {
           const sessionId = String(
-            data?.instance || data?.sessionId || data?.instanceId || 'Junior',
+            data?.instance || data?.sessionId || data?.instanceId || '',
           ).trim()
           let userId = null
 
@@ -358,8 +358,6 @@ Deno.serve(async (req: Request) => {
             data?.data?.instanceId,
             data?.instanceId,
             data?.instance,
-            'junior',
-            'Junior',
           ]
             .filter(Boolean)
             .map((s) => String(s).trim().toLowerCase())
@@ -392,30 +390,9 @@ Deno.serve(async (req: Request) => {
           }
 
           if (!userId) {
-            const { data: allConfigured } = await supabaseAdmin
-              .from('user_integrations')
-              .select('user_id')
-              .not('whatsapp_instance_id', 'is', null)
-
-            if (allConfigured && allConfigured.length === 1) {
-              userId = allConfigured[0].user_id
-            } else if (allConfigured && allConfigured.length > 1) {
-              const { data: mainProfile } = await supabaseAdmin
-                .from('profiles')
-                .select('id')
-                .eq('is_admin', true)
-                .limit(1)
-                .maybeSingle()
-              if (mainProfile) userId = mainProfile.id
-              else userId = allConfigured[0].user_id
-            } else {
-              const { data: mainProfile } = await supabaseAdmin
-                .from('profiles')
-                .select('id')
-                .limit(1)
-                .maybeSingle()
-              if (mainProfile) userId = mainProfile.id
-            }
+            console.warn(`Nenhuma integração de usuário encontrada para a instância: ${sessionId}`)
+            results.push({ status: 'ignored', reason: 'no_user_integration_for_instance' })
+            continue
           }
 
           if (userId && phone) {

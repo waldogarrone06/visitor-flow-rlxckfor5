@@ -176,7 +176,7 @@ export default function ChatPage() {
       .channel('messages_changes')
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages' },
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `user_id=eq.${user.id}` },
         (payload) => {
           const newMsg = payload.new as Message
 
@@ -259,7 +259,7 @@ export default function ChatPage() {
       )
       .on(
         'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'messages' },
+        { event: 'UPDATE', schema: 'public', table: 'messages', filter: `user_id=eq.${user.id}` },
         (payload) => {
           const updatedMsg = payload.new as Message
           setMessages((prev) => prev.map((m) => (m.id === updatedMsg.id ? updatedMsg : m)))
@@ -292,11 +292,17 @@ export default function ChatPage() {
   }, [messages])
 
   const loadAllTags = async () => {
-    const { data } = await supabase.from('contact_tags').select('*').order('name')
+    if (!user) return
+    const { data } = await supabase
+      .from('contact_tags')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('name')
     if (data) setAllTags(data)
   }
 
   const loadContacts = async () => {
+    if (!user) return
     setLoading(true)
     try {
       const { data: contactsData, error } = await supabase
@@ -317,6 +323,7 @@ export default function ChatPage() {
             )
           )
         `)
+        .eq('user_id', user.id)
         .order('created_at', { foreignTable: 'messages', ascending: false })
         .limit(1, { foreignTable: 'messages' })
         .order('created_at', { ascending: false })
