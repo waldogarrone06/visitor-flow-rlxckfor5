@@ -18,11 +18,13 @@ import {
   DialogTrigger,
   DialogFooter,
 } from '@/components/ui/dialog'
+import { supabase } from '@/lib/supabase/client'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
 export function DashboardAgenda({ dateRange }: { dateRange?: DateRange }) {
   const { state, dispatch } = useMainStore()
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [rescheduleData, setRescheduleData] = useState<{
     id: string
     date: string
@@ -42,28 +44,57 @@ export function DashboardAgenda({ dateRange }: { dateRange?: DateRange }) {
     })
   }
 
-  const handleReschedule = (e: React.FormEvent) => {
+  const handleReschedule = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!rescheduleData) return
 
-    const newDate = new Date(`${rescheduleData.date}T${rescheduleData.time}:00`).toISOString()
+    setIsSubmitting(true)
+    try {
+      const newDate = new Date(`${rescheduleData.date}T${rescheduleData.time}:00`).toISOString()
 
-    dispatch({
-      type: 'RESCHEDULE_APPOINTMENT',
-      payload: { appointmentId: rescheduleData.id, newDate },
-    })
+      const startTimeStr = rescheduleData.time
+      const [h, m] = startTimeStr.split(':').map(Number)
+      const endH = h + 1
+      const endTimeStr = `${endH.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
 
-    if (state.settings?.googleCalendarSync) {
-      toast({
-        title: 'Google Calendar Atualizado',
-        description: 'O evento sincronizado refletiu o novo horário.',
+      const { error } = await supabase
+        .from('appointments')
+        .update({
+          appointment_date: rescheduleData.date,
+          start_time: startTimeStr,
+          end_time: endTimeStr,
+        })
+        .eq('id', rescheduleData.id)
+
+      if (error) throw error
+
+      const { error: syncError } = await supabase.functions.invoke('sync-calendar', {
+        body: { appointmentId: rescheduleData.id },
       })
+
+      if (syncError) {
+        console.error('Google Calendar Sync Error:', syncError)
+      }
+
+      dispatch({
+        type: 'RESCHEDULE_APPOINTMENT',
+        payload: { appointmentId: rescheduleData.id, newDate },
+      })
+
+      toast({
+        title: 'Reagendamento Concluído',
+        description: 'A visita foi reagendada e sincronizada com sucesso.',
+      })
+      setRescheduleData(null)
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao reagendar',
+        description: err.message || 'Falha na atualização.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsSubmitting(false)
     }
-    toast({
-      title: 'Notificação WhatsApp Enviada',
-      description: 'O participante foi avisado sobre o reagendamento com os novos detalhes.',
-    })
-    setRescheduleData(null)
   }
 
   const getDateLabel = (dateStr: string) => {
@@ -175,10 +206,13 @@ export function DashboardAgenda({ dateRange }: { dateRange?: DateRange }) {
                               type="button"
                               variant="outline"
                               onClick={() => setRescheduleData(null)}
+                              disabled={isSubmitting}
                             >
                               Cancelar
                             </Button>
-                            <Button type="submit">Salvar Alteração</Button>
+                            <Button type="submit" disabled={isSubmitting}>
+                              {isSubmitting ? 'Salvando...' : 'Salvar Alteração'}
+                            </Button>
                           </DialogFooter>
                         </form>
                       </DialogContent>

@@ -56,36 +56,45 @@ Deno.serve(async (req: Request) => {
     // Only call real API if it's not a mocked token
     if (!token.includes('mock_access_token') && clientId && clientSecret) {
       const makeRequest = async (accessToken: string) => {
-        return fetch(
-          'https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1',
-          {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              summary: `Reunião: ${appointment.client_name}`,
-              description:
-                integration.google_invitation_body ||
-                'Agendamento confirmado. Acesse o link do Meet no horário marcado.',
-              start: {
-                dateTime: `${appointment.appointment_date}T${appointment.start_time}:00-03:00`,
-                timeZone: 'America/Sao_Paulo',
-              },
-              end: {
-                dateTime: `${appointment.appointment_date}T${appointment.end_time}:00-03:00`,
-                timeZone: 'America/Sao_Paulo',
-              },
-              conferenceData: {
-                createRequest: {
-                  requestId: appointment.id,
-                  conferenceSolutionKey: { type: 'hangoutsMeet' },
-                },
-              },
-            }),
+        const isUpdate = !!appointment.google_event_id
+        const url = isUpdate
+          ? `https://www.googleapis.com/calendar/v3/calendars/primary/events/${appointment.google_event_id}`
+          : 'https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1'
+
+        const method = isUpdate ? 'PATCH' : 'POST'
+
+        const payload: any = {
+          summary: `Reunião: ${appointment.client_name}`,
+          description:
+            integration.google_invitation_body ||
+            'Agendamento confirmado. Acesse o link do Meet no horário marcado.',
+          start: {
+            dateTime: `${appointment.appointment_date}T${appointment.start_time}:00-03:00`,
+            timeZone: 'America/Sao_Paulo',
           },
-        )
+          end: {
+            dateTime: `${appointment.appointment_date}T${appointment.end_time}:00-03:00`,
+            timeZone: 'America/Sao_Paulo',
+          },
+        }
+
+        if (!isUpdate) {
+          payload.conferenceData = {
+            createRequest: {
+              requestId: appointment.id,
+              conferenceSolutionKey: { type: 'hangoutsMeet' },
+            },
+          }
+        }
+
+        return fetch(url, {
+          method,
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        })
       }
 
       let response = await makeRequest(token)
