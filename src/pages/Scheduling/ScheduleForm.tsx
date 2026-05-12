@@ -28,6 +28,7 @@ import { toast } from '@/hooks/use-toast'
 import { Lead } from '@/lib/types'
 import { Separator } from '@/components/ui/separator'
 import { supabase } from '@/lib/supabase/client'
+import { syncCalendarService } from '@/features/syncCalendarService'
 
 const UF_OPTIONS = [
   'AC',
@@ -226,18 +227,19 @@ export function ScheduleForm({
       })
 
       try {
-        const { error, data } = await supabase.functions.invoke('sync-calendar', {
-          body: { appointmentId: newAppointmentId },
-        })
+        const result = await syncCalendarService.syncCreate(newAppointmentId)
 
-        if (error || (data && data.error)) {
-          console.error(error || data?.error)
+        if (!result.success) {
+          console.error(result.error)
           toast({
             title: 'Sincronização',
             description: 'Falha ao sincronizar com Google Calendar. Tente novamente.',
             variant: 'destructive',
           })
-        } else if (data && data.message === 'No Google integration found, skipping.') {
+        } else if (
+          result.data &&
+          result.data.message === 'No Google integration found, skipping.'
+        ) {
           // Do not show toast if integration is not configured
         } else {
           toast({

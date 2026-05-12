@@ -19,6 +19,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { supabase } from '@/lib/supabase/client'
+import { syncCalendarService } from '@/features/syncCalendarService'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
@@ -79,15 +80,15 @@ export function DashboardAgenda({ dateRange }: { dateRange?: DateRange }) {
       })
 
       try {
-        const { error: syncError } = await supabase.functions.invoke('sync-calendar-update', {
-          body: {
-            appointmentId: rescheduleData.id,
-            newDate: rescheduleData.date,
-            newTime: rescheduleData.time,
-          },
-        })
+        const result = await syncCalendarService.syncUpdate(
+          rescheduleData.id,
+          rescheduleData.date,
+          rescheduleData.time,
+        )
 
-        if (syncError) throw syncError
+        if (!result.success) {
+          throw new Error(result.error)
+        }
 
         toast({
           title: 'Evento atualizado no Google Calendar',
