@@ -6,7 +6,7 @@
     "trigger-nps": 5,
     "check-availability": 6,
     "create-user": 10,
-    "google-oauth-exchange": 11,
+    "google-oauth-exchange": 12,
     "google-oauth-url": 3,
     "send-email": 7,
     "whatsapp-send": 35,

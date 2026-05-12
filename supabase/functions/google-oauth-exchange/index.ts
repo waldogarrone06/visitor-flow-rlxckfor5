@@ -23,6 +23,7 @@ Deno.serve(async (req: Request) => {
           error: 'Parâmetros obrigatórios ausentes: code, redirectUri, targetUserId',
         }),
         {
+          status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         },
       )
@@ -90,7 +91,7 @@ Deno.serve(async (req: Request) => {
 
     let access_token = ''
     let refresh_token = ''
-    let email = 'mock@example.com'
+    let email = 'demo.integration@empresa.com'
 
     // Verifica se é código mockado ou credenciais inválidas para acionar o fallback imediatamente
     if (
@@ -137,16 +138,19 @@ Deno.serve(async (req: Request) => {
         refresh_token = tokenData.refresh_token || ''
 
         try {
-          const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+          const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v1/userinfo', {
             headers: { Authorization: `Bearer ${access_token}` },
           })
           if (userInfoResponse.ok) {
             const userInfo = await userInfoResponse.json()
             email = userInfo.email || email
+          } else {
+            console.warn('Falha na resposta do userInfo. Utilizando email mockado.')
+            email = 'demo.integration@empresa.com'
           }
         } catch {
           console.warn('Falha ao buscar email do userInfo. Utilizando email mockado.')
-          email = 'mock@example.com'
+          email = 'demo.integration@empresa.com'
         }
       }
     }
