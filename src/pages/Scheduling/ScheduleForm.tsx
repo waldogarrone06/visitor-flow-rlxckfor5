@@ -168,7 +168,7 @@ export function ScheduleForm({
       return toast({ title: 'Erro', description: 'Selecione uma data.', variant: 'destructive' })
     setLoading(true)
 
-    setTimeout(() => {
+    setTimeout(async () => {
       const timeParts = values.time.split(':')
       const appointmentDate = new Date(selectedDate)
       appointmentDate.setHours(parseInt(timeParts[0], 10), parseInt(timeParts[1], 10), 0, 0)
@@ -196,12 +196,14 @@ export function ScheduleForm({
         avatarSeed: existingLead?.avatarSeed || Math.floor(Math.random() * 100),
       }
 
+      const newAppointmentId = `a-${Date.now()}`
+
       dispatch({
         type: 'SCHEDULE_APPOINTMENT',
         payload: {
           lead: newLead,
           appointment: {
-            id: `a-${Date.now()}`,
+            id: newAppointmentId,
             leadId: newLead.id,
             date: dateIso,
             vendor: 'Ana Vendedora',
@@ -222,6 +224,35 @@ export function ScheduleForm({
         title: 'Agendamento Confirmado!',
         description: `Visita para ${values.name} agendada com sucesso.`,
       })
+
+      try {
+        const { error, data } = await supabase.functions.invoke('sync-calendar', {
+          body: { appointmentId: newAppointmentId },
+        })
+
+        if (error || (data && data.error)) {
+          console.error(error || data?.error)
+          toast({
+            title: 'Sincronização',
+            description: 'Falha ao sincronizar com Google Calendar. Tente novamente.',
+            variant: 'destructive',
+          })
+        } else if (data && data.message === 'No Google integration found, skipping.') {
+          // Do not show toast if integration is not configured
+        } else {
+          toast({
+            title: 'Sincronização',
+            description: 'Evento criado no Google Calendar.',
+          })
+        }
+      } catch (err) {
+        console.error(err)
+        toast({
+          title: 'Sincronização',
+          description: 'Falha ao sincronizar com Google Calendar. Tente novamente.',
+          variant: 'destructive',
+        })
+      }
 
       // Fetch secrets for dynamic API key if configured
       const rawSecrets = state.settings?.secrets
