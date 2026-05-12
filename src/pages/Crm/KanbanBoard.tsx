@@ -1,6 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useMainStore } from '@/stores/main'
-import { LeadStage } from '@/lib/types'
+import { LeadStage, Lead } from '@/lib/types'
+import { supabase } from '@/lib/supabase/client'
+import { useAuth } from '@/hooks/use-auth'
 import { Badge } from '@/components/ui/badge'
 import { format, isSameDay, isWithinInterval, startOfDay } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -26,22 +28,88 @@ const STAGES: { id: LeadStage; label: string; color: string }[] = [
 
 export function KanbanBoard() {
   const { state, dispatch } = useMainStore()
+  const { user } = useAuth()
+  const [dbLeads, setDbLeads] = useState<Lead[]>([])
 
   const [dateRange, setDateRange] = useState<DateRange | undefined>()
   const [selectedStateFilter, setSelectedStateFilter] = useState<string>('all')
 
+  useEffect(() => {
+    if (!user) return
+
+    const fetchAppointments = async () => {
+      const { data, error } = await supabase
+        .from('appointments')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+
+      if (data && !error) {
+        const mappedLeads: Lead[] = data.map((app: any) => ({
+          id: app.id,
+          name: app.client_name,
+          type: 'B2B',
+          stage:
+            app.status === 'visited'
+              ? 'Visitado'
+              : app.status === 'revisit'
+                ? 'Revisitar'
+                : 'Agendado',
+          score: 3,
+          document: '',
+          address: '',
+          profession: '',
+          specialty: '',
+          registrationNumber: '',
+          phone: app.client_phone || '',
+          email: app.client_email || '',
+          lastInteraction: app.created_at || new Date().toISOString(),
+          avatarSeed: app.client_email ? app.client_email.length : 1,
+          state: 'SP', // Padrão
+        }))
+
+        const unique = new Map<string, Lead>()
+        mappedLeads.forEach((l) => {
+          if (l.email) {
+            if (!unique.has(l.email)) unique.set(l.email, l)
+          } else {
+            unique.set(l.id, l)
+          }
+        })
+
+        setDbLeads(Array.from(unique.values()))
+      }
+    }
+
+    fetchAppointments()
+  }, [user])
+
+  const dbEmails = new Set(dbLeads.map((l) => l.email).filter(Boolean))
+  const localLeadsFiltered = state.leads.filter((l) => !l.email || !dbEmails.has(l.email))
+  const allLeads = [...localLeadsFiltered, ...dbLeads]
+
   const availableStates = Array.from(
-    new Set(state.leads.map((l) => l.state).filter(Boolean)),
+    new Set(allLeads.map((l) => l.state).filter(Boolean)),
   ) as string[]
 
   const onDragStart = (e: React.DragEvent, leadId: string) => {
     e.dataTransfer.setData('leadId', leadId)
   }
 
-  const onDrop = (e: React.DragEvent, stage: LeadStage) => {
+  const onDrop = async (e: React.DragEvent, stage: LeadStage) => {
     const leadId = e.dataTransfer.getData('leadId')
     if (leadId) {
-      dispatch({ type: 'UPDATE_LEAD_STAGE', payload: { id: leadId, stage } })
+      const isDbLead = dbLeads.find((l) => l.id === leadId)
+      if (isDbLead) {
+        let newStatus = 'scheduled'
+        if (stage === 'Visitado') newStatus = 'visited'
+        if (stage === 'Revisitar') newStatus = 'revisit'
+
+        await supabase.from('appointments').update({ status: newStatus }).eq('id', leadId)
+        setDbLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, stage } : l)))
+      } else {
+        dispatch({ type: 'UPDATE_LEAD_STAGE', payload: { id: leadId, stage } })
+      }
     }
   }
 
@@ -49,7 +117,7 @@ export function KanbanBoard() {
     e.preventDefault()
   }
 
-  const filteredLeads = state.leads.filter((lead) => {
+  const filteredLeads = allLeads.filter((lead) => {
     let matchesState = true
     if (selectedStateFilter && selectedStateFilter !== 'all') {
       matchesState = lead.state === selectedStateFilter

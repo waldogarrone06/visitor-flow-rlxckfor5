@@ -197,7 +197,31 @@ export function ScheduleForm({
         avatarSeed: existingLead?.avatarSeed || Math.floor(Math.random() * 100),
       }
 
-      const newAppointmentId = `a-${Date.now()}`
+      let newAppointmentId = `a-${Date.now()}`
+
+      const { data: userSession } = await supabase.auth.getSession()
+      const userId = userSession.session?.user?.id
+
+      if (userId) {
+        const { data: dbApp, error: dbErr } = await supabase
+          .from('appointments')
+          .insert({
+            user_id: userId,
+            client_name: values.name,
+            client_email: values.email,
+            client_phone: values.phone,
+            appointment_date: format(appointmentDate, 'yyyy-MM-dd'),
+            start_time: `${timeParts[0]}:${timeParts[1]}`,
+            end_time: `${parseInt(timeParts[0], 10) + 1}:${timeParts[1]}`,
+            status: 'scheduled',
+          })
+          .select('id')
+          .single()
+
+        if (dbApp && !dbErr) {
+          newAppointmentId = dbApp.id
+        }
+      }
 
       dispatch({
         type: 'SCHEDULE_APPOINTMENT',
