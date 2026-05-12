@@ -68,14 +68,6 @@ export function DashboardAgenda({ dateRange }: { dateRange?: DateRange }) {
 
       if (error) throw error
 
-      const { error: syncError } = await supabase.functions.invoke('sync-calendar', {
-        body: { appointmentId: rescheduleData.id },
-      })
-
-      if (syncError) {
-        console.error('Google Calendar Sync Error:', syncError)
-      }
-
       dispatch({
         type: 'RESCHEDULE_APPOINTMENT',
         payload: { appointmentId: rescheduleData.id, newDate },
@@ -83,8 +75,31 @@ export function DashboardAgenda({ dateRange }: { dateRange?: DateRange }) {
 
       toast({
         title: 'Reagendamento Concluído',
-        description: 'A visita foi reagendada e sincronizada com sucesso.',
+        description: 'A visita foi reagendada com sucesso.',
       })
+
+      try {
+        const { error: syncError } = await supabase.functions.invoke('sync-calendar-update', {
+          body: {
+            appointmentId: rescheduleData.id,
+            newDate: rescheduleData.date,
+            newTime: rescheduleData.time,
+          },
+        })
+
+        if (syncError) throw syncError
+
+        toast({
+          title: 'Evento atualizado no Google Calendar',
+        })
+      } catch (syncErr: any) {
+        console.error('Google Calendar Sync Update Error:', syncErr)
+        toast({
+          title: 'Falha ao atualizar Google Calendar. Tente novamente.',
+          variant: 'destructive',
+        })
+      }
+
       setRescheduleData(null)
     } catch (err: any) {
       toast({
