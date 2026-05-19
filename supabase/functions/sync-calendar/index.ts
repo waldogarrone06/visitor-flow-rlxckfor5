@@ -77,8 +77,8 @@ Deno.serve(async (req: Request) => {
       )
     }
 
-    let eventId = `mock-event-${Date.now()}`
-    let meetLink = `https://meet.google.com/mock-abc-xyz`
+    let eventId = appointment.google_event_id || `mock-event-${Date.now()}`
+    let meetLink = appointment.google_meet_link || `https://meet.google.com/mock-abc-xyz`
 
     // Only call real API if it's not a mocked token
     if (!token.includes('mock_access_token') && clientId && clientSecret) {
@@ -158,9 +158,14 @@ Deno.serve(async (req: Request) => {
       if (response.ok) {
         const data = await response.json()
         eventId = data.id || eventId
-        meetLink = data.hangoutLink || data.conferenceData?.entryPoints?.[0]?.uri || meetLink
+        meetLink =
+          data.hangoutLink ||
+          data.conferenceData?.entryPoints?.find((e: any) => e.entryPointType === 'video')?.uri ||
+          meetLink
       } else {
-        console.error('Google API Error:', await response.text())
+        const errorText = await response.text()
+        console.error('Google API Error:', errorText)
+        throw new Error(`Falha ao sincronizar com Google Calendar. Erro: ${errorText}`)
       }
     }
 
