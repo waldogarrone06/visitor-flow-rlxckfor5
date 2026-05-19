@@ -90,11 +90,11 @@ Deno.serve(async (req: Request) => {
 
         const method = isUpdate ? 'PATCH' : 'POST'
 
+        const defaultDescription = `Agendamento confirmado.\n\nPaciente: ${appointment.client_name}\nEspecialidade: ${appointment.specialty || 'Não informada'}\nEndereço da Clínica: ${appointment.clinic_address || 'Não informado'}\n\nAcesse o link do Meet no horário marcado.`
+
         const payload: any = {
           summary: `Reunião: ${appointment.client_name}`,
-          description:
-            integration.google_invitation_body ||
-            'Agendamento confirmado. Acesse o link do Meet no horário marcado.',
+          description: integration.google_invitation_body || defaultDescription,
           start: {
             dateTime: `${appointment.appointment_date}T${appointment.start_time}:00-03:00`,
             timeZone: 'America/Sao_Paulo',
@@ -156,7 +156,27 @@ Deno.serve(async (req: Request) => {
       }
 
       if (response.ok) {
-        const data = await response.json()
+        let data = await response.json()
+
+        // Handle potential Google API delays for conferenceData
+        let attempts = 0
+        while (
+          data.conferenceData?.createRequest?.status?.statusCode === 'pending' &&
+          attempts < 3
+        ) {
+          await new Promise((resolve) => setTimeout(resolve, 1000))
+          const getRes = await fetch(
+            `https://www.googleapis.com/calendar/v3/calendars/primary/events/${data.id}`,
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            },
+          )
+          if (getRes.ok) {
+            data = await getRes.json()
+          }
+          attempts++
+        }
+
         eventId = data.id || eventId
         meetLink =
           data.hangoutLink ||
@@ -245,9 +265,15 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    return new Response(JSON.stringify({ success: true, eventId, meetLink }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: 'Link da reunião gerado com sucesso',
+        eventId,
+        meetLink,
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    )
   } catch (error: any) {
     return new Response(JSON.stringify({ error: error.message }), {
       status: 400,
