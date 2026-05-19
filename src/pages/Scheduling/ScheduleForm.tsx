@@ -60,10 +60,10 @@ const UF_OPTIONS = [
   'TO',
 ]
 
-const timeOptions = Array.from({ length: 21 }, (_, i) => {
-  const hour = Math.floor(i / 2) + 8
-  const minute = i % 2 === 0 ? '00' : '30'
-  return `${hour.toString().padStart(2, '0')}:${minute}`
+const timeOptions = Array.from({ length: 41 }, (_, i) => {
+  const hour = Math.floor(i / 4) + 8
+  const minutes = (i % 4) * 15
+  return `${hour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
 })
 
 const formSchema = z.object({
@@ -77,6 +77,7 @@ const formSchema = z.object({
   specialty: z.string().max(20, 'Máximo 20 caracteres').optional(),
   registrationNumber: z.string().min(2, 'Registro inválido'),
   time: z.string().min(4, 'Selecione um horário'),
+  endTime: z.string().min(4, 'Selecione o horário de término'),
   cep: z.string().min(9, 'CEP inválido'),
   street: z.string().min(2, 'Rua obrigatória'),
   number: z.string().min(1, 'Número obrigatório'),
@@ -113,6 +114,7 @@ export function ScheduleForm({
       specialty: '',
       registrationNumber: '',
       time: '',
+      endTime: '',
       cep: '',
       street: '',
       number: '',
@@ -171,10 +173,20 @@ export function ScheduleForm({
   const onSubmit = async (values: FormValues) => {
     if (!selectedDate)
       return toast({ title: 'Erro', description: 'Selecione uma data.', variant: 'destructive' })
+
+    if (values.endTime <= values.time) {
+      return toast({
+        title: 'Erro',
+        description: 'O horário de término deve ser posterior ao início.',
+        variant: 'destructive',
+      })
+    }
+
     setLoading(true)
 
     try {
       const timeParts = values.time.split(':')
+      const endTimeParts = values.endTime.split(':')
       const appointmentDate = new Date(selectedDate)
       appointmentDate.setHours(parseInt(timeParts[0], 10), parseInt(timeParts[1], 10), 0, 0)
       const dateIso = appointmentDate.toISOString()
@@ -253,7 +265,7 @@ export function ScheduleForm({
             client_phone: values.phone,
             appointment_date: format(appointmentDate, 'yyyy-MM-dd'),
             start_time: `${timeParts[0]}:${timeParts[1]}`,
-            end_time: `${parseInt(timeParts[0], 10) + 1}:${timeParts[1]}`,
+            end_time: `${endTimeParts[0]}:${endTimeParts[1]}`,
             status: 'scheduled',
             specialty: values.specialty,
             professional_id: values.registrationNumber,
@@ -458,31 +470,58 @@ export function ScheduleForm({
                 : 'Selecione no calendário'}
             </p>
           </div>
-          <FormField
-            control={form.control}
-            name="time"
-            render={({ field }) => (
-              <FormItem className="flex items-center justify-between space-y-0">
-                <FormLabel className="text-sm font-medium">Horário da Visita:</FormLabel>
-                <div className="w-[140px]">
-                  <Select onValueChange={field.onChange} value={field.value || ''}>
-                    <FormControl>
-                      <SelectTrigger className="bg-white">
-                        <SelectValue placeholder="Selecione..." />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {timeOptions.map((t) => (
-                        <SelectItem key={t} value={t}>
-                          {t}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </FormItem>
-            )}
-          />
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center w-full">
+            <FormField
+              control={form.control}
+              name="time"
+              render={({ field }) => (
+                <FormItem className="flex items-center justify-between sm:justify-start gap-4 space-y-0 flex-1">
+                  <FormLabel className="text-sm font-medium whitespace-nowrap">Início:</FormLabel>
+                  <div className="w-[120px]">
+                    <Select onValueChange={field.onChange} value={field.value || ''}>
+                      <FormControl>
+                        <SelectTrigger className="bg-white">
+                          <SelectValue placeholder="Selecione..." />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {timeOptions.map((t) => (
+                          <SelectItem key={t} value={t}>
+                            {t}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="endTime"
+              render={({ field }) => (
+                <FormItem className="flex items-center justify-between sm:justify-start gap-4 space-y-0 flex-1">
+                  <FormLabel className="text-sm font-medium whitespace-nowrap">Fim:</FormLabel>
+                  <div className="w-[120px]">
+                    <Select onValueChange={field.onChange} value={field.value || ''}>
+                      <FormControl>
+                        <SelectTrigger className="bg-white">
+                          <SelectValue placeholder="Selecione..." />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {timeOptions.map((t) => (
+                          <SelectItem key={t} value={t}>
+                            {t}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </FormItem>
+              )}
+            />
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -50,28 +50,22 @@ export function PersonalScheduleCard() {
     const endH = parseInt(newEnd.split(':')[0], 10)
     const minStr = newStart.split(':')[1]
 
-    const nextSlots = [...slots]
-
-    if (endH > startH) {
-      // Split into 1-hour slots automatically for large ranges
-      for (let h = startH; h < endH; h++) {
-        const sTime = `${h.toString().padStart(2, '0')}:${minStr}`
-        const eTime = `${(h + 1).toString().padStart(2, '0')}:${minStr}`
-        nextSlots.push({
-          day_of_week: parseInt(newDay, 10),
-          start_time: sTime,
-          end_time: eTime,
-          slot_type: newType,
-        })
-      }
-    } else {
-      nextSlots.push({
-        day_of_week: parseInt(newDay, 10),
-        start_time: newStart,
-        end_time: newEnd,
-        slot_type: newType,
+    if (newEnd <= newStart) {
+      toast({
+        title: 'Horário Inválido',
+        description: 'O horário de fim deve ser maior que o horário de início.',
+        variant: 'destructive',
       })
+      return
     }
+
+    const nextSlots = [...slots]
+    nextSlots.push({
+      day_of_week: parseInt(newDay, 10),
+      start_time: newStart,
+      end_time: newEnd,
+      slot_type: newType,
+    })
 
     // Deduplicate
     const uniqueSlots = nextSlots.filter(

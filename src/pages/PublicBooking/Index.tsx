@@ -80,17 +80,22 @@ export default function PublicBookingPage() {
 
       const isLocked = dayData.lockedSlots.some((l) => {
         if (!l.start_time || l.start_time === '') return true
-        if (l.is_external && l.start_time && l.end_time) {
+
+        if (l.start_time && l.end_time) {
           const sStart = slot.start_time
-          const sEnd =
-            slot.end_time ||
-            `${String(parseInt(sStart) + 1).padStart(2, '0')}:${sStart.split(':')[1]}`
+          const sEnd = slot.end_time
+
+          if (!sEnd) {
+            return sStart >= l.start_time && sStart < l.end_time
+          }
+
           return (
             (sStart >= l.start_time && sStart < l.end_time) ||
             (sEnd > l.start_time && sEnd <= l.end_time) ||
             (sStart <= l.start_time && sEnd >= l.end_time)
           )
         }
+
         return l.start_time === slot.start_time
       })
 
@@ -322,16 +327,16 @@ export default function PublicBookingPage() {
                         <h4 className="text-sm font-medium flex items-center gap-2 text-slate-600 mb-3">
                           <Sun className="w-4 h-4 text-amber-500" /> Manhã
                         </h4>
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                           {morningSlots.map((slot, idx) => (
                             <Button
                               key={`m-${idx}`}
                               variant={selectedSlot === slot ? 'default' : 'outline'}
-                              className="w-full justify-center text-sm"
+                              className="w-full justify-center text-xs px-1"
                               size="sm"
                               onClick={() => setSelectedSlot(slot)}
                             >
-                              {slot.start_time}
+                              {slot.start_time} - {slot.end_time}
                             </Button>
                           ))}
                         </div>
@@ -343,16 +348,16 @@ export default function PublicBookingPage() {
                         <h4 className="text-sm font-medium flex items-center gap-2 text-slate-600 mb-3">
                           <Sunset className="w-4 h-4 text-orange-500" /> Tarde
                         </h4>
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                           {afternoonSlots.map((slot, idx) => (
                             <Button
                               key={`a-${idx}`}
                               variant={selectedSlot === slot ? 'default' : 'outline'}
-                              className="w-full justify-center text-sm"
+                              className="w-full justify-center text-xs px-1"
                               size="sm"
                               onClick={() => setSelectedSlot(slot)}
                             >
-                              {slot.start_time}
+                              {slot.start_time} - {slot.end_time}
                             </Button>
                           ))}
                         </div>
