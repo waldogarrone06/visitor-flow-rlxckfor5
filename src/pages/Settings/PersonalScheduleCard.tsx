@@ -45,19 +45,47 @@ export function PersonalScheduleCard() {
 
   const handleAdd = () => {
     if (!newStart || !newEnd) return
-    const nextSlots = [
-      ...slots,
-      {
+
+    const startH = parseInt(newStart.split(':')[0], 10)
+    const endH = parseInt(newEnd.split(':')[0], 10)
+    const minStr = newStart.split(':')[1]
+
+    const nextSlots = [...slots]
+
+    if (endH > startH) {
+      // Split into 1-hour slots automatically for large ranges
+      for (let h = startH; h < endH; h++) {
+        const sTime = `${h.toString().padStart(2, '0')}:${minStr}`
+        const eTime = `${(h + 1).toString().padStart(2, '0')}:${minStr}`
+        nextSlots.push({
+          day_of_week: parseInt(newDay, 10),
+          start_time: sTime,
+          end_time: eTime,
+          slot_type: newType,
+        })
+      }
+    } else {
+      nextSlots.push({
         day_of_week: parseInt(newDay, 10),
         start_time: newStart,
         end_time: newEnd,
         slot_type: newType,
-      },
-    ]
-    nextSlots.sort(
+      })
+    }
+
+    // Deduplicate
+    const uniqueSlots = nextSlots.filter(
+      (slot, index, self) =>
+        index ===
+        self.findIndex(
+          (s) => s.day_of_week === slot.day_of_week && s.start_time === slot.start_time,
+        ),
+    )
+
+    uniqueSlots.sort(
       (a, b) => a.day_of_week - b.day_of_week || a.start_time.localeCompare(b.start_time),
     )
-    setSlots(nextSlots)
+    setSlots(uniqueSlots)
   }
 
   const handleRemove = (index: number) => {

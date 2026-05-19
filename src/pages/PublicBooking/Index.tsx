@@ -72,12 +72,30 @@ export default function PublicBookingPage() {
     }
   }, [selectedSlot])
 
-  const isFullDayLocked = dayData.lockedSlots.some((l) => !l.start_time)
+  const isFullDayLocked = dayData.lockedSlots.some((l) => !l.start_time || l.start_time === '')
 
   const availableSlots = dayData.schedule
     .filter((slot) => {
       if (isFullDayLocked) return false
-      if (dayData.lockedSlots.some((l) => l.start_time === slot.start_time)) return false
+
+      const isLocked = dayData.lockedSlots.some((l) => {
+        if (!l.start_time || l.start_time === '') return true
+        if (l.is_external) {
+          const sStart = slot.start_time
+          const sEnd =
+            slot.end_time ||
+            `${String(parseInt(sStart) + 1).padStart(2, '0')}:${sStart.split(':')[1]}`
+          return (
+            (sStart >= l.start_time && sStart < l.end_time) ||
+            (sEnd > l.start_time && sEnd <= l.end_time) ||
+            (sStart <= l.start_time && sEnd >= l.end_time)
+          )
+        }
+        return l.start_time === slot.start_time
+      })
+
+      if (isLocked) return false
+
       const slotCount = dayData.appointments.filter((a) => a.start_time === slot.start_time).length
       return slotCount < MAX_CAPACITY_PER_SLOT
     })
