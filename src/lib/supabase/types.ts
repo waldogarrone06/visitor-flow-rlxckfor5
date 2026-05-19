@@ -195,6 +195,36 @@ export type Database = {
         }
         Relationships: []
       }
+      date_specific_schedules: {
+        Row: {
+          created_at: string
+          end_time: string
+          id: string
+          slot_type: string
+          specific_date: string
+          start_time: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          end_time: string
+          id?: string
+          slot_type?: string
+          specific_date: string
+          start_time: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          end_time?: string
+          id?: string
+          slot_type?: string
+          specific_date?: string
+          start_time?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       interaction_log: {
         Row: {
           contact_id: string | null
@@ -753,6 +783,14 @@ export const Constants = {
 //   registration_number: text (nullable)
 //   instagram: text (nullable)
 //   patients_per_month: text (nullable)
+// Table: date_specific_schedules
+//   id: uuid (not null, default: gen_random_uuid())
+//   user_id: uuid (not null)
+//   specific_date: date (not null)
+//   start_time: text (not null)
+//   end_time: text (not null)
+//   slot_type: text (not null, default: 'Prescritor Exclusivo'::text)
+//   created_at: timestamp with time zone (not null, default: now())
 // Table: interaction_log
 //   id: uuid (not null, default: gen_random_uuid())
 //   user_id: uuid (nullable)
@@ -857,6 +895,9 @@ export const Constants = {
 // Table: contacts
 //   PRIMARY KEY contacts_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY contacts_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+// Table: date_specific_schedules
+//   PRIMARY KEY date_specific_schedules_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY date_specific_schedules_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
 // Table: interaction_log
 //   FOREIGN KEY interaction_log_contact_id_fkey: FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE CASCADE
 //   PRIMARY KEY interaction_log_pkey: PRIMARY KEY (id)
@@ -915,6 +956,12 @@ export const Constants = {
 //     WITH CHECK: (auth.uid() = user_id)
 // Table: contacts
 //   Policy "Users manage own contacts" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: (auth.uid() = user_id)
+//     WITH CHECK: (auth.uid() = user_id)
+// Table: date_specific_schedules
+//   Policy "Anon can view date specific schedules" (SELECT, PERMISSIVE) roles={anon}
+//     USING: true
+//   Policy "Users manage own date specific schedules" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: (auth.uid() = user_id)
 //     WITH CHECK: (auth.uid() = user_id)
 // Table: interaction_log
