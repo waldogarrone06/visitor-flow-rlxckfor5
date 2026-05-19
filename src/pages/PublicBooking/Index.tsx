@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { Calendar } from '@/components/ui/calendar'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -32,6 +32,8 @@ export default function PublicBookingPage() {
     lockedSlots: any[]
   }>({ schedule: [], appointments: [], lockedSlots: [] })
 
+  const formCardRef = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
     async function loadData() {
       if (!userId || !date) return
@@ -42,6 +44,15 @@ export default function PublicBookingPage() {
     }
     loadData()
   }, [userId, date])
+
+  // Auto-scroll to the form when a slot is selected on mobile
+  useEffect(() => {
+    if (selectedSlot && formCardRef.current) {
+      setTimeout(() => {
+        formCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 150)
+    }
+  }, [selectedSlot])
 
   const isFullDayLocked = dayData.lockedSlots.some((l) => !l.start_time)
 
@@ -85,29 +96,51 @@ export default function PublicBookingPage() {
             <CardTitle className="text-2xl font-bold">Agendamento Confirmado!</CardTitle>
             <CardDescription className="text-base mt-2">
               Sua visita foi agendada para{' '}
-              <strong>
+              <strong className="text-slate-900">
                 {format(new Date(successApp.appointment_date + 'T12:00:00'), 'dd/MM/yyyy')}
               </strong>{' '}
-              às <strong>{successApp.start_time}</strong>.
+              às <strong className="text-slate-900">{successApp.start_time}</strong>.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4 pt-4">
-            <p className="text-sm text-muted-foreground mb-4">
-              Adicione o compromisso à sua agenda para não esquecer:
-            </p>
-            <Button variant="outline" className="w-full gap-2 justify-start h-12" asChild>
-              <a href={getGoogleCalLink()} target="_blank" rel="noreferrer">
-                <CalendarIcon className="w-5 h-5 text-blue-500" /> Adicionar ao Google Calendar
-              </a>
-            </Button>
-            <Button variant="outline" className="w-full gap-2 justify-start h-12" asChild>
-              <a href={getOutlookLink()} target="_blank" rel="noreferrer">
-                <CalendarPlus className="w-5 h-5 text-blue-500" /> Adicionar ao Outlook
-              </a>
-            </Button>
-            <Button variant="ghost" className="mt-4" onClick={() => window.location.reload()}>
-              Fazer novo agendamento
-            </Button>
+          <CardContent className="pt-4">
+            <div className="flex flex-col space-y-3">
+              <p className="text-sm text-muted-foreground mb-2">
+                Deseja adicionar o compromisso à sua agenda?
+              </p>
+
+              <Button
+                variant="default"
+                className="w-full gap-2 justify-start h-12 bg-blue-600 hover:bg-blue-700"
+                asChild
+              >
+                <a href={getGoogleCalLink()} target="_blank" rel="noreferrer">
+                  <CalendarIcon className="w-5 h-5" /> Adicionar ao Google Calendar
+                </a>
+              </Button>
+
+              <Button variant="outline" className="w-full gap-2 justify-start h-12" asChild>
+                <a href={getOutlookLink()} target="_blank" rel="noreferrer">
+                  <CalendarPlus className="w-5 h-5 text-blue-500" /> Adicionar ao Outlook
+                </a>
+              </Button>
+
+              <div className="relative py-4">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-slate-200" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-white px-2 text-slate-400">ou</span>
+                </div>
+              </div>
+
+              <Button
+                variant="ghost"
+                className="w-full h-12 text-slate-500 hover:text-slate-800 hover:bg-slate-100"
+                onClick={() => window.location.reload()}
+              >
+                Não quero adicionar à agenda (Voltar ao Início)
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -122,7 +155,7 @@ export default function PublicBookingPage() {
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Agendar Visita</h1>
             <p className="text-muted-foreground mt-2">
-              Siga os passos abaixo para selecionar o melhor horário.
+              Siga os passos abaixo para selecionar o melhor horário e informar seus dados.
             </p>
           </div>
         </div>
@@ -152,7 +185,7 @@ export default function PublicBookingPage() {
                       isCompleted
                         ? 'bg-primary border-primary text-primary-foreground'
                         : isCurrent
-                          ? 'bg-background border-primary text-primary'
+                          ? 'bg-background border-primary text-primary shadow-sm'
                           : 'bg-background border-slate-300 text-slate-400',
                     )}
                   >
@@ -287,24 +320,29 @@ export default function PublicBookingPage() {
 
             {/* Step 3: Form */}
             {selectedSlot && userId && date && (
-              <Card className="shadow-subtle border-border/50 animate-fade-in-up">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <span className="bg-primary/10 text-primary w-6 h-6 rounded-full flex items-center justify-center text-sm">
-                      3
-                    </span>
-                    Confirme Seus Dados
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <BookingForm
-                    userId={userId}
-                    date={date}
-                    slot={selectedSlot}
-                    onSuccess={(app) => setSuccessApp(app)}
-                  />
-                </CardContent>
-              </Card>
+              <div ref={formCardRef}>
+                <Card className="shadow-subtle border-border/50 animate-fade-in-up">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <span className="bg-primary/10 text-primary w-6 h-6 rounded-full flex items-center justify-center text-sm">
+                        3
+                      </span>
+                      Confirme Seus Dados
+                    </CardTitle>
+                    <CardDescription>
+                      Preencha os dados obrigatórios para finalizar o agendamento.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <BookingForm
+                      userId={userId}
+                      date={date}
+                      slot={selectedSlot}
+                      onSuccess={(app) => setSuccessApp(app)}
+                    />
+                  </CardContent>
+                </Card>
+              </div>
             )}
           </div>
         </div>
