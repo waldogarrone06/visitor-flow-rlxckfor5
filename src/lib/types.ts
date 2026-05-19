@@ -38,6 +38,8 @@ export interface Lead {
   registrationNumber?: string
   phone?: string
   email?: string
+  instagram?: string
+  patientsPerMonth?: string
   couponCode?: string
   couponUsage?: number
   conversionsHistory?: ConversionHistory[]

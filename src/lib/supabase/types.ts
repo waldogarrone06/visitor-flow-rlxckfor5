@@ -15,6 +15,7 @@ export type Database = {
           client_email: string
           client_name: string
           client_phone: string | null
+          clinic_address: string | null
           coupon_code: string | null
           coupon_usage_count: number
           coupon_verified: boolean | null
@@ -24,8 +25,12 @@ export type Database = {
           google_event_id: string | null
           google_meet_link: string | null
           id: string
+          instagram: string | null
           kit_status: string | null
+          patients_per_month: string | null
+          professional_id: string | null
           reminder_sent: boolean | null
+          specialty: string | null
           start_time: string
           status: string | null
           tracking_number: string | null
@@ -36,6 +41,7 @@ export type Database = {
           client_email: string
           client_name: string
           client_phone?: string | null
+          clinic_address?: string | null
           coupon_code?: string | null
           coupon_usage_count?: number
           coupon_verified?: boolean | null
@@ -45,8 +51,12 @@ export type Database = {
           google_event_id?: string | null
           google_meet_link?: string | null
           id?: string
+          instagram?: string | null
           kit_status?: string | null
+          patients_per_month?: string | null
+          professional_id?: string | null
           reminder_sent?: boolean | null
+          specialty?: string | null
           start_time: string
           status?: string | null
           tracking_number?: string | null
@@ -57,6 +67,7 @@ export type Database = {
           client_email?: string
           client_name?: string
           client_phone?: string | null
+          clinic_address?: string | null
           coupon_code?: string | null
           coupon_usage_count?: number
           coupon_verified?: boolean | null
@@ -66,8 +77,12 @@ export type Database = {
           google_event_id?: string | null
           google_meet_link?: string | null
           id?: string
+          instagram?: string | null
           kit_status?: string | null
+          patients_per_month?: string | null
+          professional_id?: string | null
           reminder_sent?: boolean | null
+          specialty?: string | null
           start_time?: string
           status?: string | null
           tracking_number?: string | null
@@ -685,6 +700,11 @@ export const Constants = {
 //   google_event_id: text (nullable)
 //   google_meet_link: text (nullable)
 //   reminder_sent: boolean (nullable, default: false)
+//   specialty: text (nullable)
+//   professional_id: text (nullable)
+//   clinic_address: text (nullable)
+//   instagram: text (nullable)
+//   patients_per_month: text (nullable)
 // Table: contact_tag_relations
 //   contact_id: uuid (not null)
 //   tag_id: uuid (not null)

@@ -5,6 +5,8 @@ import { Label } from '@/components/ui/label'
 import { toast } from '@/hooks/use-toast'
 import { createPublicAppointment } from '@/services/public-booking'
 import { format } from 'date-fns'
+import { useMainStore } from '@/stores/main'
+import { Lead } from '@/lib/types'
 
 interface BookingFormProps {
   userId: string
@@ -15,6 +17,7 @@ interface BookingFormProps {
 
 export function BookingForm({ userId, date, slot, onSuccess }: BookingFormProps) {
   const [submitting, setSubmitting] = useState(false)
+  const { dispatch } = useMainStore()
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -22,6 +25,8 @@ export function BookingForm({ userId, date, slot, onSuccess }: BookingFormProps)
     specialty: '',
     professional_id: '',
     clinic_address: '',
+    instagram: '',
+    patientsPerMonth: '',
   })
 
   useEffect(() => {
@@ -65,6 +70,8 @@ export function BookingForm({ userId, date, slot, onSuccess }: BookingFormProps)
       localStorage.setItem('fourlab_booking_address', formData.clinic_address)
 
       const newApp = await createPublicAppointment({
+        instagram: formData.instagram,
+        patients_per_month: formData.patientsPerMonth,
         user_id: userId,
         client_name: formData.name,
         client_email: formData.email,
@@ -77,6 +84,42 @@ export function BookingForm({ userId, date, slot, onSuccess }: BookingFormProps)
         end_time: slot.end_time,
         status: 'scheduled',
       })
+
+      // Update local CRM state for immediate feedback
+      const newLeadId = `l-${Date.now()}`
+      const newLead: Lead = {
+        id: newLeadId,
+        name: formData.name,
+        type: 'B2B',
+        stage: 'Agendado',
+        score: 3,
+        document: formData.professional_id || '000.000.000-00',
+        address: formData.clinic_address || 'Endereço não informado',
+        profession: 'médico',
+        specialty: formData.specialty,
+        registrationNumber: formData.professional_id,
+        phone: formData.phone,
+        email: formData.email,
+        instagram: formData.instagram,
+        patientsPerMonth: formData.patientsPerMonth,
+        lastInteraction: new Date().toISOString(),
+      }
+
+      dispatch({
+        type: 'SCHEDULE_APPOINTMENT',
+        payload: {
+          lead: newLead,
+          appointment: {
+            id: newApp.id,
+            leadId: newLeadId,
+            date: `${newApp.appointment_date}T${newApp.start_time}:00`,
+            vendor: 'Visitador',
+            status: 'Scheduled',
+            isVirtual: false,
+          },
+        },
+      })
+
       onSuccess(newApp)
     } catch (error) {
       toast({
@@ -131,6 +174,25 @@ export function BookingForm({ userId, date, slot, onSuccess }: BookingFormProps)
             onChange={(e) => setFormData({ ...formData, specialty: e.target.value })}
             required
             placeholder="Ex: Nutricionista Esportiva"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="instagram">Instagram Profissional</Label>
+          <Input
+            id="instagram"
+            value={formData.instagram}
+            onChange={(e) => setFormData({ ...formData, instagram: e.target.value })}
+            placeholder="@usuario"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="patientsPerMonth">Nº Pacientes / Mês</Label>
+          <Input
+            id="patientsPerMonth"
+            type="number"
+            value={formData.patientsPerMonth}
+            onChange={(e) => setFormData({ ...formData, patientsPerMonth: e.target.value })}
+            placeholder="Ex: 50"
           />
         </div>
         <div className="space-y-2 md:col-span-2">

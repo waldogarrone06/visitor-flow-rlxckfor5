@@ -136,9 +136,14 @@ export default function PublicBookingPage() {
               <Button
                 variant="ghost"
                 className="w-full h-12 text-slate-500 hover:text-slate-800 hover:bg-slate-100"
-                onClick={() => window.location.reload()}
+                onClick={() => {
+                  setSuccessApp(null)
+                  setDate(undefined)
+                  setSelectedSlot(null)
+                  window.scrollTo({ top: 0, behavior: 'smooth' })
+                }}
               >
-                Não quero adicionar à agenda (Voltar ao Início)
+                Tudo certo, já confirmei minha visita (Sair)
               </Button>
             </div>
           </CardContent>

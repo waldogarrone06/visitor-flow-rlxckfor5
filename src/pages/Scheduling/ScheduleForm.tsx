@@ -84,6 +84,8 @@ const formSchema = z.object({
   neighborhood: z.string().min(2, 'Bairro obrigatório'),
   city: z.string().min(2, 'Cidade obrigatória'),
   state: z.string().length(2, 'UF obrigatória'),
+  instagram: z.string().optional(),
+  patientsPerMonth: z.string().optional(),
   authorizeInfo: z.boolean().refine((val) => val === true, 'Autorização necessária.'),
 })
 
@@ -118,6 +120,8 @@ export function ScheduleForm({
       neighborhood: '',
       city: '',
       state: '',
+      instagram: '',
+      patientsPerMonth: '',
       authorizeInfo: false,
     },
   })
@@ -193,6 +197,8 @@ export function ScheduleForm({
         registrationNumber: values.registrationNumber,
         phone: values.phone,
         email: values.email,
+        instagram: values.instagram,
+        patientsPerMonth: values.patientsPerMonth,
         lastInteraction: new Date().toISOString(),
         avatarSeed: existingLead?.avatarSeed || Math.floor(Math.random() * 100),
       }
@@ -214,6 +220,11 @@ export function ScheduleForm({
             start_time: `${timeParts[0]}:${timeParts[1]}`,
             end_time: `${parseInt(timeParts[0], 10) + 1}:${timeParts[1]}`,
             status: 'scheduled',
+            specialty: values.specialty,
+            professional_id: values.registrationNumber,
+            clinic_address: `${values.street}, ${values.number}${values.complement ? ` - ${values.complement}` : ''}, ${values.neighborhood}`,
+            instagram: values.instagram,
+            patients_per_month: values.patientsPerMonth,
           })
           .select('id')
           .single()
@@ -543,6 +554,35 @@ export function ScheduleForm({
                 <FormLabel>Registro Profissional</FormLabel>
                 <FormControl>
                   <Input {...field} placeholder="CRM, CRN, CREF..." />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="instagram"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Instagram Profissional</FormLabel>
+                <FormControl>
+                  <Input {...field} placeholder="@usuario" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="patientsPerMonth"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Nº de Pacientes / Mês</FormLabel>
+                <FormControl>
+                  <Input {...field} placeholder="Ex: 50" type="number" />
                 </FormControl>
                 <FormMessage />
               </FormItem>
