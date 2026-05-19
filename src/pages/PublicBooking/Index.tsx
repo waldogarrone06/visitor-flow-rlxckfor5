@@ -8,6 +8,7 @@ import { ptBR } from 'date-fns/locale'
 import { FourLabLogo } from '@/components/FourLabLogo'
 import { getDayScheduleData, MAX_CAPACITY_PER_SLOT } from '@/services/public-booking'
 import { BookingForm } from './BookingForm'
+import { supabase } from '@/lib/supabase/client'
 import {
   CheckCircle2,
   Calendar as CalendarIcon,
@@ -31,8 +32,25 @@ export default function PublicBookingPage() {
     appointments: any[]
     lockedSlots: any[]
   }>({ schedule: [], appointments: [], lockedSlots: [] })
+  const [weeklySchedule, setWeeklySchedule] = useState<number[]>([])
 
   const formCardRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    async function loadWeeklySchedule() {
+      if (!userId) return
+      const { data } = await supabase
+        .from('schedule_settings')
+        .select('day_of_week')
+        .eq('user_id', userId)
+
+      if (data) {
+        const days = [...new Set(data.map((d: any) => d.day_of_week))]
+        setWeeklySchedule(days)
+      }
+    }
+    loadWeeklySchedule()
+  }, [userId])
 
   useEffect(() => {
     async function loadData() {
@@ -242,7 +260,11 @@ export default function PublicBookingPage() {
                 }}
                 locale={ptBR}
                 className="rounded-md border shadow-sm p-4 w-full flex justify-center bg-white"
-                disabled={(d) => d < new Date(new Date().setHours(0, 0, 0, 0))}
+                disabled={(d) => {
+                  const isPast = d < new Date(new Date().setHours(0, 0, 0, 0))
+                  const hasSchedule = weeklySchedule.includes(d.getDay())
+                  return isPast || (weeklySchedule.length > 0 && !hasSchedule)
+                }}
               />
             </CardContent>
           </Card>

@@ -24,6 +24,7 @@ export default function SchedulingPage() {
   const [date, setDate] = useState<Date | undefined>(new Date())
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date())
   const [monthAppointments, setMonthAppointments] = useState<Date[]>([])
+  const [refreshTrigger, setRefreshTrigger] = useState(0)
   const { user } = useAuth()
   const { state } = useMainStore()
 
@@ -51,7 +52,7 @@ export default function SchedulingPage() {
     }
 
     loadAppointments()
-  }, [currentMonth, user, state.appointments])
+  }, [currentMonth, user, state.appointments, refreshTrigger])
 
   const handleCopyLink = () => {
     if (!user?.id) return
@@ -120,7 +121,10 @@ export default function SchedulingPage() {
               <CardTitle className="text-lg">Agendamento Manual (Interno)</CardTitle>
             </CardHeader>
             <CardContent>
-              <ScheduleForm selectedDate={date} onSuccess={() => {}} />
+              <ScheduleForm
+                selectedDate={date}
+                onSuccess={() => setRefreshTrigger((prev) => prev + 1)}
+              />
             </CardContent>
           </Card>
         </div>

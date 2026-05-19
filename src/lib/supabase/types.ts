@@ -149,24 +149,48 @@ export type Database = {
       }
       contacts: {
         Row: {
+          address: string | null
           created_at: string
+          document: string | null
+          email: string | null
           id: string
+          instagram: string | null
           name: string
+          patients_per_month: string | null
           phone: string
+          profession: string | null
+          registration_number: string | null
+          specialty: string | null
           user_id: string
         }
         Insert: {
+          address?: string | null
           created_at?: string
+          document?: string | null
+          email?: string | null
           id?: string
+          instagram?: string | null
           name: string
+          patients_per_month?: string | null
           phone: string
+          profession?: string | null
+          registration_number?: string | null
+          specialty?: string | null
           user_id: string
         }
         Update: {
+          address?: string | null
           created_at?: string
+          document?: string | null
+          email?: string | null
           id?: string
+          instagram?: string | null
           name?: string
+          patients_per_month?: string | null
           phone?: string
+          profession?: string | null
+          registration_number?: string | null
+          specialty?: string | null
           user_id?: string
         }
         Relationships: []
@@ -721,6 +745,14 @@ export const Constants = {
 //   name: text (not null)
 //   phone: text (not null)
 //   created_at: timestamp with time zone (not null, default: now())
+//   email: text (nullable)
+//   document: text (nullable)
+//   address: text (nullable)
+//   profession: text (nullable)
+//   specialty: text (nullable)
+//   registration_number: text (nullable)
+//   instagram: text (nullable)
+//   patients_per_month: text (nullable)
 // Table: interaction_log
 //   id: uuid (not null, default: gen_random_uuid())
 //   user_id: uuid (nullable)

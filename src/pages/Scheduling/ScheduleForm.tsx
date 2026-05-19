@@ -168,12 +168,12 @@ export function ScheduleForm({
     }
   }, [cepValue, form])
 
-  const onSubmit = (values: FormValues) => {
+  const onSubmit = async (values: FormValues) => {
     if (!selectedDate)
       return toast({ title: 'Erro', description: 'Selecione uma data.', variant: 'destructive' })
     setLoading(true)
 
-    setTimeout(async () => {
+    try {
       const timeParts = values.time.split(':')
       const appointmentDate = new Date(selectedDate)
       appointmentDate.setHours(parseInt(timeParts[0], 10), parseInt(timeParts[1], 10), 0, 0)
@@ -362,7 +362,15 @@ export function ScheduleForm({
       form.reset()
       setLoading(false)
       onSuccess()
-    }, 1200)
+    } catch (err) {
+      console.error(err)
+      toast({
+        title: 'Erro ao agendar',
+        description: 'Verifique se os dados estão corretos e tente novamente.',
+        variant: 'destructive',
+      })
+      setLoading(false)
+    }
   }
 
   const applyMask = (v: string, type: 'cpf' | 'phone' | 'cep') => {
