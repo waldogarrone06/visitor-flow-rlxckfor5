@@ -33,20 +33,30 @@ export default function PublicBookingPage() {
     lockedSlots: any[]
   }>({ schedule: [], appointments: [], lockedSlots: [] })
   const [weeklySchedule, setWeeklySchedule] = useState<number[]>([])
+  const [specificDates, setSpecificDates] = useState<string[]>([])
 
   const formCardRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     async function loadWeeklySchedule() {
       if (!userId) return
-      const { data } = await supabase
-        .from('schedule_settings')
-        .select('day_of_week')
-        .eq('user_id', userId)
 
-      if (data) {
-        const days = [...new Set(data.map((d: any) => d.day_of_week))]
+      const [schedRes, specRes] = await Promise.all([
+        supabase.from('schedule_settings').select('day_of_week').eq('user_id', userId),
+        supabase
+          .from('date_specific_schedules' as any)
+          .select('specific_date')
+          .eq('user_id', userId),
+      ])
+
+      if (schedRes.data) {
+        const days = [...new Set(schedRes.data.map((d: any) => d.day_of_week))]
         setWeeklySchedule(days)
+      }
+
+      if (specRes.data) {
+        const dates = [...new Set(specRes.data.map((d: any) => d.specific_date))]
+        setSpecificDates(dates)
       }
     }
     loadWeeklySchedule()
@@ -285,8 +295,11 @@ export default function PublicBookingPage() {
                 className="rounded-md border shadow-sm p-4 w-full flex justify-center bg-white"
                 disabled={(d) => {
                   const isPast = d < new Date(new Date().setHours(0, 0, 0, 0))
-                  const hasSchedule = weeklySchedule.includes(d.getDay())
-                  return isPast || (weeklySchedule.length > 0 && !hasSchedule)
+                  if (isPast) return true
+                  const dStr = format(d, 'yyyy-MM-dd')
+                  if (specificDates.includes(dStr)) return false
+                  if (weeklySchedule.length > 0 && !weeklySchedule.includes(d.getDay())) return true
+                  return false
                 }}
               />
             </CardContent>

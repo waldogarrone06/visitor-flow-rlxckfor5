@@ -115,7 +115,26 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    return new Response(JSON.stringify({ busySlots }), {
+    // Implementing Priority Logic (Date-specific overrides > Recurring)
+    let localSchedule = []
+    if (date) {
+      const dayOfWeek = new Date(`${date}T12:00:00-03:00`).getDay()
+      const [schedRes, specRes] = await Promise.all([
+        supabase
+          .from('schedule_settings')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('day_of_week', dayOfWeek),
+        supabase
+          .from('date_specific_schedules')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('specific_date', date),
+      ])
+      localSchedule = specRes.data && specRes.data.length > 0 ? specRes.data : schedRes.data || []
+    }
+
+    return new Response(JSON.stringify({ busySlots, schedule: localSchedule }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (error: any) {

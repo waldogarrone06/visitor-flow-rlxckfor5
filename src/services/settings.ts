@@ -118,6 +118,64 @@ export async function clearSchedule() {
     .eq('user_id', user.id)
 }
 
+export async function getSpecificSchedule(dateStr: string) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return []
+
+  const { data, error } = await supabase
+    .from('date_specific_schedules' as any)
+    .select('*')
+    .eq('user_id', user.id)
+    .eq('specific_date', dateStr)
+    .order('start_time')
+
+  if (error) console.error('Error fetching specific schedule:', error)
+  return data || []
+}
+
+export async function saveSpecificSchedule(dateStr: string, slots: any[]) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return
+
+  await supabase
+    .from('date_specific_schedules' as any)
+    .delete()
+    .eq('user_id', user.id)
+    .eq('specific_date', dateStr)
+
+  if (slots.length > 0) {
+    const toInsert = slots.map((s) => ({
+      user_id: user.id,
+      specific_date: dateStr,
+      start_time: s.start_time,
+      end_time: s.end_time,
+      slot_type: s.slot_type || 'Prescritor Exclusivo',
+    }))
+
+    const { error } = await supabase.from('date_specific_schedules' as any).insert(toInsert)
+    if (error) console.error('Error saving specific schedule:', error)
+  }
+}
+
+export async function getAllSpecificSchedules() {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return []
+
+  const { data, error } = await supabase
+    .from('date_specific_schedules' as any)
+    .select('specific_date')
+    .eq('user_id', user.id)
+
+  if (error) console.error('Error fetching all specific schedules:', error)
+  return data || []
+}
+
 export async function getProfiles() {
   try {
     const { data, error } = await supabase

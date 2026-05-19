@@ -7,12 +7,17 @@ export async function getDayScheduleData(userId: string, date: Date) {
   const dayOfWeek = date.getDay()
   const dateStr = format(date, 'yyyy-MM-dd')
 
-  const [schedRes, appsRes, locksRes] = await Promise.all([
+  const [schedRes, specRes, appsRes, locksRes] = await Promise.all([
     supabase
       .from('schedule_settings' as any)
       .select('*')
       .eq('user_id', userId)
       .eq('day_of_week', dayOfWeek),
+    supabase
+      .from('date_specific_schedules' as any)
+      .select('*')
+      .eq('user_id', userId)
+      .eq('specific_date', dateStr),
     supabase
       .from('appointments' as any)
       .select('*')
@@ -26,6 +31,7 @@ export async function getDayScheduleData(userId: string, date: Date) {
   ])
 
   let lockedSlots = locksRes.data || []
+  let schedule = specRes.data && specRes.data.length > 0 ? specRes.data : schedRes.data || []
 
   // Check external availability (Google Calendar Sync)
   try {
@@ -49,7 +55,7 @@ export async function getDayScheduleData(userId: string, date: Date) {
   }
 
   return {
-    schedule: schedRes.data || [],
+    schedule,
     appointments: appsRes.data || [],
     lockedSlots,
   }

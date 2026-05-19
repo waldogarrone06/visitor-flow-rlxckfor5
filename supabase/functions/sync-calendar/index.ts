@@ -50,6 +50,33 @@ Deno.serve(async (req: Request) => {
     const clientSecret =
       Deno.env.get('GOOGLE_CLIENT_SECRET') || Deno.env.get('VITE_GOOGLE_CLIENT_SECRET') || ''
 
+    // Check conflicts considering overrides priority logic
+    const appDate = new Date(`${appointment.appointment_date}T12:00:00-03:00`)
+    const dayOfWeek = appDate.getDay()
+    const { data: specific } = await supabase
+      .from('date_specific_schedules')
+      .select('*')
+      .eq('user_id', appointment.user_id)
+      .eq('specific_date', appointment.appointment_date)
+
+    let isValidSlot = false
+    if (specific && specific.length > 0) {
+      isValidSlot = specific.some((s) => s.start_time === appointment.start_time)
+    } else {
+      const { data: recurring } = await supabase
+        .from('schedule_settings')
+        .select('*')
+        .eq('user_id', appointment.user_id)
+        .eq('day_of_week', dayOfWeek)
+      isValidSlot = recurring && recurring.some((s) => s.start_time === appointment.start_time)
+    }
+
+    if (!isValidSlot) {
+      console.warn(
+        `Warning: Time slot ${appointment.start_time} may conflict or was overridden locally.`,
+      )
+    }
+
     let eventId = `mock-event-${Date.now()}`
     let meetLink = `https://meet.google.com/mock-abc-xyz`
 

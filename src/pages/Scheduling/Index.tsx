@@ -19,8 +19,12 @@ import { DayAppointments } from './DayAppointments'
 import { ScheduleForm } from './ScheduleForm'
 import { supabase } from '@/lib/supabase/client'
 import { useMainStore } from '@/stores/main'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { RecurringSchedule } from './RecurringSchedule'
+import { SpecificSchedule } from './SpecificSchedule'
 
 export default function SchedulingPage() {
+  const [viewMode, setViewMode] = useState<string>('appointments')
   const [date, setDate] = useState<Date | undefined>(new Date())
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date())
   const [monthAppointments, setMonthAppointments] = useState<Date[]>([])
@@ -103,46 +107,79 @@ export default function SchedulingPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-        <div className="flex flex-col gap-6 xl:col-span-7">
-          <Card className="shadow-subtle border-border/50">
-            <CardHeader>
-              <CardTitle className="text-lg">Calendário</CardTitle>
-            </CardHeader>
-            <CardContent className="flex justify-center pb-8 w-full overflow-x-auto">
-              <Calendar
-                mode="single"
-                selected={date}
-                onSelect={setDate}
-                onMonthChange={setCurrentMonth}
-                modifiers={{ hasAppointment: monthAppointments }}
-                modifiersClassNames={{
-                  hasAppointment:
-                    "relative after:content-[''] after:absolute after:bottom-[2px] sm:after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:w-1.5 after:h-1.5 after:bg-blue-500 after:rounded-full font-bold",
-                }}
-                locale={ptBR}
-                className="rounded-md border shadow-sm p-4 sm:p-6 w-full max-w-full flex justify-center [--cell-size:2.5rem] sm:[--cell-size:3.5rem] md:[--cell-size:4.5rem] bg-white"
-              />
-            </CardContent>
-          </Card>
+      <Tabs value={viewMode} onValueChange={setViewMode} className="w-full">
+        <TabsList className="mb-6 h-auto flex-wrap w-full justify-start bg-transparent border-b p-0 gap-4">
+          <TabsTrigger
+            value="appointments"
+            className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none rounded-none px-2 py-2"
+          >
+            Agenda Diária
+          </TabsTrigger>
+          <TabsTrigger
+            value="recurring"
+            className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none rounded-none px-2 py-2"
+          >
+            Recorrente Semanal
+          </TabsTrigger>
+          <TabsTrigger
+            value="specific"
+            className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none rounded-none px-2 py-2"
+          >
+            Exceções por Data
+          </TabsTrigger>
+        </TabsList>
 
-          <DayAppointments date={date} onUpdate={() => setRefreshTrigger((prev) => prev + 1)} />
-        </div>
+        <TabsContent value="appointments" className="mt-0">
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+            <div className="flex flex-col gap-6 xl:col-span-7">
+              <Card className="shadow-subtle border-border/50">
+                <CardHeader>
+                  <CardTitle className="text-lg">Calendário</CardTitle>
+                </CardHeader>
+                <CardContent className="flex justify-center pb-8 w-full overflow-x-auto">
+                  <Calendar
+                    mode="single"
+                    selected={date}
+                    onSelect={setDate}
+                    onMonthChange={setCurrentMonth}
+                    modifiers={{ hasAppointment: monthAppointments }}
+                    modifiersClassNames={{
+                      hasAppointment:
+                        "relative after:content-[''] after:absolute after:bottom-[2px] sm:after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:w-1.5 after:h-1.5 after:bg-blue-500 after:rounded-full font-bold",
+                    }}
+                    locale={ptBR}
+                    className="rounded-md border shadow-sm p-4 sm:p-6 w-full max-w-full flex justify-center [--cell-size:2.5rem] sm:[--cell-size:3.5rem] md:[--cell-size:4.5rem] bg-white"
+                  />
+                </CardContent>
+              </Card>
 
-        <div className="xl:col-span-5">
-          <Card className="shadow-subtle border-border/50 h-full">
-            <CardHeader>
-              <CardTitle className="text-lg">Agendamento Manual (Interno)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ScheduleForm
-                selectedDate={date}
-                onSuccess={() => setRefreshTrigger((prev) => prev + 1)}
-              />
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+              <DayAppointments date={date} onUpdate={() => setRefreshTrigger((prev) => prev + 1)} />
+            </div>
+
+            <div className="xl:col-span-5">
+              <Card className="shadow-subtle border-border/50 h-full">
+                <CardHeader>
+                  <CardTitle className="text-lg">Agendamento Manual (Interno)</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ScheduleForm
+                    selectedDate={date}
+                    onSuccess={() => setRefreshTrigger((prev) => prev + 1)}
+                  />
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="recurring" className="mt-0">
+          <RecurringSchedule />
+        </TabsContent>
+
+        <TabsContent value="specific" className="mt-0">
+          <SpecificSchedule />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
