@@ -80,7 +80,7 @@ export default function PublicBookingPage() {
 
       const isLocked = dayData.lockedSlots.some((l) => {
         if (!l.start_time || l.start_time === '') return true
-        if (l.is_external) {
+        if (l.is_external && l.start_time && l.end_time) {
           const sStart = slot.start_time
           const sEnd =
             slot.end_time ||

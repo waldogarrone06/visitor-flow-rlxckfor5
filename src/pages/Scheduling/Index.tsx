@@ -39,6 +39,7 @@ export default function SchedulingPage() {
         .from('appointments')
         .select('appointment_date')
         .eq('user_id', user.id)
+        .neq('status', 'Cancelled')
         .gte('appointment_date', format(start, 'yyyy-MM-dd'))
         .lte('appointment_date', format(end, 'yyyy-MM-dd'))
 
@@ -50,6 +51,7 @@ export default function SchedulingPage() {
         : []
 
       const crmDates = state.appointments
+        .filter((a) => a.status !== 'Cancelled')
         .map((a) => {
           const d = new Date(a.date)
           return new Date(d.getFullYear(), d.getMonth(), d.getDate())
@@ -116,7 +118,7 @@ export default function SchedulingPage() {
                 modifiers={{ hasAppointment: monthAppointments }}
                 modifiersClassNames={{
                   hasAppointment:
-                    "relative after:content-[''] after:absolute after:bottom-[2px] sm:after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:w-1.5 after:h-1.5 after:bg-blue-500 after:rounded-full",
+                    "relative after:content-[''] after:absolute after:bottom-[2px] sm:after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:w-1.5 after:h-1.5 after:bg-blue-500 after:rounded-full font-bold",
                 }}
                 locale={ptBR}
                 className="rounded-md border shadow-sm p-4 sm:p-6 w-full max-w-full flex justify-center [--cell-size:2.5rem] sm:[--cell-size:3.5rem] md:[--cell-size:4.5rem] bg-white"

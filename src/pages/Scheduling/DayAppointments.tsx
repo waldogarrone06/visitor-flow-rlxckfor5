@@ -54,13 +54,33 @@ export function DayAppointments({
   const handleLockToggle = async (startTime: string | null, endTime: string | null) => {
     if (!user || !date) return
     const dateStr = format(date, 'yyyy-MM-dd')
-    const existingLock = data.lockedSlots.find((l) => l.start_time === startTime)
-    const isLocked = !!existingLock
 
-    if (isLocked && existingLock?.id) {
-      await supabase.from('locked_slots').delete().eq('id', existingLock.id)
+    // Check if it's already locked internally
+    const internalLocks = data.lockedSlots.filter((l) => {
+      if (l.is_external) return false
+      if (startTime === null) return !l.start_time // Full day match
+      return l.start_time === startTime
+    })
+
+    const isLockedInternally = internalLocks.length > 0
+
+    if (isLockedInternally) {
+      // Safely bulk delete all matching locks to fix duplication anomalies
+      let query = supabase
+        .from('locked_slots')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('lock_date', dateStr)
+      if (startTime === null) {
+        query = query.is('start_time', null)
+      } else {
+        query = query.eq('start_time', startTime)
+      }
+      await query
+      toast({ title: 'Desbloqueado', description: 'O horário foi liberado com sucesso.' })
     } else {
       if (startTime === null) {
+        // Full day lock
         await supabase.from('locked_slots').delete().eq('user_id', user.id).eq('lock_date', dateStr)
         await supabase.from('locked_slots').insert({
           user_id: user.id,
@@ -69,6 +89,7 @@ export function DayAppointments({
           end_time: null,
         })
       } else {
+        // Specific slot lock
         await supabase.from('locked_slots').insert({
           user_id: user.id,
           lock_date: dateStr,
@@ -76,9 +97,14 @@ export function DayAppointments({
           end_time: endTime,
         })
       }
+      toast({
+        title: 'Bloqueado',
+        description: 'O horário foi bloqueado e não receberá mais agendamentos.',
+      })
     }
 
     await loadData()
+    if (onUpdate) onUpdate()
   }
 
   const handleStatusUpdate = async (appId: string, isCrm: boolean, newStatus: string) => {
@@ -118,8 +144,10 @@ export function DayAppointments({
 
   if (!date) return null
 
-  const isFullDayLocked = data.lockedSlots.some((l) => !l.start_time)
-  const localAppointments = state.appointments.filter((a) => isSameDay(new Date(a.date), date))
+  const isFullDayLocked = data.lockedSlots.some((l) => !l.start_time && !l.is_external)
+  const localAppointments = state.appointments.filter(
+    (a) => isSameDay(new Date(a.date), date) && a.status !== 'Cancelled',
+  )
 
   // Collect addresses for route optimization
   const addressesForRoute: string[] = []
@@ -189,7 +217,9 @@ export function DayAppointments({
           <div className="space-y-6">
             {(() => {
               const allSlots = new Set(data.schedule.map((s) => s.start_time))
-              data.appointments.forEach((a) => allSlots.add(a.start_time))
+              data.appointments
+                .filter((a) => a.status !== 'Cancelled')
+                .forEach((a) => allSlots.add(a.start_time))
               localAppointments.forEach((a) => allSlots.add(format(new Date(a.date), 'HH:mm')))
 
               const mergedSchedule = Array.from(allSlots)
@@ -215,7 +245,7 @@ export function DayAppointments({
 
               return mergedSchedule.map((slot, idx) => {
                 const publicApps = data.appointments
-                  .filter((a) => a.start_time === slot.start_time)
+                  .filter((a) => a.start_time === slot.start_time && a.status !== 'Cancelled')
                   .map((a) => ({
                     id: a.id,
                     client_name: a.client_name,
@@ -243,8 +273,27 @@ export function DayAppointments({
                   })
 
                 const combinedApps = [...publicApps, ...crmApps]
-                const isLocked =
-                  isFullDayLocked || data.lockedSlots.some((l) => l.start_time === slot.start_time)
+
+                const internalLock = data.lockedSlots.find(
+                  (l) => !l.is_external && l.start_time === slot.start_time,
+                )
+
+                const externalLock = data.lockedSlots.find((l) => {
+                  if (!l.is_external || !l.start_time || !l.end_time) return false
+                  const sStart = slot.start_time
+                  const sEnd =
+                    slot.end_time ||
+                    `${String(parseInt(sStart) + 1).padStart(2, '0')}:${sStart.split(':')[1]}`
+                  return (
+                    (sStart >= l.start_time && sStart < l.end_time) ||
+                    (sEnd > l.start_time && sEnd <= l.end_time) ||
+                    (sStart <= l.start_time && sEnd >= l.end_time)
+                  )
+                })
+
+                const isLockedInternal = isFullDayLocked || !!internalLock
+                const isLockedExternal = !!externalLock
+                const isLocked = isLockedInternal || isLockedExternal
                 const capacityFull = combinedApps.length >= MAX_CAPACITY_PER_SLOT
 
                 return (
@@ -259,16 +308,31 @@ export function DayAppointments({
                         </span>
                         <Badge
                           variant={
-                            isLocked ? 'destructive' : capacityFull ? 'secondary' : 'default'
+                            isLockedInternal
+                              ? 'destructive'
+                              : isLockedExternal
+                                ? 'outline'
+                                : capacityFull
+                                  ? 'secondary'
+                                  : 'default'
                           }
-                          className="gap-1"
+                          className={`gap-1 ${isLockedExternal ? 'border-amber-400 text-amber-600 bg-amber-50' : ''}`}
                         >
                           <Users className="h-3 w-3" /> {combinedApps.length}/
                           {MAX_CAPACITY_PER_SLOT}
                         </Badge>
-                        {isLocked && (
+                        {isLockedInternal && (
                           <Badge variant="outline" className="text-destructive border-destructive">
                             Bloqueado
+                          </Badge>
+                        )}
+                        {isLockedExternal && (
+                          <Badge
+                            variant="outline"
+                            className="text-amber-600 border-amber-300 bg-amber-50"
+                            title="Sincronizado do seu Google Calendar"
+                          >
+                            Bloqueado (Google)
                           </Badge>
                         )}
                       </div>
@@ -276,8 +340,25 @@ export function DayAppointments({
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleLockToggle(slot.start_time, slot.end_time)}
-                          className={isLocked ? 'text-destructive' : 'text-muted-foreground'}
+                          onClick={() => {
+                            if (isLockedExternal && !internalLock) {
+                              toast({
+                                title: 'Bloqueio Externo',
+                                description:
+                                  'Este horário está ocupado no seu Google Agenda. Libere-o lá primeiro.',
+                                variant: 'destructive',
+                              })
+                            } else {
+                              handleLockToggle(slot.start_time, slot.end_time)
+                            }
+                          }}
+                          className={
+                            isLocked
+                              ? isLockedExternal && !internalLock
+                                ? 'text-amber-600 hover:text-amber-700 hover:bg-amber-100/50'
+                                : 'text-destructive'
+                              : 'text-muted-foreground'
+                          }
                         >
                           {isLocked ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
                         </Button>
