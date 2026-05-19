@@ -105,10 +105,10 @@ Deno.serve(async (req: Request) => {
           },
         }
 
-        if (!isUpdate) {
+        if (!isUpdate || !appointment.google_meet_link) {
           payload.conferenceData = {
             createRequest: {
-              requestId: appointment.id,
+              requestId: `meet-${appointment.id}-${Date.now()}`,
               conferenceSolutionKey: { type: 'hangoutsMeet' },
             },
           }
@@ -158,7 +158,7 @@ Deno.serve(async (req: Request) => {
       if (response.ok) {
         const data = await response.json()
         eventId = data.id || eventId
-        meetLink = data.hangoutLink || meetLink
+        meetLink = data.hangoutLink || data.conferenceData?.entryPoints?.[0]?.uri || meetLink
       } else {
         console.error('Google API Error:', await response.text())
       }

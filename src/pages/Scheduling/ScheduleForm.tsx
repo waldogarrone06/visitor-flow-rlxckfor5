@@ -373,6 +373,7 @@ export function ScheduleForm({
         description: `Visita para ${values.name} agendada com sucesso.`,
       })
 
+      let finalMeetLink = ''
       try {
         const result = await syncCalendarService.syncCreate(newAppointmentId)
 
@@ -389,6 +390,7 @@ export function ScheduleForm({
         ) {
           // Do not show toast if integration is not configured
         } else {
+          finalMeetLink = result.data.meetLink || ''
           toast({
             title: 'Sincronização',
             description: 'Evento criado no Google Calendar.',
@@ -423,6 +425,7 @@ export function ScheduleForm({
                 <div style="padding: 32px; background-color: #ffffff;">
                   <p style="font-size: 16px; line-height: 1.5;">Olá <strong>${values.name}</strong>,</p>
                   <p style="font-size: 16px; line-height: 1.5;">Seu agendamento foi registrado com sucesso para o dia <strong>${format(appointmentDate, 'dd/MM/yyyy')}</strong> às <strong>${timeParts[0]}:${timeParts[1]}</strong>.</p>
+                  ${finalMeetLink ? `<p style="font-size: 16px; line-height: 1.5; background-color: #f0fdfa; padding: 12px; border-radius: 6px; border: 1px solid #ccfbf1;"><strong>🔗 Link da Reunião Online:</strong> <br/><a href="${finalMeetLink}" style="color: #0f766e; text-decoration: none;">${finalMeetLink}</a></p>` : ''}
                   <p style="font-size: 16px; line-height: 1.5;">Um de nossos representantes entrará em contato em breve para confirmar os últimos detalhes.</p>
                   <br/>
                   <p style="font-size: 14px; color: #666;">Atenciosamente,<br/>Equipe FourLab Nutrition</p>

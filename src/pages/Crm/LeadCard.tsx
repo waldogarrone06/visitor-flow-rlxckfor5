@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { useMainStore } from '@/stores/main'
 import { Lead } from '@/lib/types'
 import { Card, CardContent } from '@/components/ui/card'
@@ -12,6 +13,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { supabase } from '@/lib/supabase/client'
 
 export function LeadCard({
   lead,
@@ -22,6 +24,53 @@ export function LeadCard({
 }) {
   const { state, dispatch } = useMainStore()
   const kit = lead.assignedKitId ? state.kits.find((k) => k.id === lead.assignedKitId) : null
+  const [dbApp, setDbApp] = useState<any>(null)
+  const [isSyncing, setIsSyncing] = useState(false)
+
+  useEffect(() => {
+    const fetchApp = async () => {
+      const { data } = await supabase
+        .from('appointments')
+        .select('id, google_meet_link, status')
+        .eq('client_name', lead.name)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (data) setDbApp(data)
+    }
+    fetchApp()
+
+    const channel = supabase
+      .channel(`lead-app-${lead.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'appointments',
+          filter: `client_name=eq.${lead.name}`,
+        },
+        (payload) => {
+          setDbApp(payload.new)
+        },
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [lead.name, lead.id])
+
+  const generateLink = async () => {
+    if (!dbApp?.id) return
+    setIsSyncing(true)
+    try {
+      await supabase.functions.invoke('sync-calendar', { body: { appointmentId: dbApp.id } })
+    } finally {
+      setIsSyncing(false)
+    }
+  }
 
   const locationStr = lead.state
     ? `${lead.neighborhood ? lead.neighborhood + ', ' : ''}${lead.state}`
@@ -94,20 +143,34 @@ export function LeadCard({
           </div>
 
           <div className="flex flex-col gap-1.5">
-            {(lead as any).meetLink && (
+            {dbApp?.google_meet_link ? (
               <Button
                 variant="outline"
                 size="sm"
                 className="w-full h-7 text-xs bg-teal-50 text-teal-700 hover:bg-teal-100 hover:text-teal-800 border-teal-200 flex items-center justify-center gap-1.5 shadow-none"
                 onClick={(e) => {
                   e.stopPropagation()
-                  window.open((lead as any).meetLink, '_blank')
+                  window.open(dbApp.google_meet_link, '_blank')
                 }}
               >
                 <Video className="h-3 w-3" />
                 Acessar Reunião
               </Button>
-            )}
+            ) : (dbApp || (lead as any).isOnline) && !dbApp?.google_meet_link ? (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={isSyncing}
+                className="w-full h-7 text-xs bg-slate-50 text-slate-700 border-slate-200 flex items-center justify-center gap-1.5 shadow-none"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  generateLink()
+                }}
+              >
+                <Video className="h-3 w-3" />
+                {isSyncing ? 'Sincronizando...' : 'Gerar Link do Meet'}
+              </Button>
+            ) : null}
 
             {lead.couponCode && (
               <Badge
