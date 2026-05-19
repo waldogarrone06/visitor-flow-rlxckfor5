@@ -178,6 +178,73 @@ Deno.serve(async (req: Request) => {
       })
       .eq('id', appointmentId)
 
+    // Check if we just generated the link for the first time
+    if (!appointment.google_meet_link && meetLink && integration.reminder_enabled) {
+      const replacements: Record<string, string> = {
+        '\\{\\{nome_cliente\\}\\}': appointment.client_name || '',
+        '\\{\\{data\\}\\}': appointment.appointment_date
+          ? appointment.appointment_date.split('-').reverse().join('/')
+          : '',
+        '\\{\\{hora\\}\\}': appointment.start_time || '',
+        '\\{\\{meet_link\\}\\}': meetLink,
+      }
+
+      // Send WhatsApp
+      if (
+        integration.whatsapp_connected &&
+        appointment.client_phone &&
+        integration.reminder_whatsapp_template
+      ) {
+        let msg = integration.reminder_whatsapp_template
+        for (const [k, v] of Object.entries(replacements)) {
+          msg = msg.replace(new RegExp(k, 'g'), v)
+        }
+
+        try {
+          await fetch(`${supabaseUrl}/functions/v1/whatsapp-send`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${supabaseKey}`,
+            },
+            body: JSON.stringify({
+              to: appointment.client_phone,
+              text: msg,
+              userId: appointment.user_id,
+            }),
+          })
+        } catch (e) {
+          console.error(`Failed to send automated WhatsApp for ${appointmentId}`, e)
+        }
+      }
+
+      // Send Email
+      if (appointment.client_email && integration.reminder_email_template) {
+        let msg = integration.reminder_email_template
+        for (const [k, v] of Object.entries(replacements)) {
+          msg = msg.replace(new RegExp(k, 'g'), v)
+        }
+
+        try {
+          await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${supabaseKey}`,
+            },
+            body: JSON.stringify({
+              to: appointment.client_email,
+              subject: 'Link da Reunião (Google Meet)',
+              html: `<div style="font-family: sans-serif; padding: 20px; color: #333;"><p>${msg.replace(/\\n/g, '<br/>')}</p></div>`,
+              senderName: 'Atendimento',
+            }),
+          })
+        } catch (e) {
+          console.error(`Failed to send automated Email for ${appointmentId}`, e)
+        }
+      }
+    }
+
     return new Response(JSON.stringify({ success: true, eventId, meetLink }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })

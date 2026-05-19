@@ -20,7 +20,9 @@ Deno.serve(async (req: Request) => {
     // Find appointments for tomorrow where reminder_sent is false or null
     const { data: appointments, error: appErr } = await supabase
       .from('appointments')
-      .select('id, client_email, client_phone, client_name, appointment_date, start_time, user_id')
+      .select(
+        'id, client_email, client_phone, client_name, appointment_date, start_time, user_id, google_meet_link',
+      )
       .eq('appointment_date', tomorrowStr)
       .not('reminder_sent', 'eq', true)
 
@@ -62,6 +64,7 @@ Deno.serve(async (req: Request) => {
         '\\{\\{nome_cliente\\}\\}': app.client_name,
         '\\{\\{data\\}\\}': app.appointment_date.split('-').reverse().join('/'),
         '\\{\\{hora\\}\\}': app.start_time,
+        '\\{\\{meet_link\\}\\}': app.google_meet_link || 'Link não gerado',
       }
 
       let sentAny = false

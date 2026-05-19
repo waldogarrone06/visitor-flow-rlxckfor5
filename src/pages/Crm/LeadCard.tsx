@@ -6,7 +6,17 @@ import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { format } from 'date-fns'
-import { X, Tag as TagIcon, MoreHorizontal, MapPin, Ticket, Video } from 'lucide-react'
+import {
+  X,
+  Tag as TagIcon,
+  MoreHorizontal,
+  MapPin,
+  Ticket,
+  Video,
+  Copy,
+  Mail,
+  Smartphone,
+} from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,12 +37,15 @@ export function LeadCard({
   const kit = lead.assignedKitId ? state.kits.find((k) => k.id === lead.assignedKitId) : null
   const [dbApp, setDbApp] = useState<any>(null)
   const [isSyncing, setIsSyncing] = useState(false)
+  const [isResending, setIsResending] = useState(false)
 
   useEffect(() => {
     const fetchApp = async () => {
       const { data } = await supabase
         .from('appointments')
-        .select('id, google_meet_link, status')
+        .select(
+          'id, google_meet_link, status, client_name, client_phone, client_email, appointment_date, start_time',
+        )
         .eq('client_name', lead.name)
         .order('created_at', { ascending: false })
         .limit(1)
@@ -71,17 +84,9 @@ export function LeadCard({
         body: { appointmentId: dbApp.id },
       })
 
-      if (error) {
-        throw error
-      }
-
-      if (data && data.error) {
-        throw new Error(data.error)
-      }
-
-      if (!data?.success) {
-        throw new Error('Falha ao gerar link. Tente novamente.')
-      }
+      if (error) throw error
+      if (data && data.error) throw new Error(data.error)
+      if (!data?.success) throw new Error('Falha ao gerar link. Tente novamente.')
 
       toast.success('Link do Meet gerado com sucesso!')
     } catch (err: any) {
@@ -89,6 +94,85 @@ export function LeadCard({
       toast.error(err.message || 'Falha ao gerar link. Tente novamente.')
     } finally {
       setIsSyncing(false)
+    }
+  }
+
+  const resendLink = async (method: 'whatsapp' | 'email') => {
+    if (!dbApp?.id) return
+    setIsResending(true)
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) throw new Error('Usuário não autenticado')
+
+      const { data: integration, error: intErr } = await supabase
+        .from('user_integrations')
+        .select('*')
+        .eq('user_id', user.id)
+        .single()
+
+      if (intErr || !integration) throw new Error('Configuração de integração não encontrada')
+
+      const { data: app, error: appErr } = await supabase
+        .from('appointments')
+        .select('*')
+        .eq('id', dbApp.id)
+        .single()
+
+      if (appErr || !app) throw new Error('Agendamento não encontrado')
+
+      const replaceVars = (template: string) => {
+        let msg = template || ''
+        msg = msg.replace(/\{\{nome_cliente\}\}/g, app.client_name || '')
+        msg = msg.replace(
+          /\{\{data\}\}/g,
+          app.appointment_date ? app.appointment_date.split('-').reverse().join('/') : '',
+        )
+        msg = msg.replace(/\{\{hora\}\}/g, app.start_time || '')
+        msg = msg.replace(/\{\{meet_link\}\}/g, app.google_meet_link || '')
+        return msg
+      }
+
+      if (method === 'whatsapp') {
+        if (!app.client_phone) throw new Error('Cliente não possui telefone cadastrado')
+        const msg = replaceVars(
+          integration.reminder_whatsapp_template ||
+            'Olá {{nome_cliente}}, segue o link da nossa reunião: {{meet_link}}',
+        )
+
+        const { error } = await supabase.functions.invoke('whatsapp-send', {
+          body: {
+            to: app.client_phone,
+            text: msg,
+            userId: user.id,
+          },
+        })
+        if (error) throw error
+        toast.success('Link enviado via WhatsApp!')
+      } else {
+        if (!app.client_email) throw new Error('Cliente não possui e-mail cadastrado')
+        const msg = replaceVars(
+          integration.reminder_email_template ||
+            'Olá {{nome_cliente}},\n\nSegue o link da nossa reunião: {{meet_link}}\n\nAté logo!',
+        )
+
+        const { error } = await supabase.functions.invoke('send-email', {
+          body: {
+            to: app.client_email,
+            subject: 'Link da Reunião (Google Meet)',
+            html: `<div style="font-family: sans-serif; padding: 20px; color: #333;"><p>${msg.replace(/\n/g, '<br/>')}</p></div>`,
+            senderName: 'Atendimento',
+          },
+        })
+        if (error) throw error
+        toast.success('Link enviado via E-mail!')
+      }
+    } catch (err: any) {
+      console.error(err)
+      toast.error(err.message || 'Falha ao reenviar link')
+    } finally {
+      setIsResending(false)
     }
   }
 
@@ -164,18 +248,67 @@ export function LeadCard({
 
           <div className="flex flex-col gap-1.5">
             {dbApp?.google_meet_link ? (
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full h-7 text-xs bg-teal-50 text-teal-700 hover:bg-teal-100 hover:text-teal-800 border-teal-200 flex items-center justify-center gap-1.5 shadow-none"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  window.open(dbApp.google_meet_link, '_blank')
-                }}
-              >
-                <Video className="h-3 w-3" />
-                Acessar Reunião
-              </Button>
+              <div className="flex gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 h-7 text-xs bg-teal-50 text-teal-700 hover:bg-teal-100 hover:text-teal-800 border-teal-200 flex items-center justify-center gap-1.5 shadow-none truncate px-2"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    window.open(dbApp.google_meet_link, '_blank')
+                  }}
+                  title="Acessar Reunião"
+                >
+                  <Video className="h-3 w-3 shrink-0" />
+                  <span className="truncate">Meet</span>
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-7 h-7 p-0 shrink-0 border-teal-200 text-teal-700 hover:bg-teal-100 shadow-none"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    navigator.clipboard.writeText(dbApp.google_meet_link)
+                    toast.success('Link copiado!')
+                  }}
+                  title="Copiar Link"
+                >
+                  <Copy className="h-3 w-3" />
+                </Button>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={isResending}
+                      className="w-7 h-7 p-0 shrink-0 border-teal-200 text-teal-700 hover:bg-teal-100 shadow-none"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <MoreHorizontal className="h-3 w-3" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      onClick={async (e) => {
+                        e.stopPropagation()
+                        await resendLink('whatsapp')
+                      }}
+                    >
+                      <Smartphone className="mr-2 h-4 w-4" /> Enviar WhatsApp
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={async (e) => {
+                        e.stopPropagation()
+                        await resendLink('email')
+                      }}
+                    >
+                      <Mail className="mr-2 h-4 w-4" /> Enviar E-mail
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             ) : (dbApp || (lead as any).isOnline) && !dbApp?.google_meet_link ? (
               <Button
                 variant="outline"
@@ -187,8 +320,10 @@ export function LeadCard({
                   generateLink()
                 }}
               >
-                <Video className="h-3 w-3" />
-                {isSyncing ? 'Sincronizando...' : 'Gerar Link do Meet'}
+                <Video className="h-3 w-3 shrink-0" />
+                <span className="truncate">
+                  {isSyncing ? 'Sincronizando...' : 'Gerar Link do Meet'}
+                </span>
               </Button>
             ) : null}
 
