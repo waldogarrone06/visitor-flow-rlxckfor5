@@ -1,4 +1,6 @@
-import { useState, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import { useAuth } from '@/hooks/use-auth'
+import { supabase } from '@/lib/supabase/client'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Users, Video, ExternalLink, FileText } from 'lucide-react'
 import { useMainStore } from '@/stores/main'
@@ -11,14 +13,55 @@ import { Button } from '@/components/ui/button'
 
 export function UpcomingOnlineMeetings({ dateRange }: { dateRange?: DateRange }) {
   const { state } = useMainStore()
+  const { user } = useAuth()
+  const [dbAppointments, setDbAppointments] = useState<any[]>([])
   const [selectedSlot, setSelectedSlot] = useState<any>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
 
+  useEffect(() => {
+    if (!user) return
+
+    const fetchAppointments = async () => {
+      const { data } = await supabase.from('appointments').select('*').eq('user_id', user.id)
+
+      if (data) setDbAppointments(data)
+    }
+
+    fetchAppointments()
+
+    const channel = supabase
+      .channel('upcoming-online-meetings')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'appointments', filter: `user_id=eq.${user.id}` },
+        () => fetchAppointments(),
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [user])
+
   const slots = useMemo(() => {
-    // Include both Scheduled and Visited (finished) virtual meetings
-    const virtualApps = state.appointments.filter(
-      (a) => a.isVirtual && isDateInRange(a.date, dateRange),
-    )
+    // Map db appointments to local structure
+    const mappedDbApps = dbAppointments
+      .filter((a) => a.google_meet_link)
+      .map((a) => ({
+        id: a.id,
+        date: `${a.appointment_date}T${a.start_time}:00`,
+        meetLink: a.google_meet_link,
+        isVirtual: true,
+      }))
+
+    const combinedApps = [
+      ...state.appointments.filter(
+        (a) => a.isVirtual && !mappedDbApps.find((db) => db.id === a.id),
+      ),
+      ...mappedDbApps,
+    ]
+
+    const virtualApps = combinedApps.filter((a) => a.isVirtual && isDateInRange(a.date, dateRange))
 
     const grouped = virtualApps.reduce(
       (acc, app) => {

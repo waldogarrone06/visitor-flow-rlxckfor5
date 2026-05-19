@@ -85,7 +85,7 @@ Deno.serve(async (req: Request) => {
       const makeRequest = async (accessToken: string) => {
         const isUpdate = !!appointment.google_event_id
         const url = isUpdate
-          ? `https://www.googleapis.com/calendar/v3/calendars/primary/events/${appointment.google_event_id}`
+          ? `https://www.googleapis.com/calendar/v3/calendars/primary/events/${appointment.google_event_id}?conferenceDataVersion=1`
           : 'https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1'
 
         const method = isUpdate ? 'PATCH' : 'POST'

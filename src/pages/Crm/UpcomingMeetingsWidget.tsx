@@ -1,4 +1,6 @@
-import { useMainStore } from '@/stores/main'
+import { useState, useEffect } from 'react'
+import { useAuth } from '@/hooks/use-auth'
+import { supabase } from '@/lib/supabase/client'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Video, Calendar, Clock } from 'lucide-react'
 import { format, isToday, subMinutes, isTomorrow } from 'date-fns'
@@ -8,11 +10,41 @@ import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 
 export function UpcomingMeetingsWidget() {
-  const { state } = useMainStore()
+  const { user } = useAuth()
+  const [dbAppointments, setDbAppointments] = useState<any[]>([])
+
+  useEffect(() => {
+    if (!user) return
+
+    const fetchAppointments = async () => {
+      const { data } = await supabase
+        .from('appointments')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('appointment_date', { ascending: true })
+
+      if (data) setDbAppointments(data)
+    }
+
+    fetchAppointments()
+
+    const channel = supabase
+      .channel('upcoming-meetings')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'appointments', filter: `user_id=eq.${user.id}` },
+        () => fetchAppointments(),
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [user])
 
   const now = new Date()
 
-  const upcomingMeetings = (state.appointments || [])
+  const upcomingMeetings = dbAppointments
     .filter((app: any) => {
       if (!app.google_meet_link) return false
       if (!app.appointment_date || !app.end_time || !app.start_time) return false

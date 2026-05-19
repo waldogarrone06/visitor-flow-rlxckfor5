@@ -45,28 +45,33 @@ export function KanbanBoard() {
         .order('created_at', { ascending: false })
 
       if (data && !error) {
-        const mappedLeads: Lead[] = data.map((app: any) => ({
-          id: app.id,
-          name: app.client_name,
-          type: 'B2B',
-          stage:
-            app.status === 'visited'
-              ? 'Visitado'
-              : app.status === 'revisit'
-                ? 'Revisitar'
-                : 'Agendado',
-          score: 3,
-          document: '',
-          address: '',
-          profession: '',
-          specialty: '',
-          registrationNumber: '',
-          phone: app.client_phone || '',
-          email: app.client_email || '',
-          lastInteraction: app.created_at || new Date().toISOString(),
-          avatarSeed: app.client_email ? app.client_email.length : 1,
-          state: 'SP', // Padrão
-        }))
+        const mappedLeads: Lead[] = data.map(
+          (app: any) =>
+            ({
+              id: app.id,
+              name: app.client_name,
+              type: 'B2B',
+              stage:
+                app.status === 'visited'
+                  ? 'Visitado'
+                  : app.status === 'revisit'
+                    ? 'Revisitar'
+                    : 'Agendado',
+              score: 3,
+              document: '',
+              address: '',
+              profession: '',
+              specialty: '',
+              registrationNumber: '',
+              phone: app.client_phone || '',
+              email: app.client_email || '',
+              lastInteraction: app.created_at || new Date().toISOString(),
+              avatarSeed: app.client_email ? app.client_email.length : 1,
+              state: 'SP', // Padrão
+              meetLink: app.google_meet_link,
+              confirmationCode: app.id.split('-')[0].toUpperCase(),
+            }) as Lead & { meetLink?: string; confirmationCode?: string },
+        )
 
         const unique = new Map<string, Lead>()
         mappedLeads.forEach((l) => {
@@ -82,6 +87,21 @@ export function KanbanBoard() {
     }
 
     fetchAppointments()
+
+    const channel = supabase
+      .channel('appointments-kanban-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'appointments', filter: `user_id=eq.${user.id}` },
+        () => {
+          fetchAppointments()
+        },
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [user])
 
   const dbEmails = new Set(dbLeads.map((l) => l.email).filter(Boolean))

@@ -7,6 +7,7 @@ import { createPublicAppointment } from '@/services/public-booking'
 import { format } from 'date-fns'
 import { useMainStore } from '@/stores/main'
 import { Lead } from '@/lib/types'
+import { syncCalendarService } from '@/features/syncCalendarService'
 
 interface BookingFormProps {
   userId: string
@@ -115,10 +116,18 @@ export function BookingForm({ userId, date, slot, onSuccess }: BookingFormProps)
             date: `${newApp.appointment_date}T${newApp.start_time}:00`,
             vendor: 'Visitador',
             status: 'Scheduled',
-            isVirtual: false,
+            isVirtual: true,
+            appointment_date: newApp.appointment_date,
+            start_time: newApp.start_time,
+            end_time: newApp.end_time,
+            client_name: formData.name,
+            google_meet_link: null,
           },
         },
       })
+
+      // Sync with Google Calendar asynchronously to generate Google Meet link
+      syncCalendarService.syncCreate(newApp.id).catch(console.error)
 
       onSuccess(newApp)
     } catch (error) {

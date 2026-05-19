@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { format } from 'date-fns'
-import { X, Tag as TagIcon, MoreHorizontal, MapPin, Ticket } from 'lucide-react'
+import { X, Tag as TagIcon, MoreHorizontal, MapPin, Ticket, Video } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -80,12 +80,35 @@ export function LeadCard({
         <div className="mt-3 flex flex-col gap-2">
           <div className="text-xs text-muted-foreground flex justify-between items-center w-full">
             <span>{format(new Date(lead.lastInteraction), 'dd/MM/yyyy')}</span>
-            <Badge variant="outline" className="text-[10px] px-1 h-4">
-              {lead.score} ⭐
-            </Badge>
+            <div className="flex gap-1 items-center">
+              <span
+                className="font-mono text-[9px] uppercase bg-muted px-1.5 py-0.5 rounded-sm border"
+                title="Código de Confirmação"
+              >
+                ID: {(lead as any).confirmationCode || lead.id.split('-')[0]}
+              </span>
+              <Badge variant="outline" className="text-[10px] px-1 h-4">
+                {lead.score} ⭐
+              </Badge>
+            </div>
           </div>
 
           <div className="flex flex-col gap-1.5">
+            {(lead as any).meetLink && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full h-7 text-xs bg-teal-50 text-teal-700 hover:bg-teal-100 hover:text-teal-800 border-teal-200 flex items-center justify-center gap-1.5 shadow-none"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  window.open((lead as any).meetLink, '_blank')
+                }}
+              >
+                <Video className="h-3 w-3" />
+                Acessar Reunião
+              </Button>
+            )}
+
             {lead.couponCode && (
               <Badge
                 variant="outline"
