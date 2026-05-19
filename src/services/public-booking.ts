@@ -63,6 +63,41 @@ export async function createPublicAppointment(data: any) {
     .single()
   if (error) throw error
 
+  // Upsert Contact/Lead
+  if (data.user_id && data.client_phone) {
+    const phoneNum = data.client_phone.replace(/\D/g, '')
+    const { data: existingContacts } = await supabase
+      .from('contacts' as any)
+      .select('id')
+      .eq('user_id', data.user_id)
+      .eq('phone', phoneNum)
+
+    const contactPayload = {
+      name: data.client_name,
+      email: data.client_email,
+      document: data.professional_id,
+      address: data.clinic_address,
+      specialty: data.specialty,
+      registration_number: data.professional_id,
+      instagram: data.instagram,
+      patients_per_month: data.patients_per_month,
+      profession: data.specialty ? 'médico' : null,
+    }
+
+    if (existingContacts && existingContacts.length > 0) {
+      await supabase
+        .from('contacts' as any)
+        .update(contactPayload)
+        .eq('id', existingContacts[0].id)
+    } else {
+      await supabase.from('contacts' as any).insert({
+        user_id: data.user_id,
+        phone: phoneNum,
+        ...contactPayload,
+      })
+    }
+  }
+
   // Trigger Automations asynchronously
   if (newApp) {
     // 1. Google Calendar Sync

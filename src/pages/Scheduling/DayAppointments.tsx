@@ -160,15 +160,35 @@ export function DayAppointments({ date }: { date: Date | undefined }) {
       <CardContent className="pt-6">
         {loading ? (
           <p className="text-center text-muted-foreground py-4">Carregando agenda...</p>
-        ) : data.schedule.length === 0 ? (
-          <p className="text-center text-muted-foreground py-4">
-            Nenhum horário configurado para este dia da semana.
-          </p>
         ) : (
           <div className="space-y-6">
-            {data.schedule
-              .sort((a, b) => a.start_time.localeCompare(b.start_time))
-              .map((slot, idx) => {
+            {(() => {
+              const allSlots = new Set(data.schedule.map((s) => s.start_time))
+              data.appointments.forEach((a) => allSlots.add(a.start_time))
+              localAppointments.forEach((a) => allSlots.add(format(new Date(a.date), 'HH:mm')))
+
+              const mergedSchedule = Array.from(allSlots)
+                .map((startTime) => {
+                  const existing = data.schedule.find((s) => s.start_time === startTime)
+                  if (existing) return existing
+                  const parts = startTime.split(':')
+                  const endHour = parseInt(parts[0], 10) + 1
+                  return {
+                    start_time: startTime,
+                    end_time: `${endHour.toString().padStart(2, '0')}:${parts[1]}`,
+                  }
+                })
+                .sort((a, b) => a.start_time.localeCompare(b.start_time))
+
+              if (mergedSchedule.length === 0) {
+                return (
+                  <p className="text-center text-muted-foreground py-4">
+                    Nenhum horário configurado ou agendado para este dia.
+                  </p>
+                )
+              }
+
+              return mergedSchedule.map((slot, idx) => {
                 const publicApps = data.appointments
                   .filter((a) => a.start_time === slot.start_time)
                   .map((a) => ({
@@ -384,7 +404,8 @@ export function DayAppointments({ date }: { date: Date | undefined }) {
                     )}
                   </div>
                 )
-              })}
+              })
+            })()}
           </div>
         )}
       </CardContent>

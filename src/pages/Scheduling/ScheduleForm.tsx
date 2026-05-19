@@ -209,6 +209,41 @@ export function ScheduleForm({
       const userId = userSession.session?.user?.id
 
       if (userId) {
+        const phoneNum = values.phone.replace(/\D/g, '')
+        const fullAddressDB = `${values.street}, ${values.number}${values.complement ? ` - ${values.complement}` : ''}, ${values.neighborhood}`
+
+        // Upsert Contact/Lead in DB
+        const { data: existingContacts } = await supabase
+          .from('contacts' as any)
+          .select('id')
+          .eq('user_id', userId)
+          .eq('phone', phoneNum)
+
+        const contactPayload = {
+          name: values.name,
+          email: values.email,
+          document: values.cpf,
+          address: fullAddressDB,
+          specialty: values.specialty,
+          registration_number: values.registrationNumber,
+          instagram: values.instagram,
+          patients_per_month: values.patientsPerMonth,
+          profession: values.profession,
+        }
+
+        if (existingContacts && existingContacts.length > 0) {
+          await supabase
+            .from('contacts' as any)
+            .update(contactPayload)
+            .eq('id', existingContacts[0].id)
+        } else {
+          await supabase.from('contacts' as any).insert({
+            user_id: userId,
+            phone: phoneNum,
+            ...contactPayload,
+          })
+        }
+
         const { data: dbApp, error: dbErr } = await supabase
           .from('appointments')
           .insert({
@@ -222,7 +257,7 @@ export function ScheduleForm({
             status: 'scheduled',
             specialty: values.specialty,
             professional_id: values.registrationNumber,
-            clinic_address: `${values.street}, ${values.number}${values.complement ? ` - ${values.complement}` : ''}, ${values.neighborhood}`,
+            clinic_address: fullAddressDB,
             instagram: values.instagram,
             patients_per_month: values.patientsPerMonth,
           })
