@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { syncCalendarService } from '@/features/syncCalendarService'
 
 export function LeadCard({
   lead,
@@ -77,20 +78,27 @@ export function LeadCard({
   }, [lead.name, lead.id])
 
   const generateLink = async () => {
-    if (!dbApp?.id) return
+    if (!dbApp?.id) {
+      toast.error('Agendamento não encontrado.')
+      return
+    }
     setIsSyncing(true)
     try {
-      const { data, error } = await supabase.functions.invoke('sync-calendar', {
-        body: { appointmentId: dbApp.id },
-      })
+      const result = await syncCalendarService.syncCreate(dbApp.id)
 
-      if (error) throw error
-      if (data && data.error) throw new Error(data.error)
-      if (!data?.success) throw new Error('Falha ao gerar link. Tente novamente.')
+      if (!result.success) {
+        throw new Error(result.error || 'Falha ao gerar link. Tente novamente.')
+      }
 
       toast.success('Link do Meet gerado com sucesso!')
+
+      if (import.meta.env.DEV) {
+        console.log('[LeadCard] Link gerado com sucesso:', result.data)
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 500))
     } catch (err: any) {
-      console.error(err)
+      console.error('[LeadCard] Erro ao gerar link:', err)
       toast.error(err.message || 'Falha ao gerar link. Tente novamente.')
     } finally {
       setIsSyncing(false)
