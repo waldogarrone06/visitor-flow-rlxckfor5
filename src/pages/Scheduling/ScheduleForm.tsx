@@ -103,6 +103,9 @@ export function ScheduleForm({
   const [loading, setLoading] = useState(false)
   const [searchLead, setSearchLead] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)
+  const [searchResults, setSearchResults] = useState<any[]>([])
+  const [loadingLookup, setLoadingLookup] = useState(false)
+  const [loadingCpf, setLoadingCpf] = useState(false)
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -132,25 +135,87 @@ export function ScheduleForm({
   const cepValue = form.watch('cep')
 
   useEffect(() => {
-    if (cpfValue && cpfValue.length === 14) {
-      const existing = state.leads.find((l) => l.document === cpfValue)
-      if (existing) {
-        form.reset({
-          ...form.getValues(),
-          name: existing.name || '',
-          email: existing.email || '',
-          phone: existing.phone || '',
-          profession: (existing.profession as any) || undefined,
-          specialty: existing.specialty || '',
-          registrationNumber: existing.registrationNumber || '',
-        })
-        toast({
-          title: 'Profissional Encontrado',
-          description: 'Dados base preenchidos automaticamente pelo CRM.',
-        })
+    const fetchContactByCpf = async () => {
+      if (cpfValue && cpfValue.length === 14) {
+        setLoadingCpf(true)
+        const cleanCpf = cpfValue.replace(/\D/g, '')
+        try {
+          const {
+            data: { user },
+          } = await supabase.auth.getUser()
+          if (!user) return
+
+          const { data, error } = await supabase
+            .from('contacts')
+            .select('*')
+            .eq('user_id', user.id)
+            .or(`document.eq.${cpfValue},document.eq.${cleanCpf}`)
+            .limit(1)
+
+          if (data && data.length > 0) {
+            const existing = data[0]
+            form.reset({
+              ...form.getValues(),
+              name: existing.name || '',
+              email: existing.email || '',
+              phone: existing.phone || '',
+              profession: (existing.profession as any) || undefined,
+              specialty: existing.specialty || '',
+              registrationNumber: existing.registration_number || '',
+              instagram: existing.instagram || '',
+              patientsPerMonth: existing.patients_per_month || '',
+            })
+            toast({
+              title: 'Contato Encontrado',
+              description: 'Dados preenchidos automaticamente.',
+            })
+          }
+        } catch (e) {
+          console.error(e)
+        } finally {
+          setLoadingCpf(false)
+        }
       }
     }
-  }, [cpfValue, state.leads, form])
+    fetchContactByCpf()
+  }, [cpfValue, form])
+
+  useEffect(() => {
+    const searchContacts = async () => {
+      if (searchLead.length > 2) {
+        setLoadingLookup(true)
+        try {
+          const cleanSearch = searchLead.replace(/\D/g, '')
+          const {
+            data: { user },
+          } = await supabase.auth.getUser()
+          if (!user) return
+
+          let query = supabase.from('contacts').select('*').eq('user_id', user.id)
+
+          if (cleanSearch.length > 0) {
+            query = query.or(
+              `name.ilike.%${searchLead}%,document.ilike.%${searchLead}%,document.ilike.%${cleanSearch}%`,
+            )
+          } else {
+            query = query.or(`name.ilike.%${searchLead}%,document.ilike.%${searchLead}%`)
+          }
+
+          const { data } = await query.limit(10)
+          setSearchResults(data || [])
+        } catch (err) {
+          console.error(err)
+        } finally {
+          setLoadingLookup(false)
+        }
+      } else {
+        setSearchResults([])
+      }
+    }
+
+    const timer = setTimeout(searchContacts, 400)
+    return () => clearTimeout(timer)
+  }, [searchLead])
 
   useEffect(() => {
     const cleanCep = cepValue?.replace(/\D/g, '')
@@ -406,27 +471,23 @@ export function ScheduleForm({
     return val
   }
 
-  const filteredLeads = state.leads.filter(
-    (l) =>
-      searchLead.length > 2 &&
-      (l.name.toLowerCase().includes(searchLead.toLowerCase()) || l.document.includes(searchLead)),
-  )
-
-  const handleSelectLead = (lead: Lead) => {
+  const handleSelectLead = (contact: any) => {
     form.reset({
       ...form.getValues(),
-      name: lead.name || '',
-      cpf: lead.document || '',
-      email: lead.email || '',
-      phone: lead.phone || '',
-      profession: (lead.profession as any) || undefined,
-      specialty: lead.specialty || '',
-      registrationNumber: lead.registrationNumber || '',
+      name: contact.name || '',
+      cpf: contact.document || '',
+      email: contact.email || '',
+      phone: contact.phone || '',
+      profession: (contact.profession as any) || undefined,
+      specialty: contact.specialty || '',
+      registrationNumber: contact.registration_number || '',
+      instagram: contact.instagram || '',
+      patientsPerMonth: contact.patients_per_month || '',
     })
     setSearchLead('')
     setShowSuggestions(false)
     toast({
-      title: 'Lead Selecionado',
+      title: 'Contato Selecionado',
       description: 'Dados preenchidos com sucesso.',
     })
   }
@@ -443,18 +504,23 @@ export function ScheduleForm({
               setShowSuggestions(true)
             }}
             onFocus={() => setShowSuggestions(true)}
-            className="border-primary/50 focus-visible:ring-primary/30"
+            className="border-primary/50 focus-visible:ring-primary/30 pr-10"
           />
-          {showSuggestions && filteredLeads.length > 0 && (
+          {loadingLookup && searchLead.length > 2 && (
+            <div className="absolute right-3 top-3">
+              <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            </div>
+          )}
+          {showSuggestions && searchResults.length > 0 && (
             <div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded-md shadow-lg z-50 max-h-48 overflow-y-auto">
-              {filteredLeads.map((l) => (
+              {searchResults.map((c) => (
                 <div
-                  key={l.id}
+                  key={c.id}
                   className="p-3 hover:bg-muted cursor-pointer flex flex-col text-sm border-b last:border-0"
-                  onClick={() => handleSelectLead(l)}
+                  onClick={() => handleSelectLead(c)}
                 >
-                  <span className="font-medium">{l.name}</span>
-                  <span className="text-muted-foreground text-xs">{l.document}</span>
+                  <span className="font-medium">{c.name}</span>
+                  <span className="text-muted-foreground text-xs">{c.document || c.phone}</span>
                 </div>
               ))}
             </div>
@@ -532,12 +598,20 @@ export function ScheduleForm({
               <FormItem>
                 <FormLabel>CPF (Busca Automática)</FormLabel>
                 <FormControl>
-                  <Input
-                    {...field}
-                    placeholder="000.000.000-00"
-                    onChange={(e) => field.onChange(applyMask(e.target.value, 'cpf'))}
-                    maxLength={14}
-                  />
+                  <div className="relative">
+                    <Input
+                      {...field}
+                      placeholder="000.000.000-00"
+                      onChange={(e) => field.onChange(applyMask(e.target.value, 'cpf'))}
+                      maxLength={14}
+                      className={loadingCpf ? 'pr-10' : ''}
+                    />
+                    {loadingCpf && (
+                      <div className="absolute right-3 top-3">
+                        <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                      </div>
+                    )}
+                  </div>
                 </FormControl>
                 <FormMessage />
               </FormItem>
