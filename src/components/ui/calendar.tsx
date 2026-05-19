@@ -176,7 +176,7 @@ function CalendarDayButton({
         <span
           className={cn(
             'absolute bottom-1 left-1/2 flex h-1.5 w-1.5 -translate-x-1/2 rounded-full',
-            modifiers.selected ? 'bg-primary-foreground' : 'bg-primary',
+            modifiers.selected ? 'bg-blue-200' : 'bg-blue-500',
           )}
         />
       )}

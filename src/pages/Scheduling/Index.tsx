@@ -42,10 +42,18 @@ export default function SchedulingPage() {
         .gte('appointment_date', format(start, 'yyyy-MM-dd'))
         .lte('appointment_date', format(end, 'yyyy-MM-dd'))
 
-      const publicDates = data ? data.map((d) => new Date(d.appointment_date + 'T12:00:00')) : []
+      const publicDates = data
+        ? data.map((d) => {
+            const [year, month, day] = d.appointment_date.split('-')
+            return new Date(Number(year), Number(month) - 1, Number(day))
+          })
+        : []
 
       const crmDates = state.appointments
-        .map((a) => new Date(a.date))
+        .map((a) => {
+          const d = new Date(a.date)
+          return new Date(d.getFullYear(), d.getMonth(), d.getDate())
+        })
         .filter((d) => d >= start && d <= end)
 
       setMonthAppointments([...publicDates, ...crmDates])
@@ -112,7 +120,7 @@ export default function SchedulingPage() {
             </CardContent>
           </Card>
 
-          <DayAppointments date={date} />
+          <DayAppointments date={date} onUpdate={() => setRefreshTrigger((prev) => prev + 1)} />
         </div>
 
         <div className="xl:col-span-5">

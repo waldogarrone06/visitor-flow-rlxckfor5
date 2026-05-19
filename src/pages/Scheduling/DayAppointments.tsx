@@ -18,16 +18,18 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useAuth } from '@/hooks/use-auth'
-import {
-  getDayScheduleData,
-  MAX_CAPACITY_PER_SLOT,
-  toggleSlotLock,
-} from '@/services/public-booking'
+import { getDayScheduleData, MAX_CAPACITY_PER_SLOT } from '@/services/public-booking'
 import { useMainStore } from '@/stores/main'
 import { toast } from '@/hooks/use-toast'
 import { supabase } from '@/lib/supabase/client'
 
-export function DayAppointments({ date }: { date: Date | undefined }) {
+export function DayAppointments({
+  date,
+  onUpdate,
+}: {
+  date: Date | undefined
+  onUpdate?: () => void
+}) {
   const { user } = useAuth()
   const { state, dispatch } = useMainStore()
   const [loading, setLoading] = useState(false)
@@ -53,8 +55,29 @@ export function DayAppointments({ date }: { date: Date | undefined }) {
     if (!user || !date) return
     const dateStr = format(date, 'yyyy-MM-dd')
     const existingLock = data.lockedSlots.find((l) => l.start_time === startTime)
+    const isLocked = !!existingLock
 
-    await toggleSlotLock(user.id, dateStr, startTime, endTime, !!existingLock, existingLock?.id)
+    if (isLocked && existingLock?.id) {
+      await supabase.from('locked_slots').delete().eq('id', existingLock.id)
+    } else {
+      if (startTime === null) {
+        await supabase.from('locked_slots').delete().eq('user_id', user.id).eq('lock_date', dateStr)
+        await supabase.from('locked_slots').insert({
+          user_id: user.id,
+          lock_date: dateStr,
+          start_time: null,
+          end_time: null,
+        })
+      } else {
+        await supabase.from('locked_slots').insert({
+          user_id: user.id,
+          lock_date: dateStr,
+          start_time: startTime,
+          end_time: endTime,
+        })
+      }
+    }
+
     await loadData()
   }
 
@@ -64,11 +87,13 @@ export function DayAppointments({ date }: { date: Date | undefined }) {
       if (app) {
         dispatch({ type: 'UPDATE_APPOINTMENT', payload: { ...app, status: newStatus as any } })
         toast({ title: 'Status Atualizado', description: `Agendamento marcado como ${newStatus}.` })
+        if (onUpdate) onUpdate()
       }
     } else {
       await supabase.from('appointments').update({ status: newStatus }).eq('id', appId)
       toast({ title: 'Status Atualizado', description: `Agendamento marcado como ${newStatus}.` })
       loadData()
+      if (onUpdate) onUpdate()
     }
   }
 
