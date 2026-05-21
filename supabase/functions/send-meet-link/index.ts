@@ -44,6 +44,12 @@ Deno.serve(async (req: Request) => {
       throw new Error('Integração não encontrada.')
     }
 
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('name')
+      .eq('id', appointment.user_id)
+      .single()
+
     const replacements: Record<string, string> = {
       '\\{\\{nome_cliente\\}\\}': appointment.client_name || '',
       '\\{\\{data\\}\\}': appointment.appointment_date
@@ -51,6 +57,7 @@ Deno.serve(async (req: Request) => {
         : '',
       '\\{\\{hora\\}\\}': appointment.start_time || '',
       '\\{\\{meet_link\\}\\}': appointment.google_meet_link,
+      '\\{\\{professional_name\\}\\}': profile?.name || 'Nossa equipe',
     }
 
     let sentAny = false
@@ -65,7 +72,7 @@ Sua visita online com a equipe Fourlab está confirmada e o link da reunião já
 🔗 Acesse pelo link abaixo:
 {{meet_link}}
 
-Nossa visitadora já estará na sala aguardando você no horário marcado. Basta clicar no link e solicitar entrada — ela liberará seu acesso em instantes.
+{{professional_name}} já estará na sala aguardando você no horário marcado. Basta clicar no link e solicitar entrada — seu acesso será liberado em instantes.
 
 Até logo! 😊
 *Equipe Fourlab*`
