@@ -47,25 +47,50 @@ Deno.serve(async (req: Request) => {
       if (!token) continue
 
       try {
-        // Simulate checking with Frenet API
-        // const response = await fetch(`https://api.frenet.com.br/tracking/trackinginfo?trackingNumber=${app.tracking_number}`, { headers: { token } })
+        const response = await fetch(
+          `https://api.frenet.com.br/tracking/trackinginfo?trackingNumber=${app.tracking_number}`,
+          {
+            headers: { token },
+          },
+        )
 
-        // Simulating that some shipments become delivered in this run
-        const isDelivered = Math.random() > 0.6
+        if (response.ok) {
+          const data = await response.json()
+          let isDelivered = false
+          let deliveredAt = new Date().toISOString()
 
-        if (isDelivered) {
-          const deliveredAt = new Date().toISOString()
-          const { error: updateErr } = await supabase
-            .from('appointments')
-            .update({
-              kit_status: 'Delivered',
-              delivered_at: deliveredAt,
-            })
-            .eq('id', app.id)
-
-          if (!updateErr) {
-            updates.push(app.id)
+          if (data && data.TrackingEvents && Array.isArray(data.TrackingEvents)) {
+            for (const event of data.TrackingEvents) {
+              const desc = (event.EventDescription || '').toLowerCase()
+              if (desc.includes('entregue') || desc.includes('delivered')) {
+                isDelivered = true
+                if (event.EventDateTime) {
+                  try {
+                    deliveredAt = new Date(event.EventDateTime).toISOString()
+                  } catch (err) {
+                    // keep current date if parsing fails
+                  }
+                }
+                break
+              }
+            }
           }
+
+          if (isDelivered) {
+            const { error: updateErr } = await supabase
+              .from('appointments')
+              .update({
+                kit_status: 'Delivered',
+                delivered_at: deliveredAt,
+              })
+              .eq('id', app.id)
+
+            if (!updateErr) {
+              updates.push(app.id)
+            }
+          }
+        } else {
+          console.warn(`Frenet API returned ${response.status} for tracking ${app.tracking_number}`)
         }
       } catch (e) {
         console.error(`Error tracking ${app.tracking_number}:`, e)

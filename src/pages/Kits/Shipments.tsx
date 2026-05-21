@@ -71,9 +71,12 @@ export function KitShipments() {
   const handleSaveTracking = async (id: string, trackingNumber: string) => {
     if (!user) return
     setSavingId(id)
+
+    const val = trackingNumber.trim() === '' ? null : trackingNumber.trim()
+
     const { error } = await supabase
       .from('appointments' as any)
-      .update({ tracking_number: trackingNumber })
+      .update({ tracking_number: val })
       .eq('id', id)
 
     if (error) {
@@ -85,7 +88,18 @@ export function KitShipments() {
     } else {
       toast({ title: 'Salvo', description: 'Número de rastreio atualizado com sucesso.' })
       setAppointments((prev) =>
-        prev.map((a) => (a.id === id ? { ...a, tracking_number: trackingNumber } : a)),
+        prev.map((a) => {
+          if (a.id === id) {
+            let newStatus = a.kit_status || 'Pending'
+            if (!val) {
+              if (newStatus !== 'Delivered') newStatus = 'Pending'
+            } else {
+              if (newStatus === 'Pending' || !a.kit_status) newStatus = 'In Transit'
+            }
+            return { ...a, tracking_number: val, kit_status: newStatus }
+          }
+          return a
+        }),
       )
     }
     setSavingId(null)
@@ -233,8 +247,10 @@ export function KitShipments() {
                             placeholder="Cód. Rastreio"
                             defaultValue={app.tracking_number || ''}
                             onBlur={(e) => {
-                              if (e.target.value !== (app.tracking_number || '')) {
-                                handleSaveTracking(app.id, e.target.value)
+                              const newValue = e.target.value.trim()
+                              const oldValue = (app.tracking_number || '').trim()
+                              if (newValue !== oldValue) {
+                                handleSaveTracking(app.id, newValue)
                               }
                             }}
                             disabled={savingId === app.id}
