@@ -42,6 +42,8 @@ export interface Lead {
   patientsPerMonth?: string
   couponCode?: string
   couponUsage?: number
+  nutritionistCoupon?: string
+  patientCoupon?: string
   conversionsHistory?: ConversionHistory[]
   targetConversionGoal?: number
 }

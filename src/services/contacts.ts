@@ -16,6 +16,22 @@ export async function getContacts() {
   return data || []
 }
 
+export async function updateContactCoupons(
+  contactId: string,
+  nutritionistCoupon: string,
+  patientCoupon: string,
+) {
+  const { error } = await supabase
+    .from('contacts' as any)
+    .update({
+      nutritionist_coupon: nutritionistCoupon || null,
+      patient_coupon: patientCoupon || null,
+    })
+    .eq('id', contactId)
+
+  if (error) throw error
+}
+
 export async function createContact(contact: { name: string; phone: string }) {
   const {
     data: { user },
