@@ -375,10 +375,10 @@ export default function LeadDetailPage() {
                 </p>
               </div>
               <div className="space-y-3">
-                <Label htmlFor="patientCoupon">Cupom Pacientes</Label>
+                <Label htmlFor="patientCoupon">Cupom Paciente</Label>
                 <Input
                   id="patientCoupon"
-                  placeholder="Ex: PACIENTE5"
+                  placeholder="Ex: PACIENTE05"
                   value={patientCoupon}
                   onChange={(e) =>
                     setPatientCoupon(e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase())

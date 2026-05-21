@@ -156,6 +156,8 @@ export type Database = {
           id: string
           instagram: string | null
           name: string
+          nutritionist_coupon: string | null
+          patient_coupon: string | null
           patients_per_month: string | null
           phone: string
           profession: string | null
@@ -171,6 +173,8 @@ export type Database = {
           id?: string
           instagram?: string | null
           name: string
+          nutritionist_coupon?: string | null
+          patient_coupon?: string | null
           patients_per_month?: string | null
           phone: string
           profession?: string | null
@@ -186,6 +190,8 @@ export type Database = {
           id?: string
           instagram?: string | null
           name?: string
+          nutritionist_coupon?: string | null
+          patient_coupon?: string | null
           patients_per_month?: string | null
           phone?: string
           profession?: string | null
@@ -783,6 +789,8 @@ export const Constants = {
 //   registration_number: text (nullable)
 //   instagram: text (nullable)
 //   patients_per_month: text (nullable)
+//   nutritionist_coupon: text (nullable)
+//   patient_coupon: text (nullable)
 // Table: date_specific_schedules
 //   id: uuid (not null, default: gen_random_uuid())
 //   user_id: uuid (not null)

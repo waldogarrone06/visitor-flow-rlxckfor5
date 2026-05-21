@@ -6,6 +6,7 @@ import {
   createYampiCoupon,
   syncYampiUsage,
 } from '@/services/crm'
+import { supabase } from '@/lib/supabase/client'
 import {
   Table,
   TableBody,
@@ -17,6 +18,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -24,9 +26,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetFooter,
+} from '@/components/ui/sheet'
 import { toast } from '@/hooks/use-toast'
 import {
-  Save,
   User,
   Package,
   Tag,
@@ -35,6 +44,7 @@ import {
   Loader2,
   RefreshCw,
   Trophy,
+  Edit,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { cn } from '@/lib/utils'
@@ -42,16 +52,42 @@ import { cn } from '@/lib/utils'
 export function LeadList() {
   const { user } = useAuth()
   const [prescribers, setPrescribers] = useState<any[]>([])
+  const [contactsData, setContactsData] = useState<Record<string, any>>({})
   const [loading, setLoading] = useState(true)
-  const [editingCode, setEditingCode] = useState<Record<string, string>>({})
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [syncing, setSyncing] = useState(false)
   const [sortConfig, setSortConfig] = useState<{ key: string; dir: 'asc' | 'desc' } | null>(null)
 
+  // Drawer state
+  const [editingLead, setEditingLead] = useState<any | null>(null)
+  const [nutriCoupon, setNutriCoupon] = useState('')
+  const [patCoupon, setPatCoupon] = useState('')
+  const [savingCoupons, setSavingCoupons] = useState(false)
+
   const loadData = async () => {
     if (!user) return
     try {
-      setPrescribers(await getPrescribers(user.id))
+      const data = await getPrescribers(user.id)
+      setPrescribers(data)
+
+      const emails = data.map((p: any) => p.client_email).filter(Boolean)
+      const phones = data.map((p: any) => p.client_phone?.replace(/\D/g, '')).filter(Boolean)
+
+      if (emails.length > 0 || phones.length > 0) {
+        const { data: contacts } = await supabase
+          .from('contacts')
+          .select('*')
+          .eq('user_id', user.id)
+
+        if (contacts) {
+          const cMap: Record<string, any> = {}
+          contacts.forEach((c) => {
+            if (c.email) cMap[c.email] = c
+            if (c.phone) cMap[c.phone] = c
+          })
+          setContactsData(cMap)
+        }
+      }
     } finally {
       setLoading(false)
     }
@@ -91,6 +127,56 @@ export function LeadList() {
     } finally {
       setSyncing(false)
       setActionLoading(null)
+    }
+  }
+
+  const openEditSheet = (p: any) => {
+    setEditingLead(p)
+    const contact = contactsData[p.client_email] || contactsData[p.client_phone?.replace(/\D/g, '')]
+    setNutriCoupon(contact?.nutritionist_coupon || '')
+    setPatCoupon(contact?.patient_coupon || '')
+  }
+
+  const handleSaveCoupons = async () => {
+    if (!user || !editingLead) return
+    setSavingCoupons(true)
+    try {
+      const p = editingLead
+      let contact = contactsData[p.client_email] || contactsData[p.client_phone?.replace(/\D/g, '')]
+      let contactId = contact?.id
+
+      if (!contactId) {
+        const { data, error } = await supabase
+          .from('contacts')
+          .insert({
+            user_id: user.id,
+            name: p.client_name,
+            email: p.client_email,
+            phone: p.client_phone?.replace(/\D/g, '') || '',
+          })
+          .select()
+          .single()
+        if (error) throw error
+        contactId = data.id
+      }
+
+      const { error } = await supabase
+        .from('contacts')
+        .update({
+          nutritionist_coupon: nutriCoupon || null,
+          patient_coupon: patCoupon || null,
+        })
+        .eq('id', contactId)
+
+      if (error) throw error
+
+      toast({ title: 'Cupons atualizados com sucesso.' })
+      setEditingLead(null)
+      loadData()
+    } catch (e) {
+      toast({ title: 'Erro ao atualizar cupons', variant: 'destructive' })
+    } finally {
+      setSavingCoupons(false)
     }
   }
 
@@ -155,8 +241,11 @@ export function LeadList() {
               <TableHead>
                 <Package className="inline h-4 w-4 mr-2" /> Kit
               </TableHead>
-              <TableHead>
-                <Tag className="inline h-4 w-4 mr-2" /> Cupom
+              <TableHead className="min-w-[140px]">
+                <Tag className="inline h-4 w-4 mr-2" /> Cupom Nutricionista
+              </TableHead>
+              <TableHead className="min-w-[140px]">
+                <Tag className="inline h-4 w-4 mr-2" /> Cupom Paciente
               </TableHead>
               <TableHead
                 className="cursor-pointer"
@@ -172,101 +261,152 @@ export function LeadList() {
               <TableHead>
                 <CheckCircle2 className="inline h-4 w-4 mr-2" /> Ação Yampi
               </TableHead>
+              <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {sortedData.map((p) => (
-              <TableRow
-                key={p.id}
-                className={cn('hover:bg-slate-50/50', top5Ids.includes(p.id) && 'bg-amber-50/40')}
-              >
-                <TableCell className="font-medium">
-                  <div className="flex flex-col gap-1 items-start">
-                    <Link
-                      to={`/crm/prescritor/${p.id}`}
-                      className="hover:underline hover:text-primary transition-colors"
-                    >
-                      {p.client_name}
-                    </Link>
-                    {top5Ids.includes(p.id) && (
-                      <Badge
-                        variant="secondary"
-                        className="bg-amber-100 text-amber-700 hover:bg-amber-100/80 border-amber-200 text-[10px] px-1.5 py-0"
+            {sortedData.map((p) => {
+              const contact =
+                contactsData[p.client_email] || contactsData[p.client_phone?.replace(/\D/g, '')]
+              return (
+                <TableRow
+                  key={p.id}
+                  className={cn('hover:bg-slate-50/50', top5Ids.includes(p.id) && 'bg-amber-50/40')}
+                >
+                  <TableCell className="font-medium">
+                    <div className="flex flex-col gap-1 items-start">
+                      <Link
+                        to={`/crm/prescritor/${p.id}`}
+                        className="hover:underline hover:text-primary transition-colors"
                       >
-                        <Trophy className="h-3 w-3 mr-1" /> Top
-                      </Badge>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell className="text-sm text-muted-foreground">
-                  <div>{p.client_email}</div>
-                  <div>{p.client_phone}</div>
-                </TableCell>
-                <TableCell>
-                  <Select
-                    value={p.kit_status || 'Pending'}
-                    onValueChange={(val) => handleUpdate(p.client_email, { kit_status: val })}
-                  >
-                    <SelectTrigger className="w-[110px] h-8 text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Pending">Pendente</SelectItem>
-                      <SelectItem value="Shipped">Enviado</SelectItem>
-                      <SelectItem value="Delivered">Entregue</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      value={editingCode[p.client_email] ?? p.coupon_code ?? ''}
-                      onChange={(e) =>
-                        setEditingCode({ ...editingCode, [p.client_email]: e.target.value })
-                      }
-                      className="h-8 w-24 font-mono text-xs uppercase"
-                    />
-                    {editingCode[p.client_email] !== undefined &&
-                      editingCode[p.client_email] !== (p.coupon_code || '') && (
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8 text-green-600"
-                          onClick={() =>
-                            handleUpdate(p.client_email, {
-                              coupon_code: editingCode[p.client_email],
-                            })
-                          }
+                        {p.client_name}
+                      </Link>
+                      {top5Ids.includes(p.id) && (
+                        <Badge
+                          variant="secondary"
+                          className="bg-amber-100 text-amber-700 hover:bg-amber-100/80 border-amber-200 text-[10px] px-1.5 py-0"
                         >
-                          <Save className="h-4 w-4" />
-                        </Button>
+                          <Trophy className="h-3 w-3 mr-1" /> Top
+                        </Badge>
                       )}
-                  </div>
-                </TableCell>
-                <TableCell className="font-semibold text-sm">{p.coupon_usage_count || 0}</TableCell>
-                <TableCell>
-                  {!p.coupon_verified ? (
-                    <Button
-                      size="sm"
-                      onClick={() => handleAction('create', p)}
-                      disabled={actionLoading === p.id}
-                      className="h-8 text-[11px] bg-indigo-600 hover:bg-indigo-700"
-                    >
-                      {actionLoading === p.id && <Loader2 className="h-3 w-3 animate-spin mr-1" />}{' '}
-                      Confirmar Yampi
-                    </Button>
-                  ) : (
-                    <div className="text-green-600 flex items-center gap-1">
-                      <CheckCircle2 className="h-4 w-4" />
-                      <span className="text-[11px] font-medium">Verificado</span>
                     </div>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    <div>{p.client_email}</div>
+                    <div>{p.client_phone}</div>
+                  </TableCell>
+                  <TableCell>
+                    <Select
+                      value={p.kit_status || 'Pending'}
+                      onValueChange={(val) => handleUpdate(p.client_email, { kit_status: val })}
+                    >
+                      <SelectTrigger className="w-[110px] h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Pending">Pendente</SelectItem>
+                        <SelectItem value="Shipped">Enviado</SelectItem>
+                        <SelectItem value="Delivered">Entregue</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                  <TableCell className="font-mono text-xs text-muted-foreground">
+                    {contact?.nutritionist_coupon || '-'}
+                  </TableCell>
+                  <TableCell className="font-mono text-xs text-muted-foreground">
+                    {contact?.patient_coupon || '-'}
+                  </TableCell>
+                  <TableCell className="font-semibold text-sm">
+                    {p.coupon_usage_count || 0}
+                  </TableCell>
+                  <TableCell>
+                    {!p.coupon_verified ? (
+                      <Button
+                        size="sm"
+                        onClick={() => handleAction('create', p)}
+                        disabled={actionLoading === p.id}
+                        className="h-8 text-[11px] bg-indigo-600 hover:bg-indigo-700"
+                      >
+                        {actionLoading === p.id && (
+                          <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                        )}{' '}
+                        Confirmar Yampi
+                      </Button>
+                    ) : (
+                      <div className="text-green-600 flex items-center gap-1">
+                        <CheckCircle2 className="h-4 w-4" />
+                        <span className="text-[11px] font-medium">Verificado</span>
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-primary"
+                      onClick={() => openEditSheet(p)}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              )
+            })}
           </TableBody>
         </Table>
       </div>
+
+      <Sheet open={!!editingLead} onOpenChange={(open) => !open && setEditingLead(null)}>
+        <SheetContent className="sm:max-w-md overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Gerenciar Cupons</SheetTitle>
+            <SheetDescription>
+              Defina os cupons exclusivos para {editingLead?.client_name}.
+            </SheetDescription>
+          </SheetHeader>
+          <div className="space-y-6 py-6">
+            <div className="space-y-2">
+              <Label htmlFor="nutri">Cupom Nutricionista</Label>
+              <Input
+                id="nutri"
+                placeholder="Ex: NUTRI10"
+                value={nutriCoupon}
+                onChange={(e) =>
+                  setNutriCoupon(e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase())
+                }
+                className="font-mono"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Para uso exclusivo do profissional. Apenas letras e números.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="pat">Cupom Paciente</Label>
+              <Input
+                id="pat"
+                placeholder="Ex: PACIENTE05"
+                value={patCoupon}
+                onChange={(e) =>
+                  setPatCoupon(e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase())
+                }
+                className="font-mono"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Para compartilhamento com os pacientes. Apenas letras e números.
+              </p>
+            </div>
+          </div>
+          <SheetFooter>
+            <Button variant="outline" onClick={() => setEditingLead(null)} disabled={savingCoupons}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveCoupons} disabled={savingCoupons} className="gap-2">
+              {savingCoupons && <Loader2 className="h-4 w-4 animate-spin" />}
+              Salvar Cupons
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }
