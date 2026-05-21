@@ -1,12 +1,6 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers':
-    'authorization, x-client-info, x-supabase-client-platform, apikey, content-type',
-}
+import { corsHeaders } from '../_shared/cors.ts'
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -63,9 +57,17 @@ Deno.serve(async (req: Request) => {
 
     // WhatsApp Delivery
     if (integration.whatsapp_connected && appointment.client_phone) {
-      let msg =
-        integration.reminder_whatsapp_template ||
-        'Olá {{nome_cliente}}, sua visita online está agendada para {{data}} às {{hora}}. Acesse o link no horário marcado: {{meet_link}}'
+      const defaultWhatsappTemplate = `Olá, *{{nome_cliente}}*! 👋
+Tudo bem? Estamos passando para confirmar nossa visita online.
+O visitador já está se preparando para te receber! 🚀
+
+📅 *Data:* {{data}}
+🕒 *Horário:* {{hora}}
+
+🔗 *Link da Reunião:* {{meet_link}}
+
+Basta clicar no link acima no horário agendado. Nos vemos em breve! ✨`
+      let msg = integration.reminder_whatsapp_template || defaultWhatsappTemplate
       for (const [k, v] of Object.entries(replacements)) {
         msg = msg.replace(new RegExp(k, 'g'), v)
       }
