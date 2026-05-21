@@ -12,6 +12,7 @@
     "whatsapp-send": 35,
     "whatsapp-webhook": 43,
     "trigger-reminders": 2,
-    "sync-calendar-delete": 1
+    "sync-calendar-delete": 1,
+    "send-meet-link": 1
   }
 }
