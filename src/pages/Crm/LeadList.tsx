@@ -18,7 +18,6 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -26,14 +25,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetFooter,
-} from '@/components/ui/sheet'
 import { toast } from '@/hooks/use-toast'
 import {
   User,
@@ -44,10 +35,89 @@ import {
   Loader2,
   RefreshCw,
   Trophy,
-  Edit,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { cn } from '@/lib/utils'
+
+const InlineCouponInput = ({
+  contact,
+  p,
+  field,
+  user,
+  onSave,
+}: {
+  contact: any
+  p: any
+  field: 'nutritionist_coupon' | 'patient_coupon'
+  user: any
+  onSave: () => void
+}) => {
+  const [value, setValue] = useState(contact?.[field] || '')
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    setValue(contact?.[field] || '')
+  }, [contact, field])
+
+  const handleBlur = async () => {
+    if (value === (contact?.[field] || '')) return
+
+    setLoading(true)
+    try {
+      let contactId = contact?.id
+      if (!contactId) {
+        const { data, error } = await supabase
+          .from('contacts')
+          .insert({
+            user_id: user.id,
+            name: p.client_name,
+            email: p.client_email,
+            phone: p.client_phone?.replace(/\D/g, '') || '',
+            [field]: value || null,
+          })
+          .select()
+          .single()
+        if (error) throw error
+        contactId = data.id
+      } else {
+        const { error } = await supabase
+          .from('contacts')
+          .update({
+            [field]: value || null,
+          })
+          .eq('id', contactId)
+        if (error) throw error
+      }
+      onSave()
+      toast({ title: 'Cupom atualizado', description: 'O cupom foi salvo com sucesso.' })
+    } catch (e) {
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível salvar o cupom.',
+        variant: 'destructive',
+      })
+      setValue(contact?.[field] || '')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="relative flex items-center w-[120px]">
+      <Input
+        value={value}
+        onChange={(e) => setValue(e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase())}
+        onBlur={handleBlur}
+        disabled={loading}
+        className="h-8 font-mono text-xs pr-7"
+        placeholder="Adicionar..."
+      />
+      {loading && (
+        <Loader2 className="h-3 w-3 animate-spin absolute right-2 text-muted-foreground" />
+      )}
+    </div>
+  )
+}
 
 export function LeadList() {
   const { user } = useAuth()
@@ -57,12 +127,6 @@ export function LeadList() {
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [syncing, setSyncing] = useState(false)
   const [sortConfig, setSortConfig] = useState<{ key: string; dir: 'asc' | 'desc' } | null>(null)
-
-  // Drawer state
-  const [editingLead, setEditingLead] = useState<any | null>(null)
-  const [nutriCoupon, setNutriCoupon] = useState('')
-  const [patCoupon, setPatCoupon] = useState('')
-  const [savingCoupons, setSavingCoupons] = useState(false)
 
   const loadData = async () => {
     if (!user) return
@@ -130,56 +194,6 @@ export function LeadList() {
     }
   }
 
-  const openEditSheet = (p: any) => {
-    setEditingLead(p)
-    const contact = contactsData[p.client_email] || contactsData[p.client_phone?.replace(/\D/g, '')]
-    setNutriCoupon(contact?.nutritionist_coupon || '')
-    setPatCoupon(contact?.patient_coupon || '')
-  }
-
-  const handleSaveCoupons = async () => {
-    if (!user || !editingLead) return
-    setSavingCoupons(true)
-    try {
-      const p = editingLead
-      let contact = contactsData[p.client_email] || contactsData[p.client_phone?.replace(/\D/g, '')]
-      let contactId = contact?.id
-
-      if (!contactId) {
-        const { data, error } = await supabase
-          .from('contacts')
-          .insert({
-            user_id: user.id,
-            name: p.client_name,
-            email: p.client_email,
-            phone: p.client_phone?.replace(/\D/g, '') || '',
-          })
-          .select()
-          .single()
-        if (error) throw error
-        contactId = data.id
-      }
-
-      const { error } = await supabase
-        .from('contacts')
-        .update({
-          nutritionist_coupon: nutriCoupon || null,
-          patient_coupon: patCoupon || null,
-        })
-        .eq('id', contactId)
-
-      if (error) throw error
-
-      toast({ title: 'Cupons atualizados com sucesso.' })
-      setEditingLead(null)
-      loadData()
-    } catch (e) {
-      toast({ title: 'Erro ao atualizar cupons', variant: 'destructive' })
-    } finally {
-      setSavingCoupons(false)
-    }
-  }
-
   const sortedData = useMemo(() => {
     if (!sortConfig) return prescribers
     return [...prescribers].sort((a, b) => {
@@ -242,7 +256,7 @@ export function LeadList() {
                 <Package className="inline h-4 w-4 mr-2" /> Kit
               </TableHead>
               <TableHead className="min-w-[140px]">
-                <Tag className="inline h-4 w-4 mr-2" /> Cupom Nutricionista
+                <Tag className="inline h-4 w-4 mr-2" /> Cupom Nutri
               </TableHead>
               <TableHead className="min-w-[140px]">
                 <Tag className="inline h-4 w-4 mr-2" /> Cupom Paciente
@@ -261,7 +275,6 @@ export function LeadList() {
               <TableHead>
                 <CheckCircle2 className="inline h-4 w-4 mr-2" /> Ação Yampi
               </TableHead>
-              <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -310,11 +323,23 @@ export function LeadList() {
                       </SelectContent>
                     </Select>
                   </TableCell>
-                  <TableCell className="font-mono text-xs text-muted-foreground">
-                    {contact?.nutritionist_coupon || '-'}
+                  <TableCell>
+                    <InlineCouponInput
+                      contact={contact}
+                      p={p}
+                      field="nutritionist_coupon"
+                      user={user}
+                      onSave={loadData}
+                    />
                   </TableCell>
-                  <TableCell className="font-mono text-xs text-muted-foreground">
-                    {contact?.patient_coupon || '-'}
+                  <TableCell>
+                    <InlineCouponInput
+                      contact={contact}
+                      p={p}
+                      field="patient_coupon"
+                      user={user}
+                      onSave={loadData}
+                    />
                   </TableCell>
                   <TableCell className="font-semibold text-sm">
                     {p.coupon_usage_count || 0}
@@ -339,74 +364,12 @@ export function LeadList() {
                       </div>
                     )}
                   </TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-muted-foreground hover:text-primary"
-                      onClick={() => openEditSheet(p)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
                 </TableRow>
               )
             })}
           </TableBody>
         </Table>
       </div>
-
-      <Sheet open={!!editingLead} onOpenChange={(open) => !open && setEditingLead(null)}>
-        <SheetContent className="sm:max-w-md overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>Gerenciar Cupons</SheetTitle>
-            <SheetDescription>
-              Defina os cupons exclusivos para {editingLead?.client_name}.
-            </SheetDescription>
-          </SheetHeader>
-          <div className="space-y-6 py-6">
-            <div className="space-y-2">
-              <Label htmlFor="nutri">Cupom Nutricionista</Label>
-              <Input
-                id="nutri"
-                placeholder="Ex: NUTRI10"
-                value={nutriCoupon}
-                onChange={(e) =>
-                  setNutriCoupon(e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase())
-                }
-                className="font-mono"
-              />
-              <p className="text-[11px] text-muted-foreground">
-                Para uso exclusivo do profissional. Apenas letras e números.
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="pat">Cupom Paciente</Label>
-              <Input
-                id="pat"
-                placeholder="Ex: PACIENTE05"
-                value={patCoupon}
-                onChange={(e) =>
-                  setPatCoupon(e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase())
-                }
-                className="font-mono"
-              />
-              <p className="text-[11px] text-muted-foreground">
-                Para compartilhamento com os pacientes. Apenas letras e números.
-              </p>
-            </div>
-          </div>
-          <SheetFooter>
-            <Button variant="outline" onClick={() => setEditingLead(null)} disabled={savingCoupons}>
-              Cancelar
-            </Button>
-            <Button onClick={handleSaveCoupons} disabled={savingCoupons} className="gap-2">
-              {savingCoupons && <Loader2 className="h-4 w-4 animate-spin" />}
-              Salvar Cupons
-            </Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
     </div>
   )
 }

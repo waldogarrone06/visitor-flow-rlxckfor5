@@ -13,6 +13,8 @@ import {
   Package,
   Send,
   ThumbsUp,
+  Video,
+  Loader2,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -33,6 +35,7 @@ export function DayAppointments({
   const { user } = useAuth()
   const { state, dispatch } = useMainStore()
   const [loading, setLoading] = useState(false)
+  const [sendingLink, setSendingLink] = useState<string | null>(null)
   const [data, setData] = useState<{ schedule: any[]; appointments: any[]; lockedSlots: any[] }>({
     schedule: [],
     appointments: [],
@@ -120,6 +123,26 @@ export function DayAppointments({
       toast({ title: 'Status Atualizado', description: `Agendamento marcado como ${newStatus}.` })
       loadData()
       if (onUpdate) onUpdate()
+    }
+  }
+
+  const handleSendMeetLink = async (appointmentId: string) => {
+    setSendingLink(appointmentId)
+    try {
+      const { data, error } = await supabase.functions.invoke('send-meet-link', {
+        body: { appointmentId },
+      })
+      if (error) throw new Error(error.message)
+      if (data?.error) throw new Error(data.error)
+
+      toast({
+        title: 'Link Enviado',
+        description: data?.message || 'Link da reunião enviado com sucesso.',
+      })
+    } catch (e: any) {
+      toast({ title: 'Erro ao enviar link', description: e.message, variant: 'destructive' })
+    } finally {
+      setSendingLink(null)
     }
   }
 
@@ -448,57 +471,73 @@ export function DayAppointments({
                                 </>
                               )}
 
-                              {/* Templates de WhatsApp */}
-                              {app.client_phone && (
-                                <div className="flex items-center gap-1 bg-white p-1 rounded-md border border-slate-200 shadow-sm">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 px-2 text-slate-500 hover:text-green-600 hover:bg-green-50"
-                                    title="Confirmar Visita"
-                                    onClick={() =>
-                                      handleSendWhatsApp(
-                                        app.client_phone!,
-                                        app.client_name,
-                                        'confirm',
-                                        slot.start_time,
-                                      )
-                                    }
-                                  >
-                                    <MessageCircle className="h-3.5 w-3.5" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 px-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50"
-                                    title="Estou a caminho"
-                                    onClick={() =>
-                                      handleSendWhatsApp(
-                                        app.client_phone!,
-                                        app.client_name,
-                                        'checkin',
-                                      )
-                                    }
-                                  >
-                                    <Send className="h-3.5 w-3.5" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 px-2 text-slate-500 hover:text-amber-600 hover:bg-amber-50"
-                                    title="Agradecimento"
-                                    onClick={() =>
-                                      handleSendWhatsApp(
-                                        app.client_phone!,
-                                        app.client_name,
-                                        'thanks',
-                                      )
-                                    }
-                                  >
-                                    <ThumbsUp className="h-3.5 w-3.5" />
-                                  </Button>
-                                </div>
-                              )}
+                              {/* Templates e Links */}
+                              <div className="flex items-center gap-1 bg-white p-1 rounded-md border border-slate-200 shadow-sm">
+                                {app.client_phone && (
+                                  <>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-6 px-2 text-slate-500 hover:text-green-600 hover:bg-green-50"
+                                      title="Confirmar Visita"
+                                      onClick={() =>
+                                        handleSendWhatsApp(
+                                          app.client_phone!,
+                                          app.client_name,
+                                          'confirm',
+                                          slot.start_time,
+                                        )
+                                      }
+                                    >
+                                      <MessageCircle className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-6 px-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50"
+                                      title="Estou a caminho"
+                                      onClick={() =>
+                                        handleSendWhatsApp(
+                                          app.client_phone!,
+                                          app.client_name,
+                                          'checkin',
+                                        )
+                                      }
+                                    >
+                                      <Send className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-6 px-2 text-slate-500 hover:text-amber-600 hover:bg-amber-50"
+                                      title="Agradecimento"
+                                      onClick={() =>
+                                        handleSendWhatsApp(
+                                          app.client_phone!,
+                                          app.client_name,
+                                          'thanks',
+                                        )
+                                      }
+                                    >
+                                      <ThumbsUp className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </>
+                                )}
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 px-2 text-slate-500 hover:text-purple-600 hover:bg-purple-50"
+                                  title="Enviar Link de Reunião (WA/Email)"
+                                  onClick={() => handleSendMeetLink(app.id)}
+                                  disabled={sendingLink === app.id}
+                                >
+                                  {sendingLink === app.id ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  ) : (
+                                    <Video className="h-3.5 w-3.5" />
+                                  )}
+                                </Button>
+                              </div>
                             </div>
                           </div>
                         ))}

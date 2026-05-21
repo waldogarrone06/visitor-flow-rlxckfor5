@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '@/hooks/use-auth'
 import { supabase } from '@/lib/supabase/client'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
-import { Users, Video, ExternalLink, FileText } from 'lucide-react'
+import { Users, Video, ExternalLink, FileText, Loader2 } from 'lucide-react'
 import { useMainStore } from '@/stores/main'
 import { DateRange } from 'react-day-picker'
 import { isDateInRange } from '@/lib/utils'
@@ -10,6 +10,7 @@ import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { MeetingReportDialog } from './MeetingReportDialog'
 import { Button } from '@/components/ui/button'
+import { toast } from '@/hooks/use-toast'
 
 export function UpcomingOnlineMeetings({ dateRange }: { dateRange?: DateRange }) {
   const { state } = useMainStore()
@@ -17,6 +18,43 @@ export function UpcomingOnlineMeetings({ dateRange }: { dateRange?: DateRange })
   const [dbAppointments, setDbAppointments] = useState<any[]>([])
   const [selectedSlot, setSelectedSlot] = useState<any>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [sendingLink, setSendingLink] = useState<string | null>(null)
+
+  const handleSendMeetLink = async (slot: any) => {
+    setSendingLink(slot.date)
+    try {
+      let successCount = 0
+      let lastError = null
+      for (const id of slot.ids) {
+        const { data, error } = await supabase.functions.invoke('send-meet-link', {
+          body: { appointmentId: id },
+        })
+        if (error || data?.error) {
+          lastError = error?.message || data?.error
+        } else {
+          successCount++
+        }
+      }
+
+      if (successCount > 0) {
+        toast({
+          title: 'Link Enviado',
+          description: `Link enviado com sucesso para ${successCount} participante(s).`,
+        })
+      }
+      if (lastError && successCount < slot.ids.length) {
+        toast({
+          title: 'Aviso',
+          description: `Falha ao enviar para alguns: ${lastError}`,
+          variant: 'destructive',
+        })
+      }
+    } catch (e: any) {
+      toast({ title: 'Erro', description: e.message, variant: 'destructive' })
+    } finally {
+      setSendingLink(null)
+    }
+  }
 
   useEffect(() => {
     if (!user) return
@@ -146,15 +184,31 @@ export function UpcomingOnlineMeetings({ dateRange }: { dateRange?: DateRange })
 
                   <div className="flex flex-col sm:flex-row gap-2 w-full">
                     {!isPast && slot.meetLink && (
-                      <a
-                        href={slot.meetLink}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex-1 flex items-center justify-center gap-2 text-xs font-medium bg-teal-600 hover:bg-teal-700 text-white px-3 py-2 rounded-md transition-colors"
-                      >
-                        <ExternalLink className="h-3.5 w-3.5" />
-                        Ingressar
-                      </a>
+                      <>
+                        <a
+                          href={slot.meetLink}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex-1 flex items-center justify-center gap-2 text-xs font-medium bg-teal-600 hover:bg-teal-700 text-white px-3 py-2 rounded-md transition-colors"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                          Ingressar
+                        </a>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleSendMeetLink(slot)}
+                          disabled={sendingLink === slot.date}
+                          className="flex-1 gap-2 h-8 text-xs text-purple-600 border-purple-200 hover:bg-purple-50 hover:text-purple-700"
+                        >
+                          {sendingLink === slot.date ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Video className="h-3.5 w-3.5" />
+                          )}
+                          Enviar Link
+                        </Button>
+                      </>
                     )}
 
                     {isPast && (
