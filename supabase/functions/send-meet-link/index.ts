@@ -55,23 +55,28 @@ Deno.serve(async (req: Request) => {
 
     let sentAny = false
 
+    const messageTemplate = `Olá, {{nome_cliente}}! 👋
+
+Sua visita online com a equipe Fourlab está confirmada e o link da reunião já está pronto.
+
+📅 Data: {{data}}
+🕐 Horário: {{hora}}
+
+🔗 Acesse pelo link abaixo:
+{{meet_link}}
+
+Nossa visitadora já estará na sala aguardando você no horário marcado. Basta clicar no link e solicitar entrada — ela liberará seu acesso em instantes.
+
+Até logo! 😊
+*Equipe Fourlab*`
+
+    let msg = messageTemplate
+    for (const [k, v] of Object.entries(replacements)) {
+      msg = msg.replace(new RegExp(k, 'g'), v)
+    }
+
     // WhatsApp Delivery
     if (integration.whatsapp_connected && appointment.client_phone) {
-      const defaultWhatsappTemplate = `Olá, *{{nome_cliente}}*! 👋
-Tudo bem? Estamos passando para confirmar nossa visita online.
-O visitador já está se preparando para te receber! 🚀
-
-📅 *Data:* {{data}}
-🕒 *Horário:* {{hora}}
-
-🔗 *Link da Reunião:* {{meet_link}}
-
-Basta clicar no link acima no horário agendado. Nos vemos em breve! ✨`
-      let msg = integration.reminder_whatsapp_template || defaultWhatsappTemplate
-      for (const [k, v] of Object.entries(replacements)) {
-        msg = msg.replace(new RegExp(k, 'g'), v)
-      }
-
       try {
         await fetch(`${supabaseUrl}/functions/v1/whatsapp-send`, {
           method: 'POST',
@@ -92,12 +97,7 @@ Basta clicar no link acima no horário agendado. Nos vemos em breve! ✨`
     }
 
     // Email Delivery
-    if (appointment.client_email && integration.reminder_email_template) {
-      let msg = integration.reminder_email_template
-      for (const [k, v] of Object.entries(replacements)) {
-        msg = msg.replace(new RegExp(k, 'g'), v)
-      }
-
+    if (appointment.client_email) {
       try {
         await fetch(`${supabaseUrl}/functions/v1/send-email`, {
           method: 'POST',

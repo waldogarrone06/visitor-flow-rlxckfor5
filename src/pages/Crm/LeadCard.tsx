@@ -142,17 +142,30 @@ export function LeadCard({
         return msg
       }
 
+      const messageTemplate = `Olá, {{nome_cliente}}! 👋
+
+Sua visita online com a equipe Fourlab está confirmada e o link da reunião já está pronto.
+
+📅 Data: {{data}}
+🕐 Horário: {{hora}}
+
+🔗 Acesse pelo link abaixo:
+{{meet_link}}
+
+Nossa visitadora já estará na sala aguardando você no horário marcado. Basta clicar no link e solicitar entrada — ela liberará seu acesso em instantes.
+
+Até logo! 😊
+*Equipe Fourlab*`
+
+      const finalMsg = replaceVars(messageTemplate)
+
       if (method === 'whatsapp') {
         if (!app.client_phone) throw new Error('Cliente não possui telefone cadastrado')
-        const msg = replaceVars(
-          integration.reminder_whatsapp_template ||
-            'Olá {{nome_cliente}}, segue o link da nossa reunião: {{meet_link}}',
-        )
 
         const { error } = await supabase.functions.invoke('whatsapp-send', {
           body: {
             to: app.client_phone,
-            text: msg,
+            text: finalMsg,
             userId: user.id,
           },
         })
@@ -160,16 +173,12 @@ export function LeadCard({
         toast.success('Link enviado via WhatsApp!')
       } else {
         if (!app.client_email) throw new Error('Cliente não possui e-mail cadastrado')
-        const msg = replaceVars(
-          integration.reminder_email_template ||
-            'Olá {{nome_cliente}},\n\nSegue o link da nossa reunião: {{meet_link}}\n\nAté logo!',
-        )
 
         const { error } = await supabase.functions.invoke('send-email', {
           body: {
             to: app.client_email,
-            subject: 'Link da Reunião (Google Meet)',
-            html: `<div style="font-family: sans-serif; padding: 20px; color: #333;"><p>${msg.replace(/\n/g, '<br/>')}</p></div>`,
+            subject: 'Sua visita online está pronta - Fourlab',
+            html: `<div style="font-family: sans-serif; padding: 20px; color: #333;"><p>${finalMsg.replace(/\n/g, '<br/>')}</p></div>`,
             senderName: 'Atendimento',
           },
         })
