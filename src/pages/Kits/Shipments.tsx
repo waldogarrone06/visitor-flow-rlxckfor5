@@ -92,9 +92,10 @@ export function KitShipments() {
           if (a.id === id) {
             let newStatus = a.kit_status || 'Pending'
             if (!val) {
-              if (newStatus !== 'Delivered') newStatus = 'Pending'
+              if (newStatus !== 'Delivered' && newStatus !== 'Entregue') newStatus = 'Pending'
             } else {
-              if (newStatus === 'Pending' || !a.kit_status) newStatus = 'In Transit'
+              if (newStatus === 'Pending' || !a.kit_status || newStatus === 'In Transit')
+                newStatus = 'Enviado'
             }
             return { ...a, tracking_number: val, kit_status: newStatus }
           }
@@ -108,9 +109,11 @@ export function KitShipments() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'Delivered':
+      case 'Entregue':
         return <Badge className="bg-green-600 hover:bg-green-700">Entregue</Badge>
       case 'In Transit':
-        return <Badge className="bg-blue-500 hover:bg-blue-600">Em Trânsito</Badge>
+      case 'Enviado':
+        return <Badge className="bg-blue-500 hover:bg-blue-600">Enviado</Badge>
       case 'Delayed':
         return (
           <Badge variant="destructive" className="gap-1">
@@ -124,11 +127,17 @@ export function KitShipments() {
 
   const filteredAppointments = appointments.filter((app) => {
     if (statusFilter === 'all') return true
-    return (app.kit_status || 'Pending') === statusFilter
+    const currentStatus = app.kit_status || 'Pending'
+    if (
+      statusFilter === 'Enviado' &&
+      (currentStatus === 'In Transit' || currentStatus === 'Enviado')
+    )
+      return true
+    return currentStatus === statusFilter
   })
 
   const handleExportCSV = () => {
-    const headers = ['Data', 'Contato', 'Status', 'Previsao Entrega', 'Rastreio']
+    const headers = ['Data', 'Contato', 'Kit Enviado', 'Status', 'Previsao Entrega', 'Rastreio']
     const rows = filteredAppointments.map((a) => {
       const date = format(new Date(a.appointment_date), 'dd/MM/yyyy')
       const expected = new Date(a.appointment_date)
@@ -137,6 +146,7 @@ export function KitShipments() {
       return [
         date,
         `"${a.client_name}"`,
+        `"${a.kit_name || 'Kit Padrão'}"`,
         a.kit_status || 'Pending',
         expectedStr,
         a.tracking_number || '',
@@ -177,7 +187,7 @@ export function KitShipments() {
               <SelectContent>
                 <SelectItem value="all">Todos os Status</SelectItem>
                 <SelectItem value="Delivered">Entregue</SelectItem>
-                <SelectItem value="In Transit">Em Trânsito</SelectItem>
+                <SelectItem value="Enviado">Enviado</SelectItem>
                 <SelectItem value="Delayed">Atrasado</SelectItem>
                 <SelectItem value="Pending">Solicitado</SelectItem>
               </SelectContent>
@@ -224,7 +234,7 @@ export function KitShipments() {
                       {format(new Date(app.appointment_date), 'dd/MM/yy', { locale: ptBR })}
                     </TableCell>
                     <TableCell className="font-medium">{app.client_name}</TableCell>
-                    <TableCell>Kit Padrão</TableCell>
+                    <TableCell>{app.kit_name || 'Kit Padrão'}</TableCell>
                     <TableCell>
                       <div className="flex flex-col gap-1 items-start">
                         {getStatusBadge(app.kit_status || 'Pending')}

@@ -16,7 +16,8 @@ import {
 } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { toast } from '@/hooks/use-toast'
-import { Plus, Trash2, PackageSearch, User } from 'lucide-react'
+import { Plus, Trash2, PackageSearch, User, Link as LinkIcon } from 'lucide-react'
+import { assignKitToPrescriber } from '@/services/kits'
 
 export function KitBuilder() {
   const { user } = useAuth()
@@ -32,6 +33,11 @@ export function KitBuilder() {
     { product_name: '', quantity: 1 },
   ])
   const [loading, setLoading] = useState(false)
+
+  // Link State
+  const [linkPrescriber, setLinkPrescriber] = useState('')
+  const [linkKit, setLinkKit] = useState('')
+  const [linking, setLinking] = useState(false)
 
   const catalogKits = kits.filter((k) => !k.is_personalized)
 
@@ -130,64 +136,170 @@ export function KitBuilder() {
     }
   }
 
+  const handleLinkKit = async () => {
+    if (!user) return
+    if (!linkPrescriber || !linkKit) {
+      return toast({
+        title: 'Erro',
+        description: 'Selecione um prescritor e um kit.',
+        variant: 'destructive',
+      })
+    }
+
+    setLinking(true)
+    try {
+      const kit = kits.find((k) => k.id === linkKit)
+      if (!kit) return
+
+      await assignKitToPrescriber(user.id, linkPrescriber, kit.name)
+      toast({ title: 'Sucesso', description: 'Kit vinculado ao atendimento com sucesso!' })
+      setLinkPrescriber('')
+      setLinkKit('')
+    } catch (err) {
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível vincular o kit.',
+        variant: 'destructive',
+      })
+    } finally {
+      setLinking(false)
+    }
+  }
+
   return (
     <div className="grid lg:grid-cols-2 gap-6 animate-fade-in">
-      <Card className="shadow-subtle h-fit">
-        <CardHeader>
-          <CardTitle>Criar Novo Kit</CardTitle>
-          <CardDescription>
-            Defina os itens e crie kits padrão ou personalizados para um prescritor específico.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="space-y-3">
-            <Label>Catálogo de Kits</Label>
-            <Select value={selectedCatalogKit} onValueChange={handleCatalogSelect}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione um kit para usar como base..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="new">-- Criar Novo Kit Personalizado --</SelectItem>
-                {catalogKits.map((k) => (
-                  <SelectItem key={k.id} value={k.id}>
-                    {k.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div className="pt-2">
-              <Label className="text-xs text-muted-foreground">Nome do Kit</Label>
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Nome do kit (Ex: Kit Introdução 2026)"
-                className="mt-1"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-2 bg-muted/30 p-3 rounded-md border mt-2">
-            <Checkbox
-              id="personalized"
-              checked={isPersonalized}
-              onCheckedChange={(c) => setIsPersonalized(!!c)}
-            />
-            <div className="grid gap-1.5 leading-none">
-              <label
-                htmlFor="personalized"
-                className="text-sm font-medium leading-none cursor-pointer"
-              >
-                Kit Personalizado (Específico para um Prescritor)
-              </label>
-            </div>
-          </div>
-
-          {isPersonalized && (
-            <div className="space-y-3 animate-fade-in">
-              <Label>Selecione o Prescritor</Label>
-              <Select value={prescriberEmail} onValueChange={setPrescriberEmail}>
+      <div className="space-y-6">
+        <Card className="shadow-subtle h-fit">
+          <CardHeader>
+            <CardTitle>Criar Novo Kit</CardTitle>
+            <CardDescription>
+              Defina os itens e crie kits padrão ou personalizados para um prescritor específico.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-3">
+              <Label>Catálogo de Kits</Label>
+              <Select value={selectedCatalogKit} onValueChange={handleCatalogSelect}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Buscar prescritor na base..." />
+                  <SelectValue placeholder="Selecione um kit para usar como base..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="new">-- Criar Novo Kit Personalizado --</SelectItem>
+                  {catalogKits.map((k) => (
+                    <SelectItem key={k.id} value={k.id}>
+                      {k.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="pt-2">
+                <Label className="text-xs text-muted-foreground">Nome do Kit</Label>
+                <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Nome do kit (Ex: Kit Introdução 2026)"
+                  className="mt-1"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-2 bg-muted/30 p-3 rounded-md border mt-2">
+              <Checkbox
+                id="personalized"
+                checked={isPersonalized}
+                onCheckedChange={(c) => setIsPersonalized(!!c)}
+              />
+              <div className="grid gap-1.5 leading-none">
+                <label
+                  htmlFor="personalized"
+                  className="text-sm font-medium leading-none cursor-pointer"
+                >
+                  Kit Personalizado (Específico para um Prescritor)
+                </label>
+              </div>
+            </div>
+
+            {isPersonalized && (
+              <div className="space-y-3 animate-fade-in">
+                <Label>Selecione o Prescritor</Label>
+                <Select value={prescriberEmail} onValueChange={setPrescriberEmail}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Buscar prescritor na base..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {prescribers.map((p) => (
+                      <SelectItem key={p.client_email} value={p.client_email}>
+                        {p.client_name} ({p.client_email})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            <div className="space-y-4 pt-2 border-t">
+              <Label className="flex justify-between items-center">
+                Itens do Kit
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAddItem}
+                  className="h-7 text-xs"
+                >
+                  <Plus className="h-3 w-3 mr-1" /> Adicionar Item
+                </Button>
+              </Label>
+              {items.map((item, idx) => (
+                <div key={idx} className="flex gap-2 items-start">
+                  <div className="flex-1 space-y-1">
+                    <Input
+                      placeholder="Nome do Produto / Amostra"
+                      value={item.product_name}
+                      onChange={(e) => handleItemChange(idx, 'product_name', e.target.value)}
+                    />
+                  </div>
+                  <div className="w-24 space-y-1">
+                    <Input
+                      type="number"
+                      min={1}
+                      value={item.quantity}
+                      onChange={(e) =>
+                        handleItemChange(idx, 'quantity', parseInt(e.target.value) || 1)
+                      }
+                    />
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-destructive mt-0"
+                    onClick={() => handleRemoveItem(idx)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+
+            <Button className="w-full" onClick={handleSave} disabled={loading}>
+              {loading ? 'Salvando...' : 'Salvar Configuração do Kit'}
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-subtle h-fit">
+          <CardHeader>
+            <CardTitle>Vincular Kit a Atendimento</CardTitle>
+            <CardDescription>
+              Associe um kit existente ao atendimento de um prescritor específico.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-3">
+              <Label>Selecione o Prescritor</Label>
+              <Select value={linkPrescriber} onValueChange={setLinkPrescriber}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Buscar prescritor..." />
                 </SelectTrigger>
                 <SelectContent>
                   {prescribers.map((p) => (
@@ -198,57 +310,35 @@ export function KitBuilder() {
                 </SelectContent>
               </Select>
             </div>
-          )}
 
-          <div className="space-y-4 pt-2 border-t">
-            <Label className="flex justify-between items-center">
-              Itens do Kit
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleAddItem}
-                className="h-7 text-xs"
-              >
-                <Plus className="h-3 w-3 mr-1" /> Adicionar Item
-              </Button>
-            </Label>
-            {items.map((item, idx) => (
-              <div key={idx} className="flex gap-2 items-start">
-                <div className="flex-1 space-y-1">
-                  <Input
-                    placeholder="Nome do Produto / Amostra"
-                    value={item.product_name}
-                    onChange={(e) => handleItemChange(idx, 'product_name', e.target.value)}
-                  />
-                </div>
-                <div className="w-24 space-y-1">
-                  <Input
-                    type="number"
-                    min={1}
-                    value={item.quantity}
-                    onChange={(e) =>
-                      handleItemChange(idx, 'quantity', parseInt(e.target.value) || 1)
-                    }
-                  />
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-destructive mt-0"
-                  onClick={() => handleRemoveItem(idx)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            ))}
-          </div>
+            <div className="space-y-3">
+              <Label>Selecione o Kit</Label>
+              <Select value={linkKit} onValueChange={setLinkKit}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Escolha um kit..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {kits.map((k) => (
+                    <SelectItem key={k.id} value={k.id}>
+                      {k.name} {k.is_personalized ? '(Personalizado)' : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-          <Button className="w-full" onClick={handleSave} disabled={loading}>
-            {loading ? 'Salvando...' : 'Salvar Configuração do Kit'}
-          </Button>
-        </CardContent>
-      </Card>
+            <Button
+              className="w-full gap-2"
+              variant="secondary"
+              onClick={handleLinkKit}
+              disabled={linking || !linkPrescriber || !linkKit}
+            >
+              <LinkIcon className="h-4 w-4" />
+              {linking ? 'Vinculando...' : 'Vincular Kit'}
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="space-y-4">
         <h3 className="text-lg font-semibold tracking-tight">Catálogo Geral de Kits</h3>

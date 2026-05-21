@@ -45,7 +45,7 @@ export function LeadCard({
       const { data } = await supabase
         .from('appointments')
         .select(
-          'id, google_meet_link, status, client_name, client_phone, client_email, appointment_date, start_time',
+          'id, google_meet_link, status, client_name, client_phone, client_email, appointment_date, start_time, kit_name',
         )
         .eq('client_name', lead.name)
         .order('created_at', { ascending: false })
@@ -354,12 +354,12 @@ Até logo! 😊
               </Badge>
             )}
 
-            {kit && (
+            {(kit || dbApp?.kit_name) && (
               <Badge
                 variant="secondary"
                 className="w-fit text-[10px] bg-primary/10 text-primary hover:bg-primary/20 pointer-events-none"
               >
-                Kit: {kit.name}
+                Kit: {dbApp?.kit_name || kit?.name}
               </Badge>
             )}
 

@@ -41,3 +41,23 @@ export async function deleteKit(kitId: string) {
 
   if (error) throw error
 }
+
+export async function assignKitToPrescriber(userId: string, email: string, kitName: string) {
+  const { data: latest } = await supabase
+    .from('appointments' as any)
+    .select('id')
+    .eq('user_id', userId)
+    .eq('client_email', email)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single()
+
+  if (latest) {
+    const { error } = await supabase
+      .from('appointments' as any)
+      .update({ kit_name: kitName })
+      .eq('id', latest.id)
+
+    if (error) throw error
+  }
+}

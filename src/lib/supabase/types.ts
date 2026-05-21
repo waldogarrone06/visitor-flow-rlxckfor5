@@ -26,6 +26,7 @@ export type Database = {
           google_meet_link: string | null
           id: string
           instagram: string | null
+          kit_name: string | null
           kit_status: string | null
           patients_per_month: string | null
           professional_id: string | null
@@ -52,6 +53,7 @@ export type Database = {
           google_meet_link?: string | null
           id?: string
           instagram?: string | null
+          kit_name?: string | null
           kit_status?: string | null
           patients_per_month?: string | null
           professional_id?: string | null
@@ -78,6 +80,7 @@ export type Database = {
           google_meet_link?: string | null
           id?: string
           instagram?: string | null
+          kit_name?: string | null
           kit_status?: string | null
           patients_per_month?: string | null
           professional_id?: string | null
@@ -751,6 +754,7 @@ export const Constants = {
 //   end_time: text (not null)
 //   status: text (nullable, default: 'scheduled'::text)
 //   created_at: timestamp with time zone (not null, default: now())
+//   kit_name: text (nullable)
 //   kit_status: text (nullable, default: 'Pending'::text)
 //   coupon_code: text (nullable)
 //   coupon_verified: boolean (nullable, default: false)
@@ -1080,6 +1084,29 @@ export const Constants = {
 //   END;
 //   $function$
 //
+// FUNCTION update_kit_status_from_tracking()
+//   CREATE OR REPLACE FUNCTION public.update_kit_status_from_tracking()
+//    RETURNS trigger
+//    LANGUAGE plpgsql
+//   AS $function$
+//   BEGIN
+//     IF NEW.tracking_number IS NULL OR trim(NEW.tracking_number) = '' THEN
+//       IF NEW.kit_status != 'Delivered' THEN
+//         NEW.kit_status := 'Pending';
+//       END IF;
+//     ELSE
+//       IF NEW.kit_status = 'Pending' OR NEW.kit_status IS NULL THEN
+//         NEW.kit_status := 'In Transit';
+//       END IF;
+//     END IF;
+//     RETURN NEW;
+//   END;
+//   $function$
+//
+
+// --- TRIGGERS ---
+// Table: appointments
+//   trg_update_kit_status: CREATE TRIGGER trg_update_kit_status BEFORE INSERT OR UPDATE OF tracking_number, kit_status ON public.appointments FOR EACH ROW EXECUTE FUNCTION update_kit_status_from_tracking()
 
 // --- INDEXES ---
 // Table: contact_tag_relations
