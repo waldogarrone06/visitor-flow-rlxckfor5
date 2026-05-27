@@ -30,8 +30,12 @@ import {
   Mail,
   Loader2,
   CheckCircle2,
+  Receipt,
+  Copy,
+  Check,
 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 export function KitShipments() {
   const { user } = useAuth()
@@ -39,6 +43,61 @@ export function KitShipments() {
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [loading, setLoading] = useState(true)
   const [savingId, setSavingId] = useState<string | null>(null)
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false)
+  const [invoiceLoading, setInvoiceLoading] = useState(false)
+  const [invoiceData, setInvoiceData] = useState<any>(null)
+  const [copiedField, setCopiedField] = useState<string | null>(null)
+
+  const handleOpenInvoiceData = async (app: any) => {
+    setIsInvoiceModalOpen(true)
+    setInvoiceLoading(true)
+    setInvoiceData(null)
+    try {
+      let contact = null
+      if (app.professional_id) {
+        const { data } = await supabase
+          .from('contacts' as any)
+          .select('*')
+          .eq('id', app.professional_id)
+          .maybeSingle()
+        if (data) contact = data
+      }
+      if (!contact && app.client_email && user) {
+        const { data } = await supabase
+          .from('contacts' as any)
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('email', app.client_email)
+          .maybeSingle()
+        if (data) contact = data
+      }
+
+      setInvoiceData({
+        name: contact?.name || app.client_name || 'Não informado',
+        document: contact?.document || 'Não informado',
+        phone: contact?.phone || app.client_phone || 'Não informado',
+        email: contact?.email || app.client_email || 'Não informado',
+        address: contact?.address || app.clinic_address || 'Não informado',
+      })
+    } catch (error) {
+      console.error('Error fetching invoice data', error)
+      toast({
+        title: 'Erro',
+        description: 'Falha ao buscar dados do prescritor.',
+        variant: 'destructive',
+      })
+    } finally {
+      setInvoiceLoading(false)
+    }
+  }
+
+  const copyToClipboard = (text: string, field: string) => {
+    if (!text || text === 'Não informado') return
+    navigator.clipboard.writeText(text)
+    setCopiedField(field)
+    setTimeout(() => setCopiedField(null), 2000)
+    toast({ title: 'Copiado', description: 'Dado copiado para a área de transferência.' })
+  }
 
   const loadData = async () => {
     if (!user) return
@@ -293,6 +352,15 @@ export function KitShipments() {
                             <Mail className="h-4 w-4" />
                           </Button>
                         )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-muted transition-colors"
+                          onClick={() => handleOpenInvoiceData(app)}
+                          title="Dados para NF"
+                        >
+                          <Receipt className="h-4 w-4" />
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -309,6 +377,51 @@ export function KitShipments() {
           </TableBody>
         </Table>
       </CardContent>
+
+      <Dialog open={isInvoiceModalOpen} onOpenChange={setIsInvoiceModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Dados para Nota Fiscal</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {invoiceLoading ? (
+              <div className="flex justify-center items-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : invoiceData ? (
+              <div className="space-y-3">
+                {[
+                  { label: 'Nome Completo', value: invoiceData.name, key: 'name' },
+                  { label: 'CPF / CNPJ', value: invoiceData.document, key: 'document' },
+                  { label: 'Telefone', value: invoiceData.phone, key: 'phone' },
+                  { label: 'E-mail', value: invoiceData.email, key: 'email' },
+                  { label: 'Endereço Completo', value: invoiceData.address, key: 'address' },
+                ].map((field) => (
+                  <div key={field.key} className="flex flex-col gap-1">
+                    <span className="text-xs font-medium text-muted-foreground">{field.label}</span>
+                    <div className="flex items-center justify-between bg-muted/50 rounded-md px-3 py-2">
+                      <span className="text-sm font-medium break-all">{field.value}</span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 ml-2 shrink-0"
+                        onClick={() => copyToClipboard(field.value, field.key)}
+                        disabled={field.value === 'Não informado'}
+                      >
+                        {copiedField === field.key ? (
+                          <Check className="h-3.5 w-3.5 text-green-500" />
+                        ) : (
+                          <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   )
 }

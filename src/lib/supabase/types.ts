@@ -754,7 +754,6 @@ export const Constants = {
 //   end_time: text (not null)
 //   status: text (nullable, default: 'scheduled'::text)
 //   created_at: timestamp with time zone (not null, default: now())
-//   kit_name: text (nullable)
 //   kit_status: text (nullable, default: 'Pending'::text)
 //   coupon_code: text (nullable)
 //   coupon_verified: boolean (nullable, default: false)
@@ -769,6 +768,7 @@ export const Constants = {
 //   clinic_address: text (nullable)
 //   instagram: text (nullable)
 //   patients_per_month: text (nullable)
+//   kit_name: text (nullable)
 // Table: contact_tag_relations
 //   contact_id: uuid (not null)
 //   tag_id: uuid (not null)
@@ -1091,12 +1091,12 @@ export const Constants = {
 //   AS $function$
 //   BEGIN
 //     IF NEW.tracking_number IS NULL OR trim(NEW.tracking_number) = '' THEN
-//       IF NEW.kit_status != 'Delivered' THEN
+//       IF NEW.kit_status != 'Delivered' AND NEW.kit_status != 'Entregue' THEN
 //         NEW.kit_status := 'Pending';
 //       END IF;
 //     ELSE
-//       IF NEW.kit_status = 'Pending' OR NEW.kit_status IS NULL THEN
-//         NEW.kit_status := 'In Transit';
+//       IF NEW.kit_status = 'Pending' OR NEW.kit_status IS NULL OR NEW.kit_status = 'In Transit' THEN
+//         NEW.kit_status := 'Enviado';
 //       END IF;
 //     END IF;
 //     RETURN NEW;
