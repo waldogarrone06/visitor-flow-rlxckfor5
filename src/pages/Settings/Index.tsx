@@ -9,7 +9,7 @@ import { ReportsSettingsCard } from './ReportsSettingsCard'
 import { DatabaseStatusCard } from './DatabaseStatusCard'
 import { SecretsVaultCard } from './SecretsVaultCard'
 import { PersonalScheduleCard } from './PersonalScheduleCard'
-import { FrenetCard } from './FrenetCard'
+import { MelhorEnvioCard } from './MelhorEnvioCard'
 import { ReminderSettingsCard } from './ReminderSettingsCard'
 import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
@@ -201,7 +201,7 @@ export default function SettingsPage() {
           <GoogleCalendarCard targetUserId={selectedUserId} />
           <GoogleMeetCard targetUserId={selectedUserId} />
           <WhatsAppCard targetUserId={selectedUserId} />
-          <FrenetCard targetUserId={selectedUserId} />
+          <MelhorEnvioCard targetUserId={selectedUserId} />
         </div>
         <div className="grid gap-6">
           <ReminderSettingsCard targetUserId={selectedUserId} />
