@@ -2,7 +2,7 @@
   "_versions": {
     "sync-calendar": 18,
     "yampi-service": 5,
-    "track-shipping": 6,
+    "track-shipping": 7,
     "trigger-nps": 5,
     "check-availability": 7,
     "create-user": 10,
