@@ -506,12 +506,12 @@ export type Database = {
       user_integrations: {
         Row: {
           created_at: string
-          frenet_token: string | null
           google_access_token: string | null
           google_email: string | null
           google_invitation_body: string | null
           google_refresh_token: string | null
           id: string
+          melhor_envio_token: string | null
           reminder_email_template: string | null
           reminder_enabled: boolean | null
           reminder_whatsapp_template: string | null
@@ -527,12 +527,12 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          frenet_token?: string | null
           google_access_token?: string | null
           google_email?: string | null
           google_invitation_body?: string | null
           google_refresh_token?: string | null
           id?: string
+          melhor_envio_token?: string | null
           reminder_email_template?: string | null
           reminder_enabled?: boolean | null
           reminder_whatsapp_template?: string | null
@@ -548,12 +548,12 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          frenet_token?: string | null
           google_access_token?: string | null
           google_email?: string | null
           google_invitation_body?: string | null
           google_refresh_token?: string | null
           id?: string
+          melhor_envio_token?: string | null
           reminder_email_template?: string | null
           reminder_enabled?: boolean | null
           reminder_whatsapp_template?: string | null
@@ -877,13 +877,13 @@ export const Constants = {
 //   updated_at: timestamp with time zone (not null, default: now())
 //   yampi_token: text (nullable)
 //   yampi_alias: text (nullable)
-//   frenet_token: text (nullable)
 //   google_invitation_body: text (nullable)
 //   sync_enabled: boolean (nullable, default: false)
 //   whatsapp_api_url: text (nullable)
 //   reminder_email_template: text (nullable)
 //   reminder_whatsapp_template: text (nullable)
 //   reminder_enabled: boolean (nullable, default: false)
+//   melhor_envio_token: text (nullable)
 // Table: whatsapp_events
 //   id: uuid (not null, default: gen_random_uuid())
 //   instance: text (not null)

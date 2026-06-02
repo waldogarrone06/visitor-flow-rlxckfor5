@@ -330,7 +330,7 @@ export function KitShipments() {
                         </div>
                         {app.tracking_number && (
                           <a
-                            href={`https://rastreamento.correios.com.br/app/index.php`}
+                            href={`https://www.melhorrastreio.com.br/rastreio/${app.tracking_number}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center justify-center h-8 w-8 rounded-md text-muted-foreground hover:text-primary hover:bg-muted transition-colors"
