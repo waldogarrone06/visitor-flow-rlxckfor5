@@ -66,4 +66,4 @@ BEGIN
   
   RETURN NEW;
 END;
-$;
+$$;
