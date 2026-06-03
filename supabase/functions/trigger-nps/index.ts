@@ -13,14 +13,16 @@ Deno.serve(async (req: Request) => {
     const supabase = createClient(supabaseUrl, supabaseKey)
 
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+    const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()
 
-    // Find delivered appointments
+    // Find delivered appointments within the 24 to 48 hours window
     const { data: appointments, error: appErr } = await supabase
       .from('appointments')
-      .select('id, client_email, client_name, delivered_at, user_id')
+      .select('id, client_email, client_name, delivered_at, user_id, client_phone')
       .in('kit_status', ['Delivered', 'Entregue'])
       .not('delivered_at', 'is', null)
       .lte('delivered_at', twentyFourHoursAgo)
+      .gte('delivered_at', fortyEightHoursAgo)
 
     if (appErr) throw appErr
 
@@ -35,10 +37,70 @@ Deno.serve(async (req: Request) => {
           .eq('appointment_id', app.id)
 
         if (!npsResponses || npsResponses.length === 0) {
-          // Here we would trigger an email or whatsapp message to the client
-          // with a link to the NPS form: https://.../nps/{app.id}
-          console.log(`Triggering NPS survey for appointment ${app.id} to ${app.client_email}`)
-          sentCount++
+          // Verify if we already sent a notification (we can check interaction_log)
+          const { data: logs } = await supabase
+            .from('interaction_log')
+            .select('id')
+            .eq('user_id', app.user_id)
+            .eq('type', 'nps_triggered')
+            .contains('details', { appointment_id: app.id })
+
+          if (!logs || logs.length === 0) {
+            console.log(`Triggering NPS survey for appointment ${app.id} to ${app.client_email}`)
+
+            const publicUrl = Deno.env.get('FRONTEND_URL') || 'https://4labnutricom.goskip.app'
+            const npsUrl = `${publicUrl}/nps/${app.id}`
+            const message = `Olá, ${app.client_name}! Esperamos que tenha recebido seu kit com sucesso. Poderia nos avaliar rapidamente? ${npsUrl}`
+
+            // Try to send via whatsapp if phone is available
+            if (app.client_phone) {
+              try {
+                await fetch(`${supabaseUrl}/functions/v1/whatsapp-send`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${supabaseKey}`,
+                  },
+                  body: JSON.stringify({
+                    to: app.client_phone,
+                    text: message,
+                    userId: app.user_id,
+                  }),
+                })
+              } catch (e) {
+                console.error(`Failed to send WhatsApp NPS for ${app.id}`, e)
+              }
+            }
+
+            if (app.client_email) {
+              try {
+                await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${supabaseKey}`,
+                  },
+                  body: JSON.stringify({
+                    to: app.client_email,
+                    subject: 'Pesquisa de Satisfação - Fourlab',
+                    html: `<p>Olá, ${app.client_name}!</p><p>Esperamos que tenha recebido seu kit com sucesso.</p><p>Poderia nos avaliar rapidamente clicando <a href="${npsUrl}">neste link</a>?</p>`,
+                    senderName: 'Fourlab',
+                  }),
+                })
+              } catch (e) {
+                console.error(`Failed to send Email NPS for ${app.id}`, e)
+              }
+            }
+
+            // Log that we sent it
+            await supabase.from('interaction_log').insert({
+              user_id: app.user_id,
+              type: 'nps_triggered',
+              details: { appointment_id: app.id, timestamp: new Date().toISOString() },
+            })
+
+            sentCount++
+          }
         }
       }
     }

@@ -51,104 +51,123 @@ Deno.serve(async (req: Request) => {
 
     for (const [userId, userApps] of Object.entries(appointmentsByUser)) {
       const token = tokens.get(userId)
-      const trackingNumbers = (userApps as any[]).map((a) => a.tracking_number)
+      const userAppsList = userApps as any[]
 
       if (!token) {
         await supabase.from('interaction_log').insert({
           user_id: userId,
           type: 'tracking_error',
-          details: { error: 'Missing melhor_envio_token', trackingNumbers },
+          details: { error: 'Missing melhor_envio_token', count: userAppsList.length },
         })
         continue
       }
 
-      try {
-        const response = await fetch('https://www.melhorenvio.com.br/api/v2/me/shipment/tracking', {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: 'application/json',
-            'Content-Type': 'application/json',
-            'User-Agent': 'Fourlab Integration',
-          },
-          body: JSON.stringify({ orders: trackingNumbers }),
-        })
+      // Process in batches of 50 to avoid rate limits / large payloads
+      const chunkSize = 50
+      for (let i = 0; i < userAppsList.length; i += chunkSize) {
+        const chunk = userAppsList.slice(i, i + chunkSize)
+        const trackingNumbers = chunk.map((a) => a.tracking_number)
 
-        if (response.ok) {
-          const data = await response.json()
+        try {
+          const response = await fetch(
+            'https://www.melhorenvio.com.br/api/v2/me/shipment/tracking',
+            {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${token}`,
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'User-Agent': 'Fourlab Integration',
+              },
+              body: JSON.stringify({ orders: trackingNumbers }),
+            },
+          )
 
-          for (const app of userApps as any[]) {
-            const trackInfo = data[app.tracking_number]
-            if (trackInfo) {
-              let isDelivered = false
-              let deliveredAt = new Date().toISOString()
+          if (response.ok) {
+            const data = await response.json()
 
-              const statusStr = String(trackInfo.status || '').toLowerCase()
+            for (const app of chunk) {
+              const trackInfo = data[app.tracking_number]
+              if (trackInfo) {
+                let isDelivered = false
+                let deliveredAt = new Date().toISOString()
 
-              if (statusStr === 'delivered' || statusStr === 'entregue') {
-                isDelivered = true
-              } else if (trackInfo.tracking && Array.isArray(trackInfo.tracking)) {
-                for (const event of trackInfo.tracking) {
-                  const evtStatus = String(
-                    event.status || event.status_description || '',
-                  ).toLowerCase()
-                  if (evtStatus.includes('delivered') || evtStatus.includes('entregue')) {
-                    isDelivered = true
-                    if (event.date || event.created_at) {
-                      try {
-                        deliveredAt = new Date(event.date || event.created_at).toISOString()
-                      } catch (err) {
-                        // keep fallback date
+                const statusStr = String(trackInfo.status || '').toLowerCase()
+
+                if (statusStr === 'delivered' || statusStr === 'entregue') {
+                  isDelivered = true
+                } else if (trackInfo.tracking && Array.isArray(trackInfo.tracking)) {
+                  for (const event of trackInfo.tracking) {
+                    const evtStatus = String(
+                      event.status || event.status_description || '',
+                    ).toLowerCase()
+                    if (evtStatus.includes('delivered') || evtStatus.includes('entregue')) {
+                      isDelivered = true
+                      if (event.date || event.created_at) {
+                        try {
+                          deliveredAt = new Date(event.date || event.created_at).toISOString()
+                        } catch (err) {
+                          // keep fallback date
+                        }
                       }
+                      break
                     }
-                    break
                   }
                 }
-              }
 
-              if (isDelivered) {
-                const { error: updateErr } = await supabase
-                  .from('appointments')
-                  .update({
-                    kit_status: 'Entregue',
-                    delivered_at: deliveredAt,
-                  })
-                  .eq('id', app.id)
+                if (isDelivered) {
+                  const { error: updateErr } = await supabase
+                    .from('appointments')
+                    .update({
+                      kit_status: 'Entregue',
+                      delivered_at: deliveredAt,
+                    })
+                    .eq('id', app.id)
 
-                if (!updateErr) {
-                  updates.push(app.id)
+                  if (!updateErr) {
+                    updates.push(app.id)
+                  }
                 }
+              } else {
+                await supabase.from('interaction_log').insert({
+                  user_id: userId,
+                  type: 'tracking_error',
+                  details: {
+                    error: 'Invalid tracking number or not found in API response',
+                    tracking_number: app.tracking_number,
+                  },
+                })
               }
-            } else {
-              await supabase.from('interaction_log').insert({
-                user_id: userId,
-                type: 'tracking_error',
-                details: {
-                  error: 'Invalid tracking number or not found in API response',
-                  tracking_number: app.tracking_number,
-                },
-              })
             }
+          } else if (response.status === 429) {
+            console.warn(
+              `Melhor Envio API rate limit (429) for user ${userId}. Retrying after delay...`,
+            )
+            await new Promise((resolve) => setTimeout(resolve, 2000))
+          } else {
+            console.warn(`Melhor Envio API returned ${response.status} for user ${userId}`)
+            await supabase.from('interaction_log').insert({
+              user_id: userId,
+              type: 'tracking_error',
+              details: {
+                error: `Melhor Envio API returned ${response.status}`,
+                statusText: response.statusText,
+                trackingNumbers,
+              },
+            })
           }
-        } else {
-          console.warn(`Melhor Envio API returned ${response.status} for user ${userId}`)
+        } catch (e: any) {
+          console.error(`Error tracking for user ${userId}:`, e)
           await supabase.from('interaction_log').insert({
             user_id: userId,
             type: 'tracking_error',
-            details: {
-              error: `Melhor Envio API returned ${response.status}`,
-              statusText: response.statusText,
-              trackingNumbers,
-            },
+            details: { error: e.message, trackingNumbers },
           })
         }
-      } catch (e: any) {
-        console.error(`Error tracking for user ${userId}:`, e)
-        await supabase.from('interaction_log').insert({
-          user_id: userId,
-          type: 'tracking_error',
-          details: { error: e.message, trackingNumbers },
-        })
+
+        if (i + chunkSize < userAppsList.length) {
+          await new Promise((resolve) => setTimeout(resolve, 500))
+        }
       }
     }
 

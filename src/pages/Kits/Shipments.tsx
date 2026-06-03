@@ -99,9 +99,9 @@ export function KitShipments() {
     toast({ title: 'Copiado', description: 'Dado copiado para a área de transferência.' })
   }
 
-  const loadData = async () => {
+  const loadData = async (showLoading = true) => {
     if (!user) return
-    setLoading(true)
+    if (showLoading) setLoading(true)
     const { data, error } = await supabase
       .from('appointments' as any)
       .select('*')
@@ -111,11 +111,33 @@ export function KitShipments() {
     if (data) {
       setAppointments(data)
     }
-    setLoading(false)
+    if (showLoading) setLoading(false)
   }
 
   useEffect(() => {
     loadData()
+
+    if (!user) return
+
+    const channel = supabase
+      .channel('appointments-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'appointments',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          loadData(false)
+        },
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [user])
 
   useEffect(() => {
