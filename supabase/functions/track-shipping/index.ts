@@ -1,12 +1,6 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers':
-    'authorization, x-client-info, x-supabase-client-platform, apikey, content-type',
-}
+import { corsHeaders } from '../_shared/cors.ts'
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -15,15 +9,27 @@ Deno.serve(async (req: Request) => {
 
   try {
     let appointmentIdToRefresh = null
+    let debugMode = false
+
+    const url = new URL(req.url)
+    if (url.searchParams.get('debug') === 'true') {
+      debugMode = true
+    }
+
     if (req.method === 'POST') {
       try {
         const body = await req.json()
         if (body && body.appointmentId) {
           appointmentIdToRefresh = body.appointmentId
         }
+        if (body && body.debug === true) {
+          debugMode = true
+        }
       } catch (e) {
         // empty body
       }
+    } else if (req.method === 'GET') {
+      appointmentIdToRefresh = url.searchParams.get('appointmentId')
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
@@ -65,6 +71,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const updates = []
+    const debugPayloads: any[] = []
 
     // Group appointments by user token to optimize batch requests
     const appointmentsByUser = appointments.reduce((acc: any, app) => {
@@ -72,6 +79,21 @@ Deno.serve(async (req: Request) => {
       acc[app.user_id].push(app)
       return acc
     }, {})
+
+    const deliveryKeywords = [
+      'entregue',
+      'delivered',
+      'finalizado',
+      'recebido',
+      'objeto entregue',
+      'entregue ao destinatário',
+      'entrega realizada',
+    ]
+
+    const isStatusDelivered = (status: string) => {
+      const s = String(status || '').toLowerCase()
+      return deliveryKeywords.some((kw) => s.includes(kw))
+    }
 
     for (const [userId, userApps] of Object.entries(appointmentsByUser)) {
       const token = tokens.get(userId)
@@ -92,23 +114,35 @@ Deno.serve(async (req: Request) => {
         const chunk = userAppsList.slice(i, i + chunkSize)
         const trackingNumbers = chunk.map((a) => a.tracking_number)
 
-        try {
-          const response = await fetch(
-            'https://www.melhorenvio.com.br/api/v2/me/shipment/tracking',
-            {
-              method: 'POST',
-              headers: {
-                Authorization: `Bearer ${token}`,
-                Accept: 'application/json',
-                'Content-Type': 'application/json',
-                'User-Agent': 'Fourlab Integration',
-              },
-              body: JSON.stringify({ orders: trackingNumbers }),
+        const fetchTracking = async () => {
+          return fetch('https://www.melhorenvio.com.br/api/v2/me/shipment/tracking', {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${token}`,
+              Accept: 'application/json',
+              'Content-Type': 'application/json',
+              'User-Agent': 'Fourlab Integration',
             },
-          )
+            body: JSON.stringify({ orders: trackingNumbers }),
+          })
+        }
+
+        try {
+          let response = await fetchTracking()
+
+          if (response.status === 429) {
+            console.warn(
+              `Melhor Envio API rate limit (429) for user ${userId}. Retrying after delay...`,
+            )
+            await new Promise((resolve) => setTimeout(resolve, 3000))
+            response = await fetchTracking()
+          }
 
           if (response.ok) {
             const data = await response.json()
+            if (debugMode) {
+              debugPayloads.push({ userId, trackingNumbers, response: data })
+            }
 
             for (const app of chunk) {
               const trackInfo = data[app.tracking_number]
@@ -116,32 +150,19 @@ Deno.serve(async (req: Request) => {
                 let isDelivered = false
                 let deliveredAt = new Date().toISOString()
 
-                const statusStr = String(trackInfo.status || '').toLowerCase()
-
-                if (
-                  statusStr.includes('delivered') ||
-                  statusStr.includes('entregue') ||
-                  statusStr.includes('finalizado') ||
-                  statusStr.includes('recebido')
-                ) {
+                if (isStatusDelivered(trackInfo.status)) {
                   isDelivered = true
                 }
 
-                if (trackInfo.tracking && Array.isArray(trackInfo.tracking)) {
-                  for (const event of trackInfo.tracking) {
+                const events = trackInfo.tracking || trackInfo.events
+                if (events && Array.isArray(events)) {
+                  for (const event of events) {
                     const evtStatus = String(
                       event.status || event.status_description || '',
                     ).toLowerCase()
                     const evtDetail = String(event.description || event.detail || '').toLowerCase()
 
-                    if (
-                      evtStatus.includes('delivered') ||
-                      evtStatus.includes('entregue') ||
-                      evtStatus.includes('finalizado') ||
-                      evtStatus.includes('recebido') ||
-                      evtDetail.includes('entregue') ||
-                      evtDetail.includes('delivered')
-                    ) {
+                    if (isStatusDelivered(evtStatus) || isStatusDelivered(evtDetail)) {
                       isDelivered = true
                       if (event.date || event.created_at) {
                         try {
@@ -179,11 +200,6 @@ Deno.serve(async (req: Request) => {
                 })
               }
             }
-          } else if (response.status === 429) {
-            console.warn(
-              `Melhor Envio API rate limit (429) for user ${userId}. Retrying after delay...`,
-            )
-            await new Promise((resolve) => setTimeout(resolve, 2000))
           } else {
             console.warn(`Melhor Envio API returned ${response.status} for user ${userId}`)
             await supabase.from('interaction_log').insert({
@@ -211,10 +227,18 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    return new Response(
-      JSON.stringify({ success: true, updatedCount: updates.length, updatedIds: updates }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    )
+    const responsePayload: any = {
+      success: true,
+      updatedCount: updates.length,
+      updatedIds: updates,
+    }
+    if (debugMode) {
+      responsePayload.debugPayloads = debugPayloads
+    }
+
+    return new Response(JSON.stringify(responsePayload), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
   } catch (error: any) {
     return new Response(JSON.stringify({ error: error.message }), {
       status: 400,
