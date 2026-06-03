@@ -2,8 +2,8 @@
   "_versions": {
     "sync-calendar": 18,
     "yampi-service": 5,
-    "track-shipping": 9,
-    "trigger-nps": 7,
+    "track-shipping": 10,
+    "trigger-nps": 8,
     "check-availability": 7,
     "create-user": 10,
     "google-oauth-exchange": 12,
