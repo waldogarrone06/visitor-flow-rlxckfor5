@@ -34,7 +34,6 @@ Deno.serve(async (req: Request) => {
       .from('user_integrations')
       .select('user_id, melhor_envio_token')
       .in('user_id', userIds)
-      .not('melhor_envio_token', 'is', null)
 
     const tokens = new Map()
     if (integrations) {
@@ -52,9 +51,16 @@ Deno.serve(async (req: Request) => {
 
     for (const [userId, userApps] of Object.entries(appointmentsByUser)) {
       const token = tokens.get(userId)
-      if (!token) continue
-
       const trackingNumbers = (userApps as any[]).map((a) => a.tracking_number)
+
+      if (!token) {
+        await supabase.from('interaction_log').insert({
+          user_id: userId,
+          type: 'tracking_error',
+          details: { error: 'Missing melhor_envio_token', trackingNumbers },
+        })
+        continue
+      }
 
       try {
         const response = await fetch('https://www.melhorenvio.com.br/api/v2/me/shipment/tracking', {
@@ -113,13 +119,36 @@ Deno.serve(async (req: Request) => {
                   updates.push(app.id)
                 }
               }
+            } else {
+              await supabase.from('interaction_log').insert({
+                user_id: userId,
+                type: 'tracking_error',
+                details: {
+                  error: 'Invalid tracking number or not found in API response',
+                  tracking_number: app.tracking_number,
+                },
+              })
             }
           }
         } else {
           console.warn(`Melhor Envio API returned ${response.status} for user ${userId}`)
+          await supabase.from('interaction_log').insert({
+            user_id: userId,
+            type: 'tracking_error',
+            details: {
+              error: `Melhor Envio API returned ${response.status}`,
+              statusText: response.statusText,
+              trackingNumbers,
+            },
+          })
         }
-      } catch (e) {
+      } catch (e: any) {
         console.error(`Error tracking for user ${userId}:`, e)
+        await supabase.from('interaction_log').insert({
+          user_id: userId,
+          type: 'tracking_error',
+          details: { error: e.message, trackingNumbers },
+        })
       }
     }
 

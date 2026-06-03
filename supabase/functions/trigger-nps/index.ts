@@ -18,7 +18,7 @@ Deno.serve(async (req: Request) => {
     const { data: appointments, error: appErr } = await supabase
       .from('appointments')
       .select('id, client_email, client_name, delivered_at, user_id')
-      .eq('kit_status', 'Delivered')
+      .in('kit_status', ['Delivered', 'Entregue'])
       .not('delivered_at', 'is', null)
       .lte('delivered_at', twentyFourHoursAgo)
 
