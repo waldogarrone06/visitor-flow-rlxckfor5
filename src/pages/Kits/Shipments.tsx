@@ -111,14 +111,28 @@ export function KitShipments() {
                   </TableCell>
                   <TableCell>{shipment.kit_name || '-'}</TableCell>
                   <TableCell>
-                    <Badge variant={shipment.kit_status === 'Entregue' ? 'default' : 'secondary'}>
+                    <Badge
+                      variant={
+                        shipment.kit_status === 'Entregue' || shipment.kit_status === 'Delivered'
+                          ? 'default'
+                          : 'secondary'
+                      }
+                      className={
+                        shipment.kit_status === 'Entregue' || shipment.kit_status === 'Delivered'
+                          ? 'bg-green-500 hover:bg-green-600 text-white border-transparent'
+                          : shipment.kit_status === 'Enviado'
+                            ? 'bg-blue-500 hover:bg-blue-600 text-white border-transparent'
+                            : ''
+                      }
+                    >
                       {shipment.kit_status || 'Pendente'}
                     </Badge>
-                    {shipment.kit_status === 'Entregue' && shipment.delivered_at && (
-                      <div className="text-[10px] text-muted-foreground mt-1 whitespace-nowrap">
-                        {new Date(shipment.delivered_at).toLocaleDateString('pt-BR')}
-                      </div>
-                    )}
+                    {(shipment.kit_status === 'Entregue' || shipment.kit_status === 'Delivered') &&
+                      shipment.delivered_at && (
+                        <div className="text-[10px] text-muted-foreground mt-1 whitespace-nowrap">
+                          {new Date(shipment.delivered_at).toLocaleDateString('pt-BR')}
+                        </div>
+                      )}
                   </TableCell>
                   <TableCell>
                     <a
@@ -136,7 +150,11 @@ export function KitShipments() {
                       variant="ghost"
                       size="sm"
                       onClick={() => handleManualSync(shipment.id)}
-                      disabled={syncingId === shipment.id || shipment.kit_status === 'Entregue'}
+                      disabled={
+                        syncingId === shipment.id ||
+                        shipment.kit_status === 'Entregue' ||
+                        shipment.kit_status === 'Delivered'
+                      }
                     >
                       <RefreshCw
                         className={`w-4 h-4 mr-2 ${syncingId === shipment.id ? 'animate-spin' : ''}`}

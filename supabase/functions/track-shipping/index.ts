@@ -147,11 +147,32 @@ Deno.serve(async (req: Request) => {
             for (const app of chunk) {
               const trackInfo = data[app.tracking_number]
               if (trackInfo) {
+                if (trackInfo.error) {
+                  console.warn(`Tracking error for ${app.tracking_number}:`, trackInfo.error)
+                  await supabase.from('interaction_log').insert({
+                    user_id: userId,
+                    type: 'tracking_error',
+                    details: {
+                      error: 'Carrier returned an error for this tracking number',
+                      tracking_number: app.tracking_number,
+                      carrier_error: trackInfo.error,
+                    },
+                  })
+                  continue
+                }
+
                 let isDelivered = false
                 let deliveredAt = new Date().toISOString()
 
                 if (isStatusDelivered(trackInfo.status)) {
                   isDelivered = true
+                  if (trackInfo.delivered_at || trackInfo.updated_at) {
+                    try {
+                      deliveredAt = new Date(
+                        trackInfo.delivered_at || trackInfo.updated_at,
+                      ).toISOString()
+                    } catch (e) {}
+                  }
                 }
 
                 const events = trackInfo.tracking || trackInfo.events
@@ -190,12 +211,14 @@ Deno.serve(async (req: Request) => {
                   }
                 }
               } else {
+                console.warn(`No tracking info found for ${app.tracking_number} in response:`, data)
                 await supabase.from('interaction_log').insert({
                   user_id: userId,
                   type: 'tracking_error',
                   details: {
                     error: 'Invalid tracking number or not found in API response',
                     tracking_number: app.tracking_number,
+                    raw_response: data,
                   },
                 })
               }
