@@ -33,6 +33,7 @@ import {
   Receipt,
   Copy,
   Check,
+  RefreshCw,
 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -47,6 +48,32 @@ export function KitShipments() {
   const [invoiceLoading, setInvoiceLoading] = useState(false)
   const [invoiceData, setInvoiceData] = useState<any>(null)
   const [copiedField, setCopiedField] = useState<string | null>(null)
+  const [syncing, setSyncing] = useState(false)
+
+  const handleSyncTracking = async () => {
+    setSyncing(true)
+    try {
+      const { data, error } = await supabase.functions.invoke('track-shipping')
+      if (error) throw error
+      if (data && data.updatedCount > 0) {
+        toast({
+          title: 'Sincronizado',
+          description: `${data.updatedCount} rastreio(s) atualizado(s) para Entregue.`,
+        })
+        loadData(false)
+      } else {
+        toast({ title: 'Sincronizado', description: 'Nenhum novo status de entrega encontrado.' })
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Erro',
+        description: 'Falha ao sincronizar rastreios.',
+        variant: 'destructive',
+      })
+    } finally {
+      setSyncing(false)
+    }
+  }
 
   const handleOpenInvoiceData = async (app: any) => {
     setIsInvoiceModalOpen(true)
@@ -281,6 +308,16 @@ export function KitShipments() {
             onClick={handleExportCSV}
           >
             <Download className="h-3 w-3" /> Exportar CSV
+          </Button>
+          <Button
+            variant="default"
+            size="sm"
+            className="h-8 gap-2 text-xs"
+            onClick={handleSyncTracking}
+            disabled={syncing}
+          >
+            <RefreshCw className={`h-3 w-3 ${syncing ? 'animate-spin' : ''}`} />
+            Sincronizar
           </Button>
         </div>
       </CardHeader>

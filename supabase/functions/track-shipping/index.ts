@@ -94,14 +94,22 @@ Deno.serve(async (req: Request) => {
 
                 const statusStr = String(trackInfo.status || '').toLowerCase()
 
-                if (statusStr === 'delivered' || statusStr === 'entregue') {
+                if (
+                  statusStr === 'delivered' ||
+                  statusStr === 'entregue' ||
+                  statusStr === 'finalizado'
+                ) {
                   isDelivered = true
                 } else if (trackInfo.tracking && Array.isArray(trackInfo.tracking)) {
                   for (const event of trackInfo.tracking) {
                     const evtStatus = String(
                       event.status || event.status_description || '',
                     ).toLowerCase()
-                    if (evtStatus.includes('delivered') || evtStatus.includes('entregue')) {
+                    if (
+                      evtStatus.includes('delivered') ||
+                      evtStatus.includes('entregue') ||
+                      evtStatus.includes('finalizado')
+                    ) {
                       isDelivered = true
                       if (event.date || event.created_at) {
                         try {
