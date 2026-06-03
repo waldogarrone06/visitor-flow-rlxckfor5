@@ -1,10 +1,38 @@
+import { useState } from 'react'
 import { KitInventory } from './Inventory'
 import { KitShipments } from './Shipments'
 import { KitBuilder } from './KitBuilder'
 import { KitCatalog } from './KitCatalog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Button } from '@/components/ui/button'
+import { supabase } from '@/lib/supabase/client'
+import { toast } from 'sonner'
+import { RefreshCw } from 'lucide-react'
 
 export default function KitsPage() {
+  const [isSyncing, setIsSyncing] = useState(false)
+
+  const handleSyncTracking = async () => {
+    try {
+      setIsSyncing(true)
+      const { data, error } = await supabase.functions.invoke('track-shipping', {
+        method: 'POST',
+      })
+      if (error) throw error
+
+      if (data && data.updatedCount > 0) {
+        toast.success(`Sincronização concluída. ${data.updatedCount} kits atualizados!`)
+      } else {
+        toast.info('Sincronização concluída. Nenhum kit precisava de atualização.')
+      }
+    } catch (err: any) {
+      toast.error('Erro ao sincronizar com a transportadora', {
+        description: err.message,
+      })
+    } finally {
+      setIsSyncing(false)
+    }
+  }
   return (
     <div className="space-y-6 animate-slide-up">
       <div>
@@ -47,8 +75,21 @@ export default function KitsPage() {
                   <strong>Status do Kit</strong> do Lead no CRM para "Enviado" ou "Entregue". O NPS
                   é acionado automaticamente 24h após a marcação de "Entregue".
                 </p>
-                <div className="p-3 bg-muted rounded-md border text-xs">
-                  Última sincronização com transportadora: <strong>Hoje, 09:30</strong>
+                <div className="p-3 bg-muted rounded-md border text-xs flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center">
+                  <span>
+                    A sincronização ocorre automaticamente. Para forçar a verificação de todos os
+                    envios pendentes agora, clique ao lado.
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSyncTracking}
+                    disabled={isSyncing}
+                    className="shrink-0"
+                  >
+                    <RefreshCw className={`h-3 w-3 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
+                    {isSyncing ? 'Sincronizando...' : 'Sincronizar Agora'}
+                  </Button>
                 </div>
               </div>
             </div>

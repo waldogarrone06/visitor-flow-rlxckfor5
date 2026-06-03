@@ -8,17 +8,35 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    let appointmentIdToRefresh = null
+    if (req.method === 'POST') {
+      try {
+        const body = await req.json()
+        if (body && body.appointmentId) {
+          appointmentIdToRefresh = body.appointmentId
+        }
+      } catch (e) {
+        // empty body
+      }
+    }
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
     const supabase = createClient(supabaseUrl, supabaseKey)
 
     // Get appointments with tracking but not delivered
-    const { data: appointments, error: appErr } = await supabase
+    let query = supabase
       .from('appointments')
       .select('id, user_id, tracking_number, kit_status')
       .not('tracking_number', 'is', null)
       .neq('kit_status', 'Delivered')
       .neq('kit_status', 'Entregue')
+
+    if (appointmentIdToRefresh) {
+      query = query.eq('id', appointmentIdToRefresh)
+    }
+
+    const { data: appointments, error: appErr } = await query
 
     if (appErr) throw appErr
 
@@ -95,20 +113,28 @@ Deno.serve(async (req: Request) => {
                 const statusStr = String(trackInfo.status || '').toLowerCase()
 
                 if (
-                  statusStr === 'delivered' ||
-                  statusStr === 'entregue' ||
-                  statusStr === 'finalizado'
+                  statusStr.includes('delivered') ||
+                  statusStr.includes('entregue') ||
+                  statusStr.includes('finalizado') ||
+                  statusStr.includes('recebido')
                 ) {
                   isDelivered = true
-                } else if (trackInfo.tracking && Array.isArray(trackInfo.tracking)) {
+                }
+
+                if (trackInfo.tracking && Array.isArray(trackInfo.tracking)) {
                   for (const event of trackInfo.tracking) {
                     const evtStatus = String(
                       event.status || event.status_description || '',
                     ).toLowerCase()
+                    const evtDetail = String(event.description || event.detail || '').toLowerCase()
+
                     if (
                       evtStatus.includes('delivered') ||
                       evtStatus.includes('entregue') ||
-                      evtStatus.includes('finalizado')
+                      evtStatus.includes('finalizado') ||
+                      evtStatus.includes('recebido') ||
+                      evtDetail.includes('entregue') ||
+                      evtDetail.includes('delivered')
                     ) {
                       isDelivered = true
                       if (event.date || event.created_at) {
