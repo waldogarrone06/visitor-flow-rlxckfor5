@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
-import { RefreshCw, ExternalLink, Save } from 'lucide-react'
+import { ExternalLink, Save } from 'lucide-react'
 
 type Appointment = {
   id: string
@@ -26,7 +26,6 @@ type Appointment = {
 export function KitShipments() {
   const [shipments, setShipments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
-  const [syncingId, setSyncingId] = useState<string | null>(null)
   const [trackingInputs, setTrackingInputs] = useState<Record<string, string>>({})
   const [savingId, setSavingId] = useState<string | null>(null)
 
@@ -79,29 +78,6 @@ export function KitShipments() {
     fetchShipments()
   }, [])
 
-  const handleManualSync = async (id: string) => {
-    try {
-      setSyncingId(id)
-      const { data, error } = await supabase.functions.invoke('track-shipping', {
-        method: 'POST',
-        body: { appointmentId: id },
-      })
-
-      if (error) throw error
-
-      if (data && data.updatedCount > 0) {
-        toast.success('Status atualizado para Entregue!')
-        await fetchShipments()
-      } else {
-        toast.info('Nenhuma mudança no status de entrega no momento.')
-      }
-    } catch (err: any) {
-      toast.error('Erro ao sincronizar', { description: err.message })
-    } finally {
-      setSyncingId(null)
-    }
-  }
-
   const getTrackingLink = (code: string) => {
     if (code.startsWith('LGI')) {
       return `https://www.melhorrastreio.com.br/app/loggi/${code}`
@@ -119,17 +95,16 @@ export function KitShipments() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Paciente</TableHead>
+              <TableHead>Nome do Prescritor</TableHead>
               <TableHead>Kit</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Rastreio</TableHead>
-              <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {shipments.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
                   Nenhum kit atribuído.
                 </TableCell>
               </TableRow>
@@ -202,24 +177,6 @@ export function KitShipments() {
                         </a>
                       )}
                     </div>
-                  </TableCell>
-                  <TableCell className="text-right whitespace-nowrap">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleManualSync(shipment.id)}
-                      disabled={
-                        syncingId === shipment.id ||
-                        !shipment.tracking_number ||
-                        shipment.kit_status === 'Entregue' ||
-                        shipment.kit_status === 'Delivered'
-                      }
-                    >
-                      <RefreshCw
-                        className={`w-4 h-4 mr-2 ${syncingId === shipment.id ? 'animate-spin' : ''}`}
-                      />
-                      Sync
-                    </Button>
                   </TableCell>
                 </TableRow>
               ))
