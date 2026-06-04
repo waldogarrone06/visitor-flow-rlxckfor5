@@ -53,9 +53,10 @@ export function KitShipments() {
     }
   }
 
-  const syncTracking = async () => {
+  const syncTracking = async (appointmentId?: string) => {
     try {
-      const { data, error } = await supabase.functions.invoke('track-shipping')
+      const payload = appointmentId ? { appointmentId } : {}
+      const { data, error } = await supabase.functions.invoke('track-shipping', { body: payload })
       if (!error && data?.updatedCount > 0) {
         await fetchShipments()
       }
@@ -80,7 +81,7 @@ export function KitShipments() {
       await fetchShipments()
 
       // Trigger background sync for the new tracking number automatically
-      syncTracking()
+      syncTracking(id)
     } catch (err: any) {
       toast.error('Erro ao salvar rastreio', { description: err.message })
     } finally {

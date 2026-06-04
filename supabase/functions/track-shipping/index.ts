@@ -2,41 +2,92 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 
+// Remove prefixo LGI- que não faz parte do código de rastreio
+const normalizeTracking = (code: string) => code.replace(/^LGI-/i, '').trim()
+
+function checkIfDelivered(trackInfo: any): { delivered: boolean; deliveredAt: string | null } {
+  const fallbackDate = new Date().toISOString()
+
+  const extractStatusText = (val: any): string => {
+    if (!val) return ''
+    if (typeof val === 'string') return val.toLowerCase()
+    if (typeof val === 'object') {
+      return [val.description, val.status, val.name, val.label]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+    }
+    return String(val).toLowerCase()
+  }
+
+  const DELIVERED_KEYWORDS = [
+    'entregue',
+    'delivered',
+    'finalizado',
+    'recebido',
+    'objeto entregue',
+    'entregue ao destinatário',
+    'entrega realizada',
+  ]
+  const isDeliveredText = (text: string) => DELIVERED_KEYWORDS.some((kw) => text.includes(kw))
+
+  // Checa status raiz
+  const rootStatus = extractStatusText(trackInfo.status)
+  if (isDeliveredText(rootStatus)) {
+    return {
+      delivered: true,
+      deliveredAt: trackInfo.delivered_at || trackInfo.updated_at || fallbackDate,
+    }
+  }
+
+  // Checa array de eventos (suporta events, tracking, steps)
+  const events = trackInfo.events || trackInfo.tracking || trackInfo.steps || []
+  const eventList = Array.isArray(events) ? events : Object.values(events)
+
+  for (const event of eventList as any[]) {
+    const texts = [
+      extractStatusText(event.status),
+      extractStatusText(event.status_description),
+      extractStatusText(event.description),
+      extractStatusText(event.detail),
+      extractStatusText(event.message),
+      extractStatusText(event.label),
+    ].join(' ')
+
+    if (isDeliveredText(texts)) {
+      const rawDate = event.date || event.created_at || event.happened_at || event.time
+      let deliveredAt = fallbackDate
+      try {
+        if (rawDate) deliveredAt = new Date(rawDate).toISOString()
+      } catch (_) {}
+      return { delivered: true, deliveredAt }
+    }
+  }
+
+  return { delivered: false, deliveredAt: null }
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    let appointmentIdToRefresh = null
-    let debugMode = false // Ensure rebuild
-
-    const url = new URL(req.url)
-    if (url.searchParams.get('debug') === 'true') {
-      debugMode = true
-    }
+    let appointmentIdToRefresh: string | null = null
+    const isDebug = new URL(req.url).searchParams.get('debug') === 'true'
 
     if (req.method === 'POST') {
       try {
         const body = await req.json()
-        if (body && body.appointmentId) {
-          appointmentIdToRefresh = body.appointmentId
-        }
-        if (body && body.debug === true) {
-          debugMode = true
-        }
-      } catch (e) {
-        // empty body
-      }
-    } else if (req.method === 'GET') {
-      appointmentIdToRefresh = url.searchParams.get('appointmentId')
+        if (body?.appointmentId) appointmentIdToRefresh = body.appointmentId
+      } catch (_) {}
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
     const supabase = createClient(supabaseUrl, supabaseKey)
 
-    // Get appointments with tracking but not delivered
+    // Busca appointments com rastreio que ainda não foram entregues
     let query = supabase
       .from('appointments')
       .select('id, user_id, tracking_number, kit_status')
@@ -49,7 +100,6 @@ Deno.serve(async (req: Request) => {
     }
 
     const { data: appointments, error: appErr } = await query
-
     if (appErr) throw appErr
 
     if (!appointments || appointments.length === 0) {
@@ -58,263 +108,103 @@ Deno.serve(async (req: Request) => {
       })
     }
 
-    const userIds = [...new Set(appointments.map((a) => a.user_id))]
+    const updates: string[] = []
+    const debugLog: any[] = []
 
-    const { data: integrations } = await supabase
-      .from('user_integrations')
-      .select('user_id, melhor_envio_token')
-      .in('user_id', userIds)
+    for (const app of appointments) {
+      const normalizedCode = normalizeTracking(app.tracking_number)
 
-    const tokens = new Map()
-    if (integrations) {
-      integrations.forEach((i) => tokens.set(i.user_id, i.melhor_envio_token))
-    }
-
-    const updates = []
-    const debugPayloads: any[] = []
-
-    // Group appointments by user token to optimize batch requests
-    const appointmentsByUser = appointments.reduce((acc: any, app) => {
-      if (!acc[app.user_id]) acc[app.user_id] = []
-      acc[app.user_id].push(app)
-      return acc
-    }, {})
-
-    const deliveryKeywords = [
-      'entregue',
-      'delivered',
-      'finalizado',
-      'recebido',
-      'objeto entregue',
-      'entregue ao destinatário',
-      'entrega realizada',
-    ]
-
-    const isStatusDelivered = (status: string) => {
-      const s = String(status || '').toLowerCase()
-      return deliveryKeywords.some((kw) => s.includes(kw))
-    }
-
-    const normalizeTracking = (code: any) => {
-      if (!code) return ''
-      return String(code).trim().replace(/^LGI-/i, '').trim()
-    }
-
-    for (const [userId, userApps] of Object.entries(appointmentsByUser)) {
-      const token = tokens.get(userId)
-      const userAppsList = userApps as any[]
-
-      if (!token) {
-        await supabase.from('interaction_log').insert({
-          user_id: userId,
-          type: 'tracking_error',
-          details: { error: 'Missing melhor_envio_token', count: userAppsList.length },
-        })
-        continue
-      }
-
-      // Process in batches of 50 to avoid rate limits / large payloads
-      const chunkSize = 50
-      for (let i = 0; i < userAppsList.length; i += chunkSize) {
-        const chunk = userAppsList.slice(i, i + chunkSize)
-        const trackingNumbers = [
-          ...new Set(chunk.map((a) => normalizeTracking(a.tracking_number)).filter(Boolean)),
-        ]
-
-        if (trackingNumbers.length === 0) continue
-
-        const fetchTracking = async () => {
-          return fetch('https://www.melhorenvio.com.br/api/v2/me/shipment/tracking', {
-            method: 'POST',
+      try {
+        // Melhor Rastreio aceita o código de rastreio diretamente, sem autenticação
+        const response = await fetch(
+          `https://melhorrastreio.com.br/api/v2/trackings/${normalizedCode}`,
+          {
             headers: {
-              Authorization: `Bearer ${token}`,
               Accept: 'application/json',
-              'Content-Type': 'application/json',
               'User-Agent': 'Fourlab Integration',
             },
-            body: JSON.stringify({ orders: trackingNumbers }),
-          })
-        }
+          },
+        )
 
-        try {
-          let response = await fetchTracking()
+        if (!response.ok) {
+          console.warn(
+            `[track-shipping] Melhor Rastreio retornou ${response.status} para ${normalizedCode}`,
+          )
 
-          if (response.status === 429) {
-            console.warn(
-              `Melhor Envio API rate limit (429) for user ${userId}. Retrying after delay...`,
-            )
-            await new Promise((resolve) => setTimeout(resolve, 3000))
-            response = await fetchTracking()
-          }
-
-          if (!response.ok) {
-            let errBody: any = {}
+          // Registra erro apenas se não for 404 (código ainda não postado)
+          if (response.status !== 404) {
+            let apiResponse: any = null
+            let rawText = ''
             try {
-              errBody = await response.json()
-            } catch (_) {
-              errBody = { raw: await response.text() }
+              rawText = await response.text()
+              apiResponse = JSON.parse(rawText)
+            } catch (e) {
+              apiResponse = rawText
             }
-            console.error(`[track-shipping] API error ${response.status}:`, JSON.stringify(errBody))
+
             await supabase.from('interaction_log').insert({
-              user_id: userId,
+              user_id: app.user_id,
               type: 'tracking_error',
               details: {
-                error: `Melhor Envio API returned ${response.status}`,
+                error: `Melhor Rastreio API returned ${response.status}`,
                 statusText: response.statusText,
-                trackingNumbers,
-                apiResponse: errBody,
+                trackingNumbers: [normalizedCode],
+                apiResponse: apiResponse,
+                appointment_id: app.id,
               },
             })
-            continue
           }
-
-          const data = await response.json()
-          if (debugMode) {
-            debugPayloads.push({ userId, trackingNumbers, response: data })
-          }
-
-          for (const app of chunk) {
-            const cleanedTrack = normalizeTracking(app.tracking_number)
-            if (!cleanedTrack) continue
-
-            const trackInfo = data[cleanedTrack]
-            if (trackInfo) {
-              if (trackInfo.error) {
-                console.warn(`Tracking error for ${app.tracking_number}:`, trackInfo.error)
-                await supabase.from('interaction_log').insert({
-                  user_id: userId,
-                  type: 'tracking_error',
-                  details: {
-                    error: 'Carrier returned an error for this tracking number',
-                    tracking_number: app.tracking_number,
-                    cleaned_tracking_number: cleanedTrack,
-                    carrier_error: trackInfo.error,
-                  },
-                })
-                continue
-              }
-
-              let isDelivered = false
-              let isInTransit = false
-              let deliveredAt = new Date().toISOString()
-
-              if (isStatusDelivered(trackInfo.status)) {
-                isDelivered = true
-                if (trackInfo.delivered_at || trackInfo.updated_at) {
-                  try {
-                    deliveredAt = new Date(
-                      trackInfo.delivered_at || trackInfo.updated_at,
-                    ).toISOString()
-                  } catch (e) {}
-                }
-              } else if (
-                String(trackInfo.status || '')
-                  .toLowerCase()
-                  .includes('trânsito') ||
-                String(trackInfo.status || '')
-                  .toLowerCase()
-                  .includes('transit')
-              ) {
-                isInTransit = true
-              }
-
-              const events = trackInfo.tracking || trackInfo.events
-              if (events && Array.isArray(events)) {
-                for (const event of events) {
-                  const evtStatus = String(
-                    event.status || event.status_description || '',
-                  ).toLowerCase()
-                  const evtDetail = String(event.description || event.detail || '').toLowerCase()
-
-                  if (isStatusDelivered(evtStatus) || isStatusDelivered(evtDetail)) {
-                    isDelivered = true
-                    if (event.date || event.created_at) {
-                      try {
-                        deliveredAt = new Date(event.date || event.created_at).toISOString()
-                      } catch (err) {
-                        // keep fallback date
-                      }
-                    }
-                    break
-                  } else if (
-                    evtStatus.includes('trânsito') ||
-                    evtDetail.includes('trânsito') ||
-                    evtStatus.includes('transit') ||
-                    evtDetail.includes('transit')
-                  ) {
-                    isInTransit = true
-                  }
-                }
-              }
-
-              if (isDelivered) {
-                const { error: updateErr } = await supabase
-                  .from('appointments')
-                  .update({
-                    kit_status: 'Entregue',
-                    delivered_at: deliveredAt,
-                  })
-                  .eq('id', app.id)
-
-                if (!updateErr) {
-                  updates.push(app.id)
-                }
-              } else if (isInTransit && app.kit_status !== 'Enviado') {
-                const { error: updateErr } = await supabase
-                  .from('appointments')
-                  .update({
-                    kit_status: 'Enviado',
-                  })
-                  .eq('id', app.id)
-
-                if (!updateErr) {
-                  updates.push(app.id)
-                }
-              }
-            } else {
-              console.warn(
-                `No tracking info found for ${app.tracking_number} (cleaned: ${cleanedTrack}) in response:`,
-                data,
-              )
-              await supabase.from('interaction_log').insert({
-                user_id: userId,
-                type: 'tracking_error',
-                details: {
-                  error: 'Invalid tracking number or not found in API response',
-                  tracking_number: app.tracking_number,
-                  cleaned_tracking_number: cleanedTrack,
-                  raw_response: data,
-                },
-              })
-            }
-          }
-        } catch (e: any) {
-          console.error(`Error tracking for user ${userId}:`, e)
-          await supabase.from('interaction_log').insert({
-            user_id: userId,
-            type: 'tracking_error',
-            details: { error: e.message, trackingNumbers },
-          })
+          continue
         }
 
-        if (i + chunkSize < userAppsList.length) {
-          await new Promise((resolve) => setTimeout(resolve, 500))
+        const trackInfo = await response.json()
+
+        if (isDebug) {
+          debugLog.push({ appointmentId: app.id, code: normalizedCode, rawResponse: trackInfo })
         }
+
+        const { delivered, deliveredAt } = checkIfDelivered(trackInfo)
+
+        if (delivered) {
+          const { error: updateErr } = await supabase
+            .from('appointments')
+            .update({
+              kit_status: 'Entregue',
+              delivered_at: deliveredAt,
+            })
+            .eq('id', app.id)
+
+          if (updateErr) {
+            console.error(
+              `[track-shipping] Erro ao atualizar appointment ${app.id}:`,
+              updateErr.message,
+            )
+          } else {
+            updates.push(app.id)
+            console.log(`[track-shipping] Entregue: appointment ${app.id} (${normalizedCode})`)
+          }
+        } else {
+          console.log(
+            `[track-shipping] Em trânsito: ${normalizedCode} — status: ${JSON.stringify(trackInfo.status)}`,
+          )
+        }
+      } catch (e: any) {
+        console.error(`[track-shipping] Exceção para ${normalizedCode}:`, e.message)
       }
+
+      // Pequena pausa entre chamadas para não sobrecarregar a API
+      await new Promise((r) => setTimeout(r, 300))
     }
 
-    const responsePayload: any = {
-      success: true,
-      updatedCount: updates.length,
-      updatedIds: updates,
-    }
-    if (debugMode) {
-      responsePayload.debugPayloads = debugPayloads
-    }
-
-    return new Response(JSON.stringify(responsePayload), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+    return new Response(
+      JSON.stringify({
+        success: true,
+        updatedCount: updates.length,
+        updatedIds: updates,
+        ...(isDebug && { debug: debugLog }),
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    )
   } catch (error: any) {
     return new Response(JSON.stringify({ error: error.message }), {
       status: 400,
