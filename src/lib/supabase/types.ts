@@ -1101,10 +1101,14 @@ export const Constants = {
 //     ELSE
 //       -- Se tem rastreio, verifica se foi recém-adicionado para mudar para Enviado
 //       IF TG_OP = 'INSERT' THEN
-//         NEW.kit_status := 'Enviado';
-//       ELSIF TG_OP = 'UPDATE' THEN
-//         IF OLD.tracking_number IS NULL OR trim(OLD.tracking_number) = '' THEN
+//         IF NEW.kit_status NOT IN ('Entregue', 'Delivered') THEN
 //           NEW.kit_status := 'Enviado';
+//         END IF;
+//       ELSIF TG_OP = 'UPDATE' THEN
+//         IF (OLD.tracking_number IS NULL OR trim(OLD.tracking_number) = '') AND (NEW.tracking_number IS NOT NULL AND trim(NEW.tracking_number) <> '') THEN
+//           IF NEW.kit_status NOT IN ('Entregue', 'Delivered') THEN
+//             NEW.kit_status := 'Enviado';
+//           END IF;
 //         END IF;
 //       END IF;
 //     END IF;
