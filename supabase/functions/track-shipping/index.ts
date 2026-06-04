@@ -1,12 +1,6 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers':
-    'authorization, x-client-info, x-supabase-client-platform, apikey, content-type',
-}
+import { corsHeaders } from '../_shared/cors.ts'
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -101,6 +95,11 @@ Deno.serve(async (req: Request) => {
       return deliveryKeywords.some((kw) => s.includes(kw))
     }
 
+    const normalizeTracking = (code: any) => {
+      if (!code) return ''
+      return String(code).trim().replace(/^LGI-/i, '').trim()
+    }
+
     for (const [userId, userApps] of Object.entries(appointmentsByUser)) {
       const token = tokens.get(userId)
       const userAppsList = userApps as any[]
@@ -112,11 +111,6 @@ Deno.serve(async (req: Request) => {
           details: { error: 'Missing melhor_envio_token', count: userAppsList.length },
         })
         continue
-      }
-
-      const normalizeTracking = (code: any) => {
-        if (!code) return ''
-        return String(code).trim().replace(/^LGI-/i, '').trim()
       }
 
       // Process in batches of 50 to avoid rate limits / large payloads
