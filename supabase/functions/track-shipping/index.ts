@@ -137,17 +137,26 @@ Deno.serve(async (req: Request) => {
             `[track-shipping] Melhor Rastreio retornou ${response.status} para ${normalizedCode}`,
           )
 
+          let apiResponse: any = null
+          let rawText = ''
+          try {
+            rawText = await response.text()
+            apiResponse = JSON.parse(rawText)
+          } catch (e) {
+            apiResponse = rawText
+          }
+
+          if (isDebug) {
+            debugLog.push({
+              appointmentId: app.id,
+              code: normalizedCode,
+              status: response.status,
+              errorResponse: apiResponse,
+            })
+          }
+
           // Registra erro apenas se não for 404 (código ainda não postado)
           if (response.status !== 404) {
-            let apiResponse: any = null
-            let rawText = ''
-            try {
-              rawText = await response.text()
-              apiResponse = JSON.parse(rawText)
-            } catch (e) {
-              apiResponse = rawText
-            }
-
             await supabase.from('interaction_log').insert({
               user_id: app.user_id,
               type: 'tracking_error',
