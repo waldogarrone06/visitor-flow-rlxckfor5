@@ -8,69 +8,22 @@ const corsHeaders = {
     'authorization, x-client-info, x-supabase-client-platform, apikey, content-type',
 }
 
-// Remove prefixo LGI- que não faz parte do código de rastreio
 const normalizeTracking = (code: string) => code.replace(/^LGI-/i, '').trim()
 
-function checkIfDelivered(trackInfo: any): { delivered: boolean; deliveredAt: string | null } {
-  const fallbackDate = new Date().toISOString()
+const DELIVERED_KEYWORDS = [
+  'entregue',
+  'delivered',
+  'finalizado',
+  'recebido',
+  'objeto entregue',
+  'entregue ao destinatário',
+  'entrega realizada',
+]
 
-  const extractStatusText = (val: any): string => {
-    if (!val) return ''
-    if (typeof val === 'string') return val.toLowerCase()
-    if (typeof val === 'object') {
-      return [val.description, val.status, val.name, val.label]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase()
-    }
-    return String(val).toLowerCase()
-  }
-
-  const DELIVERED_KEYWORDS = [
-    'entregue',
-    'delivered',
-    'finalizado',
-    'recebido',
-    'objeto entregue',
-    'entregue ao destinatário',
-    'entrega realizada',
-  ]
-  const isDeliveredText = (text: string) => DELIVERED_KEYWORDS.some((kw) => text.includes(kw))
-
-  // Checa status raiz
-  const rootStatus = extractStatusText(trackInfo.status)
-  if (isDeliveredText(rootStatus)) {
-    return {
-      delivered: true,
-      deliveredAt: trackInfo.delivered_at || trackInfo.updated_at || fallbackDate,
-    }
-  }
-
-  // Checa array de eventos (suporta events, tracking, steps)
-  const events = trackInfo.events || trackInfo.tracking || trackInfo.steps || []
-  const eventList = Array.isArray(events) ? events : Object.values(events)
-
-  for (const event of eventList as any[]) {
-    const texts = [
-      extractStatusText(event.status),
-      extractStatusText(event.status_description),
-      extractStatusText(event.description),
-      extractStatusText(event.detail),
-      extractStatusText(event.message),
-      extractStatusText(event.label),
-    ].join(' ')
-
-    if (isDeliveredText(texts)) {
-      const rawDate = event.date || event.created_at || event.happened_at || event.time
-      let deliveredAt = fallbackDate
-      try {
-        if (rawDate) deliveredAt = new Date(rawDate).toISOString()
-      } catch (_) {}
-      return { delivered: true, deliveredAt }
-    }
-  }
-
-  return { delivered: false, deliveredAt: null }
+const isDelivered = (val: any): boolean => {
+  if (!val) return false
+  const text = typeof val === 'string' ? val : JSON.stringify(val)
+  return DELIVERED_KEYWORDS.some((kw) => text.toLowerCase().includes(kw))
 }
 
 Deno.serve(async (req: Request) => {
@@ -93,7 +46,6 @@ Deno.serve(async (req: Request) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
     const supabase = createClient(supabaseUrl, supabaseKey)
 
-    // Busca appointments com rastreio que ainda não foram entregues
     let query = supabase
       .from('appointments')
       .select('id, user_id, tracking_number, kit_status')
@@ -101,9 +53,7 @@ Deno.serve(async (req: Request) => {
       .neq('kit_status', 'Delivered')
       .neq('kit_status', 'Entregue')
 
-    if (appointmentIdToRefresh) {
-      query = query.eq('id', appointmentIdToRefresh)
-    }
+    if (appointmentIdToRefresh) query = query.eq('id', appointmentIdToRefresh)
 
     const { data: appointments, error: appErr } = await query
     if (appErr) throw appErr
@@ -114,100 +64,196 @@ Deno.serve(async (req: Request) => {
       })
     }
 
+    const userIds = [...new Set(appointments.map((a) => a.user_id))]
+    const { data: integrations } = await supabase
+      .from('user_integrations')
+      .select('user_id, melhor_envio_token')
+      .in('user_id', userIds)
+
+    const tokens = new Map<string, string>()
+    if (integrations)
+      integrations.forEach((i) => tokens.set(String(i.user_id), i.melhor_envio_token))
+
     const updates: string[] = []
     const debugLog: any[] = []
 
     for (const app of appointments) {
+      const token = tokens.get(String(app.user_id))
+      if (!token) {
+        console.warn(`[track-shipping] No token for user ${app.user_id}`)
+        continue
+      }
+
       const normalizedCode = normalizeTracking(app.tracking_number)
 
       try {
-        // Melhor Rastreio aceita o código de rastreio diretamente, sem autenticação
-        const response = await fetch(
-          `https://melhorrastreio.com.br/api/v2/trackings/${normalizedCode}`,
-          {
-            headers: {
-              Accept: 'application/json',
-              'User-Agent': 'Fourlab Integration',
-            },
-          },
-        )
+        // Passo 1: busca o pedido no Melhor Envio pelo código de rastreio com fallback de endpoints
+        const endpoints = [
+          `https://www.melhorenvio.com.br/api/v2/me/shipments?q=${normalizedCode}&per_page=5`,
+          `https://www.melhorenvio.com.br/api/v2/me/orders?q=${normalizedCode}&per_page=5`,
+          `https://www.melhorenvio.com.br/api/v2/me/purchases?q=${normalizedCode}&per_page=5`,
+        ]
 
-        if (!response.ok) {
-          console.warn(
-            `[track-shipping] Melhor Rastreio retornou ${response.status} para ${normalizedCode}`,
-          )
+        let searchData: any = null
+        let validResponseFound = false
 
-          let apiResponse: any = null
-          let rawText = ''
+        for (const endpoint of endpoints) {
           try {
-            rawText = await response.text()
-            apiResponse = JSON.parse(rawText)
-          } catch (e) {
-            apiResponse = rawText
-          }
-
-          if (isDebug) {
-            debugLog.push({
-              appointmentId: app.id,
-              code: normalizedCode,
-              status: response.status,
-              errorResponse: apiResponse,
-            })
-          }
-
-          // Registra erro apenas se não for 404 (código ainda não postado)
-          if (response.status !== 404) {
-            await supabase.from('interaction_log').insert({
-              user_id: app.user_id,
-              type: 'tracking_error',
-              details: {
-                error: `Melhor Rastreio API returned ${response.status}`,
-                statusText: response.statusText,
-                trackingNumbers: [normalizedCode],
-                apiResponse: apiResponse,
-                appointment_id: app.id,
+            const searchRes = await fetch(endpoint, {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'User-Agent': 'Fourlab Integration',
               },
             })
+
+            const rawText = await searchRes.text()
+
+            if (isDebug) {
+              debugLog.push({
+                step: 'search_attempt',
+                endpoint: endpoint,
+                status: searchRes.status,
+                preview: rawText.substring(0, 300),
+              })
+            }
+
+            if (rawText.trim().startsWith('<')) {
+              console.warn(`[track-shipping] HTML response from ${endpoint} for ${normalizedCode}`)
+              continue
+            }
+
+            if (!searchRes.ok) {
+              console.error(
+                `[track-shipping] Search error ${searchRes.status} for ${normalizedCode} at ${endpoint}: ${rawText.substring(0, 200)}`,
+              )
+              continue
+            }
+
+            searchData = JSON.parse(rawText)
+            validResponseFound = true
+            if (isDebug)
+              debugLog.push({ step: 'search', code: normalizedCode, response: searchData })
+            break // Found valid JSON
+          } catch (err: any) {
+            console.error(`[track-shipping] Fetch exception at ${endpoint}: ${err.message}`)
           }
+        }
+
+        if (!validResponseFound) {
+          console.warn(`[track-shipping] All endpoints failed for ${normalizedCode}`)
+          if (isDebug)
+            debugLog.push({
+              step: 'search_failed',
+              code: normalizedCode,
+              message: 'All endpoints returned HTML or invalid JSON',
+            })
           continue
         }
 
-        const trackInfo = await response.json()
+        // Passo 2: encontra o pedido que bate com o tracking code
+        const items =
+          searchData?.data || searchData?.items || (Array.isArray(searchData) ? searchData : [])
+        const shipment = items.find(
+          (s: any) =>
+            String(s.tracking || s.code || s.tracking_code || '').toLowerCase() ===
+            normalizedCode.toLowerCase(),
+        )
 
-        if (isDebug) {
-          debugLog.push({ appointmentId: app.id, code: normalizedCode, rawResponse: trackInfo })
+        if (!shipment) {
+          console.warn(`[track-shipping] Shipment not found for tracking ${normalizedCode}`)
+          if (isDebug)
+            debugLog.push({
+              step: 'match',
+              code: normalizedCode,
+              message: 'not found in results',
+              results: items,
+            })
+          continue
         }
 
-        const { delivered, deliveredAt } = checkIfDelivered(trackInfo)
+        if (isDebug) debugLog.push({ step: 'shipment', code: normalizedCode, shipment })
 
-        if (delivered) {
+        // Passo 3: verifica se está entregue pelo status do pedido
+        const shipmentDelivered =
+          isDelivered(shipment.status) || isDelivered(shipment.delivery_status)
+        let deliveredAt = new Date().toISOString()
+
+        if (shipment.delivered_at) {
+          try {
+            deliveredAt = new Date(shipment.delivered_at).toISOString()
+          } catch (_) {}
+        }
+
+        if (shipmentDelivered) {
           const { error: updateErr } = await supabase
             .from('appointments')
-            .update({
-              kit_status: 'Entregue',
-              delivered_at: deliveredAt,
-            })
+            .update({ kit_status: 'Entregue', delivered_at: deliveredAt })
             .eq('id', app.id)
 
           if (updateErr) {
-            console.error(
-              `[track-shipping] Erro ao atualizar appointment ${app.id}:`,
-              updateErr.message,
-            )
+            console.error(`[track-shipping] Update error for ${app.id}:`, updateErr.message)
           } else {
             updates.push(app.id)
-            console.log(`[track-shipping] Entregue: appointment ${app.id} (${normalizedCode})`)
+            console.log(`[track-shipping] Marked delivered: ${app.id} (${normalizedCode})`)
           }
         } else {
-          console.log(
-            `[track-shipping] Em trânsito: ${normalizedCode} — status: ${JSON.stringify(trackInfo.status)}`,
-          )
+          // Passo 4: se não está entregue pelo status, usa o UUID para buscar tracking detalhado
+          const shipmentId = shipment.id
+          if (shipmentId) {
+            const trackRes = await fetch(
+              'https://www.melhorenvio.com.br/api/v2/me/shipment/tracking',
+              {
+                method: 'POST',
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  Accept: 'application/json',
+                  'Content-Type': 'application/json',
+                  'User-Agent': 'application/json',
+                },
+                body: JSON.stringify({ orders: [shipmentId] }),
+              },
+            )
+
+            if (trackRes.ok) {
+              const trackData = await trackRes.json()
+              if (isDebug) debugLog.push({ step: 'tracking', shipmentId, response: trackData })
+
+              const trackInfo = trackData[shipmentId]
+              if (trackInfo && isDelivered(JSON.stringify(trackInfo))) {
+                const events = trackInfo.tracking || trackInfo.events || []
+                const eventList = Array.isArray(events) ? events : Object.values(events)
+                let finalDate = new Date().toISOString()
+
+                for (const ev of eventList as any[]) {
+                  if (isDelivered(JSON.stringify(ev))) {
+                    const rawDate = ev.date || ev.created_at || ev.happened_at
+                    try {
+                      if (rawDate) finalDate = new Date(rawDate).toISOString()
+                    } catch (_) {}
+                    break
+                  }
+                }
+
+                const { error: updateErr } = await supabase
+                  .from('appointments')
+                  .update({ kit_status: 'Entregue', delivered_at: finalDate })
+                  .eq('id', app.id)
+
+                if (!updateErr) {
+                  updates.push(app.id)
+                  console.log(`[track-shipping] Marked delivered via tracking detail: ${app.id}`)
+                }
+              }
+            }
+          }
         }
       } catch (e: any) {
-        console.error(`[track-shipping] Exceção para ${normalizedCode}:`, e.message)
+        console.error(`[track-shipping] Exception for ${normalizedCode}:`, e.message)
+        if (isDebug) debugLog.push({ step: 'exception', code: normalizedCode, error: e.message })
       }
 
-      // Pequena pausa entre chamadas para não sobrecarregar a API
       await new Promise((r) => setTimeout(r, 300))
     }
 
