@@ -9,7 +9,7 @@ Deno.serve(async (req: Request) => {
 
   try {
     let appointmentIdToRefresh = null
-    let debugMode = false
+    let debugMode = false // Ensure rebuild
 
     const url = new URL(req.url)
     if (url.searchParams.get('debug') === 'true') {
