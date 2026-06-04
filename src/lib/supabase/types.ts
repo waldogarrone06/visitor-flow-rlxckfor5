@@ -1090,27 +1090,24 @@ export const Constants = {
 //    LANGUAGE plpgsql
 //   AS $function$
 //   BEGIN
-//     -- Se o novo status já for Entregue/Delivered, deixamos como está sem alterações
+//     -- Status Protection: Once the status is "Entregue" or "Delivered",
+//     -- it must be protected from reverting regardless of further edits.
+//     IF TG_OP = 'UPDATE' AND OLD.kit_status IN ('Entregue', 'Delivered') THEN
+//       NEW.kit_status := OLD.kit_status;
+//       RETURN NEW;
+//     END IF;
+//
+//     -- If explicitly setting to Entregue/Delivered via UI or Edge Function
 //     IF NEW.kit_status IN ('Entregue', 'Delivered') THEN
 //       RETURN NEW;
 //     END IF;
 //
-//     -- Se não houver rastreio, reverte para Pending
+//     -- If there is no tracking number, revert to Pending
 //     IF NEW.tracking_number IS NULL OR trim(NEW.tracking_number) = '' THEN
 //       NEW.kit_status := 'Pending';
 //     ELSE
-//       -- Se tem rastreio, verifica se foi recém-adicionado para mudar para Enviado
-//       IF TG_OP = 'INSERT' THEN
-//         IF NEW.kit_status NOT IN ('Entregue', 'Delivered') THEN
-//           NEW.kit_status := 'Enviado';
-//         END IF;
-//       ELSIF TG_OP = 'UPDATE' THEN
-//         IF (OLD.tracking_number IS NULL OR trim(OLD.tracking_number) = '') AND (NEW.tracking_number IS NOT NULL AND trim(NEW.tracking_number) <> '') THEN
-//           IF NEW.kit_status NOT IN ('Entregue', 'Delivered') THEN
-//             NEW.kit_status := 'Enviado';
-//           END IF;
-//         END IF;
-//       END IF;
+//       -- If there is a tracking number, the status is Enviado
+//       NEW.kit_status := 'Enviado';
 //     END IF;
 //
 //     RETURN NEW;

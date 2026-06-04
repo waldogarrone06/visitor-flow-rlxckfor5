@@ -162,6 +162,7 @@ Deno.serve(async (req: Request) => {
                 }
 
                 let isDelivered = false
+                let isInTransit = false
                 let deliveredAt = new Date().toISOString()
 
                 if (isStatusDelivered(trackInfo.status)) {
@@ -173,6 +174,15 @@ Deno.serve(async (req: Request) => {
                       ).toISOString()
                     } catch (e) {}
                   }
+                } else if (
+                  String(trackInfo.status || '')
+                    .toLowerCase()
+                    .includes('trânsito') ||
+                  String(trackInfo.status || '')
+                    .toLowerCase()
+                    .includes('transit')
+                ) {
+                  isInTransit = true
                 }
 
                 const events = trackInfo.tracking || trackInfo.events
@@ -193,6 +203,13 @@ Deno.serve(async (req: Request) => {
                         }
                       }
                       break
+                    } else if (
+                      evtStatus.includes('trânsito') ||
+                      evtDetail.includes('trânsito') ||
+                      evtStatus.includes('transit') ||
+                      evtDetail.includes('transit')
+                    ) {
+                      isInTransit = true
                     }
                   }
                 }
@@ -203,6 +220,17 @@ Deno.serve(async (req: Request) => {
                     .update({
                       kit_status: 'Entregue',
                       delivered_at: deliveredAt,
+                    })
+                    .eq('id', app.id)
+
+                  if (!updateErr) {
+                    updates.push(app.id)
+                  }
+                } else if (isInTransit && app.kit_status !== 'Enviado') {
+                  const { error: updateErr } = await supabase
+                    .from('appointments')
+                    .update({
+                      kit_status: 'Enviado',
                     })
                     .eq('id', app.id)
 
