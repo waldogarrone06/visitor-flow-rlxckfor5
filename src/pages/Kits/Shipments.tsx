@@ -53,6 +53,17 @@ export function KitShipments() {
     }
   }
 
+  const syncTracking = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('track-shipping')
+      if (!error && data?.updatedCount > 0) {
+        await fetchShipments()
+      }
+    } catch (err) {
+      console.error('Background sync failed:', err)
+    }
+  }
+
   const handleSaveTracking = async (id: string) => {
     try {
       setSavingId(id)
@@ -67,6 +78,9 @@ export function KitShipments() {
 
       toast.success('Rastreio atualizado com sucesso!')
       await fetchShipments()
+
+      // Trigger background sync for the new tracking number automatically
+      syncTracking()
     } catch (err: any) {
       toast.error('Erro ao salvar rastreio', { description: err.message })
     } finally {
@@ -75,7 +89,10 @@ export function KitShipments() {
   }
 
   useEffect(() => {
-    fetchShipments()
+    fetchShipments().then(() => {
+      // Perform initial background sync after first load
+      syncTracking()
+    })
   }, [])
 
   const getTrackingLink = (code: string) => {
