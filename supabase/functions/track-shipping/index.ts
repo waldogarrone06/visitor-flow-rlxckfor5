@@ -147,129 +147,14 @@ Deno.serve(async (req: Request) => {
             response = await fetchTracking()
           }
 
-          if (response.ok) {
-            const data = await response.json()
-            if (debugMode) {
-              debugPayloads.push({ userId, trackingNumbers, response: data })
+          if (!response.ok) {
+            let errBody: any = {}
+            try {
+              errBody = await response.json()
+            } catch (_) {
+              errBody = { raw: await response.text() }
             }
-
-            for (const app of chunk) {
-              const cleanedTrack = normalizeTracking(app.tracking_number)
-              if (!cleanedTrack) continue
-
-              const trackInfo = data[cleanedTrack]
-              if (trackInfo) {
-                if (trackInfo.error) {
-                  console.warn(`Tracking error for ${app.tracking_number}:`, trackInfo.error)
-                  await supabase.from('interaction_log').insert({
-                    user_id: userId,
-                    type: 'tracking_error',
-                    details: {
-                      error: 'Carrier returned an error for this tracking number',
-                      tracking_number: app.tracking_number,
-                      cleaned_tracking_number: cleanedTrack,
-                      carrier_error: trackInfo.error,
-                    },
-                  })
-                  continue
-                }
-
-                let isDelivered = false
-                let isInTransit = false
-                let deliveredAt = new Date().toISOString()
-
-                if (isStatusDelivered(trackInfo.status)) {
-                  isDelivered = true
-                  if (trackInfo.delivered_at || trackInfo.updated_at) {
-                    try {
-                      deliveredAt = new Date(
-                        trackInfo.delivered_at || trackInfo.updated_at,
-                      ).toISOString()
-                    } catch (e) {}
-                  }
-                } else if (
-                  String(trackInfo.status || '')
-                    .toLowerCase()
-                    .includes('trânsito') ||
-                  String(trackInfo.status || '')
-                    .toLowerCase()
-                    .includes('transit')
-                ) {
-                  isInTransit = true
-                }
-
-                const events = trackInfo.tracking || trackInfo.events
-                if (events && Array.isArray(events)) {
-                  for (const event of events) {
-                    const evtStatus = String(
-                      event.status || event.status_description || '',
-                    ).toLowerCase()
-                    const evtDetail = String(event.description || event.detail || '').toLowerCase()
-
-                    if (isStatusDelivered(evtStatus) || isStatusDelivered(evtDetail)) {
-                      isDelivered = true
-                      if (event.date || event.created_at) {
-                        try {
-                          deliveredAt = new Date(event.date || event.created_at).toISOString()
-                        } catch (err) {
-                          // keep fallback date
-                        }
-                      }
-                      break
-                    } else if (
-                      evtStatus.includes('trânsito') ||
-                      evtDetail.includes('trânsito') ||
-                      evtStatus.includes('transit') ||
-                      evtDetail.includes('transit')
-                    ) {
-                      isInTransit = true
-                    }
-                  }
-                }
-
-                if (isDelivered) {
-                  const { error: updateErr } = await supabase
-                    .from('appointments')
-                    .update({
-                      kit_status: 'Entregue',
-                      delivered_at: deliveredAt,
-                    })
-                    .eq('id', app.id)
-
-                  if (!updateErr) {
-                    updates.push(app.id)
-                  }
-                } else if (isInTransit && app.kit_status !== 'Enviado') {
-                  const { error: updateErr } = await supabase
-                    .from('appointments')
-                    .update({
-                      kit_status: 'Enviado',
-                    })
-                    .eq('id', app.id)
-
-                  if (!updateErr) {
-                    updates.push(app.id)
-                  }
-                }
-              } else {
-                console.warn(
-                  `No tracking info found for ${app.tracking_number} (cleaned: ${cleanedTrack}) in response:`,
-                  data,
-                )
-                await supabase.from('interaction_log').insert({
-                  user_id: userId,
-                  type: 'tracking_error',
-                  details: {
-                    error: 'Invalid tracking number or not found in API response',
-                    tracking_number: app.tracking_number,
-                    cleaned_tracking_number: cleanedTrack,
-                    raw_response: data,
-                  },
-                })
-              }
-            }
-          } else {
-            console.warn(`Melhor Envio API returned ${response.status} for user ${userId}`)
+            console.error(`[track-shipping] API error ${response.status}:`, JSON.stringify(errBody))
             await supabase.from('interaction_log').insert({
               user_id: userId,
               type: 'tracking_error',
@@ -277,8 +162,131 @@ Deno.serve(async (req: Request) => {
                 error: `Melhor Envio API returned ${response.status}`,
                 statusText: response.statusText,
                 trackingNumbers,
+                apiResponse: errBody,
               },
             })
+            continue
+          }
+
+          const data = await response.json()
+          if (debugMode) {
+            debugPayloads.push({ userId, trackingNumbers, response: data })
+          }
+
+          for (const app of chunk) {
+            const cleanedTrack = normalizeTracking(app.tracking_number)
+            if (!cleanedTrack) continue
+
+            const trackInfo = data[cleanedTrack]
+            if (trackInfo) {
+              if (trackInfo.error) {
+                console.warn(`Tracking error for ${app.tracking_number}:`, trackInfo.error)
+                await supabase.from('interaction_log').insert({
+                  user_id: userId,
+                  type: 'tracking_error',
+                  details: {
+                    error: 'Carrier returned an error for this tracking number',
+                    tracking_number: app.tracking_number,
+                    cleaned_tracking_number: cleanedTrack,
+                    carrier_error: trackInfo.error,
+                  },
+                })
+                continue
+              }
+
+              let isDelivered = false
+              let isInTransit = false
+              let deliveredAt = new Date().toISOString()
+
+              if (isStatusDelivered(trackInfo.status)) {
+                isDelivered = true
+                if (trackInfo.delivered_at || trackInfo.updated_at) {
+                  try {
+                    deliveredAt = new Date(
+                      trackInfo.delivered_at || trackInfo.updated_at,
+                    ).toISOString()
+                  } catch (e) {}
+                }
+              } else if (
+                String(trackInfo.status || '')
+                  .toLowerCase()
+                  .includes('trânsito') ||
+                String(trackInfo.status || '')
+                  .toLowerCase()
+                  .includes('transit')
+              ) {
+                isInTransit = true
+              }
+
+              const events = trackInfo.tracking || trackInfo.events
+              if (events && Array.isArray(events)) {
+                for (const event of events) {
+                  const evtStatus = String(
+                    event.status || event.status_description || '',
+                  ).toLowerCase()
+                  const evtDetail = String(event.description || event.detail || '').toLowerCase()
+
+                  if (isStatusDelivered(evtStatus) || isStatusDelivered(evtDetail)) {
+                    isDelivered = true
+                    if (event.date || event.created_at) {
+                      try {
+                        deliveredAt = new Date(event.date || event.created_at).toISOString()
+                      } catch (err) {
+                        // keep fallback date
+                      }
+                    }
+                    break
+                  } else if (
+                    evtStatus.includes('trânsito') ||
+                    evtDetail.includes('trânsito') ||
+                    evtStatus.includes('transit') ||
+                    evtDetail.includes('transit')
+                  ) {
+                    isInTransit = true
+                  }
+                }
+              }
+
+              if (isDelivered) {
+                const { error: updateErr } = await supabase
+                  .from('appointments')
+                  .update({
+                    kit_status: 'Entregue',
+                    delivered_at: deliveredAt,
+                  })
+                  .eq('id', app.id)
+
+                if (!updateErr) {
+                  updates.push(app.id)
+                }
+              } else if (isInTransit && app.kit_status !== 'Enviado') {
+                const { error: updateErr } = await supabase
+                  .from('appointments')
+                  .update({
+                    kit_status: 'Enviado',
+                  })
+                  .eq('id', app.id)
+
+                if (!updateErr) {
+                  updates.push(app.id)
+                }
+              }
+            } else {
+              console.warn(
+                `No tracking info found for ${app.tracking_number} (cleaned: ${cleanedTrack}) in response:`,
+                data,
+              )
+              await supabase.from('interaction_log').insert({
+                user_id: userId,
+                type: 'tracking_error',
+                details: {
+                  error: 'Invalid tracking number or not found in API response',
+                  tracking_number: app.tracking_number,
+                  cleaned_tracking_number: cleanedTrack,
+                  raw_response: data,
+                },
+              })
+            }
           }
         } catch (e: any) {
           console.error(`Error tracking for user ${userId}:`, e)
