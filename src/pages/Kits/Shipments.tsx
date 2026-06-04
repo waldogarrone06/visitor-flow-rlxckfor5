@@ -169,18 +169,15 @@ export function KitShipments() {
             to: appointment.client_email,
             subject: 'Agradecimento pela visita e seus Cupons Fourlab',
             html: `
-              <h2>Olá, ${appointment.client_name}!</h2>
-              <p>Gostaríamos de agradecer imensamente pela visita recente.</p>
-              <p>Conforme conversamos, seguem abaixo os seus cupons exclusivos da Fourlab Nutrition:</p>
-              <ul>
-                <li><strong>Cupom Nutri:</strong> <code>${nutriCoupon || 'N/A'}</code><br/>
-                <em>Este cupom é para seu uso pessoal em compras no nosso site.</em></li>
-                <li><strong>Cupom Paciente:</strong> <code>${patCoupon || 'N/A'}</code><br/>
-                <em>Este cupom é para distribuição aos seus pacientes, garantindo a eles um desconto especial.</em></li>
-              </ul>
-              <p>Estamos à disposição para qualquer dúvida!</p>
-              <br/>
-              <p>Um abraço,<br/>Equipe Fourlab</p>
+              <p>Prezado(a) ${appointment.client_name},</p>
+              <p>Agradecemos a visita à Fourlab. Foi excelente discutir como nossa tecnologia de suplementação pode otimizar o suporte metabólico e a performance no endurance.</p>
+              <p>Para uso pessoal e prescrição, seguem seus benefícios:<br/>
+              Uso Pessoal: ${nutriCoupon || 'N/A'}<br/>
+              Para Pacientes: ${patCoupon || 'N/A'}</p>
+              <p>Estamos à disposição para suporte técnico.</p>
+              <p>Atenciosamente, Juliana Maciel<br/>
+              Fourlab<br/>
+              Ciência e Performance</p>
             `,
             senderName: 'Fourlab Nutrition',
           },
