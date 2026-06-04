@@ -12,7 +12,6 @@ import {
   CheckCircle,
   Package,
   Send,
-  ThumbsUp,
   Video,
   Loader2,
 } from 'lucide-react'
@@ -149,7 +148,7 @@ export function DayAppointments({
   const handleSendWhatsApp = (
     phone: string,
     name: string,
-    template: 'confirm' | 'checkin' | 'thanks',
+    template: 'confirm' | 'checkin',
     time?: string,
   ) => {
     const cleanPhone = phone.replace(/\D/g, '')
@@ -160,7 +159,6 @@ export function DayAppointments({
     if (template === 'confirm')
       msg = `Olá ${name}, confirmando nossa visita agendada para às ${time}.`
     if (template === 'checkin') msg = `Olá ${name}, estou a caminho para a nossa visita!`
-    if (template === 'thanks') msg = `Olá ${name}, muito obrigado pela recepção na visita de hoje.`
 
     window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`, '_blank')
   }
@@ -505,21 +503,6 @@ export function DayAppointments({
                                       }
                                     >
                                       <Send className="h-3.5 w-3.5" />
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-6 px-2 text-slate-500 hover:text-amber-600 hover:bg-amber-50"
-                                      title="Agradecimento"
-                                      onClick={() =>
-                                        handleSendWhatsApp(
-                                          app.client_phone!,
-                                          app.client_name,
-                                          'thanks',
-                                        )
-                                      }
-                                    >
-                                      <ThumbsUp className="h-3.5 w-3.5" />
                                     </Button>
                                   </>
                                 )}

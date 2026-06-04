@@ -35,6 +35,7 @@ import {
   Loader2,
   RefreshCw,
   Trophy,
+  ThumbsUp,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { cn } from '@/lib/utils'
@@ -194,6 +195,84 @@ export function LeadList() {
     }
   }
 
+  const handleThumbsUp = async (p: any, contact: any) => {
+    const nutriCoupon = contact?.nutritionist_coupon || p.nutritionist_coupon || ''
+    const patientCoupon = contact?.patient_coupon || p.patient_coupon || ''
+
+    if (!nutriCoupon || !patientCoupon) {
+      toast({
+        title: 'Atenção',
+        description: 'Preencha ambos os cupons antes de notificar.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setActionLoading(p.id + '_thumbs')
+    try {
+      // 1. Notificar Marketing
+      const { error: mktError } = await supabase.functions.invoke('send-email', {
+        body: {
+          to: 'marketing@fourlabnutri.com.br',
+          subject: `Solicitação de Cadastro de Cupom - Yampi - ${p.client_name}`,
+          html: `
+            <div style="font-family: sans-serif; color: #333;">
+              <p>Olá equipe de Marketing,</p>
+              <p>Uma nova visita foi realizada. Solicitamos o cadastro dos seguintes cupons no Yampi para o profissional <strong>${p.client_name}</strong>:</p>
+              <ul>
+                <li><strong>Cupom Nutri:</strong> ${nutriCoupon}</li>
+                <li><strong>Cupom Paciente:</strong> ${patientCoupon}</li>
+              </ul>
+              <p>Obrigado!</p>
+            </div>
+          `,
+          senderName: 'Sistema FourLab',
+        },
+      })
+      if (mktError) throw mktError
+
+      // 2. Agradecimento Prescritor
+      if (p.client_email) {
+        const { error: prescriberError } = await supabase.functions.invoke('send-email', {
+          body: {
+            to: p.client_email,
+            subject: 'Um agradecimento especial da Fourlab Nutri!',
+            html: `
+              <div style="font-family: sans-serif; color: #333; line-height: 1.5;">
+                <p>Olá, ${p.client_name}!</p>
+                <p>Gostaríamos de agradecer imensamente pelo seu tempo e atenção durante nossa recente visita.</p>
+                <p>É uma honra apresentar as soluções da Fourlab Nutri para você.</p>
+                <p>Conforme conversamos, aqui estão os seus cupons exclusivos:</p>
+                <ul>
+                  <li><strong>Cupom Nutri (${nutriCoupon}):</strong> Este cupom é para seu uso pessoal e exclusivo. Fique à vontade para utilizá-lo em suas próprias compras em nosso site.</li>
+                  <li><strong>Cupom Paciente (${patientCoupon}):</strong> Este cupom é para você compartilhar com seus pacientes após as consultas, oferecendo a eles condições especiais.</li>
+                </ul>
+                <p>Estamos à disposição para qualquer dúvida ou suporte que precisar.</p>
+                <p>Um grande abraço,<br/>Equipe Fourlab Nutri</p>
+              </div>
+            `,
+            senderName: 'Fourlab Nutri',
+          },
+        })
+        if (prescriberError) throw prescriberError
+      }
+
+      toast({
+        title: 'Notificações enviadas',
+        description: 'Marketing e prescritor notificados com sucesso.',
+      })
+    } catch (e) {
+      console.error(e)
+      toast({
+        title: 'Erro ao enviar emails',
+        description: 'Tente novamente mais tarde.',
+        variant: 'destructive',
+      })
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
   const sortedData = useMemo(() => {
     if (!sortConfig) return prescribers
     return [...prescribers].sort((a, b) => {
@@ -261,6 +340,7 @@ export function LeadList() {
               <TableHead className="min-w-[140px]">
                 <Tag className="inline h-4 w-4 mr-2" /> Cupom Paciente
               </TableHead>
+              <TableHead className="w-[40px]"></TableHead>
               <TableHead
                 className="cursor-pointer"
                 onClick={() =>
@@ -340,6 +420,22 @@ export function LeadList() {
                       user={user}
                       onSave={loadData}
                     />
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                      onClick={() => handleThumbsUp(p, contact)}
+                      disabled={actionLoading === p.id + '_thumbs'}
+                      title="Notificar Marketing e Agradecer"
+                    >
+                      {actionLoading === p.id + '_thumbs' ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <ThumbsUp className="h-4 w-4" />
+                      )}
+                    </Button>
                   </TableCell>
                   <TableCell className="font-semibold text-sm">
                     {p.coupon_usage_count || 0}

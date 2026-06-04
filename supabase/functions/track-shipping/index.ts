@@ -1,39 +1,103 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
-import { corsHeaders } from '../_shared/cors.ts'
 
-const normalizeTracking = (code: string) => code.replace(/^LGI-/i, '').trim()
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers':
+    'authorization, x-client-info, x-supabase-client-platform, apikey, content-type',
+}
 
-const DELIVERED_STATUSES = ['delivered', 'entregue']
+// Remove prefixo de transportadora (LGI-, etc)
+const normalizeTracking = (code: string) => code.replace(/^[A-Z]+-/i, '').trim()
 
-const DELIVERED_EVENT_KEYWORDS = [
-  'entregue ao destinatário',
-  'objeto entregue',
-  'entrega realizada',
-  'delivered to',
-]
+// Status EXATOS do Melhor Envio que significam entrega ao destinatário
+// NÃO usar keywords genéricas como "recebido" — causa falsos positivos
+const MELHOR_ENVIO_DELIVERED_STATUSES = new Set(['delivered'])
 
-const isDelivered = (val: any): boolean => {
-  if (!val) return false
+const isOrderDelivered = (order: any): boolean => {
+  // Fonte 1: campo delivered_at preenchido = entregue com certeza
+  if (order.delivered_at) return true
+  // Fonte 2: status exato "delivered"
+  if (MELHOR_ENVIO_DELIVERED_STATUSES.has(String(order.status || '').toLowerCase())) return true
+  return false
+}
 
-  if (typeof val === 'string') {
-    const text = val.toLowerCase().trim()
-    if (DELIVERED_STATUSES.includes(text)) return true
-    return DELIVERED_EVENT_KEYWORDS.some((kw) => text.includes(kw))
+const fetchJson = async (url: string, token: string): Promise<any | null> => {
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/json',
+      'User-Agent': 'Fourlab Integration',
+    },
+  })
+  const text = await res.text()
+  if (text.trimStart().startsWith('<')) return null // retornou HTML
+  try {
+    return JSON.parse(text)
+  } catch (_) {
+    return null
   }
+}
 
-  if (typeof val === 'object') {
-    if (val.status && DELIVERED_STATUSES.includes(String(val.status).toLowerCase().trim()))
-      return true
-    if (
-      val.delivery_status &&
-      DELIVERED_STATUSES.includes(String(val.delivery_status).toLowerCase().trim())
+// Busca o order no Melhor Envio paginando /purchases
+const findOrderByTracking = async (
+  normalizedCode: string,
+  originalTracking: string,
+  token: string,
+  debugLog: any[],
+  isDebug: boolean,
+): Promise<any | null> => {
+  const maxPages = 15
+
+  for (let page = 1; page <= maxPages; page++) {
+    const data = await fetchJson(
+      `https://www.melhorenvio.com.br/api/v2/me/purchases?per_page=50&page=${page}`,
+      token,
     )
-      return true
+
+    if (!data) {
+      if (isDebug) debugLog.push({ step: 'fetch_failed', page })
+      break
+    }
+
+    if (isDebug && page === 1) {
+      debugLog.push({ step: 'pagination_info', total: data.total, last_page: data.last_page })
+    }
+
+    const purchases: any[] = data.data || []
+    if (purchases.length === 0) break
+
+    for (const purchase of purchases) {
+      for (const order of purchase.orders || []) {
+        const selfTracking = String(order.self_tracking || '').toLowerCase()
+        const fullTracking = String(order.tracking || '').toLowerCase()
+
+        if (
+          selfTracking === normalizedCode.toLowerCase() ||
+          fullTracking === originalTracking.toLowerCase()
+        ) {
+          if (isDebug)
+            debugLog.push({
+              step: 'order_found',
+              page,
+              order_id: order.id,
+              tracking: order.tracking,
+              self_tracking: order.self_tracking,
+              status: order.status,
+              delivered_at: order.delivered_at,
+              posted_at: order.posted_at,
+            })
+          return order
+        }
+      }
+    }
+
+    if (page >= (data.last_page || 1)) break
+    await new Promise((r) => setTimeout(r, 200))
   }
 
-  const text = JSON.stringify(val).toLowerCase()
-  return DELIVERED_EVENT_KEYWORDS.some((kw) => text.includes(kw))
+  return null
 }
 
 Deno.serve(async (req: Request) => {
@@ -56,12 +120,13 @@ Deno.serve(async (req: Request) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
     const supabase = createClient(supabaseUrl, supabaseKey)
 
+    // Busca appointments com rastreio pendente
     let query = supabase
       .from('appointments')
       .select('id, user_id, tracking_number, kit_status')
       .not('tracking_number', 'is', null)
-      .neq('kit_status', 'Delivered')
       .neq('kit_status', 'Entregue')
+      .neq('kit_status', 'Delivered')
 
     if (appointmentIdToRefresh) query = query.eq('id', appointmentIdToRefresh)
 
@@ -74,6 +139,7 @@ Deno.serve(async (req: Request) => {
       })
     }
 
+    // Carrega tokens por usuário
     const userIds = [...new Set(appointments.map((a) => a.user_id))]
     const { data: integrations } = await supabase
       .from('user_integrations')
@@ -81,264 +147,74 @@ Deno.serve(async (req: Request) => {
       .in('user_id', userIds)
 
     const tokens = new Map<string, string>()
-    if (integrations)
+    if (integrations) {
       integrations.forEach((i) => tokens.set(String(i.user_id), i.melhor_envio_token))
+    }
 
     const updates: string[] = []
+    const skipped: string[] = []
     const debugLog: any[] = []
 
     for (const app of appointments) {
       const token = tokens.get(String(app.user_id))
+
       if (!token) {
         console.warn(`[track-shipping] No token for user ${app.user_id}`)
+        skipped.push(app.id)
         continue
       }
 
       const normalizedCode = normalizeTracking(app.tracking_number)
 
       try {
-        // Passo 1 e 2: busca o pedido no Melhor Envio pelo código de rastreio paginando pela API de purchases
-        let shipment: any = null
-        let page = 1
-        const maxPages = 10
-        let validResponseFound = false
-        let lastErrorStatus = 0
-        let lastErrorBody = ''
-        let totalPagesSearched = 0
+        const order = await findOrderByTracking(
+          normalizedCode,
+          app.tracking_number,
+          token,
+          debugLog,
+          isDebug,
+        )
 
-        while (page <= maxPages) {
-          const endpoint = `https://www.melhorenvio.com.br/api/v2/me/purchases?per_page=50&page=${page}`
-          totalPagesSearched = page
-
-          try {
-            const searchRes = await fetch(endpoint, {
-              headers: {
-                Authorization: `Bearer ${token}`,
-                Accept: 'application/json',
-                'Content-Type': 'application/json',
-                'User-Agent': 'Fourlab Integration',
-              },
-            })
-
-            const rawText = await searchRes.text()
-
-            if (isDebug && page === 1) {
-              debugLog.push({
-                step: 'search_attempt',
-                endpoint: endpoint,
-                status: searchRes.status,
-                preview: rawText.substring(0, 300),
-              })
-            }
-
-            if (rawText.trim().startsWith('<')) {
-              console.warn(`[track-shipping] HTML response from ${endpoint} for ${normalizedCode}`)
-              lastErrorStatus = searchRes.status
-              lastErrorBody = rawText.substring(0, 500)
-              break // Break on HTML
-            }
-
-            if (!searchRes.ok) {
-              console.error(
-                `[track-shipping] Search error ${searchRes.status} for ${normalizedCode} at ${endpoint}: ${rawText.substring(0, 200)}`,
-              )
-              lastErrorStatus = searchRes.status
-              lastErrorBody = rawText.substring(0, 500)
-              break // Break on Error
-            }
-
-            let searchData
-            try {
-              searchData = JSON.parse(rawText)
-            } catch (err) {
-              console.warn(`[track-shipping] JSON parse failed for ${endpoint}`)
-              break // Break on invalid JSON
-            }
-
-            validResponseFound = true
-
-            if (isDebug && page === 1) {
-              debugLog.push({
-                step: 'purchases_page1',
-                total: searchData.total,
-                last_page: searchData.last_page,
-              })
-            }
-
-            const purchases =
-              searchData?.data || searchData?.items || (Array.isArray(searchData) ? searchData : [])
-
-            for (const purchase of purchases) {
-              const ordersToSearch = Array.isArray(purchase.orders) ? purchase.orders : [purchase]
-
-              for (const o of ordersToSearch) {
-                const selfTracking = String(o.self_tracking || '').toLowerCase()
-                const tracking = String(o.tracking || '').toLowerCase()
-                const trackingNumberLower = String(app.tracking_number || '').toLowerCase()
-                const normLower = normalizedCode.toLowerCase()
-
-                if (
-                  selfTracking === normLower ||
-                  tracking === trackingNumberLower ||
-                  tracking === `lgi-${normLower}`
-                ) {
-                  shipment = o
-                  break
-                }
-              }
-              if (shipment) break
-            }
-
-            if (shipment) {
-              if (isDebug)
-                debugLog.push({
-                  step: 'shipment_found',
-                  page: page,
-                  code: normalizedCode,
-                  id: shipment.id,
-                  status: shipment.status,
-                  delivered_at: shipment.delivered_at,
-                  tracking: shipment.tracking,
-                })
-              break // Found shipment, break pagination
-            }
-
-            const lastPage = searchData.last_page || 1
-            if (page >= lastPage) {
-              break // Reached last page
-            }
-
-            page++
-            await new Promise((r) => setTimeout(r, 200)) // Delay between pages
-          } catch (err: any) {
-            console.error(`[track-shipping] Fetch exception at ${endpoint}: ${err.message}`)
-            lastErrorStatus = 500
-            lastErrorBody = err.message
-            break
-          }
-        }
-
-        if (!validResponseFound && !shipment) {
-          console.warn(`[track-shipping] Valid response not found for ${normalizedCode}`)
-          if (isDebug)
-            debugLog.push({
-              step: 'search_failed',
-              code: normalizedCode,
-              message: 'All pages returned HTML or invalid JSON or errors',
-            })
-
-          if (lastErrorStatus && lastErrorStatus !== 404) {
-            await supabase.from('interaction_log').insert({
-              user_id: app.user_id,
-              type: 'shipping_sync_error',
-              details: {
-                tracking_code: normalizedCode,
-                status: lastErrorStatus,
-                apiResponse: lastErrorBody,
-              },
-            })
-          }
+        if (!order) {
+          console.warn(`[track-shipping] Order not found: ${normalizedCode}`)
+          if (isDebug) debugLog.push({ step: 'not_found', tracking: normalizedCode })
+          skipped.push(app.id)
           continue
         }
 
-        if (!shipment) {
-          console.warn(`[track-shipping] Shipment not found for tracking ${normalizedCode}`)
-          if (isDebug)
-            debugLog.push({
-              step: 'not_found',
-              code: normalizedCode,
-              pages_searched: totalPagesSearched,
-            })
-          continue
-        }
-
-        // Passo 3: verifica se está entregue pelo status do pedido
-        const shipmentDelivered =
-          !!shipment.delivered_at ||
-          DELIVERED_STATUSES.includes(
-            String(shipment.status || '')
-              .toLowerCase()
-              .trim(),
-          ) ||
-          DELIVERED_STATUSES.includes(
-            String(shipment.delivery_status || '')
-              .toLowerCase()
-              .trim(),
+        if (!isOrderDelivered(order)) {
+          console.log(
+            `[track-shipping] Not delivered yet: ${normalizedCode} (status: ${order.status})`,
           )
-        let deliveredAt = new Date().toISOString()
+          continue
+        }
 
-        if (shipment.delivered_at) {
+        // Usa delivered_at do Melhor Envio ou fallback para agora
+        let deliveredAt = new Date().toISOString()
+        if (order.delivered_at) {
           try {
-            deliveredAt = new Date(shipment.delivered_at).toISOString()
+            deliveredAt = new Date(order.delivered_at).toISOString()
           } catch (_) {}
         }
 
-        if (shipmentDelivered) {
-          const { error: updateErr } = await supabase
-            .from('appointments')
-            .update({ kit_status: 'Entregue', delivered_at: deliveredAt })
-            .eq('id', app.id)
+        const { error: updateErr } = await supabase
+          .from('appointments')
+          .update({ kit_status: 'Entregue', delivered_at: deliveredAt })
+          .eq('id', app.id)
 
-          if (updateErr) {
-            console.error(`[track-shipping] Update error for ${app.id}:`, updateErr.message)
-          } else {
-            updates.push(app.id)
-            console.log(`[track-shipping] Marked delivered: ${app.id} (${normalizedCode})`)
-          }
+        if (updateErr) {
+          console.error(`[track-shipping] Failed to update ${app.id}:`, updateErr.message)
         } else {
-          // Passo 4: se não está entregue pelo status, usa o UUID para buscar tracking detalhado
-          const shipmentId = shipment.id
-          if (shipmentId) {
-            const trackRes = await fetch(
-              'https://www.melhorenvio.com.br/api/v2/me/shipment/tracking',
-              {
-                method: 'POST',
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                  Accept: 'application/json',
-                  'Content-Type': 'application/json',
-                  'User-Agent': 'application/json',
-                },
-                body: JSON.stringify({ orders: [shipmentId] }),
-              },
-            )
-
-            if (trackRes.ok) {
-              const trackData = await trackRes.json()
-              if (isDebug) debugLog.push({ step: 'tracking', shipmentId, response: trackData })
-
-              const trackInfo = trackData[shipmentId]
-              if (trackInfo && isDelivered(trackInfo)) {
-                const events = trackInfo.tracking || trackInfo.events || []
-                const eventList = Array.isArray(events) ? events : Object.values(events)
-                let finalDate = new Date().toISOString()
-
-                for (const ev of eventList as any[]) {
-                  if (isDelivered(ev)) {
-                    const rawDate = ev.date || ev.created_at || ev.happened_at
-                    try {
-                      if (rawDate) finalDate = new Date(rawDate).toISOString()
-                    } catch (_) {}
-                    break
-                  }
-                }
-
-                const { error: updateErr } = await supabase
-                  .from('appointments')
-                  .update({ kit_status: 'Entregue', delivered_at: finalDate })
-                  .eq('id', app.id)
-
-                if (!updateErr) {
-                  updates.push(app.id)
-                  console.log(`[track-shipping] Marked delivered via tracking detail: ${app.id}`)
-                }
-              }
-            }
-          }
+          updates.push(app.id)
+          console.log(
+            `[track-shipping] Marked delivered: ${app.id} (${normalizedCode}) at ${deliveredAt}`,
+          )
         }
       } catch (e: any) {
         console.error(`[track-shipping] Exception for ${normalizedCode}:`, e.message)
-        if (isDebug) debugLog.push({ step: 'exception', code: normalizedCode, error: e.message })
+        if (isDebug)
+          debugLog.push({ step: 'exception', tracking: normalizedCode, error: e.message })
+        skipped.push(app.id)
       }
 
       await new Promise((r) => setTimeout(r, 300))
@@ -349,6 +225,8 @@ Deno.serve(async (req: Request) => {
         success: true,
         updatedCount: updates.length,
         updatedIds: updates,
+        skippedCount: skipped.length,
+        skippedIds: skipped,
         ...(isDebug && { debug: debugLog }),
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
