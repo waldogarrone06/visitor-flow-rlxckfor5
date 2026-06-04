@@ -11,6 +11,13 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { toast } from 'sonner'
 import { ExternalLink, Save, RefreshCw, ThumbsUp, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -36,6 +43,25 @@ export function KitShipments() {
   const [savingId, setSavingId] = useState<string | null>(null)
   const [savingCouponsId, setSavingCouponsId] = useState<string | null>(null)
   const [syncing, setSyncing] = useState(false)
+  const [searchName, setSearchName] = useState('')
+  const [filterStatus, setFilterStatus] = useState('all')
+
+  const filteredShipments = shipments.filter((s) => {
+    const matchesName = searchName
+      ? s.client_name.toLowerCase().includes(searchName.toLowerCase())
+      : true
+    const sStatus = s.kit_status || 'Pending'
+    const matchesStatus =
+      filterStatus !== 'all'
+        ? filterStatus === 'Entregue'
+          ? sStatus === 'Entregue' || sStatus === 'Delivered'
+          : filterStatus === 'Pending'
+            ? sStatus === 'Pending'
+            : sStatus === filterStatus
+        : true
+
+    return matchesName && matchesStatus
+  })
 
   const fetchShipments = async () => {
     try {
@@ -228,6 +254,38 @@ export function KitShipments() {
         </Button>
       </div>
 
+      <div className="flex flex-col sm:flex-row gap-4 items-center">
+        <Input
+          placeholder="Filtrar por nome..."
+          value={searchName}
+          onChange={(e) => setSearchName(e.target.value)}
+          className="max-w-sm w-full sm:w-auto"
+        />
+        <Select value={filterStatus} onValueChange={setFilterStatus}>
+          <SelectTrigger className="w-full sm:w-[180px]">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os Status</SelectItem>
+            <SelectItem value="Pending">Pendente</SelectItem>
+            <SelectItem value="Enviado">Enviado</SelectItem>
+            <SelectItem value="Entregue">Entregue</SelectItem>
+          </SelectContent>
+        </Select>
+        {(searchName || filterStatus !== 'all') && (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setSearchName('')
+              setFilterStatus('all')
+            }}
+            className="w-full sm:w-auto"
+          >
+            Limpar Filtros
+          </Button>
+        )}
+      </div>
+
       <div className="rounded-md border bg-card overflow-hidden">
         <div className="overflow-x-auto">
           <Table>
@@ -243,14 +301,16 @@ export function KitShipments() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {shipments.length === 0 ? (
+              {filteredShipments.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                    Nenhum kit atribuído.
+                    {searchName || filterStatus !== 'all'
+                      ? 'Nenhum envio encontrado com os filtros selecionados.'
+                      : 'Nenhum kit atribuído.'}
                   </TableCell>
                 </TableRow>
               ) : (
-                shipments.map((shipment) => (
+                filteredShipments.map((shipment) => (
                   <TableRow key={shipment.id}>
                     <TableCell className="font-medium whitespace-nowrap">
                       {shipment.client_name}

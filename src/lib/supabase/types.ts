@@ -28,6 +28,8 @@ export type Database = {
           instagram: string | null
           kit_name: string | null
           kit_status: string | null
+          nutritionist_coupon: string | null
+          patient_coupon: string | null
           patients_per_month: string | null
           professional_id: string | null
           reminder_sent: boolean | null
@@ -55,6 +57,8 @@ export type Database = {
           instagram?: string | null
           kit_name?: string | null
           kit_status?: string | null
+          nutritionist_coupon?: string | null
+          patient_coupon?: string | null
           patients_per_month?: string | null
           professional_id?: string | null
           reminder_sent?: boolean | null
@@ -82,6 +86,8 @@ export type Database = {
           instagram?: string | null
           kit_name?: string | null
           kit_status?: string | null
+          nutritionist_coupon?: string | null
+          patient_coupon?: string | null
           patients_per_month?: string | null
           professional_id?: string | null
           reminder_sent?: boolean | null
@@ -769,6 +775,8 @@ export const Constants = {
 //   instagram: text (nullable)
 //   patients_per_month: text (nullable)
 //   kit_name: text (nullable)
+//   nutritionist_coupon: text (nullable)
+//   patient_coupon: text (nullable)
 // Table: contact_tag_relations
 //   contact_id: uuid (not null)
 //   tag_id: uuid (not null)
