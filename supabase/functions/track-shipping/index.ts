@@ -112,7 +112,14 @@ Deno.serve(async (req: Request) => {
       const chunkSize = 50
       for (let i = 0; i < userAppsList.length; i += chunkSize) {
         const chunk = userAppsList.slice(i, i + chunkSize)
-        const trackingNumbers = chunk.map((a) => a.tracking_number)
+        const trackingNumbers = chunk
+          .map((a) => {
+            if (!a.tracking_number) return ''
+            return String(a.tracking_number).trim().replace(/^LGI-/i, '').trim()
+          })
+          .filter(Boolean)
+
+        if (trackingNumbers.length === 0) continue
 
         const fetchTracking = async () => {
           return fetch('https://www.melhorenvio.com.br/api/v2/me/shipment/tracking', {
@@ -145,7 +152,12 @@ Deno.serve(async (req: Request) => {
             }
 
             for (const app of chunk) {
-              const trackInfo = data[app.tracking_number]
+              const cleanedTrack = app.tracking_number
+                ? String(app.tracking_number).trim().replace(/^LGI-/i, '').trim()
+                : ''
+              if (!cleanedTrack) continue
+
+              const trackInfo = data[cleanedTrack]
               if (trackInfo) {
                 if (trackInfo.error) {
                   console.warn(`Tracking error for ${app.tracking_number}:`, trackInfo.error)
@@ -155,6 +167,7 @@ Deno.serve(async (req: Request) => {
                     details: {
                       error: 'Carrier returned an error for this tracking number',
                       tracking_number: app.tracking_number,
+                      cleaned_tracking_number: cleanedTrack,
                       carrier_error: trackInfo.error,
                     },
                   })
@@ -239,13 +252,17 @@ Deno.serve(async (req: Request) => {
                   }
                 }
               } else {
-                console.warn(`No tracking info found for ${app.tracking_number} in response:`, data)
+                console.warn(
+                  `No tracking info found for ${app.tracking_number} (cleaned: ${cleanedTrack}) in response:`,
+                  data,
+                )
                 await supabase.from('interaction_log').insert({
                   user_id: userId,
                   type: 'tracking_error',
                   details: {
                     error: 'Invalid tracking number or not found in API response',
                     tracking_number: app.tracking_number,
+                    cleaned_tracking_number: cleanedTrack,
                     raw_response: data,
                   },
                 })
