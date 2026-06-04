@@ -96,6 +96,8 @@ Deno.serve(async (req: Request) => {
 
         let searchData: any = null
         let validResponseFound = false
+        let lastErrorStatus = 0
+        let lastErrorBody = ''
 
         for (const endpoint of endpoints) {
           try {
@@ -121,6 +123,8 @@ Deno.serve(async (req: Request) => {
 
             if (rawText.trim().startsWith('<')) {
               console.warn(`[track-shipping] HTML response from ${endpoint} for ${normalizedCode}`)
+              lastErrorStatus = searchRes.status
+              lastErrorBody = rawText.substring(0, 500)
               continue
             }
 
@@ -128,6 +132,8 @@ Deno.serve(async (req: Request) => {
               console.error(
                 `[track-shipping] Search error ${searchRes.status} for ${normalizedCode} at ${endpoint}: ${rawText.substring(0, 200)}`,
               )
+              lastErrorStatus = searchRes.status
+              lastErrorBody = rawText.substring(0, 500)
               continue
             }
 
@@ -138,6 +144,8 @@ Deno.serve(async (req: Request) => {
             break // Found valid JSON
           } catch (err: any) {
             console.error(`[track-shipping] Fetch exception at ${endpoint}: ${err.message}`)
+            lastErrorStatus = 500
+            lastErrorBody = err.message
           }
         }
 
@@ -149,6 +157,18 @@ Deno.serve(async (req: Request) => {
               code: normalizedCode,
               message: 'All endpoints returned HTML or invalid JSON',
             })
+
+          if (lastErrorStatus && lastErrorStatus !== 404) {
+            await supabase.from('interaction_log').insert({
+              user_id: app.user_id,
+              type: 'shipping_sync_error',
+              details: {
+                tracking_code: normalizedCode,
+                status: lastErrorStatus,
+                apiResponse: lastErrorBody,
+              },
+            })
+          }
           continue
         }
 

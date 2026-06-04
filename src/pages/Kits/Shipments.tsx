@@ -12,7 +12,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
-import { ExternalLink, Save } from 'lucide-react'
+import { ExternalLink, Save, RefreshCw } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 type Appointment = {
   id: string
@@ -28,6 +29,7 @@ export function KitShipments() {
   const [loading, setLoading] = useState(true)
   const [trackingInputs, setTrackingInputs] = useState<Record<string, string>>({})
   const [savingId, setSavingId] = useState<string | null>(null)
+  const [syncing, setSyncing] = useState(false)
 
   const fetchShipments = async () => {
     try {
@@ -62,6 +64,24 @@ export function KitShipments() {
       }
     } catch (err) {
       console.error('Background sync failed:', err)
+    }
+  }
+
+  const handleManualSync = async () => {
+    try {
+      setSyncing(true)
+      const { data, error } = await supabase.functions.invoke('track-shipping', { body: {} })
+      if (error) throw error
+      if (data?.updatedCount > 0) {
+        toast.success(`${data.updatedCount} envio(s) atualizado(s) com sucesso!`)
+        await fetchShipments()
+      } else {
+        toast.info('Nenhum status novo encontrado na transportadora.')
+      }
+    } catch (err: any) {
+      toast.error('Erro na sincronização', { description: err.message })
+    } finally {
+      setSyncing(false)
     }
   }
 
@@ -108,99 +128,118 @@ export function KitShipments() {
   }
 
   return (
-    <div className="rounded-md border bg-card overflow-hidden">
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nome do Prescritor</TableHead>
-              <TableHead>Kit</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Rastreio</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {shipments.length === 0 ? (
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h3 className="text-lg font-medium">Status dos Envios</h3>
+          <p className="text-sm text-muted-foreground">
+            Acompanhe e sincronize o status dos kits enviados.
+          </p>
+        </div>
+        <Button onClick={handleManualSync} disabled={syncing} variant="outline" size="sm">
+          <RefreshCw className={cn('mr-2 h-4 w-4', syncing && 'animate-spin')} />
+          {syncing ? 'Sincronizando...' : 'Sincronizar Status'}
+        </Button>
+      </div>
+
+      <div className="rounded-md border bg-card overflow-hidden">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                  Nenhum kit atribuído.
-                </TableCell>
+                <TableHead>Nome do Prescritor</TableHead>
+                <TableHead>Kit</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Rastreio</TableHead>
               </TableRow>
-            ) : (
-              shipments.map((shipment) => (
-                <TableRow key={shipment.id}>
-                  <TableCell className="font-medium whitespace-nowrap">
-                    {shipment.client_name}
-                  </TableCell>
-                  <TableCell>{shipment.kit_name || '-'}</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={
-                        shipment.kit_status === 'Entregue' || shipment.kit_status === 'Delivered'
-                          ? 'default'
-                          : shipment.kit_status === 'Enviado'
-                            ? 'default'
-                            : 'secondary'
-                      }
-                      className={
-                        shipment.kit_status === 'Entregue' || shipment.kit_status === 'Delivered'
-                          ? 'bg-green-500 hover:bg-green-600 text-white border-transparent'
-                          : shipment.kit_status === 'Enviado'
-                            ? 'bg-blue-500 hover:bg-blue-600 text-white border-transparent'
-                            : 'bg-yellow-500 hover:bg-yellow-600 text-white border-transparent'
-                      }
-                    >
-                      {shipment.kit_status || 'Pending'}
-                    </Badge>
-                    {(shipment.kit_status === 'Entregue' || shipment.kit_status === 'Delivered') &&
-                      shipment.delivered_at && (
-                        <div className="text-[10px] text-muted-foreground mt-1 whitespace-nowrap">
-                          {new Date(shipment.delivered_at).toLocaleDateString('pt-BR')}
-                        </div>
-                      )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        value={trackingInputs[shipment.id] ?? ''}
-                        onChange={(e) =>
-                          setTrackingInputs((prev) => ({ ...prev, [shipment.id]: e.target.value }))
-                        }
-                        placeholder="Código de rastreio"
-                        className="w-32 sm:w-48 h-8 text-xs"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleSaveTracking(shipment.id)
-                        }}
-                      />
-                      {trackingInputs[shipment.id] !== (shipment.tracking_number || '') && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-primary"
-                          onClick={() => handleSaveTracking(shipment.id)}
-                          disabled={savingId === shipment.id}
-                        >
-                          <Save className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {shipment.tracking_number && (
-                        <a
-                          href={getTrackingLink(shipment.tracking_number)}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-primary hover:text-primary/80 transition-colors"
-                          title="Rastrear"
-                        >
-                          <ExternalLink className="w-4 h-4" />
-                        </a>
-                      )}
-                    </div>
+            </TableHeader>
+            <TableBody>
+              {shipments.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                    Nenhum kit atribuído.
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              ) : (
+                shipments.map((shipment) => (
+                  <TableRow key={shipment.id}>
+                    <TableCell className="font-medium whitespace-nowrap">
+                      {shipment.client_name}
+                    </TableCell>
+                    <TableCell>{shipment.kit_name || '-'}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={
+                          shipment.kit_status === 'Entregue' || shipment.kit_status === 'Delivered'
+                            ? 'default'
+                            : shipment.kit_status === 'Enviado'
+                              ? 'default'
+                              : 'secondary'
+                        }
+                        className={
+                          shipment.kit_status === 'Entregue' || shipment.kit_status === 'Delivered'
+                            ? 'bg-green-500 hover:bg-green-600 text-white border-transparent'
+                            : shipment.kit_status === 'Enviado'
+                              ? 'bg-blue-500 hover:bg-blue-600 text-white border-transparent'
+                              : 'bg-yellow-500 hover:bg-yellow-600 text-white border-transparent'
+                        }
+                      >
+                        {shipment.kit_status || 'Pending'}
+                      </Badge>
+                      {(shipment.kit_status === 'Entregue' ||
+                        shipment.kit_status === 'Delivered') &&
+                        shipment.delivered_at && (
+                          <div className="text-[10px] text-muted-foreground mt-1 whitespace-nowrap">
+                            {new Date(shipment.delivered_at).toLocaleDateString('pt-BR')}
+                          </div>
+                        )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={trackingInputs[shipment.id] ?? ''}
+                          onChange={(e) =>
+                            setTrackingInputs((prev) => ({
+                              ...prev,
+                              [shipment.id]: e.target.value,
+                            }))
+                          }
+                          placeholder="Código de rastreio"
+                          className="w-32 sm:w-48 h-8 text-xs"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleSaveTracking(shipment.id)
+                          }}
+                        />
+                        {trackingInputs[shipment.id] !== (shipment.tracking_number || '') && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-primary"
+                            onClick={() => handleSaveTracking(shipment.id)}
+                            disabled={savingId === shipment.id}
+                          >
+                            <Save className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {shipment.tracking_number && (
+                          <a
+                            href={getTrackingLink(shipment.tracking_number)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-primary hover:text-primary/80 transition-colors"
+                            title="Rastrear"
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                          </a>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
     </div>
   )
