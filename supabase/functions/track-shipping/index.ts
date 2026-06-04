@@ -1,12 +1,6 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers':
-    'authorization, x-client-info, x-supabase-client-platform, apikey, content-type',
-}
+import { corsHeaders } from '../_shared/cors.ts'
 
 const normalizeTracking = (code: string) => code.replace(/^LGI-/i, '').trim()
 
@@ -173,13 +167,30 @@ Deno.serve(async (req: Request) => {
         }
 
         // Passo 2: encontra o pedido que bate com o tracking code
-        const items =
+        const purchases =
           searchData?.data || searchData?.items || (Array.isArray(searchData) ? searchData : [])
-        const shipment = items.find(
-          (s: any) =>
-            String(s.tracking || s.code || s.tracking_code || '').toLowerCase() ===
-            normalizedCode.toLowerCase(),
-        )
+        let shipment: any = null
+
+        for (const purchase of purchases) {
+          const ordersToSearch = Array.isArray(purchase.orders) ? purchase.orders : [purchase]
+
+          for (const o of ordersToSearch) {
+            const selfTracking = String(o.self_tracking || '').toLowerCase()
+            const tracking = String(o.tracking || '').toLowerCase()
+            const trackingNumberLower = String(app.tracking_number || '').toLowerCase()
+            const normLower = normalizedCode.toLowerCase()
+
+            if (
+              selfTracking === normLower ||
+              tracking === trackingNumberLower ||
+              tracking === `lgi-${normLower}`
+            ) {
+              shipment = o
+              break
+            }
+          }
+          if (shipment) break
+        }
 
         if (!shipment) {
           console.warn(`[track-shipping] Shipment not found for tracking ${normalizedCode}`)
@@ -188,16 +199,25 @@ Deno.serve(async (req: Request) => {
               step: 'match',
               code: normalizedCode,
               message: 'not found in results',
-              results: items,
+              results: purchases,
             })
           continue
         }
 
-        if (isDebug) debugLog.push({ step: 'shipment', code: normalizedCode, shipment })
+        if (isDebug)
+          debugLog.push({
+            step: 'shipment_found',
+            code: normalizedCode,
+            id: shipment.id,
+            status: shipment.status,
+            delivered_at: shipment.delivered_at,
+          })
 
         // Passo 3: verifica se está entregue pelo status do pedido
         const shipmentDelivered =
-          isDelivered(shipment.status) || isDelivered(shipment.delivery_status)
+          !!shipment.delivered_at ||
+          isDelivered(shipment.status) ||
+          isDelivered(shipment.delivery_status)
         let deliveredAt = new Date().toISOString()
 
         if (shipment.delivered_at) {
