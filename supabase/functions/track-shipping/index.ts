@@ -108,16 +108,18 @@ Deno.serve(async (req: Request) => {
         continue
       }
 
+      const normalizeTracking = (code: any) => {
+        if (!code) return ''
+        return String(code).trim().replace(/^LGI-/i, '').trim()
+      }
+
       // Process in batches of 50 to avoid rate limits / large payloads
       const chunkSize = 50
       for (let i = 0; i < userAppsList.length; i += chunkSize) {
         const chunk = userAppsList.slice(i, i + chunkSize)
-        const trackingNumbers = chunk
-          .map((a) => {
-            if (!a.tracking_number) return ''
-            return String(a.tracking_number).trim().replace(/^LGI-/i, '').trim()
-          })
-          .filter(Boolean)
+        const trackingNumbers = [
+          ...new Set(chunk.map((a) => normalizeTracking(a.tracking_number)).filter(Boolean)),
+        ]
 
         if (trackingNumbers.length === 0) continue
 
@@ -152,9 +154,7 @@ Deno.serve(async (req: Request) => {
             }
 
             for (const app of chunk) {
-              const cleanedTrack = app.tracking_number
-                ? String(app.tracking_number).trim().replace(/^LGI-/i, '').trim()
-                : ''
+              const cleanedTrack = normalizeTracking(app.tracking_number)
               if (!cleanedTrack) continue
 
               const trackInfo = data[cleanedTrack]
