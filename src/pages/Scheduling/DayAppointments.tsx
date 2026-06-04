@@ -97,7 +97,7 @@ export function DayAppointments({ date, onUpdate }: DayAppointmentsProps) {
         const { error: presErr } = await supabase.functions.invoke('send-email', {
           body: {
             to: app.client_email,
-            subject: 'Agradecimento pela visita e seus Cupons Fourlab',
+            subject: 'Obrigado pela sua visita e tá aqui seus cupons.',
             html: `
               <p>Prezado(a) ${app.client_name},</p>
               <p>Agradecemos a visita à Fourlab. Foi excelente discutir como nossa tecnologia de suplementação pode otimizar o suporte metabólico e a performance no endurance.</p>

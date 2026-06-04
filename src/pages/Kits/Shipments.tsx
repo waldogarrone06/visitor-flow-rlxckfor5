@@ -167,7 +167,7 @@ export function KitShipments() {
         const { error: presErr } = await supabase.functions.invoke('send-email', {
           body: {
             to: appointment.client_email,
-            subject: 'Agradecimento pela visita e seus Cupons Fourlab',
+            subject: 'Obrigado pela sua visita e tá aqui seus cupons.',
             html: `
               <p>Prezado(a) ${appointment.client_name},</p>
               <p>Agradecemos a visita à Fourlab. Foi excelente discutir como nossa tecnologia de suplementação pode otimizar o suporte metabólico e a performance no endurance.</p>
