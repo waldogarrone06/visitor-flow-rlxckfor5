@@ -4,20 +4,36 @@ import { corsHeaders } from '../_shared/cors.ts'
 
 const normalizeTracking = (code: string) => code.replace(/^LGI-/i, '').trim()
 
-const DELIVERED_KEYWORDS = [
-  'entregue',
-  'delivered',
-  'finalizado',
-  'recebido',
-  'objeto entregue',
+const DELIVERED_STATUSES = ['delivered', 'entregue']
+
+const DELIVERED_EVENT_KEYWORDS = [
   'entregue ao destinatário',
+  'objeto entregue',
   'entrega realizada',
+  'delivered to',
 ]
 
 const isDelivered = (val: any): boolean => {
   if (!val) return false
-  const text = typeof val === 'string' ? val : JSON.stringify(val)
-  return DELIVERED_KEYWORDS.some((kw) => text.toLowerCase().includes(kw))
+
+  if (typeof val === 'string') {
+    const text = val.toLowerCase().trim()
+    if (DELIVERED_STATUSES.includes(text)) return true
+    return DELIVERED_EVENT_KEYWORDS.some((kw) => text.includes(kw))
+  }
+
+  if (typeof val === 'object') {
+    if (val.status && DELIVERED_STATUSES.includes(String(val.status).toLowerCase().trim()))
+      return true
+    if (
+      val.delivery_status &&
+      DELIVERED_STATUSES.includes(String(val.delivery_status).toLowerCase().trim())
+    )
+      return true
+  }
+
+  const text = JSON.stringify(val).toLowerCase()
+  return DELIVERED_EVENT_KEYWORDS.some((kw) => text.includes(kw))
 }
 
 Deno.serve(async (req: Request) => {
@@ -239,8 +255,16 @@ Deno.serve(async (req: Request) => {
         // Passo 3: verifica se está entregue pelo status do pedido
         const shipmentDelivered =
           !!shipment.delivered_at ||
-          isDelivered(shipment.status) ||
-          isDelivered(shipment.delivery_status)
+          DELIVERED_STATUSES.includes(
+            String(shipment.status || '')
+              .toLowerCase()
+              .trim(),
+          ) ||
+          DELIVERED_STATUSES.includes(
+            String(shipment.delivery_status || '')
+              .toLowerCase()
+              .trim(),
+          )
         let deliveredAt = new Date().toISOString()
 
         if (shipment.delivered_at) {
@@ -284,13 +308,13 @@ Deno.serve(async (req: Request) => {
               if (isDebug) debugLog.push({ step: 'tracking', shipmentId, response: trackData })
 
               const trackInfo = trackData[shipmentId]
-              if (trackInfo && isDelivered(JSON.stringify(trackInfo))) {
+              if (trackInfo && isDelivered(trackInfo)) {
                 const events = trackInfo.tracking || trackInfo.events || []
                 const eventList = Array.isArray(events) ? events : Object.values(events)
                 let finalDate = new Date().toISOString()
 
                 for (const ev of eventList as any[]) {
-                  if (isDelivered(JSON.stringify(ev))) {
+                  if (isDelivered(ev)) {
                     const rawDate = ev.date || ev.created_at || ev.happened_at
                     try {
                       if (rawDate) finalDate = new Date(rawDate).toISOString()
