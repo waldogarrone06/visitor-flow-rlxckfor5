@@ -12,30 +12,38 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
-import { ExternalLink, Save, RefreshCw } from 'lucide-react'
+import { ExternalLink, Save, RefreshCw, ThumbsUp, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type Appointment = {
   id: string
   client_name: string
+  client_email: string
   kit_name: string
   kit_status: string
   tracking_number: string
   delivered_at: string | null
+  nutritionist_coupon: string | null
+  patient_coupon: string | null
 }
 
 export function KitShipments() {
   const [shipments, setShipments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
   const [trackingInputs, setTrackingInputs] = useState<Record<string, string>>({})
+  const [nutritionistInputs, setNutritionistInputs] = useState<Record<string, string>>({})
+  const [patientInputs, setPatientInputs] = useState<Record<string, string>>({})
   const [savingId, setSavingId] = useState<string | null>(null)
+  const [savingCouponsId, setSavingCouponsId] = useState<string | null>(null)
   const [syncing, setSyncing] = useState(false)
 
   const fetchShipments = async () => {
     try {
       const { data, error } = await supabase
         .from('appointments')
-        .select('id, client_name, kit_name, kit_status, tracking_number, delivered_at')
+        .select(
+          'id, client_name, client_email, kit_name, kit_status, tracking_number, delivered_at, nutritionist_coupon, patient_coupon',
+        )
         .not('kit_name', 'is', null)
         .order('created_at', { ascending: false })
         .limit(100)
@@ -43,11 +51,17 @@ export function KitShipments() {
       if (error) throw error
       setShipments(data || [])
 
-      const inputs: Record<string, string> = {}
+      const tInputs: Record<string, string> = {}
+      const nutInputs: Record<string, string> = {}
+      const patInputs: Record<string, string> = {}
       ;(data || []).forEach((s) => {
-        inputs[s.id] = s.tracking_number || ''
+        tInputs[s.id] = s.tracking_number || ''
+        nutInputs[s.id] = s.nutritionist_coupon || ''
+        patInputs[s.id] = s.patient_coupon || ''
       })
-      setTrackingInputs(inputs)
+      setTrackingInputs(tInputs)
+      setNutritionistInputs(nutInputs)
+      setPatientInputs(patInputs)
     } catch (err) {
       console.error(err)
     } finally {
@@ -82,6 +96,78 @@ export function KitShipments() {
       toast.error('Erro na sincronização', { description: err.message })
     } finally {
       setSyncing(false)
+    }
+  }
+
+  const handleSaveCouponsAndSendEmails = async (appointment: Appointment) => {
+    try {
+      setSavingCouponsId(appointment.id)
+      const nutriCoupon = nutritionistInputs[appointment.id]?.trim() || null
+      const patCoupon = patientInputs[appointment.id]?.trim() || null
+
+      const { error: dbErr } = await supabase
+        .from('appointments')
+        .update({
+          nutritionist_coupon: nutriCoupon,
+          patient_coupon: patCoupon,
+        })
+        .eq('id', appointment.id)
+
+      if (dbErr) throw dbErr
+
+      if (nutriCoupon || patCoupon) {
+        const { error: mktErr } = await supabase.functions.invoke('send-email', {
+          body: {
+            to: 'marketing@fourlabnutri.com.br',
+            subject: 'Solicitação de Cadastro de Cupom - Yampi',
+            html: `
+              <h2>Solicitação de Cadastro de Cupons</h2>
+              <p><strong>Profissional:</strong> ${appointment.client_name}</p>
+              <p><strong>Email:</strong> ${appointment.client_email}</p>
+              <br/>
+              <p>Favor cadastrar os seguintes cupons na plataforma Yampi:</p>
+              <ul>
+                <li><strong>Cupom Nutri (Uso pessoal):</strong> ${nutriCoupon || 'Não informado'}</li>
+                <li><strong>Cupom Paciente (Distribuição):</strong> ${patCoupon || 'Não informado'}</li>
+              </ul>
+            `,
+            senderName: 'Sistema Fourlab',
+          },
+        })
+        if (mktErr) console.error('Erro ao enviar email MKT:', mktErr)
+      }
+
+      if (appointment.client_email) {
+        const { error: presErr } = await supabase.functions.invoke('send-email', {
+          body: {
+            to: appointment.client_email,
+            subject: 'Agradecimento pela visita e seus Cupons Fourlab',
+            html: `
+              <h2>Olá, ${appointment.client_name}!</h2>
+              <p>Gostaríamos de agradecer imensamente pela visita recente.</p>
+              <p>Conforme conversamos, seguem abaixo os seus cupons exclusivos da Fourlab Nutrition:</p>
+              <ul>
+                <li><strong>Cupom Nutri:</strong> <code>${nutriCoupon || 'N/A'}</code><br/>
+                <em>Este cupom é para seu uso pessoal em compras no nosso site.</em></li>
+                <li><strong>Cupom Paciente:</strong> <code>${patCoupon || 'N/A'}</code><br/>
+                <em>Este cupom é para distribuição aos seus pacientes, garantindo a eles um desconto especial.</em></li>
+              </ul>
+              <p>Estamos à disposição para qualquer dúvida!</p>
+              <br/>
+              <p>Um abraço,<br/>Equipe Fourlab</p>
+            `,
+            senderName: 'Fourlab Nutrition',
+          },
+        })
+        if (presErr) console.error('Erro ao enviar email prescritor:', presErr)
+      }
+
+      toast.success('Cupons salvos e e-mails enviados com sucesso!')
+      await fetchShipments()
+    } catch (err: any) {
+      toast.error('Erro ao processar', { description: err.message })
+    } finally {
+      setSavingCouponsId(null)
     }
   }
 
@@ -151,12 +237,15 @@ export function KitShipments() {
                 <TableHead>Kit</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Rastreio</TableHead>
+                <TableHead>Cupom Nutri</TableHead>
+                <TableHead>Cupom Paciente</TableHead>
+                <TableHead className="w-16">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {shipments.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                     Nenhum kit atribuído.
                   </TableCell>
                 </TableRow>
@@ -233,6 +322,42 @@ export function KitShipments() {
                           </a>
                         )}
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        value={nutritionistInputs[shipment.id] ?? ''}
+                        onChange={(e) =>
+                          setNutritionistInputs((p) => ({ ...p, [shipment.id]: e.target.value }))
+                        }
+                        placeholder="Ex: NUTRI10"
+                        className="w-24 sm:w-32 h-8 text-xs"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        value={patientInputs[shipment.id] ?? ''}
+                        onChange={(e) =>
+                          setPatientInputs((p) => ({ ...p, [shipment.id]: e.target.value }))
+                        }
+                        placeholder="Ex: PACI10"
+                        className="w-24 sm:w-32 h-8 text-xs"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-primary hover:text-green-600 hover:bg-green-50"
+                        onClick={() => handleSaveCouponsAndSendEmails(shipment)}
+                        disabled={savingCouponsId === shipment.id}
+                        title="Salvar Cupons e Enviar E-mails"
+                      >
+                        {savingCouponsId === shipment.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <ThumbsUp className="h-4 w-4" />
+                        )}
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))
