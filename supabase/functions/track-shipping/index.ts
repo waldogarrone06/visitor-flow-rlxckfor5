@@ -81,19 +81,19 @@ Deno.serve(async (req: Request) => {
       const normalizedCode = normalizeTracking(app.tracking_number)
 
       try {
-        // Passo 1: busca o pedido no Melhor Envio pelo código de rastreio com fallback de endpoints
-        const endpoints = [
-          `https://www.melhorenvio.com.br/api/v2/me/shipments?q=${normalizedCode}&per_page=5`,
-          `https://www.melhorenvio.com.br/api/v2/me/orders?q=${normalizedCode}&per_page=5`,
-          `https://www.melhorenvio.com.br/api/v2/me/purchases?q=${normalizedCode}&per_page=5`,
-        ]
-
-        let searchData: any = null
+        // Passo 1 e 2: busca o pedido no Melhor Envio pelo código de rastreio paginando pela API de purchases
+        let shipment: any = null
+        let page = 1
+        const maxPages = 10
         let validResponseFound = false
         let lastErrorStatus = 0
         let lastErrorBody = ''
+        let totalPagesSearched = 0
 
-        for (const endpoint of endpoints) {
+        while (page <= maxPages) {
+          const endpoint = `https://www.melhorenvio.com.br/api/v2/me/purchases?per_page=50&page=${page}`
+          totalPagesSearched = page
+
           try {
             const searchRes = await fetch(endpoint, {
               headers: {
@@ -106,7 +106,7 @@ Deno.serve(async (req: Request) => {
 
             const rawText = await searchRes.text()
 
-            if (isDebug) {
+            if (isDebug && page === 1) {
               debugLog.push({
                 step: 'search_attempt',
                 endpoint: endpoint,
@@ -119,7 +119,7 @@ Deno.serve(async (req: Request) => {
               console.warn(`[track-shipping] HTML response from ${endpoint} for ${normalizedCode}`)
               lastErrorStatus = searchRes.status
               lastErrorBody = rawText.substring(0, 500)
-              continue
+              break // Break on HTML
             }
 
             if (!searchRes.ok) {
@@ -128,28 +128,87 @@ Deno.serve(async (req: Request) => {
               )
               lastErrorStatus = searchRes.status
               lastErrorBody = rawText.substring(0, 500)
-              continue
+              break // Break on Error
             }
 
-            searchData = JSON.parse(rawText)
+            let searchData
+            try {
+              searchData = JSON.parse(rawText)
+            } catch (err) {
+              console.warn(`[track-shipping] JSON parse failed for ${endpoint}`)
+              break // Break on invalid JSON
+            }
+
             validResponseFound = true
-            if (isDebug)
-              debugLog.push({ step: 'search', code: normalizedCode, response: searchData })
-            break // Found valid JSON
+
+            if (isDebug && page === 1) {
+              debugLog.push({
+                step: 'purchases_page1',
+                total: searchData.total,
+                last_page: searchData.last_page,
+              })
+            }
+
+            const purchases =
+              searchData?.data || searchData?.items || (Array.isArray(searchData) ? searchData : [])
+
+            for (const purchase of purchases) {
+              const ordersToSearch = Array.isArray(purchase.orders) ? purchase.orders : [purchase]
+
+              for (const o of ordersToSearch) {
+                const selfTracking = String(o.self_tracking || '').toLowerCase()
+                const tracking = String(o.tracking || '').toLowerCase()
+                const trackingNumberLower = String(app.tracking_number || '').toLowerCase()
+                const normLower = normalizedCode.toLowerCase()
+
+                if (
+                  selfTracking === normLower ||
+                  tracking === trackingNumberLower ||
+                  tracking === `lgi-${normLower}`
+                ) {
+                  shipment = o
+                  break
+                }
+              }
+              if (shipment) break
+            }
+
+            if (shipment) {
+              if (isDebug)
+                debugLog.push({
+                  step: 'shipment_found',
+                  page: page,
+                  code: normalizedCode,
+                  id: shipment.id,
+                  status: shipment.status,
+                  delivered_at: shipment.delivered_at,
+                  tracking: shipment.tracking,
+                })
+              break // Found shipment, break pagination
+            }
+
+            const lastPage = searchData.last_page || 1
+            if (page >= lastPage) {
+              break // Reached last page
+            }
+
+            page++
+            await new Promise((r) => setTimeout(r, 200)) // Delay between pages
           } catch (err: any) {
             console.error(`[track-shipping] Fetch exception at ${endpoint}: ${err.message}`)
             lastErrorStatus = 500
             lastErrorBody = err.message
+            break
           }
         }
 
-        if (!validResponseFound) {
-          console.warn(`[track-shipping] All endpoints failed for ${normalizedCode}`)
+        if (!validResponseFound && !shipment) {
+          console.warn(`[track-shipping] Valid response not found for ${normalizedCode}`)
           if (isDebug)
             debugLog.push({
               step: 'search_failed',
               code: normalizedCode,
-              message: 'All endpoints returned HTML or invalid JSON',
+              message: 'All pages returned HTML or invalid JSON or errors',
             })
 
           if (lastErrorStatus && lastErrorStatus !== 404) {
@@ -166,52 +225,16 @@ Deno.serve(async (req: Request) => {
           continue
         }
 
-        // Passo 2: encontra o pedido que bate com o tracking code
-        const purchases =
-          searchData?.data || searchData?.items || (Array.isArray(searchData) ? searchData : [])
-        let shipment: any = null
-
-        for (const purchase of purchases) {
-          const ordersToSearch = Array.isArray(purchase.orders) ? purchase.orders : [purchase]
-
-          for (const o of ordersToSearch) {
-            const selfTracking = String(o.self_tracking || '').toLowerCase()
-            const tracking = String(o.tracking || '').toLowerCase()
-            const trackingNumberLower = String(app.tracking_number || '').toLowerCase()
-            const normLower = normalizedCode.toLowerCase()
-
-            if (
-              selfTracking === normLower ||
-              tracking === trackingNumberLower ||
-              tracking === `lgi-${normLower}`
-            ) {
-              shipment = o
-              break
-            }
-          }
-          if (shipment) break
-        }
-
         if (!shipment) {
           console.warn(`[track-shipping] Shipment not found for tracking ${normalizedCode}`)
           if (isDebug)
             debugLog.push({
-              step: 'match',
+              step: 'not_found',
               code: normalizedCode,
-              message: 'not found in results',
-              results: purchases,
+              pages_searched: totalPagesSearched,
             })
           continue
         }
-
-        if (isDebug)
-          debugLog.push({
-            step: 'shipment_found',
-            code: normalizedCode,
-            id: shipment.id,
-            status: shipment.status,
-            delivered_at: shipment.delivered_at,
-          })
 
         // Passo 3: verifica se está entregue pelo status do pedido
         const shipmentDelivered =
