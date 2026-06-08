@@ -5,6 +5,7 @@ export async function getPrescribers(userId: string) {
     .from('appointments' as any)
     .select('*')
     .eq('user_id', userId)
+    .neq('status', 'Lead')
     .order('created_at', { ascending: false })
 
   if (error) throw error

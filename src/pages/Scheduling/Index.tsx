@@ -104,6 +104,21 @@ export default function SchedulingPage() {
           >
             <Copy className="h-4 w-4" /> Copiar Link Público
           </Button>
+          <Button
+            variant="outline"
+            onClick={() => {
+              if (!user?.id) return
+              const url = `${window.location.origin}/contato/${user.id}`
+              navigator.clipboard.writeText(url)
+              toast({
+                title: 'Link copiado!',
+                description: 'O link de captura de leads foi copiado.',
+              })
+            }}
+            className="gap-2"
+          >
+            <Copy className="h-4 w-4" /> Copiar Link de Captura
+          </Button>
         </div>
       </div>
 

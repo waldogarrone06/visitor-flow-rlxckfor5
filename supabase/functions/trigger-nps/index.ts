@@ -29,6 +29,7 @@ Deno.serve(async (req: Request) => {
       .not('delivered_at', 'is', null)
       .lte('delivered_at', twentyFourHoursAgo)
       .gte('delivered_at', fortyEightHoursAgo)
+      .neq('status', 'Lead')
 
     if (appErr) throw appErr
 

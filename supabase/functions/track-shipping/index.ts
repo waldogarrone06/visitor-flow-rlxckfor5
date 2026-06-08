@@ -127,6 +127,7 @@ Deno.serve(async (req: Request) => {
       .not('tracking_number', 'is', null)
       .neq('kit_status', 'Entregue')
       .neq('kit_status', 'Delivered')
+      .neq('status', 'Lead')
 
     if (appointmentIdToRefresh) query = query.eq('id', appointmentIdToRefresh)
 

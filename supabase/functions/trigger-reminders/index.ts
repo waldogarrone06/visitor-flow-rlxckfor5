@@ -31,6 +31,7 @@ Deno.serve(async (req: Request) => {
       )
       .eq('appointment_date', tomorrowStr)
       .not('reminder_sent', 'eq', true)
+      .neq('status', 'Lead')
 
     if (appErr) throw appErr
 

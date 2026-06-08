@@ -30,6 +30,12 @@ Deno.serve(async (req: Request) => {
       throw new Error('Appointment not found')
     }
 
+    if (appointment.status === 'Lead') {
+      return new Response(JSON.stringify({ success: true, message: 'Ignored lead capture.' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
     const { data: integration } = await supabase
       .from('user_integrations')
       .select('*')

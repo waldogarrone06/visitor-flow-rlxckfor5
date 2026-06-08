@@ -1,9 +1,9 @@
 {
   "_versions": {
-    "sync-calendar": 18,
+    "sync-calendar": 19,
     "yampi-service": 5,
-    "track-shipping": 30,
-    "trigger-nps": 9,
+    "track-shipping": 31,
+    "trigger-nps": 10,
     "check-availability": 7,
     "create-user": 10,
     "google-oauth-exchange": 12,
@@ -11,7 +11,7 @@
     "send-email": 7,
     "whatsapp-send": 35,
     "whatsapp-webhook": 43,
-    "trigger-reminders": 2,
+    "trigger-reminders": 3,
     "sync-calendar-delete": 1,
     "send-meet-link": 4
   }
