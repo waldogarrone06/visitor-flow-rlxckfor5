@@ -147,6 +147,60 @@ export function KitShipments() {
     }
   }
 
+  const saveCoupon = async (
+    id: string,
+    field: 'nutritionist_coupon' | 'patient_coupon',
+    value: string,
+  ) => {
+    const { error } = await supabase
+      .from('appointments')
+      .update({ [field]: value })
+      .eq('id', id)
+    if (error) {
+      toast({ title: 'Erro', description: 'Falha ao salvar cupom.', variant: 'destructive' })
+    } else {
+      toast({ title: 'Sucesso', description: 'Cupom salvo com sucesso.' })
+      fetchShipments()
+    }
+  }
+
+  const sendKit = async (s: any) => {
+    const { error } = await supabase
+      .from('appointments')
+      .update({ kit_status: 'Enviado' })
+      .eq('id', s.id)
+
+    if (error) {
+      toast({ title: 'Erro', description: 'Falha ao atualizar status.', variant: 'destructive' })
+      return
+    }
+
+    toast({
+      title: 'Kit Enviado!',
+      description: 'O status foi atualizado e as mensagens de notificação estão sendo disparadas.',
+    })
+    fetchShipments()
+
+    const message = `Olá, ${s.client_name}! Seu kit da Fourlab Nutrition foi enviado com sucesso. Em breve você receberá o código de rastreio para acompanhar a entrega. Obrigado por confiar em nosso trabalho!`
+
+    if (s.client_phone) {
+      supabase.functions.invoke('whatsapp-send', {
+        body: { to: s.client_phone, text: message, userId: s.user_id },
+      })
+    }
+
+    if (s.client_email) {
+      supabase.functions.invoke('send-email', {
+        body: {
+          to: s.client_email,
+          subject: 'Seu Kit Fourlab foi enviado!',
+          html: `<div style="font-family: sans-serif; color: #333;"><p>Olá, ${s.client_name}!</p><p>Seu kit da Fourlab Nutrition foi enviado com sucesso. Em breve você receberá o código de rastreio para acompanhar a entrega.</p><p>Obrigado por confiar em nosso trabalho!</p></div>`,
+          senderName: 'FourLab Nutrition',
+        },
+      })
+    }
+  }
+
   return (
     <div className="space-y-4 animate-fade-in">
       <div className="flex items-center justify-between">
@@ -212,107 +266,209 @@ export function KitShipments() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button variant="outline" size="sm">
-                          Ver Detalhes
+                    <div className="flex justify-end gap-2">
+                      {(!s.kit_status ||
+                        s.kit_status === 'Pending' ||
+                        s.kit_status === 'Pendente') && (
+                        <Button
+                          size="sm"
+                          onClick={() => sendKit(s)}
+                          className="bg-blue-600 hover:bg-blue-700 text-white"
+                        >
+                          Enviar Kit
                         </Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-3xl">
-                        <DialogHeader>
-                          <DialogTitle>Detalhes do Envio</DialogTitle>
-                        </DialogHeader>
-                        <div className="grid md:grid-cols-2 gap-8 py-4">
-                          <div className="space-y-4">
-                            <h4 className="font-semibold text-sm border-b pb-2 text-primary">
-                              Dados do Cliente
-                            </h4>
-                            <CopyField label="Nome" value={s.client_name} />
-                            <CopyField label="CPF/CNPJ" value={s.resolved_document} />
-                            <CopyField label="Email" value={s.client_email} />
-                            <CopyField label="Telefone" value={s.client_phone} />
+                      )}
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="outline" size="sm">
+                            Ver Detalhes
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                          <DialogHeader>
+                            <DialogTitle>Detalhes do Envio</DialogTitle>
+                          </DialogHeader>
+                          <div className="grid md:grid-cols-2 gap-8 py-4">
+                            <div className="space-y-6">
+                              <div className="space-y-4">
+                                <h4 className="font-semibold text-sm border-b pb-2 text-primary">
+                                  Dados do Cliente
+                                </h4>
+                                <CopyField label="Nome" value={s.client_name} />
+                                <CopyField label="CPF/CNPJ" value={s.resolved_document} />
+                                <CopyField label="Email" value={s.client_email} />
+                                <CopyField label="Telefone" value={s.client_phone} />
+                              </div>
 
-                            <div className="space-y-1.5 pt-2">
-                              <Label className="text-muted-foreground text-xs uppercase tracking-wider">
-                                Status do Kit ({s.kit_name || 'Kit Padrão'})
-                              </Label>
-                              <div className="flex gap-2 items-center">
-                                <Badge
-                                  variant={
-                                    s.kit_status === 'Entregue' || s.kit_status === 'Delivered'
-                                      ? 'default'
-                                      : s.kit_status === 'Enviado'
-                                        ? 'secondary'
-                                        : 'outline'
-                                  }
-                                >
-                                  {s.kit_status || 'Pendente'}
-                                </Badge>
-                                {s.kit_status !== 'Entregue' && s.kit_status !== 'Delivered' && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 text-xs"
-                                    onClick={() => updateKitStatus(s.id, 'Entregue')}
+                              <div className="space-y-4">
+                                <h4 className="font-semibold text-sm border-b pb-2 text-primary">
+                                  Cupons Associados
+                                </h4>
+                                <div className="space-y-3">
+                                  <div className="space-y-1.5">
+                                    <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                                      Cupom do Prescritor
+                                    </Label>
+                                    <div className="flex gap-2">
+                                      <Input
+                                        id={`nutri-coupon-${s.id}`}
+                                        defaultValue={s.nutritionist_coupon || ''}
+                                        placeholder="Código do Prescritor"
+                                        className="h-8"
+                                      />
+                                      <Button
+                                        size="sm"
+                                        variant="secondary"
+                                        className="h-8"
+                                        onClick={() => {
+                                          const val = (
+                                            document.getElementById(
+                                              `nutri-coupon-${s.id}`,
+                                            ) as HTMLInputElement
+                                          )?.value
+                                          if (val !== undefined)
+                                            saveCoupon(s.id, 'nutritionist_coupon', val)
+                                        }}
+                                      >
+                                        Salvar
+                                      </Button>
+                                    </div>
+                                  </div>
+                                  <div className="space-y-1.5">
+                                    <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                                      Cupom do Paciente
+                                    </Label>
+                                    <div className="flex gap-2">
+                                      <Input
+                                        id={`patient-coupon-${s.id}`}
+                                        defaultValue={s.patient_coupon || ''}
+                                        placeholder="Código do Paciente"
+                                        className="h-8"
+                                      />
+                                      <Button
+                                        size="sm"
+                                        variant="secondary"
+                                        className="h-8"
+                                        onClick={() => {
+                                          const val = (
+                                            document.getElementById(
+                                              `patient-coupon-${s.id}`,
+                                            ) as HTMLInputElement
+                                          )?.value
+                                          if (val !== undefined)
+                                            saveCoupon(s.id, 'patient_coupon', val)
+                                        }}
+                                      >
+                                        Salvar
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="space-y-6">
+                              <div className="space-y-4">
+                                <h4 className="font-semibold text-sm border-b pb-2 text-primary">
+                                  Status do Kit ({s.kit_name || 'Kit Padrão'})
+                                </h4>
+                                <div className="flex flex-wrap gap-2 items-center">
+                                  <Badge
+                                    variant={
+                                      s.kit_status === 'Entregue' || s.kit_status === 'Delivered'
+                                        ? 'default'
+                                        : s.kit_status === 'Enviado'
+                                          ? 'secondary'
+                                          : 'outline'
+                                    }
+                                    className="px-3 py-1 text-sm"
                                   >
-                                    Marcar Entregue
-                                  </Button>
-                                )}
+                                    {s.kit_status || 'Pendente'}
+                                  </Badge>
+
+                                  {(!s.kit_status ||
+                                    s.kit_status === 'Pending' ||
+                                    s.kit_status === 'Pendente') && (
+                                    <Button
+                                      size="sm"
+                                      onClick={() => sendKit(s)}
+                                      className="bg-blue-600 hover:bg-blue-700 text-white h-8"
+                                    >
+                                      Marcar Enviado
+                                    </Button>
+                                  )}
+
+                                  {s.kit_status !== 'Entregue' && s.kit_status !== 'Delivered' && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-8"
+                                      onClick={() => updateKitStatus(s.id, 'Entregue')}
+                                    >
+                                      Marcar Entregue
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="space-y-4">
+                                <h4 className="font-semibold text-sm border-b pb-2 text-primary">
+                                  Entrega & Logística
+                                </h4>
+                                <CopyField label="CEP" value={s.resolved_cep} />
+                                <CopyField label="Endereço Completo" value={s.resolved_address} />
+
+                                <div className="space-y-2 pt-4">
+                                  <Label className="text-foreground font-bold flex items-center gap-2">
+                                    <Truck className="h-4 w-4" />
+                                    Código de Rastreio
+                                  </Label>
+                                  <div className="flex gap-2">
+                                    <Input
+                                      defaultValue={s.tracking_number || ''}
+                                      placeholder="Ex: BR123456789BR"
+                                      id={`track-${s.id}`}
+                                      className="bg-background"
+                                    />
+                                    <Button
+                                      onClick={() => {
+                                        const el = document.getElementById(
+                                          `track-${s.id}`,
+                                        ) as HTMLInputElement
+                                        if (el) updateTracking(s.id, el.value)
+                                      }}
+                                    >
+                                      Salvar
+                                    </Button>
+                                  </div>
+                                  <p className="text-xs text-muted-foreground">
+                                    Dica: Ao salvar o código, o status do kit é atualizado para
+                                    "Enviado" automaticamente.
+                                  </p>
+                                  {s.tracking_number && (
+                                    <Button
+                                      variant="link"
+                                      size="sm"
+                                      className="h-8 px-0 text-primary"
+                                      asChild
+                                    >
+                                      <a
+                                        href={`https://melhorrastreio.com.br/rastreio/${s.tracking_number}`}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                      >
+                                        Acompanhar Rastreio{' '}
+                                        <ExternalLink className="ml-1 h-3 w-3" />
+                                      </a>
+                                    </Button>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           </div>
-
-                          <div className="space-y-4">
-                            <h4 className="font-semibold text-sm border-b pb-2 text-primary">
-                              Entrega & Logística
-                            </h4>
-                            <CopyField label="CEP" value={s.resolved_cep} />
-                            <CopyField label="Endereço Completo" value={s.resolved_address} />
-
-                            <div className="space-y-2 pt-4 border-t">
-                              <Label className="text-foreground font-bold flex items-center gap-2">
-                                <Truck className="h-4 w-4" />
-                                Código de Rastreio
-                              </Label>
-                              <div className="flex gap-2">
-                                <Input
-                                  defaultValue={s.tracking_number || ''}
-                                  placeholder="Ex: BR123456789BR"
-                                  id={`track-${s.id}`}
-                                  className="bg-background text-sm"
-                                />
-                                <Button
-                                  onClick={() => {
-                                    const el = document.getElementById(
-                                      `track-${s.id}`,
-                                    ) as HTMLInputElement
-                                    if (el) updateTracking(s.id, el.value)
-                                  }}
-                                >
-                                  Salvar
-                                </Button>
-                              </div>
-                              {s.tracking_number && (
-                                <Button
-                                  variant="link"
-                                  size="sm"
-                                  className="h-8 px-0 text-primary"
-                                  asChild
-                                >
-                                  <a
-                                    href={`https://melhorrastreio.com.br/rastreio/${s.tracking_number}`}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                  >
-                                    Acompanhar Rastreio <ExternalLink className="ml-1 h-3 w-3" />
-                                  </a>
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))

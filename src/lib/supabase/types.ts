@@ -12,10 +12,12 @@ export type Database = {
       appointments: {
         Row: {
           appointment_date: string
+          client_document: string | null
           client_email: string
           client_name: string
           client_phone: string | null
           clinic_address: string | null
+          clinic_cep: string | null
           coupon_code: string | null
           coupon_usage_count: number
           coupon_verified: boolean | null
@@ -41,10 +43,12 @@ export type Database = {
         }
         Insert: {
           appointment_date: string
+          client_document?: string | null
           client_email: string
           client_name: string
           client_phone?: string | null
           clinic_address?: string | null
+          clinic_cep?: string | null
           coupon_code?: string | null
           coupon_usage_count?: number
           coupon_verified?: boolean | null
@@ -70,10 +74,12 @@ export type Database = {
         }
         Update: {
           appointment_date?: string
+          client_document?: string | null
           client_email?: string
           client_name?: string
           client_phone?: string | null
           clinic_address?: string | null
+          clinic_cep?: string | null
           coupon_code?: string | null
           coupon_usage_count?: number
           coupon_verified?: boolean | null
@@ -159,6 +165,7 @@ export type Database = {
       contacts: {
         Row: {
           address: string | null
+          cep: string | null
           created_at: string
           document: string | null
           email: string | null
@@ -176,6 +183,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          cep?: string | null
           created_at?: string
           document?: string | null
           email?: string | null
@@ -193,6 +201,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          cep?: string | null
           created_at?: string
           document?: string | null
           email?: string | null
@@ -777,6 +786,8 @@ export const Constants = {
 //   kit_name: text (nullable)
 //   nutritionist_coupon: text (nullable)
 //   patient_coupon: text (nullable)
+//   clinic_cep: text (nullable)
+//   client_document: text (nullable)
 // Table: contact_tag_relations
 //   contact_id: uuid (not null)
 //   tag_id: uuid (not null)
@@ -803,6 +814,7 @@ export const Constants = {
 //   patients_per_month: text (nullable)
 //   nutritionist_coupon: text (nullable)
 //   patient_coupon: text (nullable)
+//   cep: text (nullable)
 // Table: date_specific_schedules
 //   id: uuid (not null, default: gen_random_uuid())
 //   user_id: uuid (not null)
