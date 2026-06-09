@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import {
   Table,
@@ -11,595 +11,329 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { Label } from '@/components/ui/label'
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
+  DialogTrigger,
 } from '@/components/ui/dialog'
-import { Label } from '@/components/ui/label'
-import { toast } from 'sonner'
-import {
-  ExternalLink,
-  Save,
-  RefreshCw,
-  ThumbsUp,
-  Loader2,
-  FileText,
-  Copy,
-  AlertCircle,
-} from 'lucide-react'
-import { cn } from '@/lib/utils'
-
-type Appointment = {
-  id: string
-  client_name: string
-  client_email: string
-  client_phone: string | null
-  clinic_address: string | null
-  kit_name: string
-  kit_status: string
-  tracking_number: string
-  delivered_at: string | null
-  nutritionist_coupon: string | null
-  patient_coupon: string | null
-}
+import { useToast } from '@/hooks/use-toast'
+import { Copy, Truck, ExternalLink, Package } from 'lucide-react'
+import { format } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
 
 export function KitShipments() {
-  const [shipments, setShipments] = useState<Appointment[]>([])
+  const [shipments, setShipments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [trackingInputs, setTrackingInputs] = useState<Record<string, string>>({})
-  const [nutritionistInputs, setNutritionistInputs] = useState<Record<string, string>>({})
-  const [patientInputs, setPatientInputs] = useState<Record<string, string>>({})
-  const [savingId, setSavingId] = useState<string | null>(null)
-  const [savingCouponsId, setSavingCouponsId] = useState<string | null>(null)
-  const [syncing, setSyncing] = useState(false)
-  const [searchName, setSearchName] = useState('')
-  const [filterStatus, setFilterStatus] = useState('all')
-  const [selectedShipment, setSelectedShipment] = useState<Appointment | null>(null)
-  const [contactDetails, setContactDetails] = useState<{
-    document: string | null
-    address: string | null
-  } | null>(null)
-  const [loadingContact, setLoadingContact] = useState(false)
-
-  const filteredShipments = shipments.filter((s) => {
-    const matchesName = searchName
-      ? s.client_name.toLowerCase().includes(searchName.toLowerCase())
-      : true
-    const sStatus = s.kit_status || 'Pending'
-    const matchesStatus =
-      filterStatus !== 'all'
-        ? filterStatus === 'Entregue'
-          ? sStatus === 'Entregue' || sStatus === 'Delivered'
-          : filterStatus === 'Pending'
-            ? sStatus === 'Pending'
-            : sStatus === filterStatus
-        : true
-
-    return matchesName && matchesStatus
-  })
-
-  const fetchShipments = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('appointments')
-        .select(
-          'id, client_name, client_email, client_phone, clinic_address, kit_name, kit_status, tracking_number, delivered_at, nutritionist_coupon, patient_coupon',
-        )
-        .not('kit_name', 'is', null)
-        .order('created_at', { ascending: false })
-        .limit(100)
-
-      if (error) throw error
-      setShipments(data || [])
-
-      const tInputs: Record<string, string> = {}
-      const nutInputs: Record<string, string> = {}
-      const patInputs: Record<string, string> = {}
-      ;(data || []).forEach((s) => {
-        tInputs[s.id] = s.tracking_number || ''
-        nutInputs[s.id] = s.nutritionist_coupon || ''
-        patInputs[s.id] = s.patient_coupon || ''
-      })
-      setTrackingInputs(tInputs)
-      setNutritionistInputs(nutInputs)
-      setPatientInputs(patInputs)
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const syncTracking = async (appointmentId?: string) => {
-    try {
-      const payload = appointmentId ? { appointmentId } : {}
-      const { data, error } = await supabase.functions.invoke('track-shipping', { body: payload })
-      if (!error && data?.updatedCount > 0) {
-        await fetchShipments()
-      }
-    } catch (err) {
-      console.error('Background sync failed:', err)
-    }
-  }
-
-  const handleManualSync = async () => {
-    try {
-      setSyncing(true)
-      const { data, error } = await supabase.functions.invoke('track-shipping', { body: {} })
-      if (error) throw error
-      if (data?.updatedCount > 0) {
-        toast.success(`${data.updatedCount} envio(s) atualizado(s) com sucesso!`)
-        await fetchShipments()
-      } else {
-        toast.info('Nenhum status novo encontrado na transportadora.')
-      }
-    } catch (err: any) {
-      toast.error('Erro na sincronização', { description: err.message })
-    } finally {
-      setSyncing(false)
-    }
-  }
-
-  const handleSaveCouponsAndSendEmails = async (appointment: Appointment) => {
-    try {
-      setSavingCouponsId(appointment.id)
-      const nutriCoupon = nutritionistInputs[appointment.id]?.trim() || null
-      const patCoupon = patientInputs[appointment.id]?.trim() || null
-
-      const { error: dbErr } = await supabase
-        .from('appointments')
-        .update({
-          nutritionist_coupon: nutriCoupon,
-          patient_coupon: patCoupon,
-        })
-        .eq('id', appointment.id)
-
-      if (dbErr) throw dbErr
-
-      if (nutriCoupon || patCoupon) {
-        const { error: mktErr } = await supabase.functions.invoke('send-email', {
-          body: {
-            to: 'marketing@fourlabnutri.com.br',
-            subject: 'Solicitação de Cadastro de Cupom - Yampi',
-            html: `
-              <h2>Solicitação de Cadastro de Cupons</h2>
-              <p><strong>Profissional:</strong> ${appointment.client_name}</p>
-              <p><strong>Email:</strong> ${appointment.client_email}</p>
-              <br/>
-              <p>Favor cadastrar os seguintes cupons na plataforma Yampi:</p>
-              <ul>
-                <li><strong>Cupom Nutri (Uso pessoal):</strong> ${nutriCoupon || 'Não informado'}</li>
-                <li><strong>Cupom Paciente (Distribuição):</strong> ${patCoupon || 'Não informado'}</li>
-              </ul>
-            `,
-            senderName: 'Sistema Fourlab',
-          },
-        })
-        if (mktErr) console.error('Erro ao enviar email MKT:', mktErr)
-      }
-
-      if (appointment.client_email) {
-        const { error: presErr } = await supabase.functions.invoke('send-email', {
-          body: {
-            to: appointment.client_email,
-            subject: 'Obrigado pela sua visita e tá aqui seus cupons.',
-            html: `
-              <p>Prezado(a) ${appointment.client_name},</p>
-              <p>Agradecemos a visita à Fourlab. Foi excelente discutir como nossa tecnologia de suplementação pode otimizar o suporte metabólico e a performance no endurance.</p>
-              <p>Para uso pessoal e prescrição, seguem seus benefícios:<br/>
-              Uso Pessoal: ${nutriCoupon || 'N/A'}<br/>
-              Para Pacientes: ${patCoupon || 'N/A'}</p>
-              <p>Estamos à disposição para suporte técnico.</p>
-              <p>Atenciosamente, Juliana Maciel<br/>
-              Fourlab<br/>
-              Ciência e Performance</p>
-            `,
-            senderName: 'Fourlab Nutrition',
-          },
-        })
-        if (presErr) console.error('Erro ao enviar email prescritor:', presErr)
-      }
-
-      toast.success('Cupons salvos e e-mails enviados com sucesso!')
-      await fetchShipments()
-    } catch (err: any) {
-      toast.error('Erro ao processar', { description: err.message })
-    } finally {
-      setSavingCouponsId(null)
-    }
-  }
-
-  const handleSaveTracking = async (id: string) => {
-    try {
-      setSavingId(id)
-      const newTracking = trackingInputs[id]?.trim() || null
-
-      const { error } = await supabase
-        .from('appointments')
-        .update({ tracking_number: newTracking })
-        .eq('id', id)
-
-      if (error) throw error
-
-      toast.success('Rastreio atualizado com sucesso!')
-      await fetchShipments()
-
-      // Trigger background sync for the new tracking number automatically
-      syncTracking(id)
-    } catch (err: any) {
-      toast.error('Erro ao salvar rastreio', { description: err.message })
-    } finally {
-      setSavingId(null)
-    }
-  }
-
-  const handleViewDetails = async (shipment: Appointment) => {
-    setSelectedShipment(shipment)
-    setLoadingContact(true)
-    setContactDetails(null)
-
-    try {
-      let matchedContact = null
-
-      if (shipment.client_email) {
-        const { data } = await supabase
-          .from('contacts')
-          .select('document, address')
-          .eq('email', shipment.client_email)
-          .limit(1)
-          .maybeSingle()
-
-        if (data) matchedContact = data
-      }
-
-      if (!matchedContact && shipment.client_phone) {
-        const cleanPhone = shipment.client_phone.replace(/\D/g, '')
-        if (cleanPhone) {
-          const { data } = await supabase
-            .from('contacts')
-            .select('document, address')
-            .ilike('phone', `%${cleanPhone}%`)
-            .limit(1)
-            .maybeSingle()
-
-          if (data) matchedContact = data
-        }
-      }
-
-      setContactDetails(matchedContact || { document: null, address: null })
-    } catch (err) {
-      console.error(err)
-      setContactDetails({ document: null, address: null })
-    } finally {
-      setLoadingContact(false)
-    }
-  }
-
-  const copyToClipboard = (text: string, label: string) => {
-    navigator.clipboard.writeText(text)
-    toast.success(`${label} copiado!`)
-  }
+  const { toast } = useToast()
 
   useEffect(() => {
-    fetchShipments().then(() => {
-      // Perform initial background sync after first load
-      syncTracking()
-    })
+    fetchShipments()
   }, [])
 
-  const getTrackingLink = (code: string) => {
-    if (code.startsWith('LGI')) {
-      return `https://www.melhorrastreio.com.br/app/loggi/${code}`
+  const fetchShipments = async () => {
+    setLoading(true)
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+    if (!session?.user) return
+
+    // We get appointments that have kit requested/assigned
+    const { data, error } = await supabase
+      .from('appointments')
+      .select('*')
+      .eq('user_id', session.user.id)
+      .not('kit_status', 'is', null)
+      .neq('status', 'Lead')
+      .order('created_at', { ascending: false })
+
+    if (data) {
+      setShipments(data)
     }
-    return `https://www.melhorrastreio.com.br/app/${code}`
+    setLoading(false)
   }
 
-  if (loading) {
-    return <div className="p-8 text-center text-muted-foreground">Carregando envios...</div>
+  const updateTracking = async (id: string, tracking: string) => {
+    const { error } = await supabase
+      .from('appointments')
+      .update({ tracking_number: tracking })
+      .eq('id', id)
+
+    if (error) {
+      toast({ title: 'Erro', description: 'Falha ao atualizar rastreio.', variant: 'destructive' })
+    } else {
+      toast({ title: 'Sucesso', description: 'Rastreio atualizado.' })
+      fetchShipments()
+    }
+  }
+
+  const updateKitStatus = async (id: string, status: string) => {
+    const { error } = await supabase
+      .from('appointments')
+      .update({ kit_status: status })
+      .eq('id', id)
+
+    if (error) {
+      toast({ title: 'Erro', description: 'Falha ao atualizar status.', variant: 'destructive' })
+    } else {
+      toast({ title: 'Sucesso', description: 'Status atualizado.' })
+      fetchShipments()
+    }
+  }
+
+  const extractCEP = (address: string | null) => {
+    if (!address) return ''
+    const match = address.match(/\b\d{5}-?\d{3}\b/)
+    if (match) {
+      const cep = match[0]
+      // Ensure it is formatted as XXXXX-XXX
+      if (cep.length === 8 && !cep.includes('-')) {
+        return `${cep.slice(0, 5)}-${cep.slice(5)}`
+      }
+      return cep
+    }
+    return ''
+  }
+
+  const copyToClipboard = (text: string) => {
+    if (!text) return
+    navigator.clipboard.writeText(text)
+    toast({ title: 'Copiado!', description: 'Texto copiado para a área de transferência.' })
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="space-y-4 animate-fade-in">
+      <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-medium">Status dos Envios</h3>
+          <h2 className="text-xl font-semibold tracking-tight">Envios e Entregas</h2>
           <p className="text-sm text-muted-foreground">
-            Acompanhe e sincronize o status dos kits enviados.
+            Acompanhe e gerencie a logística dos kits solicitados.
           </p>
         </div>
-        <Button onClick={handleManualSync} disabled={syncing} variant="outline" size="sm">
-          <RefreshCw className={cn('mr-2 h-4 w-4', syncing && 'animate-spin')} />
-          {syncing ? 'Sincronizando...' : 'Sincronizar Status'}
+        <Button onClick={fetchShipments} variant="outline" size="sm">
+          Atualizar Lista
         </Button>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4 items-center">
-        <Input
-          placeholder="Filtrar por nome..."
-          value={searchName}
-          onChange={(e) => setSearchName(e.target.value)}
-          className="max-w-sm w-full sm:w-auto"
-        />
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-full sm:w-[180px]">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos os Status</SelectItem>
-            <SelectItem value="Pending">Pendente</SelectItem>
-            <SelectItem value="Enviado">Enviado</SelectItem>
-            <SelectItem value="Entregue">Entregue</SelectItem>
-          </SelectContent>
-        </Select>
-        {(searchName || filterStatus !== 'all') && (
-          <Button
-            variant="ghost"
-            onClick={() => {
-              setSearchName('')
-              setFilterStatus('all')
-            }}
-            className="w-full sm:w-auto"
-          >
-            Limpar Filtros
-          </Button>
-        )}
-      </div>
-
-      <div className="rounded-md border bg-card overflow-hidden">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
+      <div className="border rounded-md bg-card">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Data</TableHead>
+              <TableHead>Cliente</TableHead>
+              <TableHead>Kit Solicitado</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Ações</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {loading ? (
               <TableRow>
-                <TableHead>Nome do Prescritor</TableHead>
-                <TableHead>Kit</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Rastreio</TableHead>
-                <TableHead>Cupom Nutri</TableHead>
-                <TableHead>Cupom Paciente</TableHead>
-                <TableHead className="w-16">Ações</TableHead>
+                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                  Carregando envios...
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredShipments.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                    {searchName || filterStatus !== 'all'
-                      ? 'Nenhum envio encontrado com os filtros selecionados.'
-                      : 'Nenhum kit atribuído.'}
+            ) : shipments.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                  Nenhum envio encontrado.
+                </TableCell>
+              </TableRow>
+            ) : (
+              shipments.map((s) => (
+                <TableRow key={s.id}>
+                  <TableCell>
+                    {format(new Date(s.created_at), 'dd/MM/yyyy', { locale: ptBR })}
+                  </TableCell>
+                  <TableCell className="font-medium">{s.client_name}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Package className="h-4 w-4 text-muted-foreground" />
+                      {s.kit_name || 'Kit Padrão'}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={
+                        s.kit_status === 'Entregue' || s.kit_status === 'Delivered'
+                          ? 'default'
+                          : s.kit_status === 'Enviado'
+                            ? 'secondary'
+                            : 'outline'
+                      }
+                    >
+                      {s.kit_status || 'Pendente'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" size="sm">
+                          Ver Detalhes
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-2xl">
+                        <DialogHeader>
+                          <DialogTitle>Detalhes do Envio</DialogTitle>
+                        </DialogHeader>
+                        <div className="grid md:grid-cols-2 gap-6 py-4">
+                          <div className="space-y-4">
+                            <div className="space-y-1">
+                              <Label className="text-muted-foreground text-xs uppercase tracking-wider">
+                                Cliente
+                              </Label>
+                              <p className="font-medium">{s.client_name}</p>
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-muted-foreground text-xs uppercase tracking-wider">
+                                Email
+                              </Label>
+                              <p className="text-sm">{s.client_email}</p>
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-muted-foreground text-xs uppercase tracking-wider">
+                                Telefone
+                              </Label>
+                              <p className="text-sm">{s.client_phone || 'Não informado'}</p>
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-muted-foreground text-xs uppercase tracking-wider">
+                                Kit Solicitado
+                              </Label>
+                              <p className="text-sm font-medium">{s.kit_name || 'Kit Padrão'}</p>
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-muted-foreground text-xs uppercase tracking-wider">
+                                Status do Kit
+                              </Label>
+                              <div className="flex gap-2 items-center">
+                                <Badge
+                                  variant={
+                                    s.kit_status === 'Entregue' || s.kit_status === 'Delivered'
+                                      ? 'default'
+                                      : s.kit_status === 'Enviado'
+                                        ? 'secondary'
+                                        : 'outline'
+                                  }
+                                >
+                                  {s.kit_status || 'Pendente'}
+                                </Badge>
+                                {s.kit_status !== 'Entregue' && s.kit_status !== 'Delivered' && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 text-xs"
+                                    onClick={() => updateKitStatus(s.id, 'Entregue')}
+                                  >
+                                    Marcar Entregue
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="space-y-5 bg-muted/50 p-4 rounded-lg">
+                            <div className="space-y-2">
+                              <Label className="text-muted-foreground font-semibold">
+                                Endereço de Entrega
+                              </Label>
+                              <div className="flex gap-2 items-start">
+                                <p className="text-sm flex-1 leading-relaxed">
+                                  {s.clinic_address || 'Endereço não informado'}
+                                </p>
+                                {s.clinic_address && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="shrink-0 h-8 w-8"
+                                    onClick={() => copyToClipboard(s.clinic_address)}
+                                  >
+                                    <Copy className="h-4 w-4" />
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label className="text-foreground font-bold flex items-center gap-2">
+                                CEP
+                              </Label>
+                              <div className="flex gap-2 items-center">
+                                <Input
+                                  readOnly
+                                  value={extractCEP(s.clinic_address) || 'Não encontrado'}
+                                  className="font-mono bg-background text-sm"
+                                />
+                                <Button
+                                  variant="secondary"
+                                  size="icon"
+                                  className="shrink-0"
+                                  disabled={!extractCEP(s.clinic_address)}
+                                  onClick={() => copyToClipboard(extractCEP(s.clinic_address))}
+                                  title="Copiar CEP"
+                                >
+                                  <Copy className="h-4 w-4" />
+                                </Button>
+                              </div>
+                              <p className="text-xs text-muted-foreground">
+                                O CEP é extraído automaticamente para facilitar a emissão de
+                                etiquetas.
+                              </p>
+                            </div>
+
+                            <div className="space-y-2 pt-4 border-t">
+                              <Label className="text-foreground font-bold flex items-center gap-2">
+                                <Truck className="h-4 w-4" />
+                                Código de Rastreio
+                              </Label>
+                              <div className="flex gap-2">
+                                <Input
+                                  defaultValue={s.tracking_number || ''}
+                                  placeholder="Ex: BR123456789BR"
+                                  id={`track-${s.id}`}
+                                  className="bg-background text-sm"
+                                />
+                                <Button
+                                  onClick={() => {
+                                    const el = document.getElementById(
+                                      `track-${s.id}`,
+                                    ) as HTMLInputElement
+                                    if (el) updateTracking(s.id, el.value)
+                                  }}
+                                >
+                                  Salvar
+                                </Button>
+                              </div>
+                              {s.tracking_number && (
+                                <Button
+                                  variant="link"
+                                  size="sm"
+                                  className="h-8 px-0 text-primary"
+                                  asChild
+                                >
+                                  <a
+                                    href={`https://melhorrastreio.com.br/rastreio/${s.tracking_number}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                  >
+                                    Acompanhar Rastreio <ExternalLink className="ml-1 h-3 w-3" />
+                                  </a>
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
                   </TableCell>
                 </TableRow>
-              ) : (
-                filteredShipments.map((shipment) => (
-                  <TableRow key={shipment.id}>
-                    <TableCell className="font-medium whitespace-nowrap">
-                      {shipment.client_name}
-                    </TableCell>
-                    <TableCell>{shipment.kit_name || '-'}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          shipment.kit_status === 'Entregue' || shipment.kit_status === 'Delivered'
-                            ? 'default'
-                            : shipment.kit_status === 'Enviado'
-                              ? 'default'
-                              : 'secondary'
-                        }
-                        className={
-                          shipment.kit_status === 'Entregue' || shipment.kit_status === 'Delivered'
-                            ? 'bg-green-500 hover:bg-green-600 text-white border-transparent'
-                            : shipment.kit_status === 'Enviado'
-                              ? 'bg-blue-500 hover:bg-blue-600 text-white border-transparent'
-                              : 'bg-yellow-500 hover:bg-yellow-600 text-white border-transparent'
-                        }
-                      >
-                        {shipment.kit_status || 'Pending'}
-                      </Badge>
-                      {(shipment.kit_status === 'Entregue' ||
-                        shipment.kit_status === 'Delivered') &&
-                        shipment.delivered_at && (
-                          <div className="text-[10px] text-muted-foreground mt-1 whitespace-nowrap">
-                            {new Date(shipment.delivered_at).toLocaleDateString('pt-BR')}
-                          </div>
-                        )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          value={trackingInputs[shipment.id] ?? ''}
-                          onChange={(e) =>
-                            setTrackingInputs((prev) => ({
-                              ...prev,
-                              [shipment.id]: e.target.value,
-                            }))
-                          }
-                          placeholder="Código de rastreio"
-                          className="w-32 sm:w-48 h-8 text-xs"
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleSaveTracking(shipment.id)
-                          }}
-                        />
-                        {trackingInputs[shipment.id] !== (shipment.tracking_number || '') && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-primary"
-                            onClick={() => handleSaveTracking(shipment.id)}
-                            disabled={savingId === shipment.id}
-                          >
-                            <Save className="h-4 w-4" />
-                          </Button>
-                        )}
-                        {shipment.tracking_number && (
-                          <a
-                            href={getTrackingLink(shipment.tracking_number)}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-primary hover:text-primary/80 transition-colors"
-                            title="Rastrear"
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                          </a>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        value={nutritionistInputs[shipment.id] ?? ''}
-                        onChange={(e) =>
-                          setNutritionistInputs((p) => ({ ...p, [shipment.id]: e.target.value }))
-                        }
-                        placeholder="Ex: NUTRI10"
-                        className="w-24 sm:w-32 h-8 text-xs"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        value={patientInputs[shipment.id] ?? ''}
-                        onChange={(e) =>
-                          setPatientInputs((p) => ({ ...p, [shipment.id]: e.target.value }))
-                        }
-                        placeholder="Ex: PACI10"
-                        className="w-24 sm:w-32 h-8 text-xs"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-primary hover:text-blue-600 hover:bg-blue-50"
-                          onClick={() => handleViewDetails(shipment)}
-                          title="Dados de Envio"
-                        >
-                          <FileText className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-primary hover:text-green-600 hover:bg-green-50"
-                          onClick={() => handleSaveCouponsAndSendEmails(shipment)}
-                          disabled={savingCouponsId === shipment.id}
-                          title="Salvar Cupons e Enviar E-mails"
-                        >
-                          {savingCouponsId === shipment.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <ThumbsUp className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+              ))
+            )}
+          </TableBody>
+        </Table>
       </div>
-
-      <Dialog open={!!selectedShipment} onOpenChange={(open) => !open && setSelectedShipment(null)}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Dados de Envio e Faturamento</DialogTitle>
-            <DialogDescription>
-              Detalhes do cliente para emissão de etiquetas e notas fiscais.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 mt-4">
-            {loadingContact ? (
-              <div className="flex justify-center p-8">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
-            ) : selectedShipment ? (
-              <div className="grid gap-5">
-                <div>
-                  <Label className="text-xs text-muted-foreground">Nome do Cliente</Label>
-                  <div className="font-medium mt-0.5">{selectedShipment.client_name}</div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Email</Label>
-                    <div className="text-sm mt-0.5 break-all">
-                      {selectedShipment.client_email || 'Não informado'}
-                    </div>
-                  </div>
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Telefone</Label>
-                    <div className="text-sm mt-0.5">
-                      {selectedShipment.client_phone || 'Não informado'}
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <Label className="text-xs text-muted-foreground">Documento (CPF/CNPJ)</Label>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    {contactDetails?.document ? (
-                      <>
-                        <span className="font-medium text-sm">{contactDetails.document}</span>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 text-muted-foreground hover:text-foreground"
-                          onClick={() => copyToClipboard(contactDetails.document!, 'Documento')}
-                        >
-                          <Copy className="h-3 w-3" />
-                        </Button>
-                      </>
-                    ) : (
-                      <span className="text-destructive text-sm flex items-center gap-1.5 font-medium">
-                        <AlertCircle className="h-3.5 w-3.5" /> Não informado
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <Label className="text-xs text-muted-foreground">Endereço Completo</Label>
-                  <div className="flex items-start gap-2 mt-0.5">
-                    {contactDetails?.address || selectedShipment.clinic_address ? (
-                      <>
-                        <span className="font-medium text-sm leading-relaxed">
-                          {contactDetails?.address || selectedShipment.clinic_address}
-                        </span>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
-                          onClick={() =>
-                            copyToClipboard(
-                              contactDetails?.address || selectedShipment.clinic_address!,
-                              'Endereço',
-                            )
-                          }
-                        >
-                          <Copy className="h-3 w-3" />
-                        </Button>
-                      </>
-                    ) : (
-                      <span className="text-destructive text-sm flex items-center gap-1.5 font-medium">
-                        <AlertCircle className="h-3.5 w-3.5" /> Não informado
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ) : null}
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
