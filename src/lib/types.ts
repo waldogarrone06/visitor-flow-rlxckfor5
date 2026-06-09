@@ -29,6 +29,7 @@ export interface Lead {
   address: string
   neighborhood?: string
   state?: string // UF
+  cep?: string
   tags?: string[]
   lastInteraction: string
   assignedKitId?: string
