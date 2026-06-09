@@ -18,14 +18,33 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
-import { ExternalLink, Save, RefreshCw, ThumbsUp, Loader2 } from 'lucide-react'
+import {
+  ExternalLink,
+  Save,
+  RefreshCw,
+  ThumbsUp,
+  Loader2,
+  FileText,
+  Copy,
+  AlertCircle,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type Appointment = {
   id: string
   client_name: string
   client_email: string
+  client_phone: string | null
+  clinic_address: string | null
   kit_name: string
   kit_status: string
   tracking_number: string
@@ -45,6 +64,12 @@ export function KitShipments() {
   const [syncing, setSyncing] = useState(false)
   const [searchName, setSearchName] = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
+  const [selectedShipment, setSelectedShipment] = useState<Appointment | null>(null)
+  const [contactDetails, setContactDetails] = useState<{
+    document: string | null
+    address: string | null
+  } | null>(null)
+  const [loadingContact, setLoadingContact] = useState(false)
 
   const filteredShipments = shipments.filter((s) => {
     const matchesName = searchName
@@ -68,7 +93,7 @@ export function KitShipments() {
       const { data, error } = await supabase
         .from('appointments')
         .select(
-          'id, client_name, client_email, kit_name, kit_status, tracking_number, delivered_at, nutritionist_coupon, patient_coupon',
+          'id, client_name, client_email, client_phone, clinic_address, kit_name, kit_status, tracking_number, delivered_at, nutritionist_coupon, patient_coupon',
         )
         .not('kit_name', 'is', null)
         .order('created_at', { ascending: false })
@@ -216,6 +241,53 @@ export function KitShipments() {
     } finally {
       setSavingId(null)
     }
+  }
+
+  const handleViewDetails = async (shipment: Appointment) => {
+    setSelectedShipment(shipment)
+    setLoadingContact(true)
+    setContactDetails(null)
+
+    try {
+      let matchedContact = null
+
+      if (shipment.client_email) {
+        const { data } = await supabase
+          .from('contacts')
+          .select('document, address')
+          .eq('email', shipment.client_email)
+          .limit(1)
+          .maybeSingle()
+
+        if (data) matchedContact = data
+      }
+
+      if (!matchedContact && shipment.client_phone) {
+        const cleanPhone = shipment.client_phone.replace(/\D/g, '')
+        if (cleanPhone) {
+          const { data } = await supabase
+            .from('contacts')
+            .select('document, address')
+            .ilike('phone', `%${cleanPhone}%`)
+            .limit(1)
+            .maybeSingle()
+
+          if (data) matchedContact = data
+        }
+      }
+
+      setContactDetails(matchedContact || { document: null, address: null })
+    } catch (err) {
+      console.error(err)
+      setContactDetails({ document: null, address: null })
+    } finally {
+      setLoadingContact(false)
+    }
+  }
+
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text)
+    toast.success(`${label} copiado!`)
   }
 
   useEffect(() => {
@@ -401,20 +473,31 @@ export function KitShipments() {
                       />
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-primary hover:text-green-600 hover:bg-green-50"
-                        onClick={() => handleSaveCouponsAndSendEmails(shipment)}
-                        disabled={savingCouponsId === shipment.id}
-                        title="Salvar Cupons e Enviar E-mails"
-                      >
-                        {savingCouponsId === shipment.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <ThumbsUp className="h-4 w-4" />
-                        )}
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-primary hover:text-blue-600 hover:bg-blue-50"
+                          onClick={() => handleViewDetails(shipment)}
+                          title="Dados de Envio"
+                        >
+                          <FileText className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-primary hover:text-green-600 hover:bg-green-50"
+                          onClick={() => handleSaveCouponsAndSendEmails(shipment)}
+                          disabled={savingCouponsId === shipment.id}
+                          title="Salvar Cupons e Enviar E-mails"
+                        >
+                          {savingCouponsId === shipment.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <ThumbsUp className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
@@ -423,6 +506,100 @@ export function KitShipments() {
           </Table>
         </div>
       </div>
+
+      <Dialog open={!!selectedShipment} onOpenChange={(open) => !open && setSelectedShipment(null)}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Dados de Envio e Faturamento</DialogTitle>
+            <DialogDescription>
+              Detalhes do cliente para emissão de etiquetas e notas fiscais.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 mt-4">
+            {loadingContact ? (
+              <div className="flex justify-center p-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : selectedShipment ? (
+              <div className="grid gap-5">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Nome do Cliente</Label>
+                  <div className="font-medium mt-0.5">{selectedShipment.client_name}</div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Email</Label>
+                    <div className="text-sm mt-0.5 break-all">
+                      {selectedShipment.client_email || 'Não informado'}
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Telefone</Label>
+                    <div className="text-sm mt-0.5">
+                      {selectedShipment.client_phone || 'Não informado'}
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="text-xs text-muted-foreground">Documento (CPF/CNPJ)</Label>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    {contactDetails?.document ? (
+                      <>
+                        <span className="font-medium text-sm">{contactDetails.document}</span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                          onClick={() => copyToClipboard(contactDetails.document!, 'Documento')}
+                        >
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                      </>
+                    ) : (
+                      <span className="text-destructive text-sm flex items-center gap-1.5 font-medium">
+                        <AlertCircle className="h-3.5 w-3.5" /> Não informado
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="text-xs text-muted-foreground">Endereço Completo</Label>
+                  <div className="flex items-start gap-2 mt-0.5">
+                    {contactDetails?.address || selectedShipment.clinic_address ? (
+                      <>
+                        <span className="font-medium text-sm leading-relaxed">
+                          {contactDetails?.address || selectedShipment.clinic_address}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
+                          onClick={() =>
+                            copyToClipboard(
+                              contactDetails?.address || selectedShipment.clinic_address!,
+                              'Endereço',
+                            )
+                          }
+                        >
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                      </>
+                    ) : (
+                      <span className="text-destructive text-sm flex items-center gap-1.5 font-medium">
+                        <AlertCircle className="h-3.5 w-3.5" /> Não informado
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
