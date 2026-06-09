@@ -1136,6 +1136,8 @@ export const Constants = {
 //   trg_update_kit_status: CREATE TRIGGER trg_update_kit_status BEFORE INSERT OR UPDATE OF tracking_number, kit_status ON public.appointments FOR EACH ROW EXECUTE FUNCTION update_kit_status_from_tracking()
 
 // --- INDEXES ---
+// Table: appointments
+//   CREATE INDEX idx_appointments_status ON public.appointments USING btree (status)
 // Table: contact_tag_relations
 //   CREATE INDEX idx_contact_tag_relations_contact_id ON public.contact_tag_relations USING btree (contact_id)
 //   CREATE INDEX idx_contact_tag_relations_tag_id ON public.contact_tag_relations USING btree (tag_id)
