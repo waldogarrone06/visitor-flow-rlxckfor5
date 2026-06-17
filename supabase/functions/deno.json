@@ -14,6 +14,8 @@
     "trigger-reminders": 3,
     "sync-calendar-delete": 1,
     "send-meet-link": 4,
-    "whatsapp-manage-message": 4
+    "whatsapp-manage-message": 4,
+    "whatsapp-edit": 1,
+    "whatsapp-delete": 1
   }
 }
