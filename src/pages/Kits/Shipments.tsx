@@ -97,7 +97,7 @@ export function KitShipments() {
         .order('created_at', { ascending: false }),
       supabase
         .from('contacts')
-        .select('name, email, phone, document, cep, address')
+        .select('name, email, phone, document, cep, address, nutritionist_coupon, patient_coupon')
         .eq('user_id', session.user.id),
     ])
 
@@ -114,6 +114,8 @@ export function KitShipments() {
           resolved_document: c?.document || a.client_document || '',
           resolved_cep: c?.cep || a.clinic_cep || extractCEP(a.clinic_address) || '',
           resolved_address: c?.address || a.clinic_address || '',
+          resolved_nutritionist_coupon: a.nutritionist_coupon || c?.nutritionist_coupon || '',
+          resolved_patient_coupon: a.patient_coupon || c?.patient_coupon || '',
         }
       })
       setShipments(enriched)
@@ -331,7 +333,7 @@ export function KitShipments() {
                                     <div className="flex gap-2">
                                       <Input
                                         id={`nutri-coupon-${s.id}`}
-                                        defaultValue={s.nutritionist_coupon || ''}
+                                        defaultValue={s.resolved_nutritionist_coupon || ''}
                                         placeholder="Código do Prescritor"
                                         className="h-8"
                                       />
@@ -360,7 +362,7 @@ export function KitShipments() {
                                     <div className="flex gap-2">
                                       <Input
                                         id={`patient-coupon-${s.id}`}
-                                        defaultValue={s.patient_coupon || ''}
+                                        defaultValue={s.resolved_patient_coupon || ''}
                                         placeholder="Código do Paciente"
                                         className="h-8"
                                       />

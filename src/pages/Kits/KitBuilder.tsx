@@ -41,6 +41,12 @@ export function KitBuilder() {
   const [linkKit, setLinkKit] = useState('')
   const [linking, setLinking] = useState(false)
 
+  // Coupon State
+  const [couponPrescriber, setCouponPrescriber] = useState('')
+  const [nutriCoupon, setNutriCoupon] = useState('')
+  const [patientCoupon, setPatientCoupon] = useState('')
+  const [requestingCoupon, setRequestingCoupon] = useState(false)
+
   const loadData = async () => {
     if (!user) return
     const [fetchedKits, fetchedPrescribers] = await Promise.all([
@@ -168,6 +174,73 @@ export function KitBuilder() {
       loadData()
     } catch (err) {
       toast({ title: 'Erro', description: 'Falha ao excluir kit.', variant: 'destructive' })
+    }
+  }
+
+  const handleRequestCoupon = async () => {
+    if (!user) return
+    if (!couponPrescriber || !nutriCoupon || !patientCoupon) {
+      return toast({
+        title: 'Erro',
+        description: 'Preencha todos os campos do cupom.',
+        variant: 'destructive',
+      })
+    }
+
+    setRequestingCoupon(true)
+    try {
+      const p = prescribers.find((pr) => pr.client_email === couponPrescriber)
+      const prescriberName = p?.client_name || couponPrescriber
+
+      // Update contacts table
+      await supabase
+        .from('contacts' as any)
+        .update({
+          nutritionist_coupon: nutriCoupon,
+          patient_coupon: patientCoupon,
+        })
+        .eq('email', couponPrescriber)
+        .eq('user_id', user.id)
+
+      // Update existing appointments
+      await supabase
+        .from('appointments' as any)
+        .update({
+          nutritionist_coupon: nutriCoupon,
+          patient_coupon: patientCoupon,
+        })
+        .eq('client_email', couponPrescriber)
+        .eq('user_id', user.id)
+
+      // Send email to marketing
+      await supabase.functions.invoke('send-email', {
+        body: {
+          to: 'marketing@fourlabnutri.com.br',
+          subject: `Solicitação de Criação de Cupom - ${prescriberName}`,
+          html: `<div style="font-family: sans-serif; color: #333;">
+            <h2>Nova Solicitação de Cupom</h2>
+            <p>Por favor, crie os seguintes cupons na Yampi para o prescritor <strong>${prescriberName}</strong> (${couponPrescriber}):</p>
+            <ul>
+              <li><strong>Cupom Nutri (30% de desconto):</strong> ${nutriCoupon}</li>
+              <li><strong>Cupom Paciente:</strong> ${patientCoupon}</li>
+            </ul>
+          </div>`,
+          senderName: 'Sistema FourLab',
+        },
+      })
+
+      toast({ title: 'Sucesso', description: 'Cupons atualizados e e-mail enviado ao marketing!' })
+      setNutriCoupon('')
+      setPatientCoupon('')
+      setCouponPrescriber('')
+    } catch (err) {
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível solicitar os cupons.',
+        variant: 'destructive',
+      })
+    } finally {
+      setRequestingCoupon(false)
     }
   }
 
@@ -384,6 +457,64 @@ export function KitBuilder() {
             >
               <LinkIcon className="h-4 w-4" />
               {linking ? 'Vinculando...' : 'Vincular Kit'}
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-subtle h-fit">
+          <CardHeader>
+            <CardTitle>Criar Cupom</CardTitle>
+            <CardDescription>
+              Solicite a criação de cupons para o marketing e salve no cadastro do prescritor.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-3">
+              <Label>Selecione o Prescritor</Label>
+              <Select value={couponPrescriber} onValueChange={setCouponPrescriber}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Buscar prescritor..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {prescribers.map((p) => (
+                    <SelectItem key={p.client_email} value={p.client_email}>
+                      {p.client_name} ({p.client_email})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-3">
+              <Label>Cupom Nutri</Label>
+              <Input
+                value={nutriCoupon}
+                onChange={(e) => setNutriCoupon(e.target.value)}
+                placeholder="Ex: NUTRI30"
+              />
+              <p className="text-[11px] text-muted-foreground leading-tight">
+                * Este cupom tem 30% de desconto (uso do próprio nutricionista).
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <Label>Cupom Paciente</Label>
+              <Input
+                value={patientCoupon}
+                onChange={(e) => setPatientCoupon(e.target.value)}
+                placeholder="Ex: NUTRI10"
+              />
+              <p className="text-[11px] text-muted-foreground leading-tight">
+                * Cupom para distribuição aos pacientes.
+              </p>
+            </div>
+
+            <Button
+              className="w-full mt-2"
+              onClick={handleRequestCoupon}
+              disabled={requestingCoupon || !couponPrescriber || !nutriCoupon || !patientCoupon}
+            >
+              {requestingCoupon ? 'Solicitando...' : 'Solicitar Cupom'}
             </Button>
           </CardContent>
         </Card>

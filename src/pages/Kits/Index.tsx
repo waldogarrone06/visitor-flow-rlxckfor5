@@ -17,7 +17,7 @@ export default function KitsPage() {
       <Tabs defaultValue="catalog" className="w-full">
         <TabsList className="grid w-full md:w-[800px] grid-cols-4">
           <TabsTrigger value="catalog">Catálogo</TabsTrigger>
-          <TabsTrigger value="builder">Montagem</TabsTrigger>
+          <TabsTrigger value="builder">Kit e Cupom</TabsTrigger>
           <TabsTrigger value="inventory">Estoque</TabsTrigger>
           <TabsTrigger value="shipments">Envio</TabsTrigger>
         </TabsList>

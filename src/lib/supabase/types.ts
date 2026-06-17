@@ -284,6 +284,36 @@ export type Database = {
           },
         ]
       }
+      inventory_items: {
+        Row: {
+          created_at: string
+          id: string
+          min_threshold: number
+          product_name: string
+          stock_level: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          min_threshold?: number
+          product_name: string
+          stock_level?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          min_threshold?: number
+          product_name?: string
+          stock_level?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       kit_items: {
         Row: {
           id: string
@@ -830,6 +860,14 @@ export const Constants = {
 //   type: text (not null)
 //   details: jsonb (nullable)
 //   created_at: timestamp with time zone (not null, default: now())
+// Table: inventory_items
+//   id: uuid (not null, default: gen_random_uuid())
+//   user_id: uuid (not null)
+//   product_name: text (not null)
+//   stock_level: integer (not null, default: 0)
+//   min_threshold: integer (not null, default: 10)
+//   created_at: timestamp with time zone (not null, default: now())
+//   updated_at: timestamp with time zone (not null, default: now())
 // Table: kit_items
 //   id: uuid (not null, default: gen_random_uuid())
 //   kit_id: uuid (not null)
@@ -934,6 +972,9 @@ export const Constants = {
 //   FOREIGN KEY interaction_log_contact_id_fkey: FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE CASCADE
 //   PRIMARY KEY interaction_log_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY interaction_log_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+// Table: inventory_items
+//   PRIMARY KEY inventory_items_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY inventory_items_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
 // Table: kit_items
 //   FOREIGN KEY kit_items_kit_id_fkey: FOREIGN KEY (kit_id) REFERENCES kits(id) ON DELETE CASCADE
 //   PRIMARY KEY kit_items_pkey: PRIMARY KEY (id)
@@ -1000,6 +1041,10 @@ export const Constants = {
 //   Policy "interaction_log_all" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
 //     WITH CHECK: true
+// Table: inventory_items
+//   Policy "inventory_items_all" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: (auth.uid() = user_id)
+//     WITH CHECK: (auth.uid() = user_id)
 // Table: kit_items
 //   Policy "Anyone can view kit items" (SELECT, PERMISSIVE) roles={authenticated}
 //     USING: true
@@ -1157,6 +1202,8 @@ export const Constants = {
 //   CREATE UNIQUE INDEX contact_tags_user_id_name_key ON public.contact_tags USING btree (user_id, name)
 // Table: contacts
 //   CREATE INDEX idx_contacts_phone ON public.contacts USING btree (phone)
+// Table: inventory_items
+//   CREATE INDEX idx_inventory_items_user_id ON public.inventory_items USING btree (user_id)
 // Table: messages
 //   CREATE INDEX idx_messages_client_id ON public.messages USING btree (client_id)
 //   CREATE INDEX messages_client_id_idx ON public.messages USING btree (client_id)
