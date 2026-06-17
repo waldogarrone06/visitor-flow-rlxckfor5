@@ -2,7 +2,11 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
-import { sendWhatsAppMessage, manageWhatsAppMessage } from '@/services/whatsapp'
+import {
+  sendWhatsAppMessage,
+  editWhatsAppMessage,
+  deleteWhatsAppMessage,
+} from '@/services/whatsapp'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
@@ -20,9 +24,6 @@ import {
   Plus,
   Tag as TagIcon,
   X,
-  MoreVertical,
-  Pencil,
-  Trash2,
 } from 'lucide-react'
 import {
   Dialog,
@@ -52,6 +53,7 @@ import { Badge } from '@/components/ui/badge'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { MessageMenu } from './MessageMenu'
 
 interface ContactTag {
   id: string
@@ -78,6 +80,8 @@ interface Message {
   status?: string | null
   client_id?: string | null
   is_edited?: boolean | null
+  whatsapp_key?: any
+  user_id?: string
 }
 
 const PRESET_COLORS = [
@@ -126,7 +130,7 @@ export default function ChatPage() {
     'checking',
   )
 
-  const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
+  const [editingMessage, setEditingMessage] = useState<Message | null>(null)
   const [editingText, setEditingText] = useState('')
   const [deletingMessage, setDeletingMessage] = useState<Message | null>(null)
 
@@ -491,86 +495,56 @@ export default function ChatPage() {
     }
   }
 
-  const handleEdit = async (msgId: string, clientId: string | null | undefined) => {
-    if (!user) return
-    if (!editingText.trim() || editingText === messages.find((m) => m.id === msgId)?.content) {
-      setEditingMessageId(null)
+  const handleEdit = async () => {
+    if (!user || !editingMessage) return
+    if (!editingText.trim() || editingText === editingMessage.content) {
+      setEditingMessage(null)
       return
     }
 
     const newText = editingText.trim()
-    setMessages((prev) =>
-      prev.map((m) => (m.id === msgId ? { ...m, content: newText, is_edited: true } : m)),
-    )
+    const msgId = editingMessage.id
+    const whatsappKey = editingMessage.whatsapp_key
 
     try {
-      if (clientId && selectedContact) {
-        let phoneClean = selectedContact.phone.replace(/\D/g, '')
-        if (phoneClean.length === 10 || phoneClean.length === 11) phoneClean = '55' + phoneClean
-        const remoteJid = `${phoneClean}@s.whatsapp.net`
-
-        try {
-          await manageWhatsAppMessage('edit', {
-            messageId: clientId,
-            id: clientId,
-            remoteJid,
-            to: phoneClean,
-            text: newText,
-            newContent: newText,
-            fromMe: true,
-          })
-        } catch (waError: any) {
-          toast.error(
-            'Erro ao sincronizar edição com o WhatsApp. A alteração foi salva apenas no sistema.',
-          )
-          // Continue to save locally
-        }
+      if (whatsappKey) {
+        await editWhatsAppMessage(msgId, newText, whatsappKey)
+      } else {
+        await supabase
+          .from('messages')
+          .update({ content: newText, is_edited: true })
+          .eq('id', msgId)
+          .eq('user_id', user.id)
       }
-      await supabase
-        .from('messages')
-        .update({ content: newText, is_edited: true })
-        .eq('id', msgId)
-        .eq('user_id', user.id)
-    } catch (error: any) {
-      toast.error(
-        'Erro ao editar no banco de dados: ' +
-          (error.message || 'Falha na comunicação com o servidor.'),
+
+      setMessages((prev) =>
+        prev.map((m) => (m.id === msgId ? { ...m, content: newText, is_edited: true } : m)),
       )
+      toast.success('Mensagem editada com sucesso')
+    } catch (error: any) {
+      toast.error('Erro ao editar: ' + (error.message || 'Falha na comunicação com o servidor.'))
     } finally {
-      setEditingMessageId(null)
+      setEditingMessage(null)
+      setEditingText('')
     }
   }
 
   const handleDelete = async () => {
     if (!user || !deletingMessage || !selectedContact) return
     const msgId = deletingMessage.id
-    const clientId = deletingMessage.client_id
-
-    setMessages((prev) => prev.filter((m) => m.id !== msgId))
+    const whatsappKey = deletingMessage.whatsapp_key
 
     try {
-      if (clientId) {
-        const fromMe = deletingMessage.direction === 'outbound'
-        let phone = selectedContact.phone.replace(/\D/g, '')
-        if (phone.length === 10 || phone.length === 11) phone = '55' + phone
-        const remoteJid = `${phone}@s.whatsapp.net`
-
-        await manageWhatsAppMessage('delete', {
-          id: clientId,
-          fromMe,
-          remoteJid,
-        })
+      if (whatsappKey) {
+        await deleteWhatsAppMessage(msgId, whatsappKey)
+      } else {
+        await supabase.from('messages').delete().eq('id', msgId).eq('user_id', user.id)
       }
-      await supabase.from('messages').delete().eq('id', msgId).eq('user_id', user.id)
+
+      setMessages((prev) => prev.filter((m) => m.id !== msgId))
       toast.success('Mensagem apagada com sucesso')
     } catch (error: any) {
       toast.error('Erro ao excluir: ' + (error.message || 'Falha na comunicação com o servidor.'))
-      // Restore message if failed
-      setMessages((prev) =>
-        [...prev, deletingMessage].sort(
-          (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
-        ),
-      )
     } finally {
       setDeletingMessage(null)
     }
@@ -625,20 +599,25 @@ export default function ChatPage() {
       const response: any = await sendWhatsAppMessage(selectedContact.phone, content)
 
       let clientId = null
+      let whatsappKey = null
       if (response && response.evolutionResponse) {
         const ev = response.evolutionResponse
         clientId =
           ev?.key?.id || ev?.message?.key?.id || ev?.messageId || ev?.id || ev?.data?.key?.id
+        whatsappKey = ev?.key || ev?.message?.key || ev?.data?.key
       }
 
       const updatePayload: any = { status: 'delivered' }
       if (clientId) updatePayload.client_id = clientId
+      if (whatsappKey) updatePayload.whatsapp_key = whatsappKey
 
       await supabase.from('messages').update(updatePayload).eq('id', actualMessageId)
 
       setMessages((prev) =>
         prev.map((m) =>
-          m.id === actualMessageId ? { ...m, status: 'delivered', client_id: clientId } : m,
+          m.id === actualMessageId
+            ? { ...m, status: 'delivered', client_id: clientId, whatsapp_key: whatsappKey }
+            : m,
         ),
       )
     } catch (error: any) {
@@ -980,33 +959,15 @@ export default function ChatPage() {
                         isOutbound ? 'justify-end' : 'justify-start',
                       )}
                     >
-                      {isOutbound && !editingMessageId && (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <button className="absolute -left-6 top-1/2 -translate-y-1/2 p-1 text-muted-foreground opacity-0 group-hover:opacity-100 focus:opacity-100 hover:text-foreground transition-opacity">
-                              <MoreVertical className="h-4 w-4" />
-                            </button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-44">
-                            {msg.client_id && !isError && (
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setEditingMessageId(msg.id)
-                                  setEditingText(msg.content || '')
-                                }}
-                              >
-                                <Pencil className="mr-2 h-4 w-4" /> Editar
-                              </DropdownMenuItem>
-                            )}
-                            <DropdownMenuItem
-                              className="text-destructive focus:text-destructive"
-                              onClick={() => setDeletingMessage(msg)}
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" /> Apagar
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      )}
+                      <MessageMenu
+                        message={msg}
+                        currentUserId={user.id}
+                        onEdit={(m) => {
+                          setEditingMessage(m)
+                          setEditingText(m.content || '')
+                        }}
+                        onDelete={(m) => setDeletingMessage(m)}
+                      />
                       <div
                         className={`max-w-[75%] rounded-2xl px-4 py-2 shadow-sm ${
                           isOutbound
@@ -1016,43 +977,7 @@ export default function ChatPage() {
                             : 'bg-background border rounded-bl-sm'
                         } ${msg.status === 'sending' ? 'opacity-70' : ''}`}
                       >
-                        {editingMessageId === msg.id ? (
-                          <div className="flex flex-col gap-2 min-w-[200px] mt-1">
-                            <Textarea
-                              value={editingText}
-                              onChange={(e) => setEditingText(e.target.value)}
-                              className="bg-white/10 text-white placeholder:text-white/50 min-h-[60px] resize-none text-sm p-2 border-white/20 focus-visible:ring-0 focus-visible:border-white/40"
-                              autoFocus
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter' && !e.shiftKey) {
-                                  e.preventDefault()
-                                  handleEdit(msg.id, msg.client_id)
-                                } else if (e.key === 'Escape') {
-                                  setEditingMessageId(null)
-                                }
-                              }}
-                            />
-                            <div className="flex justify-end gap-1">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-6 px-2 text-primary-foreground hover:bg-white/20 hover:text-white"
-                                onClick={() => setEditingMessageId(null)}
-                              >
-                                <X className="h-3 w-3 mr-1" /> Cancelar
-                              </Button>
-                              <Button
-                                size="sm"
-                                className="h-6 px-2 bg-white text-primary hover:bg-gray-100"
-                                onClick={() => handleEdit(msg.id, msg.client_id)}
-                              >
-                                <Check className="h-3 w-3 mr-1" /> Salvar
-                              </Button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="text-sm">{renderMessageContent(msg.content)}</div>
-                        )}
+                        <div className="text-sm">{renderMessageContent(msg.content)}</div>
                         <div
                           className={`text-[10px] mt-1 flex items-center gap-1 ${isOutbound ? 'justify-end text-primary-foreground/70' : 'justify-start text-muted-foreground'}`}
                         >
@@ -1135,6 +1060,34 @@ export default function ChatPage() {
           </div>
         )}
       </div>
+
+      <Dialog open={!!editingMessage} onOpenChange={(open) => !open && setEditingMessage(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Mensagem</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <Textarea
+              value={editingText}
+              onChange={(e) => setEditingText(e.target.value)}
+              className="min-h-[100px] resize-none"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  handleEdit()
+                }
+              }}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingMessage(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleEdit}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={newContactOpen} onOpenChange={setNewContactOpen}>
         <DialogContent>

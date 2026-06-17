@@ -30,15 +30,24 @@ import {
   Paperclip,
   FileText,
   AlertCircle,
-  MoreVertical,
-  Pencil,
-  Trash2,
   X,
 } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
 import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { Link } from 'react-router-dom'
-import { sendWhatsAppMessage, manageWhatsAppMessage } from '@/services/whatsapp'
+import {
+  sendWhatsAppMessage,
+  editWhatsAppMessage,
+  deleteWhatsAppMessage,
+} from '@/services/whatsapp'
+import { MessageMenu } from './MessageMenu'
 import { useToast } from '@/hooks/use-toast'
 
 export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => void }) {
@@ -53,7 +62,7 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
   const [dbMessages, setDbMessages] = useState<any[]>([])
   const [contactId, setContactId] = useState<string | null>(null)
 
-  const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
+  const [editingMessage, setEditingMessage] = useState<any>(null)
   const [editingText, setEditingText] = useState('')
   const [deletingMessage, setDeletingMessage] = useState<any>(null)
 
@@ -227,6 +236,9 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
       type: 'text',
       clientId: m.client_id,
       isEdited: m.is_edited,
+      whatsapp_key: m.whatsapp_key,
+      user_id: m.user_id,
+      direction: m.direction,
     }))
 
     const combined = [...storeMsgs, ...dbMsgs]
@@ -242,41 +254,39 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
 
   if (!lead) return null
 
-  const handleEdit = async (msgId: string, clientId: string) => {
-    if (!user) return
-    if (!editingText.trim() || editingText === messages.find((m) => m.id === msgId)?.text) {
-      setEditingMessageId(null)
+  const handleEdit = async () => {
+    if (!user || !editingMessage) return
+
+    const msgId = editingMessage.id
+    const originalText = messages.find((m) => m.id === msgId)?.text || ''
+
+    if (!editingText.trim() || editingText === originalText) {
+      setEditingMessage(null)
       return
     }
 
     const newText = editingText.trim()
+    const whatsappKey = editingMessage.whatsapp_key
 
-    // Check if it previously had edit_error to clear it
     const msgToEdit = dbMessages.find((m) => m.id === msgId)
     const targetStatus = msgToEdit?.status === 'edit_error' ? 'sent' : msgToEdit?.status
 
     const updatePayload: any = { content: newText, is_edited: true }
     if (targetStatus) updatePayload.status = targetStatus
 
-    setDbMessages((prev) =>
-      prev.map((m) =>
-        m.id === msgId ? { ...m, content: newText, is_edited: true, status: targetStatus } : m,
-      ),
-    )
-
-    await supabase.from('messages').update(updatePayload).eq('id', msgId).eq('user_id', user.id)
-
     try {
-      let phoneClean = lead.phone.replace(/\D/g, '')
-      if (phoneClean.length === 10 || phoneClean.length === 11) phoneClean = '55' + phoneClean
-      const remoteJid = `${phoneClean}@s.whatsapp.net`
+      if (whatsappKey) {
+        await editWhatsAppMessage(msgId, newText, whatsappKey)
+      } else {
+        await supabase.from('messages').update(updatePayload).eq('id', msgId).eq('user_id', user.id)
+      }
 
-      await manageWhatsAppMessage('edit', {
-        id: clientId,
-        remoteJid,
-        newContent: newText,
-        fromMe: true,
-      })
+      setDbMessages((prev) =>
+        prev.map((m) =>
+          m.id === msgId ? { ...m, content: newText, is_edited: true, status: targetStatus } : m,
+        ),
+      )
+      toast({ title: 'Mensagem editada com sucesso' })
     } catch (error: any) {
       setDbMessages((prev) =>
         prev.map((m) => (m.id === msgId ? { ...m, status: 'edit_error' } : m)),
@@ -289,40 +299,31 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
 
       toast({
         title: 'Erro de Sincronização',
-        description:
-          'Erro ao sincronizar edição com o WhatsApp. A alteração foi salva apenas no sistema.',
+        description: error.message || 'Erro ao sincronizar edição com o WhatsApp.',
         variant: 'destructive',
       })
     } finally {
-      setEditingMessageId(null)
+      setEditingMessage(null)
+      setEditingText('')
     }
   }
 
   const handleDelete = async () => {
     if (!user || !deletingMessage) return
     const msgId = deletingMessage.id
-    const clientId = deletingMessage.clientId
+    const whatsappKey = deletingMessage.whatsapp_key
 
     const originalDbMessage = dbMessages.find((m) => m.id === msgId)
 
     setDbMessages((prev) => prev.filter((m) => m.id !== msgId))
 
     try {
-      if (clientId) {
-        const fromMe =
-          deletingMessage.sender === 'me' ||
-          (originalDbMessage && originalDbMessage.direction === 'outbound')
-        let phoneClean = lead.phone.replace(/\D/g, '')
-        if (phoneClean.length === 10 || phoneClean.length === 11) phoneClean = '55' + phoneClean
-        const remoteJid = `${phoneClean}@s.whatsapp.net`
-
-        await manageWhatsAppMessage('delete', {
-          id: clientId,
-          fromMe,
-          remoteJid,
-        })
+      if (whatsappKey) {
+        await deleteWhatsAppMessage(msgId, whatsappKey)
+      } else {
+        await supabase.from('messages').delete().eq('id', msgId).eq('user_id', user.id)
       }
-      await supabase.from('messages').delete().eq('id', msgId).eq('user_id', user.id)
+
       toast({
         title: 'Mensagem apagada',
         description: 'A mensagem foi apagada com sucesso.',
@@ -407,18 +408,27 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
       if (lead?.phone) {
         const response: any = await sendWhatsAppMessage(lead.phone, messageText)
         const ev = response?.evolutionResponse
-        let clientId =
-          ev?.key?.id || ev?.message?.key?.id || ev?.messageId || ev?.id || ev?.data?.key?.id
+        let clientId = null
+        let whatsappKey = null
+
+        if (ev) {
+          clientId =
+            ev?.key?.id || ev?.message?.key?.id || ev?.messageId || ev?.id || ev?.data?.key?.id
+          whatsappKey = ev?.key || ev?.message?.key || ev?.data?.key
+        }
 
         if (contactId) {
           const updatePayload: any = { status: 'sent' }
           if (clientId) updatePayload.client_id = clientId
+          if (whatsappKey) updatePayload.whatsapp_key = whatsappKey
 
           await supabase.from('messages').update(updatePayload).eq('id', newMessageId)
         }
 
         setDbMessages((prev) =>
-          prev.map((m) => (m.id === newMessageId ? { ...m, status: 'sent' } : m)),
+          prev.map((m) =>
+            m.id === newMessageId ? { ...m, status: 'sent', whatsapp_key: whatsappKey } : m,
+          ),
         )
       } else {
         throw new Error('Este contato não possui um número de telefone configurado para envio.')
@@ -512,33 +522,15 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
               msg.sender === 'me' ? 'items-end ml-auto' : 'items-start mr-auto',
             )}
           >
-            {msg.sender === 'me' && !editingMessageId && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className="absolute -left-6 top-1/2 -translate-y-1/2 p-1 text-muted-foreground opacity-0 group-hover:opacity-100 focus:opacity-100 hover:text-foreground transition-opacity">
-                    <MoreVertical className="h-4 w-4" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-44">
-                  {(!msg.type || msg.type === 'text') && msg.clientId && msg.status !== 'error' && (
-                    <DropdownMenuItem
-                      onClick={() => {
-                        setEditingMessageId(msg.id)
-                        setEditingText(msg.text || '')
-                      }}
-                    >
-                      <Pencil className="mr-2 h-4 w-4" /> Editar
-                    </DropdownMenuItem>
-                  )}
-                  <DropdownMenuItem
-                    className="text-destructive focus:text-destructive"
-                    onClick={() => setDeletingMessage(msg)}
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" /> Apagar
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
+            <MessageMenu
+              message={msg}
+              currentUserId={user?.id}
+              onEdit={(m) => {
+                setEditingMessage(m)
+                setEditingText(m.text || '')
+              }}
+              onDelete={(m) => setDeletingMessage(m)}
+            />
             <div
               className={cn(
                 'px-3 sm:px-4 py-2 rounded-2xl shadow-sm relative',
@@ -583,54 +575,16 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
               )}
 
               {(!msg.type || msg.type === 'text' || (msg.text && msg.type)) && (
-                <>
-                  {editingMessageId === msg.id ? (
-                    <div className="flex flex-col gap-2 min-w-[200px] mt-1">
-                      <Textarea
-                        value={editingText}
-                        onChange={(e) => setEditingText(e.target.value)}
-                        className="bg-white/10 text-white placeholder:text-white/50 min-h-[60px] resize-none text-sm p-2 border-white/20 focus-visible:ring-0 focus-visible:border-white/40"
-                        autoFocus
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && !e.shiftKey) {
-                            e.preventDefault()
-                            handleEdit(msg.id, msg.clientId)
-                          } else if (e.key === 'Escape') {
-                            setEditingMessageId(null)
-                          }
-                        }}
-                      />
-                      <div className="flex justify-end gap-1">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-6 px-2 text-primary-foreground hover:bg-white/20 hover:text-white"
-                          onClick={() => setEditingMessageId(null)}
-                        >
-                          <X className="h-3 w-3 mr-1" /> Cancelar
-                        </Button>
-                        <Button
-                          size="sm"
-                          className="h-6 px-2 bg-white text-primary hover:bg-gray-100"
-                          onClick={() => handleEdit(msg.id, msg.clientId)}
-                        >
-                          <Check className="h-3 w-3 mr-1" /> Salvar
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <p
-                      className={cn(
-                        'text-[13px] sm:text-sm break-words whitespace-pre-wrap',
-                        msg.type === 'image' || msg.type === 'pdf'
-                          ? 'italic opacity-80 text-xs mt-1'
-                          : '',
-                      )}
-                    >
-                      {msg.text}
-                    </p>
+                <p
+                  className={cn(
+                    'text-[13px] sm:text-sm break-words whitespace-pre-wrap',
+                    msg.type === 'image' || msg.type === 'pdf'
+                      ? 'italic opacity-80 text-xs mt-1'
+                      : '',
                   )}
-                </>
+                >
+                  {msg.text}
+                </p>
               )}
 
               <div
@@ -722,6 +676,34 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
           <Send className="h-4 w-4" />
         </Button>
       </form>
+
+      <Dialog open={!!editingMessage} onOpenChange={(open) => !open && setEditingMessage(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Mensagem</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <Textarea
+              value={editingText}
+              onChange={(e) => setEditingText(e.target.value)}
+              className="min-h-[100px] resize-none"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  handleEdit()
+                }
+              }}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingMessage(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleEdit}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog
         open={!!deletingMessage}

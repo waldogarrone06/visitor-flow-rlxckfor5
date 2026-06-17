@@ -59,3 +59,51 @@ export async function manageWhatsAppMessage(
 
   return data
 }
+
+export async function editWhatsAppMessage(messageId: string, newText: string, whatsappKey: any) {
+  const { data, error } = await supabase.functions.invoke('whatsapp-edit', {
+    body: { messageId, newText, whatsappKey },
+  })
+
+  if (error && error instanceof FunctionsHttpError) {
+    let errorMessage
+    try {
+      errorMessage = await error.context.json()
+    } catch (e) {
+      errorMessage = { error: await error.context.text() }
+    }
+    throw new Error(`Erro de conexão com o servidor: ${errorMessage?.error || error.message}`)
+  } else if (error) {
+    throw new Error(`Erro de conexão com o servidor: ${error.message}`)
+  }
+
+  if (data?.error) {
+    throw new Error(data.error)
+  }
+
+  return data
+}
+
+export async function deleteWhatsAppMessage(messageId: string, whatsappKey: any) {
+  const { data, error } = await supabase.functions.invoke('whatsapp-delete', {
+    body: { messageId, whatsappKey },
+  })
+
+  if (error && error instanceof FunctionsHttpError) {
+    let errorMessage
+    try {
+      errorMessage = await error.context.json()
+    } catch (e) {
+      errorMessage = { error: await error.context.text() }
+    }
+    throw new Error(`Erro de conexão com o servidor: ${errorMessage?.error || error.message}`)
+  } else if (error) {
+    throw new Error(`Erro de conexão com o servidor: ${error.message}`)
+  }
+
+  if (data?.error) {
+    throw new Error(data.error)
+  }
+
+  return data
+}
