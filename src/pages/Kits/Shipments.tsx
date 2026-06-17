@@ -167,6 +167,16 @@ export function KitShipments() {
   }
 
   const sendKit = async (s: any) => {
+    if (!s.tracking_number || !s.resolved_nutritionist_coupon || !s.resolved_patient_coupon) {
+      toast({
+        title: 'Atenção',
+        description:
+          'Por favor, preencha o código de rastreio e os cupons (Nutri e Paciente) antes de marcar como enviado.',
+        variant: 'destructive',
+      })
+      return
+    }
+
     const { error } = await supabase
       .from('appointments')
       .update({ kit_status: 'Enviado' })
@@ -183,7 +193,12 @@ export function KitShipments() {
     })
     fetchShipments()
 
-    const message = `Olá, ${s.client_name}! Seu kit da Fourlab Nutrition foi enviado com sucesso. Em breve você receberá o código de rastreio para acompanhar a entrega. Obrigado por confiar em nosso trabalho!`
+    const message = `Olá, ${s.client_name}! Seu kit da Fourlab Nutrition foi enviado com sucesso.
+Rastreio: ${s.tracking_number}
+Cupom Prescritor: ${s.resolved_nutritionist_coupon}
+Cupom Paciente: ${s.resolved_patient_coupon}
+
+Obrigado por confiar em nosso trabalho!`
 
     if (s.client_phone) {
       supabase.functions.invoke('whatsapp-send', {
@@ -196,7 +211,14 @@ export function KitShipments() {
         body: {
           to: s.client_email,
           subject: 'Seu Kit Fourlab foi enviado!',
-          html: `<div style="font-family: sans-serif; color: #333;"><p>Olá, ${s.client_name}!</p><p>Seu kit da Fourlab Nutrition foi enviado com sucesso. Em breve você receberá o código de rastreio para acompanhar a entrega.</p><p>Obrigado por confiar em nosso trabalho!</p></div>`,
+          html: `<div style="font-family: sans-serif; color: #333;">
+            <p>Olá, ${s.client_name}!</p>
+            <p>Seu kit da Fourlab Nutrition foi enviado com sucesso.</p>
+            <p><strong>Código de Rastreio:</strong> ${s.tracking_number}</p>
+            <p><strong>Cupom Prescritor:</strong> ${s.resolved_nutritionist_coupon}</p>
+            <p><strong>Cupom Paciente:</strong> ${s.resolved_patient_coupon}</p>
+            <p>Obrigado por confiar em nosso trabalho!</p>
+          </div>`,
           senderName: 'FourLab Nutrition',
         },
       })
