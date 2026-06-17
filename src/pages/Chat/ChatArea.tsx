@@ -226,6 +226,7 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
       status: m.status,
       type: 'text',
       clientId: m.client_id,
+      isEdited: m.is_edited,
     }))
 
     const combined = [...storeMsgs, ...dbMsgs]
@@ -249,23 +250,47 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
     }
 
     const newText = editingText.trim()
-    setDbMessages((prev) => prev.map((m) => (m.id === msgId ? { ...m, content: newText } : m)))
+
+    // Check if it previously had edit_error to clear it
+    const msgToEdit = dbMessages.find((m) => m.id === msgId)
+    const targetStatus = msgToEdit?.status === 'edit_error' ? 'sent' : msgToEdit?.status
+
+    const updatePayload: any = { content: newText, is_edited: true }
+    if (targetStatus) updatePayload.status = targetStatus
+
+    setDbMessages((prev) =>
+      prev.map((m) =>
+        m.id === msgId ? { ...m, content: newText, is_edited: true, status: targetStatus } : m,
+      ),
+    )
+
+    await supabase.from('messages').update(updatePayload).eq('id', msgId).eq('user_id', user.id)
 
     try {
+      let phoneClean = lead.phone.replace(/\D/g, '')
+      if (phoneClean.length === 10 || phoneClean.length === 11) phoneClean = '55' + phoneClean
+      const remoteJid = `${phoneClean}@s.whatsapp.net`
+
       await manageWhatsAppMessage('edit', {
-        messageId: clientId,
-        to: lead.phone,
-        text: newText,
+        id: clientId,
+        remoteJid,
+        newContent: newText,
+        fromMe: true,
       })
+    } catch (error: any) {
+      setDbMessages((prev) =>
+        prev.map((m) => (m.id === msgId ? { ...m, status: 'edit_error' } : m)),
+      )
       await supabase
         .from('messages')
-        .update({ content: newText })
+        .update({ status: 'edit_error' })
         .eq('id', msgId)
         .eq('user_id', user.id)
-    } catch (error: any) {
+
       toast({
-        title: 'Erro ao editar',
-        description: error.message || 'Falha na comunicação com o servidor.',
+        title: 'Erro ao sincronizar edição',
+        description:
+          error.message || 'A mensagem foi salva localmente mas falhou ao atualizar no WhatsApp.',
         variant: 'destructive',
       })
     } finally {
@@ -518,7 +543,7 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
               className={cn(
                 'px-3 sm:px-4 py-2 rounded-2xl shadow-sm relative',
                 msg.sender === 'me'
-                  ? msg.status === 'error'
+                  ? msg.status === 'error' || msg.status === 'edit_error'
                     ? 'bg-destructive text-destructive-foreground rounded-br-sm'
                     : 'bg-primary text-primary-foreground rounded-br-sm'
                   : 'bg-white border text-foreground rounded-bl-sm',
@@ -612,17 +637,24 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
                 className={cn(
                   'flex items-center justify-end gap-1 mt-1 text-[10px]',
                   msg.sender === 'me'
-                    ? msg.status === 'error'
+                    ? msg.status === 'error' || msg.status === 'edit_error'
                       ? 'text-destructive-foreground/90 font-medium'
                       : 'text-primary-foreground/70'
                     : 'text-muted-foreground',
                 )}
               >
-                {msg.status === 'error' && <AlertCircle className="h-3 w-3 mr-0.5" />}
+                {(msg.status === 'error' || msg.status === 'edit_error') && (
+                  <AlertCircle className="h-3 w-3 mr-0.5" />
+                )}
+                {msg.isEdited && msg.status !== 'error' && msg.status !== 'edit_error' && (
+                  <span className="mr-1 italic opacity-70">(editado)</span>
+                )}
                 {msg.status === 'error'
                   ? 'Erro de envio'
-                  : format(new Date(msg.timestamp), 'HH:mm')}
-                {msg.sender === 'me' && msg.status !== 'error' && (
+                  : msg.status === 'edit_error'
+                    ? 'Erro ao editar'
+                    : format(new Date(msg.timestamp), 'HH:mm')}
+                {msg.sender === 'me' && msg.status !== 'error' && msg.status !== 'edit_error' && (
                   <span
                     className={cn(
                       msg.status === 'read' ? 'text-[#34B7F1]' : 'text-primary-foreground/60',

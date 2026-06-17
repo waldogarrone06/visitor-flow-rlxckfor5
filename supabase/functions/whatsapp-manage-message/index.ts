@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json()
-    const { action, id, fromMe, remoteJid, text, to, messageId } = body
+    const { action, id, fromMe, remoteJid, text, to, messageId, newContent } = body
 
     const apiUrl = integration.whatsapp_api_url || 'https://api.evolution.com'
 
@@ -98,8 +98,9 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'edit') {
-      const payloadId = messageId || id
-      const targetPhone = to || remoteJid?.split('@')[0]
+      const payloadId = id || messageId
+      const targetPhone = remoteJid?.split('@')[0] || to
+      const contentToUpdate = newContent || text
 
       const response = await fetch(
         `${apiUrl}/chat/editMessage/${integration.whatsapp_instance_id}`,
@@ -112,13 +113,15 @@ Deno.serve(async (req) => {
           body: JSON.stringify({
             number: targetPhone,
             messageId: payloadId,
-            text: text,
+            text: contentToUpdate,
           }),
         },
       )
 
       if (!response.ok) {
-        return new Response(JSON.stringify({ error: 'Failed to edit message' }), {
+        const errorText = await response.text()
+        console.error('Evolution API edit error:', errorText)
+        return new Response(JSON.stringify({ error: 'Failed to edit message on WhatsApp' }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })

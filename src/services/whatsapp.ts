@@ -34,6 +34,7 @@ export async function manageWhatsAppMessage(
     id?: string
     fromMe?: boolean
     remoteJid?: string
+    newContent?: string
   },
 ) {
   const { data, error } = await supabase.functions.invoke('whatsapp-manage-message', {
