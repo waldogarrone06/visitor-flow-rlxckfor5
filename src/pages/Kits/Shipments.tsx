@@ -222,6 +222,8 @@ export function KitShipments() {
               <TableHead>Data</TableHead>
               <TableHead>Cliente</TableHead>
               <TableHead>Kit Solicitado</TableHead>
+              <TableHead>Rastreio</TableHead>
+              <TableHead>Data de Entrega</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
@@ -229,13 +231,13 @@ export function KitShipments() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                   Carregando...
                 </TableCell>
               </TableRow>
             ) : shipments.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                   Nenhum envio encontrado.
                 </TableCell>
               </TableRow>
@@ -251,6 +253,23 @@ export function KitShipments() {
                       <Package className="h-4 w-4 text-muted-foreground" />
                       {s.kit_name || 'Kit Padrão'}
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    {s.tracking_number ? (
+                      <div className="flex items-center gap-1 text-sm font-medium">
+                        <Truck className="h-3.5 w-3.5 text-muted-foreground" />
+                        {s.tracking_number}
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">-</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {s.delivered_at ? (
+                      format(new Date(s.delivered_at), 'dd/MM/yyyy', { locale: ptBR })
+                    ) : (
+                      <span className="text-muted-foreground text-sm">-</span>
+                    )}
                   </TableCell>
                   <TableCell>
                     <Badge

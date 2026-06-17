@@ -33,6 +33,33 @@ export async function createKit(userId: string, kitData: any, items: any[]) {
   return kit
 }
 
+export async function updateKitItems(kitId: string, kitData: any, items: any[]) {
+  // Update kit info
+  const { error: kitError } = await supabase
+    .from('kits' as any)
+    .update(kitData)
+    .eq('id', kitId)
+
+  if (kitError) throw kitError
+
+  // Remove old items
+  await supabase
+    .from('kit_items' as any)
+    .delete()
+    .eq('kit_id', kitId)
+
+  // Insert new items
+  if (items.length > 0) {
+    const itemsToInsert = items.map((i) => ({
+      kit_id: kitId,
+      product_name: i.product_name,
+      quantity: i.quantity,
+    }))
+    const { error: itemsError } = await supabase.from('kit_items' as any).insert(itemsToInsert)
+    if (itemsError) throw itemsError
+  }
+}
+
 export async function deleteKit(kitId: string) {
   const { error } = await supabase
     .from('kits' as any)

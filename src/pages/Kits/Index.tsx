@@ -15,10 +15,11 @@ export default function KitsPage() {
       </div>
 
       <Tabs defaultValue="catalog" className="w-full">
-        <TabsList className="grid w-full md:w-[600px] grid-cols-3">
-          <TabsTrigger value="catalog">Catálogo de Kits</TabsTrigger>
-          <TabsTrigger value="builder">Montagem de Kits</TabsTrigger>
-          <TabsTrigger value="inventory">Estoque & Envios</TabsTrigger>
+        <TabsList className="grid w-full md:w-[800px] grid-cols-4">
+          <TabsTrigger value="catalog">Catálogo</TabsTrigger>
+          <TabsTrigger value="builder">Montagem</TabsTrigger>
+          <TabsTrigger value="inventory">Estoque</TabsTrigger>
+          <TabsTrigger value="shipments">Envio</TabsTrigger>
         </TabsList>
 
         <TabsContent value="catalog" className="mt-6">
@@ -29,27 +30,32 @@ export default function KitsPage() {
           <KitBuilder />
         </TabsContent>
 
-        <TabsContent value="inventory" className="mt-6 space-y-6">
-          <div>
-            <h2 className="text-lg font-semibold mb-3">Visão Geral do Estoque Base</h2>
-            <KitInventory />
-          </div>
-
-          <div className="grid lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2">
-              <KitShipments />
-            </div>
-            <div>
-              <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6 space-y-4">
-                <h3 className="font-semibold text-lg">Lógica de Disparo Automático</h3>
+        <TabsContent value="inventory" className="mt-6">
+          <div className="space-y-4">
+            <div className="flex justify-between items-center mb-4">
+              <div>
+                <h2 className="text-lg font-semibold">Controle de Estoque</h2>
                 <p className="text-sm text-muted-foreground">
-                  A sincronização com a transportadora ocorre automaticamente em background. O
-                  sistema atualiza os kits para "Enviado" assim que um código de rastreio válido é
-                  salvo e para "Entregue" quando a transportadora confirma a entrega. O NPS é
-                  acionado automaticamente 24h após a marcação de "Entregue".
+                  Gerencie o nível de estoque dos produtos e amostras.
                 </p>
               </div>
             </div>
+            <KitInventory />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="shipments" className="mt-6 space-y-6">
+          <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-4 mb-4">
+            <h3 className="font-semibold text-base mb-1">Lógica de Disparo Automático</h3>
+            <p className="text-sm text-muted-foreground">
+              A sincronização com a transportadora ocorre automaticamente em background. O sistema
+              atualiza os kits para "Enviado" assim que um código de rastreio válido é salvo e para
+              "Entregue" quando a transportadora confirma a entrega. O NPS é acionado
+              automaticamente 24h após a marcação de "Entregue".
+            </p>
+          </div>
+          <div className="w-full">
+            <KitShipments />
           </div>
         </TabsContent>
       </Tabs>

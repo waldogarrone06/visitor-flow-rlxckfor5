@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/use-auth'
-import { getKits, createKit, deleteKit } from '@/services/kits'
+import { getKits, createKit, deleteKit, updateKitItems } from '@/services/kits'
 import { getPrescribers } from '@/services/crm'
+import { supabase } from '@/lib/supabase/client'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -23,6 +24,7 @@ export function KitBuilder() {
   const { user } = useAuth()
   const [kits, setKits] = useState<any[]>([])
   const [prescribers, setPrescribers] = useState<any[]>([])
+  const [inventoryProducts, setInventoryProducts] = useState<any[]>([])
 
   // Form State
   const [selectedCatalogKit, setSelectedCatalogKit] = useState<string>('new')
@@ -39,16 +41,22 @@ export function KitBuilder() {
   const [linkKit, setLinkKit] = useState('')
   const [linking, setLinking] = useState(false)
 
-  const catalogKits = kits.filter((k) => !k.is_personalized)
-
   const loadData = async () => {
     if (!user) return
     const [fetchedKits, fetchedPrescribers] = await Promise.all([
-      getKits(),
+      getKits(user.id),
       getPrescribers(user.id),
     ])
     setKits(fetchedKits)
     setPrescribers(fetchedPrescribers)
+
+    // Load inventory products
+    const { data: invData } = await supabase
+      .from('inventory_items' as any)
+      .select('product_name')
+      .eq('user_id', user.id)
+      .order('product_name')
+    if (invData) setInventoryProducts(invData)
   }
 
   useEffect(() => {
@@ -59,16 +67,22 @@ export function KitBuilder() {
     setSelectedCatalogKit(kitId)
     if (kitId === 'new') {
       setName('')
+      setIsPersonalized(false)
+      setPrescriberEmail('')
       setItems([{ product_name: '', quantity: 1 }])
     } else {
-      const kit = catalogKits.find((k) => k.id === kitId)
+      const kit = kits.find((k) => k.id === kitId)
       if (kit) {
         setName(kit.name)
+        setIsPersonalized(kit.is_personalized || false)
+        setPrescriberEmail(kit.prescriber_email || '')
         setItems(
-          kit.kit_items?.map((i: any) => ({
-            product_name: i.product_name,
-            quantity: i.quantity,
-          })) || [{ product_name: '', quantity: 1 }],
+          kit.kit_items?.length > 0
+            ? kit.kit_items.map((i: any) => ({
+                product_name: i.product_name,
+                quantity: i.quantity,
+              }))
+            : [{ product_name: '', quantity: 1 }],
         )
       }
     }
@@ -107,20 +121,34 @@ export function KitBuilder() {
 
     setLoading(true)
     try {
-      await createKit(
-        user.id,
-        { name, is_personalized: isPersonalized, prescriber_email: prescriberEmail || null },
-        items,
-      )
-      toast({ title: 'Sucesso', description: 'Kit criado com sucesso!' })
-      setName('')
-      setSelectedCatalogKit('new')
-      setIsPersonalized(false)
-      setPrescriberEmail('')
-      setItems([{ product_name: '', quantity: 1 }])
+      if (selectedCatalogKit === 'new') {
+        await createKit(
+          user.id,
+          { name, is_personalized: isPersonalized, prescriber_email: prescriberEmail || null },
+          items,
+        )
+        toast({ title: 'Sucesso', description: 'Kit criado com sucesso!' })
+        setName('')
+        setSelectedCatalogKit('new')
+        setIsPersonalized(false)
+        setPrescriberEmail('')
+        setItems([{ product_name: '', quantity: 1 }])
+      } else {
+        // Edit existing kit
+        await updateKitItems(
+          selectedCatalogKit,
+          { name, is_personalized: isPersonalized, prescriber_email: prescriberEmail || null },
+          items,
+        )
+        toast({ title: 'Sucesso', description: 'Kit atualizado com sucesso!' })
+      }
       loadData()
     } catch (err) {
-      toast({ title: 'Erro', description: 'Não foi possível criar o kit.', variant: 'destructive' })
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível salvar o kit.',
+        variant: 'destructive',
+      })
     } finally {
       setLoading(false)
     }
@@ -130,6 +158,13 @@ export function KitBuilder() {
     try {
       await deleteKit(kitId)
       toast({ title: 'Kit Removido', description: 'O kit foi excluído do sistema.' })
+      if (selectedCatalogKit === kitId) {
+        setSelectedCatalogKit('new')
+        setName('')
+        setIsPersonalized(false)
+        setPrescriberEmail('')
+        setItems([{ product_name: '', quantity: 1 }])
+      }
       loadData()
     } catch (err) {
       toast({ title: 'Erro', description: 'Falha ao excluir kit.', variant: 'destructive' })
@@ -171,23 +206,27 @@ export function KitBuilder() {
       <div className="space-y-6">
         <Card className="shadow-subtle h-fit">
           <CardHeader>
-            <CardTitle>Criar Novo Kit</CardTitle>
+            <CardTitle>
+              {selectedCatalogKit === 'new' ? 'Criar Novo Kit' : 'Editar Kit Selecionado'}
+            </CardTitle>
             <CardDescription>
               Defina os itens e crie kits padrão ou personalizados para um prescritor específico.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-3">
-              <Label>Catálogo de Kits</Label>
+              <Label>Selecione um Kit Existente ou Crie Novo</Label>
               <Select value={selectedCatalogKit} onValueChange={handleCatalogSelect}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecione um kit para usar como base..." />
+                  <SelectValue placeholder="Selecione um kit..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="new">-- Criar Novo Kit Personalizado --</SelectItem>
-                  {catalogKits.map((k) => (
+                  <SelectItem value="new" className="font-semibold text-primary">
+                    -- Criar Novo Kit --
+                  </SelectItem>
+                  {kits.map((k) => (
                     <SelectItem key={k.id} value={k.id}>
-                      {k.name}
+                      {k.name} {k.is_personalized ? '(Personalizado)' : ''}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -257,7 +296,13 @@ export function KitBuilder() {
                       placeholder="Nome do Produto / Amostra"
                       value={item.product_name}
                       onChange={(e) => handleItemChange(idx, 'product_name', e.target.value)}
+                      list="inventory-products"
                     />
+                    <datalist id="inventory-products">
+                      {inventoryProducts.map((prod, i) => (
+                        <option key={i} value={prod.product_name} />
+                      ))}
+                    </datalist>
                   </div>
                   <div className="w-24 space-y-1">
                     <Input
@@ -272,7 +317,7 @@ export function KitBuilder() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="text-destructive mt-0"
+                    className="text-destructive mt-0 shrink-0"
                     onClick={() => handleRemoveItem(idx)}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -282,7 +327,11 @@ export function KitBuilder() {
             </div>
 
             <Button className="w-full" onClick={handleSave} disabled={loading}>
-              {loading ? 'Salvando...' : 'Salvar Configuração do Kit'}
+              {loading
+                ? 'Salvando...'
+                : selectedCatalogKit === 'new'
+                  ? 'Criar Kit'
+                  : 'Atualizar Kit'}
             </Button>
           </CardContent>
         </Card>
@@ -341,7 +390,7 @@ export function KitBuilder() {
       </div>
 
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold tracking-tight">Catálogo Geral de Kits</h3>
+        <h3 className="text-lg font-semibold tracking-tight">Kits Cadastrados</h3>
         {kits.length === 0 ? (
           <div className="p-8 text-center text-muted-foreground border border-dashed rounded-lg bg-slate-50/50">
             <PackageSearch className="h-10 w-10 mx-auto mb-3 opacity-20" />
@@ -350,7 +399,11 @@ export function KitBuilder() {
         ) : (
           <div className="grid gap-3">
             {kits.map((kit) => (
-              <Card key={kit.id} className="shadow-sm">
+              <Card
+                key={kit.id}
+                className={`shadow-sm cursor-pointer transition-colors ${selectedCatalogKit === kit.id ? 'border-primary ring-1 ring-primary' : 'hover:border-primary/50'}`}
+                onClick={() => handleCatalogSelect(kit.id)}
+              >
                 <CardContent className="p-4 flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
                   <div>
                     <div className="flex items-center gap-2 mb-1">
@@ -384,7 +437,10 @@ export function KitBuilder() {
                       variant="ghost"
                       size="icon"
                       className="text-destructive hover:bg-destructive/10 shrink-0"
-                      onClick={() => handleDelete(kit.id)}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleDelete(kit.id)
+                      }}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
