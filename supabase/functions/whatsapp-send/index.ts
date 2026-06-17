@@ -95,9 +95,6 @@ Deno.serve(async (req: Request) => {
         delay: 1200,
         presence: 'composing',
       },
-      textMessage: {
-        text: text,
-      },
     }
 
     const fetchHeaders: Record<string, string> = {
@@ -135,11 +132,55 @@ Deno.serve(async (req: Request) => {
       throw new Error(`Erro na API (${r.status}): ${responseText || r.statusText}`)
     }
 
-    let parsedResult
+    let parsedResult: any = {}
     try {
       parsedResult = JSON.parse(responseText)
     } catch (e) {
       parsedResult = { rawText: responseText }
+    }
+
+    const responseData = Array.isArray(parsedResult) ? parsedResult[0] : parsedResult
+    const wKey = responseData?.key || responseData?.message?.key || responseData?.data?.key
+    const wMessage = responseData?.message || responseData?.data?.message
+
+    if (!wKey || !wMessage) {
+      if (userId) {
+        await supabaseAdmin.from('interaction_log').insert({
+          user_id: userId,
+          type: 'whatsapp_send_error',
+          details: {
+            error: 'Unexpected response structure from Evolution API',
+            response: parsedResult,
+            instance: sessionId,
+            to: number,
+          },
+        })
+      }
+    }
+
+    // Safely update message with actual API metadata
+    if (body.messageId && userId) {
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        body.messageId,
+      )
+      if (isUuid) {
+        const content = wMessage?.conversation || wMessage?.extendedTextMessage?.text || text
+
+        const { error: updateError } = await supabaseAdmin
+          .from('messages')
+          .update({
+            whatsapp_key: wKey || null,
+            client_id: wKey?.id || null,
+            content: content,
+            status: 'sent',
+          })
+          .eq('id', body.messageId)
+          .eq('user_id', userId)
+
+        if (updateError) {
+          console.warn('Failed to update message in db:', updateError)
+        }
+      }
     }
 
     // Log Interaction
@@ -148,7 +189,7 @@ Deno.serve(async (req: Request) => {
         const { error: logError } = await supabaseAdmin.from('interaction_log').insert({
           user_id: userId,
           type: 'whatsapp_send',
-          details: { to: number, instance: sessionId, success: true, mode: 'work-exchange' },
+          details: { to: number, instance: sessionId, success: true, messageId: wKey?.id || null },
         })
         if (logError) {
           console.warn('Failed to insert interaction log:', logError)

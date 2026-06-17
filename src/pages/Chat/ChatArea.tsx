@@ -406,28 +406,30 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
 
     try {
       if (lead?.phone) {
-        const response: any = await sendWhatsAppMessage(lead.phone, messageText)
+        const response: any = await sendWhatsAppMessage(lead.phone, messageText, newMessageId)
         const ev = response?.evolutionResponse
+
+        const evData = Array.isArray(ev) ? ev[0] : ev
         let clientId = null
         let whatsappKey = null
 
-        if (ev) {
+        if (evData) {
           clientId =
-            ev?.key?.id || ev?.message?.key?.id || ev?.messageId || ev?.id || ev?.data?.key?.id
-          whatsappKey = ev?.key || ev?.message?.key || ev?.data?.key
+            evData?.key?.id ||
+            evData?.message?.key?.id ||
+            evData?.messageId ||
+            evData?.id ||
+            evData?.data?.key?.id
+          whatsappKey = evData?.key || evData?.message?.key || evData?.data?.key
         }
 
-        if (contactId) {
-          const updatePayload: any = { status: 'sent' }
-          if (clientId) updatePayload.client_id = clientId
-          if (whatsappKey) updatePayload.whatsapp_key = whatsappKey
-
-          await supabase.from('messages').update(updatePayload).eq('id', newMessageId)
-        }
-
+        // Database update is handled securely by the Edge Function,
+        // but we update the local state for immediate visual feedback
         setDbMessages((prev) =>
           prev.map((m) =>
-            m.id === newMessageId ? { ...m, status: 'sent', whatsapp_key: whatsappKey } : m,
+            m.id === newMessageId
+              ? { ...m, status: 'sent', whatsapp_key: whatsappKey, client_id: clientId }
+              : m,
           ),
         )
       } else {
