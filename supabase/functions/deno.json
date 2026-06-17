@@ -15,7 +15,7 @@
     "sync-calendar-delete": 1,
     "send-meet-link": 4,
     "whatsapp-manage-message": 4,
-    "whatsapp-edit": 1,
-    "whatsapp-delete": 1
+    "whatsapp-edit": 2,
+    "whatsapp-delete": 2
   }
 }
