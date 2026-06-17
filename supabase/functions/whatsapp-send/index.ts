@@ -140,8 +140,8 @@ Deno.serve(async (req: Request) => {
     }
 
     const responseData = Array.isArray(parsedResult) ? parsedResult[0] : parsedResult
-    const wKey = responseData?.key || responseData?.message?.key || responseData?.data?.key
-    const wMessage = responseData?.message || responseData?.data?.message
+    const wKey = responseData?.key
+    const wMessage = responseData?.message
 
     if (!wKey || !wMessage) {
       if (userId) {
@@ -164,7 +164,7 @@ Deno.serve(async (req: Request) => {
         body.messageId,
       )
       if (isUuid) {
-        const content = wMessage?.conversation || wMessage?.extendedTextMessage?.text || text
+        const content = wMessage?.conversation || text
 
         const { error: updateError } = await supabaseAdmin
           .from('messages')
