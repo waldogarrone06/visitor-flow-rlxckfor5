@@ -174,6 +174,20 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
               setDbMessages((prev) => prev.map((m) => (m.id === payload.new.id ? payload.new : m)))
             },
           )
+          .on(
+            'postgres_changes',
+            {
+              event: 'DELETE',
+              schema: 'public',
+              table: 'messages',
+              filter: `contact_id=eq.${cId}`,
+            },
+            (payload) => {
+              console.log('🗑️ [ChatArea] Mensagem removida via Realtime (DELETE):', payload.old)
+              if (!isMounted) return
+              setDbMessages((prev) => prev.filter((m) => m.id !== payload.old.id))
+            },
+          )
           .subscribe((status) => {
             console.log('📡 [ChatArea] Status da assinatura Realtime:', status)
           })
@@ -228,6 +242,7 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
   if (!lead) return null
 
   const handleEdit = async (msgId: string, clientId: string) => {
+    if (!user) return
     if (!editingText.trim() || editingText === messages.find((m) => m.id === msgId)?.text) {
       setEditingMessageId(null)
       return
@@ -238,7 +253,11 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
 
     try {
       await manageWhatsAppMessage('edit', clientId, lead.phone, newText)
-      await supabase.from('messages').update({ content: newText }).eq('id', msgId)
+      await supabase
+        .from('messages')
+        .update({ content: newText })
+        .eq('id', msgId)
+        .eq('user_id', user.id)
     } catch (error: any) {
       toast({
         title: 'Erro ao editar',
@@ -251,24 +270,30 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
   }
 
   const handleDelete = async () => {
-    if (!deletingMessage || !deletingMessage.clientId) return
+    if (!user || !deletingMessage || !deletingMessage.clientId) return
     const msgId = deletingMessage.id
     const clientId = deletingMessage.clientId
 
-    setDbMessages((prev) => prev.map((m) => (m.id === msgId ? { ...m, status: 'deleted' } : m)))
+    const originalDbMessage = dbMessages.find((m) => m.id === msgId)
+
+    setDbMessages((prev) => prev.filter((m) => m.id !== msgId))
 
     try {
       await manageWhatsAppMessage('delete', clientId, lead.phone)
-      await supabase.from('messages').update({ status: 'deleted' }).eq('id', msgId)
+      await supabase.from('messages').delete().eq('id', msgId).eq('user_id', user.id)
     } catch (error: any) {
       toast({
         title: 'Erro ao excluir',
         description: error.message || 'Falha na comunicação com o servidor.',
         variant: 'destructive',
       })
-      setDbMessages((prev) =>
-        prev.map((m) => (m.id === msgId ? { ...m, status: deletingMessage.status } : m)),
-      )
+      if (originalDbMessage) {
+        setDbMessages((prev) =>
+          [...prev, originalDbMessage].sort(
+            (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+          ),
+        )
+      }
     } finally {
       setDeletingMessage(null)
     }

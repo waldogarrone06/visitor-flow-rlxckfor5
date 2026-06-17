@@ -291,6 +291,14 @@ export default function ChatPage() {
           setMessages((prev) => prev.map((m) => (m.id === updatedMsg.id ? updatedMsg : m)))
         },
       )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'messages', filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          const deletedMsg = payload.old as { id: string }
+          setMessages((prev) => prev.filter((m) => m.id !== deletedMsg.id))
+        },
+      )
       .subscribe()
 
     return () => {
@@ -483,6 +491,7 @@ export default function ChatPage() {
   }
 
   const handleEdit = async (msgId: string, clientId: string | null | undefined) => {
+    if (!user) return
     if (!editingText.trim() || editingText === messages.find((m) => m.id === msgId)?.content) {
       setEditingMessageId(null)
       return
@@ -495,7 +504,11 @@ export default function ChatPage() {
       if (clientId && selectedContact) {
         await manageWhatsAppMessage('edit', clientId, selectedContact.phone, newText)
       }
-      await supabase.from('messages').update({ content: newText }).eq('id', msgId)
+      await supabase
+        .from('messages')
+        .update({ content: newText })
+        .eq('id', msgId)
+        .eq('user_id', user.id)
     } catch (error: any) {
       toast.error('Erro ao editar: ' + (error.message || 'Falha na comunicação com o servidor.'))
     } finally {
@@ -504,21 +517,24 @@ export default function ChatPage() {
   }
 
   const handleDelete = async () => {
-    if (!deletingMessage || !selectedContact) return
+    if (!user || !deletingMessage || !selectedContact) return
     const msgId = deletingMessage.id
     const clientId = deletingMessage.client_id
 
-    setMessages((prev) => prev.map((m) => (m.id === msgId ? { ...m, status: 'deleted' } : m)))
+    setMessages((prev) => prev.filter((m) => m.id !== msgId))
 
     try {
       if (clientId) {
         await manageWhatsAppMessage('delete', clientId, selectedContact.phone)
       }
-      await supabase.from('messages').update({ status: 'deleted' }).eq('id', msgId)
+      await supabase.from('messages').delete().eq('id', msgId).eq('user_id', user.id)
     } catch (error: any) {
       toast.error('Erro ao excluir: ' + (error.message || 'Falha na comunicação com o servidor.'))
+      // Restore message if failed
       setMessages((prev) =>
-        prev.map((m) => (m.id === msgId ? { ...m, status: deletingMessage.status } : m)),
+        [...prev, deletingMessage].sort(
+          (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+        ),
       )
     } finally {
       setDeletingMessage(null)
