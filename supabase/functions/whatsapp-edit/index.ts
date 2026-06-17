@@ -39,9 +39,9 @@ Deno.serve(async (req) => {
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
 
-    let sessionId = body.instanceId || body.sessionId || ''
-    let apiKey = body.apiToken || ''
-    let apiUrl = body.apiUrl || ''
+    let sessionId = ''
+    let apiKey = ''
+    let apiUrl = ''
 
     const { data: integration } = await supabaseAdmin
       .from('user_integrations')
@@ -58,7 +58,7 @@ Deno.serve(async (req) => {
     }
 
     apiKey = apiKey.trim()
-    sessionId = sessionId.trim().replace(/[^a-zA-Z0-9-_]/g, '')
+    sessionId = sessionId.trim() // removido regex que quebrava nomes com espaços
 
     let baseUrl = apiUrl.replace(/^(POST|GET|PUT|DELETE)\s+/i, '').trim()
 
@@ -67,12 +67,18 @@ Deno.serve(async (req) => {
     }
 
     baseUrl = baseUrl.replace(/\/+$/, '')
-    baseUrl = `${baseUrl}/chat/editMessage/${encodeURIComponent(sessionId)}`
+    // limpa qualquer path que possa ter vindo na URL
+    if (baseUrl.includes('/message/')) {
+      baseUrl = baseUrl.split('/message/')[0]
+    } else if (baseUrl.includes('/chat/')) {
+      baseUrl = baseUrl.split('/chat/')[0]
+    }
+    baseUrl = `${baseUrl}/message/updateMessage/${encodeURIComponent(sessionId)}`
 
-    console.log(`[edit_whatsapp] POST ${baseUrl} for instance ${sessionId}`)
+    console.log(`[edit_whatsapp] PUT ${baseUrl} for instance ${sessionId}`)
 
     const response = await fetch(baseUrl, {
-      method: 'POST',
+      method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
         apikey: apiKey,

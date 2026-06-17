@@ -204,6 +204,105 @@ Deno.serve(async (req: Request) => {
       })
       .eq('id', appointmentId)
 
+    // Notify prescriber
+    try {
+      if (meetLink) {
+        const { data: currentApp } = await supabase
+          .from('appointments')
+          .select('prescriber_notified, client_name, appointment_date, start_time')
+          .eq('id', appointmentId)
+          .single()
+
+        if (currentApp && !currentApp.prescriber_notified) {
+          // Get prescriber email using the RPC function
+          const { data: targetEmail, error: rpcErr } = await supabase.rpc('get_prescriber_email', {
+            p_user_id: appointment.user_id,
+          })
+
+          const { data: integ } = await supabase
+            .from('user_integrations')
+            .select('google_email, reminder_email_template')
+            .eq('user_id', appointment.user_id)
+            .single()
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('email, name')
+            .eq('id', appointment.user_id)
+            .single()
+
+          let finalEmail = targetEmail
+          if (rpcErr || !finalEmail) {
+            finalEmail = integ?.google_email || profile?.email
+          }
+
+          if (finalEmail) {
+            const formattedDate = currentApp.appointment_date
+              ? currentApp.appointment_date.split('-').reverse().join('/')
+              : ''
+
+            let msg = `Olá!
+
+Um novo agendamento foi confirmado e o link da reunião foi gerado com sucesso.
+
+Paciente: ${currentApp.client_name}
+Data: ${formattedDate}
+Horário: ${currentApp.start_time}
+
+Link da Reunião: ${meetLink}
+
+Acesse o link no horário marcado para iniciar a consulta.
+
+Atenciosamente,
+Sistema de Agendamento`
+
+            if (integ?.reminder_email_template) {
+              const replacements: Record<string, string> = {
+                '\\{\\{nome_cliente\\}\\}': currentApp.client_name || '',
+                '\\{\\{data\\}\\}': formattedDate,
+                '\\{\\{hora\\}\\}': currentApp.start_time || '',
+                '\\{\\{meet_link\\}\\}': meetLink,
+                '\\{\\{professional_name\\}\\}': profile?.name || 'Equipe',
+              }
+              msg = integ.reminder_email_template
+              for (const [k, v] of Object.entries(replacements)) {
+                msg = msg.replace(new RegExp(k, 'g'), v)
+              }
+            }
+
+            const sendEmailRes = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${supabaseKey}`,
+              },
+              body: JSON.stringify({
+                to: finalEmail,
+                subject: 'Link da Reunião - ' + currentApp.client_name,
+                html:
+                  '<div style="font-family: sans-serif; padding: 20px; color: #333;"><p>' +
+                  msg.replace(/\n/g, '<br/>') +
+                  '</p></div>',
+                senderName: 'Notificação do Sistema',
+              }),
+            })
+
+            if (sendEmailRes.ok) {
+              await supabase
+                .from('appointments')
+                .update({ prescriber_notified: true })
+                .eq('id', appointmentId)
+            } else {
+              console.error('Failed to send email API response:', await sendEmailRes.text())
+            }
+          }
+        }
+      } else {
+        console.error('Meet link is empty, skipping prescriber notification.')
+      }
+    } catch (e) {
+      console.error('Failed to send prescriber notification:', e)
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
