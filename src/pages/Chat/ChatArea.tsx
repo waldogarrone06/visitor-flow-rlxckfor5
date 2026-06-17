@@ -5,6 +5,23 @@ import { supabase } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import {
   Send,
   Check,
@@ -14,11 +31,15 @@ import {
   Paperclip,
   FileText,
   AlertCircle,
+  MoreVertical,
+  Pencil,
+  Trash2,
+  X,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { Link } from 'react-router-dom'
-import { sendWhatsAppMessage } from '@/services/whatsapp'
+import { sendWhatsAppMessage, manageWhatsAppMessage } from '@/services/whatsapp'
 import { useToast } from '@/hooks/use-toast'
 
 export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => void }) {
@@ -31,6 +52,10 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
 
   const [dbMessages, setDbMessages] = useState<any[]>([])
   const [contactId, setContactId] = useState<string | null>(null)
+
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
+  const [editingText, setEditingText] = useState('')
+  const [deletingMessage, setDeletingMessage] = useState<any>(null)
 
   const lead = useMemo(() => state.leads.find((l) => l.id === leadId), [state.leads, leadId])
 
@@ -186,11 +211,14 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
       timestamp: m.created_at,
       status: m.status,
       type: 'text',
+      clientId: m.client_id,
     }))
 
     const combined = [...storeMsgs, ...dbMsgs]
     const unique = Array.from(new Map(combined.map((item) => [item.id, item])).values())
-    return unique.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+    return unique
+      .filter((m) => m.status !== 'deleted')
+      .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
   }, [state.messages, dbMessages, leadId])
 
   useEffect(() => {
@@ -198,6 +226,53 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
   }, [messages])
 
   if (!lead) return null
+
+  const handleEdit = async (msgId: string, clientId: string) => {
+    if (!editingText.trim() || editingText === messages.find((m) => m.id === msgId)?.text) {
+      setEditingMessageId(null)
+      return
+    }
+
+    const newText = editingText.trim()
+    setDbMessages((prev) => prev.map((m) => (m.id === msgId ? { ...m, content: newText } : m)))
+
+    try {
+      await manageWhatsAppMessage('edit', clientId, lead.phone, newText)
+      await supabase.from('messages').update({ content: newText }).eq('id', msgId)
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao editar',
+        description: error.message || 'Falha na comunicação com o servidor.',
+        variant: 'destructive',
+      })
+    } finally {
+      setEditingMessageId(null)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!deletingMessage || !deletingMessage.clientId) return
+    const msgId = deletingMessage.id
+    const clientId = deletingMessage.clientId
+
+    setDbMessages((prev) => prev.map((m) => (m.id === msgId ? { ...m, status: 'deleted' } : m)))
+
+    try {
+      await manageWhatsAppMessage('delete', clientId, lead.phone)
+      await supabase.from('messages').update({ status: 'deleted' }).eq('id', msgId)
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao excluir',
+        description: error.message || 'Falha na comunicação com o servidor.',
+        variant: 'destructive',
+      })
+      setDbMessages((prev) =>
+        prev.map((m) => (m.id === msgId ? { ...m, status: deletingMessage.status } : m)),
+      )
+    } finally {
+      setDeletingMessage(null)
+    }
+  }
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -359,13 +434,40 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
           <div
             key={msg.id}
             className={cn(
-              'flex flex-col max-w-[85%] md:max-w-[75%]',
+              'flex flex-col max-w-[85%] md:max-w-[75%] relative group',
               msg.sender === 'me' ? 'items-end ml-auto' : 'items-start mr-auto',
             )}
           >
+            {msg.sender === 'me' && msg.clientId && msg.status !== 'error' && !editingMessageId && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="absolute -left-6 top-1/2 -translate-y-1/2 p-1 text-muted-foreground opacity-0 group-hover:opacity-100 focus:opacity-100 hover:text-foreground transition-opacity">
+                    <MoreVertical className="h-4 w-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-44">
+                  {(!msg.type || msg.type === 'text') && (
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setEditingMessageId(msg.id)
+                        setEditingText(msg.text || '')
+                      }}
+                    >
+                      <Pencil className="mr-2 h-4 w-4" /> Editar
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={() => setDeletingMessage(msg)}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" /> Apagar
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
             <div
               className={cn(
-                'px-3 sm:px-4 py-2 rounded-2xl shadow-sm relative group',
+                'px-3 sm:px-4 py-2 rounded-2xl shadow-sm relative',
                 msg.sender === 'me'
                   ? msg.status === 'error'
                     ? 'bg-destructive text-destructive-foreground rounded-br-sm'
@@ -407,16 +509,54 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
               )}
 
               {(!msg.type || msg.type === 'text' || (msg.text && msg.type)) && (
-                <p
-                  className={cn(
-                    'text-[13px] sm:text-sm break-words whitespace-pre-wrap',
-                    msg.type === 'image' || msg.type === 'pdf'
-                      ? 'italic opacity-80 text-xs mt-1'
-                      : '',
+                <>
+                  {editingMessageId === msg.id ? (
+                    <div className="flex flex-col gap-2 min-w-[200px] mt-1">
+                      <Textarea
+                        value={editingText}
+                        onChange={(e) => setEditingText(e.target.value)}
+                        className="bg-white/10 text-white placeholder:text-white/50 min-h-[60px] resize-none text-sm p-2 border-white/20 focus-visible:ring-0 focus-visible:border-white/40"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault()
+                            handleEdit(msg.id, msg.clientId)
+                          } else if (e.key === 'Escape') {
+                            setEditingMessageId(null)
+                          }
+                        }}
+                      />
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 px-2 text-primary-foreground hover:bg-white/20 hover:text-white"
+                          onClick={() => setEditingMessageId(null)}
+                        >
+                          <X className="h-3 w-3 mr-1" /> Cancelar
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="h-6 px-2 bg-white text-primary hover:bg-gray-100"
+                          onClick={() => handleEdit(msg.id, msg.clientId)}
+                        >
+                          <Check className="h-3 w-3 mr-1" /> Salvar
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p
+                      className={cn(
+                        'text-[13px] sm:text-sm break-words whitespace-pre-wrap',
+                        msg.type === 'image' || msg.type === 'pdf'
+                          ? 'italic opacity-80 text-xs mt-1'
+                          : '',
+                      )}
+                    >
+                      {msg.text}
+                    </p>
                   )}
-                >
-                  {msg.text}
-                </p>
+                </>
               )}
 
               <div
@@ -487,6 +627,30 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
           <Send className="h-4 w-4" />
         </Button>
       </form>
+
+      <AlertDialog
+        open={!!deletingMessage}
+        onOpenChange={(open) => !open && setDeletingMessage(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Apagar mensagem</AlertDialogTitle>
+            <AlertDialogDescription>
+              Deseja realmente apagar esta mensagem para todos? Esta ação não pode ser desfeita e a
+              mensagem será removida do WhatsApp do destinatário.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Apagar para todos
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

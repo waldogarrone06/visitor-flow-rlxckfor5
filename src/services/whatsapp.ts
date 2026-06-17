@@ -24,3 +24,32 @@ export async function sendWhatsAppMessage(to: string, text: string) {
 
   return data
 }
+
+export async function manageWhatsAppMessage(
+  action: 'edit' | 'delete',
+  messageId: string,
+  to: string,
+  text?: string,
+) {
+  const { data, error } = await supabase.functions.invoke('whatsapp-manage-message', {
+    body: { action, messageId, to, text },
+  })
+
+  if (error && error instanceof FunctionsHttpError) {
+    let errorMessage
+    try {
+      errorMessage = await error.context.json()
+    } catch (e) {
+      errorMessage = { error: await error.context.text() }
+    }
+    throw new Error(`Erro de conexão com o servidor: ${errorMessage?.error || error.message}`)
+  } else if (error) {
+    throw new Error(`Erro de conexão com o servidor: ${error.message}`)
+  }
+
+  if (data?.error) {
+    throw new Error(data.error)
+  }
+
+  return data
+}
