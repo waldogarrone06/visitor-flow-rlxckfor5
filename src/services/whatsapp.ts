@@ -27,12 +27,17 @@ export async function sendWhatsAppMessage(to: string, text: string) {
 
 export async function manageWhatsAppMessage(
   action: 'edit' | 'delete',
-  messageId: string,
-  to: string,
-  text?: string,
+  payload: {
+    messageId?: string
+    to?: string
+    text?: string
+    id?: string
+    fromMe?: boolean
+    remoteJid?: string
+  },
 ) {
   const { data, error } = await supabase.functions.invoke('whatsapp-manage-message', {
-    body: { action, messageId, to, text },
+    body: { action, ...payload },
   })
 
   if (error && error instanceof FunctionsHttpError) {

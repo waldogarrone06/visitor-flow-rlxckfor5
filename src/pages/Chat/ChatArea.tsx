@@ -252,7 +252,11 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
     setDbMessages((prev) => prev.map((m) => (m.id === msgId ? { ...m, content: newText } : m)))
 
     try {
-      await manageWhatsAppMessage('edit', clientId, lead.phone, newText)
+      await manageWhatsAppMessage('edit', {
+        messageId: clientId,
+        to: lead.phone,
+        text: newText,
+      })
       await supabase
         .from('messages')
         .update({ content: newText })
@@ -270,7 +274,7 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
   }
 
   const handleDelete = async () => {
-    if (!user || !deletingMessage || !deletingMessage.clientId) return
+    if (!user || !deletingMessage) return
     const msgId = deletingMessage.id
     const clientId = deletingMessage.clientId
 
@@ -279,8 +283,25 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
     setDbMessages((prev) => prev.filter((m) => m.id !== msgId))
 
     try {
-      await manageWhatsAppMessage('delete', clientId, lead.phone)
+      if (clientId) {
+        const fromMe =
+          deletingMessage.sender === 'me' ||
+          (originalDbMessage && originalDbMessage.direction === 'outbound')
+        let phoneClean = lead.phone.replace(/\D/g, '')
+        if (phoneClean.length === 10 || phoneClean.length === 11) phoneClean = '55' + phoneClean
+        const remoteJid = `${phoneClean}@s.whatsapp.net`
+
+        await manageWhatsAppMessage('delete', {
+          id: clientId,
+          fromMe,
+          remoteJid,
+        })
+      }
       await supabase.from('messages').delete().eq('id', msgId).eq('user_id', user.id)
+      toast({
+        title: 'Mensagem apagada',
+        description: 'A mensagem foi apagada com sucesso.',
+      })
     } catch (error: any) {
       toast({
         title: 'Erro ao excluir',
@@ -466,7 +487,7 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
               msg.sender === 'me' ? 'items-end ml-auto' : 'items-start mr-auto',
             )}
           >
-            {msg.sender === 'me' && msg.clientId && msg.status !== 'error' && !editingMessageId && (
+            {msg.sender === 'me' && !editingMessageId && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="absolute -left-6 top-1/2 -translate-y-1/2 p-1 text-muted-foreground opacity-0 group-hover:opacity-100 focus:opacity-100 hover:text-foreground transition-opacity">
@@ -474,7 +495,7 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-44">
-                  {(!msg.type || msg.type === 'text') && (
+                  {(!msg.type || msg.type === 'text') && msg.clientId && msg.status !== 'error' && (
                     <DropdownMenuItem
                       onClick={() => {
                         setEditingMessageId(msg.id)

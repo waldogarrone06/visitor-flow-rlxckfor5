@@ -502,7 +502,11 @@ export default function ChatPage() {
 
     try {
       if (clientId && selectedContact) {
-        await manageWhatsAppMessage('edit', clientId, selectedContact.phone, newText)
+        await manageWhatsAppMessage('edit', {
+          messageId: clientId,
+          to: selectedContact.phone,
+          text: newText,
+        })
       }
       await supabase
         .from('messages')
@@ -525,9 +529,19 @@ export default function ChatPage() {
 
     try {
       if (clientId) {
-        await manageWhatsAppMessage('delete', clientId, selectedContact.phone)
+        const fromMe = deletingMessage.direction === 'outbound'
+        let phone = selectedContact.phone.replace(/\D/g, '')
+        if (phone.length === 10 || phone.length === 11) phone = '55' + phone
+        const remoteJid = `${phone}@s.whatsapp.net`
+
+        await manageWhatsAppMessage('delete', {
+          id: clientId,
+          fromMe,
+          remoteJid,
+        })
       }
       await supabase.from('messages').delete().eq('id', msgId).eq('user_id', user.id)
+      toast.success('Mensagem apagada com sucesso')
     } catch (error: any) {
       toast.error('Erro ao excluir: ' + (error.message || 'Falha na comunicação com o servidor.'))
       // Restore message if failed
@@ -945,7 +959,7 @@ export default function ChatPage() {
                         isOutbound ? 'justify-end' : 'justify-start',
                       )}
                     >
-                      {isOutbound && msg.client_id && !isError && !editingMessageId && (
+                      {isOutbound && !editingMessageId && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <button className="absolute -left-6 top-1/2 -translate-y-1/2 p-1 text-muted-foreground opacity-0 group-hover:opacity-100 focus:opacity-100 hover:text-foreground transition-opacity">
@@ -953,14 +967,16 @@ export default function ChatPage() {
                             </button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-44">
-                            <DropdownMenuItem
-                              onClick={() => {
-                                setEditingMessageId(msg.id)
-                                setEditingText(msg.content || '')
-                              }}
-                            >
-                              <Pencil className="mr-2 h-4 w-4" /> Editar
-                            </DropdownMenuItem>
+                            {msg.client_id && !isError && (
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setEditingMessageId(msg.id)
+                                  setEditingText(msg.content || '')
+                                }}
+                              >
+                                <Pencil className="mr-2 h-4 w-4" /> Editar
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuItem
                               className="text-destructive focus:text-destructive"
                               onClick={() => setDeletingMessage(msg)}

@@ -1,125 +1,141 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
-import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
+import { createClient } from 'jsr:@supabase/supabase-js@2'
 
-Deno.serve(async (req: Request) => {
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const body = await req.json().catch(() => ({}))
-    const { action, messageId, to, text } = body
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')
 
-    if (!action || !messageId || !to) {
-      throw new Error('Parâmetros action, messageId e to são obrigatórios.')
+    if (!supabaseUrl || !supabaseAnonKey) {
+      throw new Error('Missing environment variables')
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || ''
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
-
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) throw new Error('Não autenticado')
-
-    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: { Authorization: req.headers.get('Authorization')! },
+      },
     })
+
     const {
       data: { user },
-    } = await supabaseClient.auth.getUser()
-    if (!user) throw new Error('Usuário não encontrado')
+      error: authError,
+    } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
 
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
-
-    const { data: integration } = await supabaseAdmin
+    const { data: integration } = await supabase
       .from('user_integrations')
       .select('whatsapp_instance_id, whatsapp_api_token, whatsapp_api_url')
       .eq('user_id', user.id)
       .single()
 
-    if (!integration?.whatsapp_api_url || !integration?.whatsapp_instance_id) {
-      throw new Error('Você não possui uma integração do WhatsApp configurada.')
-    }
-
-    let apiUrl = integration.whatsapp_api_url.replace(/\/+$/, '')
-    const apiKey = integration.whatsapp_api_token || ''
-    const sessionId = integration.whatsapp_instance_id
-
-    apiUrl = apiUrl.replace(/^(POST|GET|PUT|DELETE)\s+/i, '').trim()
-
-    if (apiUrl.includes('/message/sendText')) {
-      apiUrl = apiUrl.split('/message/sendText')[0]
-    } else if (apiUrl.includes('/v1/messages')) {
-      apiUrl = apiUrl.split('/v1/messages')[0]
-    }
-
-    let number = to.replace(/\D/g, '')
-    if (number.length === 10 || number.length === 11) {
-      number = '55' + number
-    }
-
-    let endpoint = ''
-    let method = ''
-    let payload: any = {}
-
-    if (action === 'delete') {
-      endpoint = `${apiUrl}/chat/deleteMessageForEveryone/${encodeURIComponent(sessionId)}`
-      method = 'DELETE'
-      payload = {
-        number,
-        messageId,
-      }
-    } else if (action === 'edit') {
-      endpoint = `${apiUrl}/chat/updateMessage/${encodeURIComponent(sessionId)}`
-      method = 'POST'
-      payload = {
-        number,
-        messageId,
-        text,
-      }
-    }
-
-    const fetchHeaders: Record<string, string> = {
-      'Content-Type': 'application/json',
-      apikey: apiKey,
-      GlobalApiKey: apiKey,
-      Authorization: `Bearer ${apiKey}`,
-    }
-
-    let r = await fetch(endpoint, {
-      method,
-      headers: fetchHeaders,
-      body: JSON.stringify(payload),
-    })
-
-    if (!r.ok && r.status === 404 && action === 'edit') {
-      const fallbackEndpoint = `${apiUrl}/message/edit/${encodeURIComponent(sessionId)}`
-      r = await fetch(fallbackEndpoint, {
-        method: 'POST',
-        headers: fetchHeaders,
-        body: JSON.stringify(payload),
+    if (!integration?.whatsapp_instance_id || !integration?.whatsapp_api_token) {
+      return new Response(JSON.stringify({ error: 'WhatsApp not connected' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
-    const responseText = await r.text().catch(() => '')
+    const body = await req.json()
+    const { action, id, fromMe, remoteJid, text, to, messageId } = body
 
-    if (!r.ok) {
-      throw new Error(`Erro na API (${r.status}): ${responseText || r.statusText}`)
+    const apiUrl = integration.whatsapp_api_url || 'https://api.evolution.com'
+
+    if (action === 'delete') {
+      const payloadId = id || messageId
+      if (!payloadId || fromMe === undefined || !remoteJid) {
+        return new Response(
+          JSON.stringify({ error: 'Missing required fields for deletion (id, fromMe, remoteJid)' }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          },
+        )
+      }
+
+      const evolutionPayload = {
+        key: {
+          id: payloadId,
+          fromMe: fromMe,
+          remoteJid: remoteJid,
+        },
+      }
+
+      const response = await fetch(
+        `${apiUrl}/chat/deleteMessage/${integration.whatsapp_instance_id}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: integration.whatsapp_api_token,
+          },
+          body: JSON.stringify(evolutionPayload),
+        },
+      )
+
+      if (!response.ok) {
+        const err = await response.text()
+        console.error('Evolution API error:', err)
+        return new Response(JSON.stringify({ error: 'Failed to delete message on WhatsApp' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
     }
 
-    let parsedResult
-    try {
-      parsedResult = JSON.parse(responseText)
-    } catch (e) {
-      parsedResult = { rawText: responseText }
+    if (action === 'edit') {
+      const payloadId = messageId || id
+      const targetPhone = to || remoteJid?.split('@')[0]
+
+      const response = await fetch(
+        `${apiUrl}/chat/editMessage/${integration.whatsapp_instance_id}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: integration.whatsapp_api_token,
+          },
+          body: JSON.stringify({
+            number: targetPhone,
+            messageId: payloadId,
+            text: text,
+          }),
+        },
+      )
+
+      if (!response.ok) {
+        return new Response(JSON.stringify({ error: 'Failed to edit message' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
     }
 
-    return new Response(JSON.stringify({ success: true, evolutionResponse: parsedResult }), {
+    return new Response(JSON.stringify({ error: 'Invalid action' }), {
+      status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
-  } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), {
+  } catch (err: any) {
+    return new Response(JSON.stringify({ error: err.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
