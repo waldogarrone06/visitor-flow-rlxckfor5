@@ -114,6 +114,14 @@ Deno.serve(async (req) => {
             number: targetPhone,
             messageId: payloadId,
             text: contentToUpdate,
+            key: {
+              id: payloadId,
+              remoteJid: remoteJid || `${targetPhone}@s.whatsapp.net`,
+              fromMe: fromMe !== undefined ? fromMe : true,
+            },
+            message: {
+              conversation: contentToUpdate,
+            },
           }),
         },
       )
@@ -121,10 +129,17 @@ Deno.serve(async (req) => {
       if (!response.ok) {
         const errorText = await response.text()
         console.error('Evolution API edit error:', errorText)
-        return new Response(JSON.stringify({ error: 'Failed to edit message on WhatsApp' }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        })
+        let parsedError = errorText
+        try {
+          parsedError = JSON.parse(errorText)
+        } catch (e) {}
+        return new Response(
+          JSON.stringify({ error: 'Failed to edit message on WhatsApp', details: parsedError }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          },
+        )
       }
 
       return new Response(JSON.stringify({ success: true }), {

@@ -77,6 +77,7 @@ interface Message {
   contact_id: string
   status?: string | null
   client_id?: string | null
+  is_edited?: boolean | null
 }
 
 const PRESET_COLORS = [
@@ -498,23 +499,43 @@ export default function ChatPage() {
     }
 
     const newText = editingText.trim()
-    setMessages((prev) => prev.map((m) => (m.id === msgId ? { ...m, content: newText } : m)))
+    setMessages((prev) =>
+      prev.map((m) => (m.id === msgId ? { ...m, content: newText, is_edited: true } : m)),
+    )
 
     try {
       if (clientId && selectedContact) {
-        await manageWhatsAppMessage('edit', {
-          messageId: clientId,
-          to: selectedContact.phone,
-          text: newText,
-        })
+        let phoneClean = selectedContact.phone.replace(/\D/g, '')
+        if (phoneClean.length === 10 || phoneClean.length === 11) phoneClean = '55' + phoneClean
+        const remoteJid = `${phoneClean}@s.whatsapp.net`
+
+        try {
+          await manageWhatsAppMessage('edit', {
+            messageId: clientId,
+            id: clientId,
+            remoteJid,
+            to: phoneClean,
+            text: newText,
+            newContent: newText,
+            fromMe: true,
+          })
+        } catch (waError: any) {
+          toast.error(
+            'Erro ao sincronizar edição com o WhatsApp. A alteração foi salva apenas no sistema.',
+          )
+          // Continue to save locally
+        }
       }
       await supabase
         .from('messages')
-        .update({ content: newText })
+        .update({ content: newText, is_edited: true })
         .eq('id', msgId)
         .eq('user_id', user.id)
     } catch (error: any) {
-      toast.error('Erro ao editar: ' + (error.message || 'Falha na comunicação com o servidor.'))
+      toast.error(
+        'Erro ao editar no banco de dados: ' +
+          (error.message || 'Falha na comunicação com o servidor.'),
+      )
     } finally {
       setEditingMessageId(null)
     }
@@ -1037,6 +1058,9 @@ export default function ChatPage() {
                         >
                           {format(new Date(msg.created_at), 'HH:mm')}
                           {msg.status === 'sending' && <Loader2 className="w-3 h-3 animate-spin" />}
+                          {msg.is_edited && !isError && (
+                            <span className="mr-1 italic opacity-70">(editado)</span>
+                          )}
                           {isOutbound && msg.status === 'sent' && <Check className="w-3 h-3" />}
                           {isOutbound &&
                             (msg.status === 'delivered' ||

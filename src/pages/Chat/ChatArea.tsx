@@ -288,9 +288,9 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
         .eq('user_id', user.id)
 
       toast({
-        title: 'Erro ao sincronizar edição',
+        title: 'Erro de Sincronização',
         description:
-          error.message || 'A mensagem foi salva localmente mas falhou ao atualizar no WhatsApp.',
+          'Erro ao sincronizar edição com o WhatsApp. A alteração foi salva apenas no sistema.',
         variant: 'destructive',
       })
     } finally {

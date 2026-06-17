@@ -405,6 +405,7 @@ export type Database = {
           created_at: string
           direction: string
           id: string
+          is_edited: boolean | null
           status: string | null
           user_id: string
         }
@@ -415,6 +416,7 @@ export type Database = {
           created_at?: string
           direction: string
           id?: string
+          is_edited?: boolean | null
           status?: string | null
           user_id: string
         }
@@ -425,6 +427,7 @@ export type Database = {
           created_at?: string
           direction?: string
           id?: string
+          is_edited?: boolean | null
           status?: string | null
           user_id?: string
         }
@@ -896,6 +899,7 @@ export const Constants = {
 //   created_at: timestamp with time zone (not null, default: now())
 //   client_id: text (nullable)
 //   status: text (nullable, default: 'sent'::text)
+//   is_edited: boolean (nullable, default: false)
 // Table: nps_responses
 //   id: uuid (not null, default: gen_random_uuid())
 //   appointment_id: uuid (not null)
