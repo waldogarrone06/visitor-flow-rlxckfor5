@@ -9,13 +9,13 @@
     "google-oauth-exchange": 12,
     "google-oauth-url": 3,
     "send-email": 7,
-    "whatsapp-send": 35,
+    "whatsapp-send": 36,
     "whatsapp-webhook": 43,
     "trigger-reminders": 3,
     "sync-calendar-delete": 1,
     "send-meet-link": 4,
     "whatsapp-manage-message": 4,
-    "whatsapp-edit": 2,
-    "whatsapp-delete": 2
+    "whatsapp-edit": 3,
+    "whatsapp-delete": 3
   }
 }

@@ -1,12 +1,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 
-export const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers':
-    'authorization, x-client-info, x-supabase-client-platform, apikey, content-type',
-}
+import { corsHeaders } from '../_shared/cors.ts'
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -69,7 +64,7 @@ Deno.serve(async (req: Request) => {
     }
 
     apiKey = apiKey.trim()
-    sessionId = sessionId.trim()
+    sessionId = sessionId.trim().replace(/[^a-zA-Z0-9-_]/g, '')
 
     // Remove HTTP methods from URL if pasted by mistake (e.g., "POST https://...")
     let baseUrl = apiUrl.replace(/^(POST|GET|PUT|DELETE)\s+/i, '').trim()

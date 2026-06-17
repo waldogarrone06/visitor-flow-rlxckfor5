@@ -58,7 +58,7 @@ Deno.serve(async (req) => {
     }
 
     apiKey = apiKey.trim()
-    sessionId = sessionId.trim()
+    sessionId = sessionId.trim().replace(/[^a-zA-Z0-9-_]/g, '')
 
     let baseUrl = apiUrl.replace(/^(POST|GET|PUT|DELETE)\s+/i, '').trim()
 
