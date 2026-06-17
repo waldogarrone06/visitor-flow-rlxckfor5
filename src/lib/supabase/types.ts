@@ -408,6 +408,7 @@ export type Database = {
           is_edited: boolean | null
           status: string | null
           user_id: string
+          whatsapp_key: Json | null
         }
         Insert: {
           client_id?: string | null
@@ -419,6 +420,7 @@ export type Database = {
           is_edited?: boolean | null
           status?: string | null
           user_id: string
+          whatsapp_key?: Json | null
         }
         Update: {
           client_id?: string | null
@@ -430,6 +432,7 @@ export type Database = {
           is_edited?: boolean | null
           status?: string | null
           user_id?: string
+          whatsapp_key?: Json | null
         }
         Relationships: [
           {
@@ -900,6 +903,7 @@ export const Constants = {
 //   client_id: text (nullable)
 //   status: text (nullable, default: 'sent'::text)
 //   is_edited: boolean (nullable, default: false)
+//   whatsapp_key: jsonb (nullable)
 // Table: nps_responses
 //   id: uuid (not null, default: gen_random_uuid())
 //   appointment_id: uuid (not null)

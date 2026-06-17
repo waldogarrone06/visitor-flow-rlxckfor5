@@ -8,66 +8,76 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || ''
 
-    if (!supabaseUrl || !supabaseAnonKey) {
-      throw new Error('Missing environment variables')
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: {
-        headers: { Authorization: req.headers.get('Authorization')! },
-      },
-    })
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
+    const authHeader = req.headers.get('Authorization')
 
     const body = await req.json().catch(() => ({}))
     const { messageId, newText, whatsappKey } = body
 
     if (!messageId || !newText || !whatsappKey) {
-      return new Response(JSON.stringify({ error: 'Missing required parameters' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
+      throw new Error('Missing required parameters')
     }
 
-    const { data: integration } = await supabase
+    let userId = body.userId
+
+    if (authHeader && !userId) {
+      const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: authHeader } },
+      })
+      const {
+        data: { user },
+      } = await supabaseClient.auth.getUser()
+      if (user) userId = user.id
+    }
+
+    if (!userId) {
+      throw new Error('Unauthorized')
+    }
+
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
+
+    let sessionId = body.instanceId || body.sessionId || ''
+    let apiKey = body.apiToken || ''
+    let apiUrl = body.apiUrl || ''
+
+    const { data: integration } = await supabaseAdmin
       .from('user_integrations')
       .select('whatsapp_instance_id, whatsapp_api_token, whatsapp_api_url')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .single()
 
-    if (
-      !integration?.whatsapp_instance_id ||
-      !integration?.whatsapp_api_token ||
-      !integration?.whatsapp_api_url
-    ) {
-      return new Response(JSON.stringify({ error: 'WhatsApp integration not configured' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
+    if (integration?.whatsapp_api_url && integration?.whatsapp_instance_id) {
+      sessionId = integration.whatsapp_instance_id
+      apiKey = integration.whatsapp_api_token || ''
+      apiUrl = integration.whatsapp_api_url
+    } else {
+      throw new Error('Você não possui uma integração do WhatsApp configurada.')
     }
 
-    const apiUrl = integration.whatsapp_api_url.replace(/\/+$/, '')
-    const instanceId = integration.whatsapp_instance_id
+    apiKey = apiKey.trim()
+    sessionId = sessionId.trim()
 
-    const response = await fetch(`${apiUrl}/chat/editMessage/${instanceId}`, {
+    let baseUrl = apiUrl.replace(/^(POST|GET|PUT|DELETE)\s+/i, '').trim()
+
+    if (!baseUrl) {
+      throw new Error('URL da API não configurada.')
+    }
+
+    baseUrl = baseUrl.replace(/\/+$/, '')
+    baseUrl = `${baseUrl}/chat/editMessage/${encodeURIComponent(sessionId)}`
+
+    console.log(`[edit_whatsapp] POST ${baseUrl} for instance ${sessionId}`)
+
+    const response = await fetch(baseUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        apikey: integration.whatsapp_api_token,
-        Authorization: `Bearer ${integration.whatsapp_api_token}`,
+        apikey: apiKey,
+        GlobalApiKey: apiKey,
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
         key: whatsappKey,
@@ -78,17 +88,14 @@ Deno.serve(async (req) => {
     if (!response.ok) {
       const errorText = await response.text()
       console.error('Evolution API edit error:', errorText)
-      return new Response(
-        JSON.stringify({ error: 'Failed to edit message on WhatsApp', details: errorText }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      )
+      throw new Error(`Failed to edit message on WhatsApp. Details: ${errorText}`)
     }
 
-    const { data: updatedMessage, error: updateError } = await supabase
+    const { data: updatedMessage, error: updateError } = await supabaseAdmin
       .from('messages')
       .update({ content: newText, is_edited: true })
       .eq('id', messageId)
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .select()
       .single()
 
@@ -96,10 +103,10 @@ Deno.serve(async (req) => {
       console.error('Database update error:', updateError)
     }
 
-    await supabase.from('interaction_log').insert({
-      user_id: user.id,
+    await supabaseAdmin.from('interaction_log').insert({
+      user_id: userId,
       type: 'whatsapp_edit',
-      details: { messageId, whatsappKey, newText, success: true },
+      details: { messageId, whatsappKey, newText, instance: sessionId, success: true },
     })
 
     return new Response(JSON.stringify({ success: true, message: updatedMessage }), {
@@ -107,6 +114,7 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (err: any) {
+    console.error('Erro na Edge Function whatsapp-edit:', err.message)
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
