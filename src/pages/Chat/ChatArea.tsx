@@ -3,7 +3,6 @@ import { useMainStore } from '@/stores/main'
 import { useAuth } from '@/hooks/use-auth'
 import { supabase } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Textarea } from '@/components/ui/textarea'
 import {
@@ -49,6 +48,7 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
   const [text, setText] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const [dbMessages, setDbMessages] = useState<any[]>([])
   const [contactId, setContactId] = useState<string | null>(null)
@@ -274,12 +274,15 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
     }
   }
 
-  const handleSend = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSend = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
     if (!text.trim()) return
 
     const messageText = text.trim()
     setText('')
+    if (textareaRef.current) {
+      textareaRef.current.style.height = ''
+    }
 
     let newMessageId = `m-${Date.now()}`
 
@@ -594,12 +597,12 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
         <div ref={messagesEndRef} />
       </div>
 
-      <form onSubmit={handleSend} className="p-3 bg-card border-t flex items-center gap-2">
+      <form onSubmit={handleSend} className="p-3 bg-card border-t flex items-end gap-2">
         <Button
           type="button"
           variant="ghost"
           size="icon"
-          className="rounded-full shrink-0 h-10 w-10 text-muted-foreground hover:text-foreground"
+          className="rounded-full shrink-0 h-10 w-10 text-muted-foreground hover:text-foreground mb-0.5"
           onClick={() => fileInputRef.current?.click()}
           title="Anexar arquivo"
         >
@@ -612,16 +615,30 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
           ref={fileInputRef}
           onChange={handleFileSelect}
         />
-        <Input
+        <Textarea
+          ref={textareaRef}
           value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Mensagem"
-          className="flex-1 rounded-full bg-muted/50 border-transparent focus-visible:bg-background px-4"
+          onChange={(e) => {
+            setText(e.target.value)
+            e.target.style.height = ''
+            e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault()
+              if (text.trim()) {
+                handleSend()
+              }
+            }
+          }}
+          placeholder="Mensagem..."
+          className="flex-1 min-h-[40px] max-h-[120px] rounded-2xl bg-muted/50 border-transparent focus-visible:ring-0 focus-visible:bg-background px-4 py-2 sm:py-2.5 resize-none overflow-y-auto"
+          rows={1}
         />
         <Button
           type="submit"
           size="icon"
-          className="rounded-full shrink-0 h-10 w-10 shadow-sm"
+          className="rounded-full shrink-0 h-10 w-10 shadow-sm mb-0.5"
           disabled={!text.trim()}
         >
           <Send className="h-4 w-4" />
