@@ -2,8 +2,9 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
-import { sendWhatsAppMessage } from '@/services/whatsapp'
+import { sendWhatsAppMessage, manageWhatsAppMessage } from '@/services/whatsapp'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import {
   Send,
@@ -19,6 +20,9 @@ import {
   Plus,
   Tag as TagIcon,
   X,
+  MoreVertical,
+  Pencil,
+  Trash2,
 } from 'lucide-react'
 import {
   Dialog,
@@ -27,6 +31,22 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { format } from 'date-fns'
@@ -56,6 +76,7 @@ interface Message {
   created_at: string
   contact_id: string
   status?: string | null
+  client_id?: string | null
 }
 
 const PRESET_COLORS = [
@@ -104,8 +125,13 @@ export default function ChatPage() {
     'checking',
   )
 
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
+  const [editingText, setEditingText] = useState('')
+  const [deletingMessage, setDeletingMessage] = useState<Message | null>(null)
+
   const scrollRef = useRef<HTMLDivElement>(null)
   const selectedContactRef = useRef<Contact | null>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     selectedContactRef.current = selectedContact
@@ -456,12 +482,58 @@ export default function ChatPage() {
     }
   }
 
+  const handleEdit = async (msgId: string, clientId: string | null | undefined) => {
+    if (!editingText.trim() || editingText === messages.find((m) => m.id === msgId)?.content) {
+      setEditingMessageId(null)
+      return
+    }
+
+    const newText = editingText.trim()
+    setMessages((prev) => prev.map((m) => (m.id === msgId ? { ...m, content: newText } : m)))
+
+    try {
+      if (clientId && selectedContact) {
+        await manageWhatsAppMessage('edit', clientId, selectedContact.phone, newText)
+      }
+      await supabase.from('messages').update({ content: newText }).eq('id', msgId)
+    } catch (error: any) {
+      toast.error('Erro ao editar: ' + (error.message || 'Falha na comunicação com o servidor.'))
+    } finally {
+      setEditingMessageId(null)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!deletingMessage || !selectedContact) return
+    const msgId = deletingMessage.id
+    const clientId = deletingMessage.client_id
+
+    setMessages((prev) => prev.map((m) => (m.id === msgId ? { ...m, status: 'deleted' } : m)))
+
+    try {
+      if (clientId) {
+        await manageWhatsAppMessage('delete', clientId, selectedContact.phone)
+      }
+      await supabase.from('messages').update({ status: 'deleted' }).eq('id', msgId)
+    } catch (error: any) {
+      toast.error('Erro ao excluir: ' + (error.message || 'Falha na comunicação com o servidor.'))
+      setMessages((prev) =>
+        prev.map((m) => (m.id === msgId ? { ...m, status: deletingMessage.status } : m)),
+      )
+    } finally {
+      setDeletingMessage(null)
+    }
+  }
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newMessage.trim() || !selectedContact || !user) return
 
     const content = newMessage.trim()
     setNewMessage('')
+    if (textareaRef.current) {
+      textareaRef.current.style.height = ''
+    }
     setSending(true)
 
     const tempId = `temp-${Date.now()}`
@@ -475,6 +547,7 @@ export default function ChatPage() {
         created_at: new Date().toISOString(),
         contact_id: selectedContact.id,
         status: 'sending',
+        client_id: null,
       },
     ])
 
@@ -513,7 +586,9 @@ export default function ChatPage() {
       await supabase.from('messages').update(updatePayload).eq('id', actualMessageId)
 
       setMessages((prev) =>
-        prev.map((m) => (m.id === actualMessageId ? { ...m, status: 'delivered' } : m)),
+        prev.map((m) =>
+          m.id === actualMessageId ? { ...m, status: 'delivered', client_id: clientId } : m,
+        ),
       )
     } catch (error: any) {
       console.error('Falha ao enviar mensagem:', error)
@@ -841,66 +916,151 @@ export default function ChatPage() {
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-4" ref={scrollRef as any}>
-              {messages.map((msg) => {
-                const isOutbound = msg.direction === 'outbound'
-                const isError = msg.status === 'error'
-                return (
-                  <div
-                    key={msg.id}
-                    className={`flex ${isOutbound ? 'justify-end' : 'justify-start'}`}
-                  >
+              {messages
+                .filter((m) => m.status !== 'deleted')
+                .map((msg) => {
+                  const isOutbound = msg.direction === 'outbound'
+                  const isError = msg.status === 'error'
+                  return (
                     <div
-                      className={`max-w-[75%] rounded-2xl px-4 py-2 shadow-sm ${
-                        isOutbound
-                          ? isError
-                            ? 'bg-destructive text-destructive-foreground rounded-br-sm'
-                            : 'bg-primary text-primary-foreground rounded-br-sm'
-                          : 'bg-background border rounded-bl-sm'
-                      } ${msg.status === 'sending' ? 'opacity-70' : ''}`}
+                      key={msg.id}
+                      className={cn(
+                        'flex relative group',
+                        isOutbound ? 'justify-end' : 'justify-start',
+                      )}
                     >
-                      <div className="text-sm">{renderMessageContent(msg.content)}</div>
+                      {isOutbound && msg.client_id && !isError && !editingMessageId && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button className="absolute -left-6 top-1/2 -translate-y-1/2 p-1 text-muted-foreground opacity-0 group-hover:opacity-100 focus:opacity-100 hover:text-foreground transition-opacity">
+                              <MoreVertical className="h-4 w-4" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-44">
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setEditingMessageId(msg.id)
+                                setEditingText(msg.content || '')
+                              }}
+                            >
+                              <Pencil className="mr-2 h-4 w-4" /> Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={() => setDeletingMessage(msg)}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" /> Apagar
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                       <div
-                        className={`text-[10px] mt-1 flex items-center gap-1 ${isOutbound ? 'justify-end text-primary-foreground/70' : 'justify-start text-muted-foreground'}`}
+                        className={`max-w-[75%] rounded-2xl px-4 py-2 shadow-sm ${
+                          isOutbound
+                            ? isError
+                              ? 'bg-destructive text-destructive-foreground rounded-br-sm'
+                              : 'bg-primary text-primary-foreground rounded-br-sm'
+                            : 'bg-background border rounded-bl-sm'
+                        } ${msg.status === 'sending' ? 'opacity-70' : ''}`}
                       >
-                        {format(new Date(msg.created_at), 'HH:mm')}
-                        {msg.status === 'sending' && <Loader2 className="w-3 h-3 animate-spin" />}
-                        {isOutbound && msg.status === 'sent' && <Check className="w-3 h-3" />}
-                        {isOutbound &&
-                          (msg.status === 'delivered' ||
-                            msg.status === 'read' ||
-                            msg.status === 'played') && (
-                            <CheckCheck
-                              className={`w-3 h-3 ${msg.status === 'read' || msg.status === 'played' ? 'text-[#34B7F1]' : ''}`}
+                        {editingMessageId === msg.id ? (
+                          <div className="flex flex-col gap-2 min-w-[200px] mt-1">
+                            <Textarea
+                              value={editingText}
+                              onChange={(e) => setEditingText(e.target.value)}
+                              className="bg-white/10 text-white placeholder:text-white/50 min-h-[60px] resize-none text-sm p-2 border-white/20 focus-visible:ring-0 focus-visible:border-white/40"
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                  e.preventDefault()
+                                  handleEdit(msg.id, msg.client_id)
+                                } else if (e.key === 'Escape') {
+                                  setEditingMessageId(null)
+                                }
+                              }}
                             />
-                          )}
-                        {isError && (
-                          <span className="flex items-center text-destructive-foreground font-medium ml-1">
-                            <AlertCircle className="w-3 h-3 mr-0.5" />
-                            Erro
-                          </span>
+                            <div className="flex justify-end gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 px-2 text-primary-foreground hover:bg-white/20 hover:text-white"
+                                onClick={() => setEditingMessageId(null)}
+                              >
+                                <X className="h-3 w-3 mr-1" /> Cancelar
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="h-6 px-2 bg-white text-primary hover:bg-gray-100"
+                                onClick={() => handleEdit(msg.id, msg.client_id)}
+                              >
+                                <Check className="h-3 w-3 mr-1" /> Salvar
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-sm">{renderMessageContent(msg.content)}</div>
                         )}
+                        <div
+                          className={`text-[10px] mt-1 flex items-center gap-1 ${isOutbound ? 'justify-end text-primary-foreground/70' : 'justify-start text-muted-foreground'}`}
+                        >
+                          {format(new Date(msg.created_at), 'HH:mm')}
+                          {msg.status === 'sending' && <Loader2 className="w-3 h-3 animate-spin" />}
+                          {isOutbound && msg.status === 'sent' && <Check className="w-3 h-3" />}
+                          {isOutbound &&
+                            (msg.status === 'delivered' ||
+                              msg.status === 'read' ||
+                              msg.status === 'played') && (
+                              <CheckCheck
+                                className={`w-3 h-3 ${msg.status === 'read' || msg.status === 'played' ? 'text-[#34B7F1]' : ''}`}
+                              />
+                            )}
+                          {isError && (
+                            <span className="flex items-center text-destructive-foreground font-medium ml-1">
+                              <AlertCircle className="w-3 h-3 mr-0.5" />
+                              Erro
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )
-              })}
-              {messages.length === 0 && (
+                  )
+                })}
+              {messages.filter((m) => m.status !== 'deleted').length === 0 && (
                 <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
                   O histórico de mensagens está vazio.
                 </div>
               )}
             </div>
 
-            <div className="p-4 bg-background border-t">
-              <form onSubmit={handleSendMessage} className="flex gap-2">
-                <Input
+            <div className="p-3 bg-card border-t">
+              <form onSubmit={handleSendMessage} className="flex items-end gap-2">
+                <Textarea
+                  ref={textareaRef}
                   placeholder="Digite sua mensagem..."
                   value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
+                  onChange={(e) => {
+                    setNewMessage(e.target.value)
+                    e.target.style.height = ''
+                    e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault()
+                      if (newMessage.trim()) {
+                        handleSendMessage(e)
+                      }
+                    }
+                  }}
                   disabled={sending}
-                  className="flex-1"
+                  className="flex-1 min-h-[40px] max-h-[120px] rounded-2xl bg-muted/50 border-transparent focus-visible:ring-0 focus-visible:bg-background px-4 py-2 sm:py-2.5 resize-none overflow-y-auto"
+                  rows={1}
                 />
-                <Button type="submit" disabled={!newMessage.trim() || sending} size="icon">
+                <Button
+                  type="submit"
+                  disabled={!newMessage.trim() || sending}
+                  size="icon"
+                  className="rounded-full shrink-0 h-10 w-10 shadow-sm mb-0.5"
+                >
                   {sending ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
@@ -956,6 +1116,30 @@ export default function ChatPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={!!deletingMessage}
+        onOpenChange={(open) => !open && setDeletingMessage(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Apagar mensagem</AlertDialogTitle>
+            <AlertDialogDescription>
+              Deseja realmente apagar esta mensagem para todos? Esta ação não pode ser desfeita e a
+              mensagem será removida do WhatsApp do destinatário.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Apagar para todos
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={manageTagsOpen} onOpenChange={setManageTagsOpen}>
         <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col">
