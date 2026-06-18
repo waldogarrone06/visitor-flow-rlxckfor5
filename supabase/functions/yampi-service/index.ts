@@ -24,6 +24,25 @@ Deno.serve(async (req: Request) => {
     const apiToken = integration?.yampi_token || Deno.env.get('YAMPI_TOKEN') || 'mock-token'
 
     if (action === 'create-coupon') {
+      // Idempotency Check: Verify if coupon is already created or verified
+      const { data: currentApp } = await supabase
+        .from('appointments')
+        .select('coupon_code, coupon_verified')
+        .eq('id', appointmentId)
+        .eq('user_id', userId)
+        .single()
+
+      if (currentApp?.coupon_verified && currentApp.coupon_code) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            couponCode: currentApp.coupon_code,
+            message: 'Coupon already exists',
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        )
+      }
+
       const sanitizedName = name
         .replace(/[^a-zA-Z]/g, '')
         .substring(0, 4)
@@ -43,6 +62,17 @@ Deno.serve(async (req: Request) => {
         .eq('user_id', userId)
 
       if (error) throw error
+
+      // Log to interaction_log
+      await supabase.from('interaction_log').insert({
+        user_id: userId,
+        type: 'coupon_created',
+        details: {
+          appointment_id: appointmentId,
+          coupon_code: couponCode,
+          source: 'yampi-service',
+        },
+      })
 
       return new Response(JSON.stringify({ success: true, couponCode }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

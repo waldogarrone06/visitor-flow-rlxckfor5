@@ -101,6 +101,7 @@ type Shipment = {
 export function KitShipments() {
   const [shipments, setShipments] = useState<Shipment[]>([])
   const [loading, setLoading] = useState(true)
+  const [processingIds, setProcessingIds] = useState<Set<string>>(new Set())
   const { toast } = useToast()
 
   useEffect(() => {
@@ -237,50 +238,100 @@ export function KitShipments() {
       return
     }
 
-    const { error } = await supabase
-      .from('appointments')
-      .update({ kit_status: 'Enviado' })
-      .eq('id', s.id)
+    if (processingIds.has(s.id)) return
+    setProcessingIds((prev) => new Set(prev).add(s.id))
 
-    if (error) {
-      toast({ title: 'Erro', description: 'Falha ao atualizar status.', variant: 'destructive' })
-      return
-    }
+    try {
+      // Idempotency Check
+      const { data: currentApp } = await supabase
+        .from('appointments')
+        .select('kit_status')
+        .eq('id', s.id)
+        .single()
 
-    toast({
-      title: 'Kit Enviado!',
-      description: 'O status foi atualizado e as mensagens de notificação estão sendo disparadas.',
-    })
-    fetchShipments()
+      if (
+        currentApp?.kit_status === 'Enviado' ||
+        currentApp?.kit_status === 'Entregue' ||
+        currentApp?.kit_status === 'Delivered' ||
+        currentApp?.kit_status === 'Requested'
+      ) {
+        toast({
+          title: 'Atenção',
+          description: 'Este kit já foi solicitado ou enviado anteriormente.',
+          variant: 'destructive',
+        })
+        fetchShipments()
+        return
+      }
 
-    const message = `Olá, ${s.client_name}! Seu kit da Fourlab Nutrition foi enviado com sucesso.
+      const { error } = await supabase
+        .from('appointments')
+        .update({ kit_status: 'Enviado' })
+        .eq('id', s.id)
+
+      if (error) {
+        toast({ title: 'Erro', description: 'Falha ao atualizar status.', variant: 'destructive' })
+        return
+      }
+
+      const { data: sessionData } = await supabase.auth.getSession()
+      if (sessionData.session?.user) {
+        await supabase.from('interaction_log').insert({
+          user_id: sessionData.session.user.id,
+          type: 'kit_shipment_triggered',
+          details: { appointment_id: s.id, tracking_number: s.tracking_number, source: 'UI' },
+        })
+      }
+
+      toast({
+        title: 'Kit Enviado!',
+        description:
+          'O status foi atualizado e as mensagens de notificação estão sendo disparadas.',
+      })
+      fetchShipments()
+
+      const message = `Olá, ${s.client_name}! Seu kit da Fourlab Nutrition foi enviado com sucesso.
 Rastreio: ${s.tracking_number}
 Cupom Prescritor: ${s.resolved_nutritionist_coupon}
 Cupom Paciente: ${s.resolved_patient_coupon}
 
 Obrigado por confiar em nosso trabalho!`
 
-    if (s.client_phone) {
-      supabase.functions.invoke('whatsapp-send', {
-        body: { to: s.client_phone, text: message, userId: s.user_id },
-      })
-    }
+      if (s.client_phone) {
+        await supabase.functions.invoke('whatsapp-send', {
+          body: { to: s.client_phone, text: message, userId: s.user_id },
+        })
+      }
 
-    if (s.client_email) {
-      supabase.functions.invoke('send-email', {
-        body: {
-          to: s.client_email,
-          subject: 'Seu Kit Fourlab foi enviado!',
-          html: `<div style="font-family: sans-serif; color: #333;">
-            <p>Olá, ${s.client_name}!</p>
-            <p>Seu kit da Fourlab Nutrition foi enviado com sucesso.</p>
-            <p><strong>Código de Rastreio:</strong> ${s.tracking_number}</p>
-            <p><strong>Cupom Prescritor:</strong> ${s.resolved_nutritionist_coupon}</p>
-            <p><strong>Cupom Paciente:</strong> ${s.resolved_patient_coupon}</p>
-            <p>Obrigado por confiar em nosso trabalho!</p>
-          </div>`,
-          senderName: 'FourLab Nutrition',
-        },
+      if (s.client_email) {
+        await supabase.functions.invoke('send-email', {
+          body: {
+            to: s.client_email,
+            subject: 'Seu Kit Fourlab foi enviado!',
+            html: `<div style="font-family: sans-serif; color: #333;">
+              <p>Olá, ${s.client_name}!</p>
+              <p>Seu kit da Fourlab Nutrition foi enviado com sucesso.</p>
+              <p><strong>Código de Rastreio:</strong> ${s.tracking_number}</p>
+              <p><strong>Cupom Prescritor:</strong> ${s.resolved_nutritionist_coupon}</p>
+              <p><strong>Cupom Paciente:</strong> ${s.resolved_patient_coupon}</p>
+              <p>Obrigado por confiar em nosso trabalho!</p>
+            </div>`,
+            senderName: 'FourLab Nutrition',
+          },
+        })
+      }
+    } catch (err) {
+      console.error('Error sending kit:', err)
+      toast({
+        title: 'Erro',
+        description: 'Ocorreu um erro ao processar o envio.',
+        variant: 'destructive',
+      })
+    } finally {
+      setProcessingIds((prev) => {
+        const next = new Set(prev)
+        next.delete(s.id)
+        return next
       })
     }
   }
@@ -294,8 +345,14 @@ Obrigado por confiar em nosso trabalho!`
             Acompanhe e gerencie a logística dos kits solicitados.
           </CardDescription>
         </div>
-        <Button onClick={fetchShipments} variant="outline" size="sm" className="shrink-0">
-          Atualizar Lista
+        <Button
+          onClick={fetchShipments}
+          disabled={loading}
+          variant="outline"
+          size="sm"
+          className="shrink-0"
+        >
+          {loading ? 'Atualizando...' : 'Atualizar Lista'}
         </Button>
       </CardHeader>
 
@@ -383,9 +440,10 @@ Obrigado por confiar em nosso trabalho!`
                           <Button
                             size="sm"
                             onClick={() => sendKit(s)}
+                            disabled={processingIds.has(s.id)}
                             className="bg-blue-600 hover:bg-blue-700 text-white"
                           >
-                            Enviar Kit
+                            {processingIds.has(s.id) ? 'Enviando...' : 'Enviar Kit'}
                           </Button>
                         )}
                         <Dialog>
@@ -502,9 +560,10 @@ Obrigado por confiar em nosso trabalho!`
                                       <Button
                                         size="sm"
                                         onClick={() => sendKit(s)}
+                                        disabled={processingIds.has(s.id)}
                                         className="bg-blue-600 hover:bg-blue-700 text-white h-8"
                                       >
-                                        Marcar Enviado
+                                        {processingIds.has(s.id) ? 'Enviando...' : 'Marcar Enviado'}
                                       </Button>
                                     )}
 
