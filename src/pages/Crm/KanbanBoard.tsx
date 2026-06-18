@@ -151,9 +151,20 @@ export function KanbanBoard() {
     }
   }, [user])
 
+  const mockNamesToRemove = [
+    'joao silva',
+    'maria souza',
+    'carlos santos',
+    'academia corpo forte',
+    'academia corpo fortte',
+    'farmacia saude',
+  ]
+
   const dbEmails = new Set(dbLeads.map((l) => l.email).filter(Boolean))
   const localLeadsFiltered = state.leads.filter((l) => !l.email || !dbEmails.has(l.email))
-  const allLeads = [...localLeadsFiltered, ...dbLeads]
+  const allLeads = [...localLeadsFiltered, ...dbLeads].filter(
+    (l) => !mockNamesToRemove.includes(l.name.toLowerCase().trim()),
+  )
 
   const availableStates = Array.from(
     new Set(allLeads.map((l) => l.state).filter(Boolean)),
