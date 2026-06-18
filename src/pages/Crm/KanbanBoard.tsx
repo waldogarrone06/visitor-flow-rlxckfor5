@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { useMainStore } from '@/stores/main'
 import { LeadStage, Lead } from '@/lib/types'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
@@ -34,7 +33,6 @@ const STAGES: { id: LeadStage; label: string; color: string }[] = [
 ]
 
 export function KanbanBoard() {
-  const { state, dispatch } = useMainStore()
   const { user } = useAuth()
   const [dbLeads, setDbLeads] = useState<Lead[]>([])
 
@@ -151,20 +149,7 @@ export function KanbanBoard() {
     }
   }, [user])
 
-  const mockNamesToRemove = [
-    'joao silva',
-    'maria souza',
-    'carlos santos',
-    'academia corpo forte',
-    'academia corpo fortte',
-    'farmacia saude',
-  ]
-
-  const dbEmails = new Set(dbLeads.map((l) => l.email).filter(Boolean))
-  const localLeadsFiltered = state.leads.filter((l) => !l.email || !dbEmails.has(l.email))
-  const allLeads = [...localLeadsFiltered, ...dbLeads].filter(
-    (l) => !mockNamesToRemove.includes(l.name.toLowerCase().trim()),
-  )
+  const allLeads = dbLeads
 
   const availableStates = Array.from(
     new Set(allLeads.map((l) => l.state).filter(Boolean)),
@@ -185,8 +170,6 @@ export function KanbanBoard() {
 
         await supabase.from('appointments').update({ status: newStatus }).eq('id', leadId)
         setDbLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, stage } : l)))
-      } else {
-        dispatch({ type: 'UPDATE_LEAD_STAGE', payload: { id: leadId, stage } })
       }
     }
   }

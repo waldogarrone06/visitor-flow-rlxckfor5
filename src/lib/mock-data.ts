@@ -8,27 +8,6 @@ const pastVirtualDate = new Date(Date.now() - 2 * 3600000).toISOString()
 export const initialData: AppState = {
   leads: [
     {
-      id: 'l1',
-      name: 'João Silva',
-      stage: 'Agendado',
-      type: 'B2C',
-      score: 3,
-      document: '123.456.789-00',
-      address: 'Rua das Flores, 123',
-      neighborhood: 'Jardins',
-      state: 'SP',
-      lastInteraction: new Date(Date.now() - 86400000).toISOString(),
-      avatarSeed: 1,
-      phone: '(11) 98765-4321',
-      email: 'joao.silva@exemplo.com',
-      couponCode: 'JOAO10',
-      couponUsage: 5,
-      conversionsHistory: [
-        { month: 'Out', year: currentYear, count: 2 },
-        { month: 'Nov', year: currentYear, count: 3 },
-      ],
-    },
-    {
       id: 'l2',
       name: 'Academia Corpo Forte',
       stage: 'Visitado',
@@ -110,27 +89,6 @@ export const initialData: AppState = {
       phone: '(31) 98888-7777',
       email: 'carlos.santos@exemplo.com',
     },
-    {
-      id: 'l6',
-      name: 'Farmácia Saúde',
-      stage: 'Visitado',
-      type: 'B2B',
-      score: 4,
-      document: '33.444.555/0001-66',
-      company: 'Farma Saúde',
-      address: 'Rua Principal, 10',
-      neighborhood: 'Centro',
-      state: 'RS',
-      lastInteraction: new Date(Date.now() - 500000000).toISOString(),
-      avatarSeed: 6,
-      couponCode: 'SAUDE5',
-      couponUsage: 89,
-      conversionsHistory: [
-        { month: 'Set', year: currentYear, count: 20 },
-        { month: 'Out', year: currentYear, count: 30 },
-        { month: 'Nov', year: currentYear, count: 39 },
-      ],
-    },
   ],
   appointments: [
     {
@@ -152,15 +110,6 @@ export const initialData: AppState = {
       meetLink: 'https://meet.google.com/abc-defg-hij',
     },
     {
-      id: 'a7',
-      leadId: 'l1',
-      date: pastVirtualDate,
-      vendor: 'Ana Vendedora',
-      status: 'Scheduled', // Finished but pending report
-      isVirtual: true,
-      meetLink: 'https://meet.google.com/xyz-test-123',
-    },
-    {
       id: 'a8',
       leadId: 'l4',
       date: pastVirtualDate,
@@ -170,23 +119,9 @@ export const initialData: AppState = {
       meetLink: 'https://meet.google.com/xyz-test-123',
     },
     {
-      id: 'a2',
-      leadId: 'l1',
-      date: new Date(Date.now() + 172800000).toISOString(),
-      vendor: 'Marcos Sales',
-      status: 'Scheduled',
-    },
-    {
       id: 'a3',
       leadId: 'l4',
       date: new Date(Date.now() - 86400000).toISOString(),
-      vendor: 'Ana Vendedora',
-      status: 'Visited',
-    },
-    {
-      id: 'a4',
-      leadId: 'l6',
-      date: new Date(Date.now() - 150000000).toISOString(),
       vendor: 'Ana Vendedora',
       status: 'Visited',
     },
@@ -263,22 +198,6 @@ export const initialData: AppState = {
   ],
   messages: [
     {
-      id: 'm1',
-      leadId: 'l1',
-      text: 'Olá João, tudo bem? Aqui é da FourLab.',
-      sender: 'me',
-      timestamp: new Date(Date.now() - 86400000).toISOString(),
-      status: 'read',
-    },
-    {
-      id: 'm2',
-      leadId: 'l1',
-      text: 'Tudo ótimo! Recebi o kit, muito bom.',
-      sender: 'them',
-      timestamp: new Date(Date.now() - 86000000).toISOString(),
-      status: 'read',
-    },
-    {
       id: 'm3',
       leadId: 'l2',
       text: 'Gostaria de agendar uma nova visita para apresentar os lançamentos deste mês.',
@@ -335,14 +254,5 @@ export const initialData: AppState = {
     },
   ],
   meetingReports: [],
-  interactions: [
-    {
-      id: 'int-1',
-      leadId: 'l1',
-      type: 'Visit',
-      date: new Date(Date.now() - 5 * 86400000).toISOString(),
-      description: 'Visita presencial no consultório. Amostras entregues.',
-      status: 'Realizada',
-    },
-  ],
+  interactions: [],
 }
