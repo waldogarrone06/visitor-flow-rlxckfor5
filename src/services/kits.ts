@@ -61,6 +61,14 @@ export async function updateKitItems(kitId: string, kitData: any, items: any[]) 
 }
 
 export async function deleteKit(kitId: string) {
+  // First delete associated kit_items to prevent foreign key constraint errors
+  const { error: itemsError } = await supabase
+    .from('kit_items' as any)
+    .delete()
+    .eq('kit_id', kitId)
+
+  if (itemsError) throw itemsError
+
   const { error } = await supabase
     .from('kits' as any)
     .delete()
