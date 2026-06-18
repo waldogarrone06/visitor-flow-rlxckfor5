@@ -30,6 +30,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useToast } from '@/hooks/use-toast'
 import { Copy, Truck, ExternalLink, Package, Check, Trash2 } from 'lucide-react'
 import { format } from 'date-fns'
@@ -75,6 +76,7 @@ function CopyField({ label, value }: { label: string; value: string }) {
 type Shipment = {
   id: string
   created_at: string
+  appointment_date: string | null
   client_name: string
   client_email: string
   client_phone: string | null
@@ -82,6 +84,7 @@ type Shipment = {
   tracking_number: string | null
   delivered_at: string | null
   kit_status: string | null
+  status: string | null
   user_id: string
   client_document: string | null
   clinic_cep: string | null
@@ -164,7 +167,7 @@ export function KitShipments() {
       toast({ title: 'Erro', description: 'Falha ao excluir o registro.', variant: 'destructive' })
     } else {
       toast({ title: 'Sucesso', description: 'Registro excluído com sucesso.' })
-      setShipments((prev) => prev.filter((s) => s.id !== id))
+      fetchShipments()
     }
   }
 
@@ -271,328 +274,338 @@ Obrigado por confiar em nosso trabalho!`
   }
 
   return (
-    <div className="space-y-4 animate-fade-in">
-      <div className="flex items-center justify-between">
+    <Card className="w-full max-w-full shadow-sm animate-fade-in">
+      <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-semibold tracking-tight">Envios e Entregas</h2>
-          <p className="text-sm text-muted-foreground">
+          <CardTitle className="text-xl font-semibold tracking-tight">Envios e Entregas</CardTitle>
+          <CardDescription className="mt-1">
             Acompanhe e gerencie a logística dos kits solicitados.
-          </p>
+          </CardDescription>
         </div>
-        <Button onClick={fetchShipments} variant="outline" size="sm">
+        <Button onClick={fetchShipments} variant="outline" size="sm" className="shrink-0">
           Atualizar Lista
         </Button>
-      </div>
+      </CardHeader>
 
-      <div className="border rounded-md bg-card overflow-x-auto">
-        <Table className="min-w-[600px]">
-          <TableHeader>
-            <TableRow>
-              <TableHead>Data</TableHead>
-              <TableHead>Cliente</TableHead>
-              <TableHead>Kit Solicitado</TableHead>
-              <TableHead>Rastreio</TableHead>
-              <TableHead>Data de Entrega</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Ações</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
+      <CardContent className="p-0 sm:p-6 sm:pt-0">
+        <div className="w-full overflow-x-auto border-y sm:border rounded-none sm:rounded-md bg-card">
+          <Table className="w-full min-w-[800px]">
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                  Carregando...
-                </TableCell>
+                <TableHead className="whitespace-nowrap">Data</TableHead>
+                <TableHead className="whitespace-nowrap">Cliente</TableHead>
+                <TableHead className="whitespace-nowrap">Kit Solicitado</TableHead>
+                <TableHead className="whitespace-nowrap">Rastreio</TableHead>
+                <TableHead className="whitespace-nowrap">Data de Entrega</TableHead>
+                <TableHead className="whitespace-nowrap">Status</TableHead>
+                <TableHead className="text-right whitespace-nowrap">Ações</TableHead>
               </TableRow>
-            ) : shipments.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                  Nenhum envio encontrado.
-                </TableCell>
-              </TableRow>
-            ) : (
-              shipments.map((s) => (
-                <TableRow key={s.id}>
-                  <TableCell>
-                    {format(new Date(s.created_at), 'dd/MM/yyyy', { locale: ptBR })}
-                  </TableCell>
-                  <TableCell className="font-medium">{s.client_name}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Package className="h-4 w-4 text-muted-foreground" />
-                      {s.kit_name || 'Kit Padrão'}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {s.tracking_number ? (
-                      <div className="flex items-center gap-1 text-sm font-medium">
-                        <Truck className="h-3.5 w-3.5 text-muted-foreground" />
-                        {s.tracking_number}
-                      </div>
-                    ) : (
-                      <span className="text-muted-foreground text-sm">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {s.delivered_at ? (
-                      format(new Date(s.delivered_at), 'dd/MM/yyyy', { locale: ptBR })
-                    ) : (
-                      <span className="text-muted-foreground text-sm">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={
-                        s.kit_status === 'Entregue' || s.kit_status === 'Delivered'
-                          ? 'default'
-                          : s.kit_status === 'Enviado'
-                            ? 'secondary'
-                            : 'outline'
-                      }
-                    >
-                      {s.kit_status || 'Pendente'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      {(!s.kit_status ||
-                        s.kit_status === 'Pending' ||
-                        s.kit_status === 'Pendente') && (
-                        <Button
-                          size="sm"
-                          onClick={() => sendKit(s)}
-                          className="bg-blue-600 hover:bg-blue-700 text-white"
-                        >
-                          Enviar Kit
-                        </Button>
-                      )}
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button variant="outline" size="sm">
-                            Ver Detalhes
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                          <DialogHeader>
-                            <DialogTitle>Detalhes do Envio</DialogTitle>
-                          </DialogHeader>
-                          <div className="grid md:grid-cols-2 gap-8 py-4">
-                            <div className="space-y-6">
-                              <div className="space-y-4">
-                                <h4 className="font-semibold text-sm border-b pb-2 text-primary">
-                                  Dados do Cliente
-                                </h4>
-                                <CopyField label="Nome" value={s.client_name} />
-                                <CopyField label="CPF/CNPJ" value={s.resolved_document} />
-                                <CopyField label="Email" value={s.client_email} />
-                                <CopyField label="Telefone" value={s.client_phone} />
-                              </div>
-
-                              <div className="space-y-4">
-                                <h4 className="font-semibold text-sm border-b pb-2 text-primary">
-                                  Cupons Associados
-                                </h4>
-                                <div className="space-y-3">
-                                  <div className="space-y-1.5">
-                                    <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-                                      Cupom do Prescritor
-                                    </Label>
-                                    <div className="flex gap-2">
-                                      <Input
-                                        id={`nutri-coupon-${s.id}`}
-                                        defaultValue={s.resolved_nutritionist_coupon || ''}
-                                        placeholder="Código do Prescritor"
-                                        className="h-8"
-                                      />
-                                      <Button
-                                        size="sm"
-                                        variant="secondary"
-                                        className="h-8"
-                                        onClick={() => {
-                                          const val = (
-                                            document.getElementById(
-                                              `nutri-coupon-${s.id}`,
-                                            ) as HTMLInputElement
-                                          )?.value
-                                          if (val !== undefined)
-                                            saveCoupon(s.id, 'nutritionist_coupon', val)
-                                        }}
-                                      >
-                                        Salvar
-                                      </Button>
-                                    </div>
-                                  </div>
-                                  <div className="space-y-1.5">
-                                    <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-                                      Cupom do Paciente
-                                    </Label>
-                                    <div className="flex gap-2">
-                                      <Input
-                                        id={`patient-coupon-${s.id}`}
-                                        defaultValue={s.resolved_patient_coupon || ''}
-                                        placeholder="Código do Paciente"
-                                        className="h-8"
-                                      />
-                                      <Button
-                                        size="sm"
-                                        variant="secondary"
-                                        className="h-8"
-                                        onClick={() => {
-                                          const val = (
-                                            document.getElementById(
-                                              `patient-coupon-${s.id}`,
-                                            ) as HTMLInputElement
-                                          )?.value
-                                          if (val !== undefined)
-                                            saveCoupon(s.id, 'patient_coupon', val)
-                                        }}
-                                      >
-                                        Salvar
-                                      </Button>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className="space-y-6">
-                              <div className="space-y-4">
-                                <h4 className="font-semibold text-sm border-b pb-2 text-primary">
-                                  Status do Kit ({s.kit_name || 'Kit Padrão'})
-                                </h4>
-                                <div className="flex flex-wrap gap-2 items-center">
-                                  <Badge
-                                    variant={
-                                      s.kit_status === 'Entregue' || s.kit_status === 'Delivered'
-                                        ? 'default'
-                                        : s.kit_status === 'Enviado'
-                                          ? 'secondary'
-                                          : 'outline'
-                                    }
-                                    className="px-3 py-1 text-sm"
-                                  >
-                                    {s.kit_status || 'Pendente'}
-                                  </Badge>
-
-                                  {(!s.kit_status ||
-                                    s.kit_status === 'Pending' ||
-                                    s.kit_status === 'Pendente') && (
-                                    <Button
-                                      size="sm"
-                                      onClick={() => sendKit(s)}
-                                      className="bg-blue-600 hover:bg-blue-700 text-white h-8"
-                                    >
-                                      Marcar Enviado
-                                    </Button>
-                                  )}
-
-                                  {s.kit_status !== 'Entregue' && s.kit_status !== 'Delivered' && (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-8"
-                                      onClick={() => updateKitStatus(s.id, 'Entregue')}
-                                    >
-                                      Marcar Entregue
-                                    </Button>
-                                  )}
-                                </div>
-                              </div>
-
-                              <div className="space-y-4">
-                                <h4 className="font-semibold text-sm border-b pb-2 text-primary">
-                                  Entrega & Logística
-                                </h4>
-                                <CopyField label="CEP" value={s.resolved_cep} />
-                                <CopyField label="Endereço Completo" value={s.resolved_address} />
-
-                                <div className="space-y-2 pt-4">
-                                  <Label className="text-foreground font-bold flex items-center gap-2">
-                                    <Truck className="h-4 w-4" />
-                                    Código de Rastreio
-                                  </Label>
-                                  <div className="flex gap-2">
-                                    <Input
-                                      defaultValue={s.tracking_number || ''}
-                                      placeholder="Ex: BR123456789BR"
-                                      id={`track-${s.id}`}
-                                      className="bg-background"
-                                    />
-                                    <Button
-                                      onClick={() => {
-                                        const el = document.getElementById(
-                                          `track-${s.id}`,
-                                        ) as HTMLInputElement
-                                        if (el) updateTracking(s.id, el.value)
-                                      }}
-                                    >
-                                      Salvar
-                                    </Button>
-                                  </div>
-                                  <p className="text-xs text-muted-foreground">
-                                    Dica: Ao salvar o código, o status do kit é atualizado para
-                                    "Enviado" automaticamente.
-                                  </p>
-                                  {s.tracking_number && (
-                                    <Button
-                                      variant="link"
-                                      size="sm"
-                                      className="h-8 px-0 text-primary"
-                                      asChild
-                                    >
-                                      <a
-                                        href={`https://melhorrastreio.com.br/rastreio/${s.tracking_number}`}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                      >
-                                        Acompanhar Rastreio{' '}
-                                        <ExternalLink className="ml-1 h-3 w-3" />
-                                      </a>
-                                    </Button>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </DialogContent>
-                      </Dialog>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                            title="Excluir"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Excluir Registro</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Tem certeza que deseja excluir este registro?
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => deleteShipment(s.id)}
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            >
-                              Excluir
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    Carregando...
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-    </div>
+              ) : shipments.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    Nenhum envio encontrado.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                shipments.map((s) => (
+                  <TableRow key={s.id}>
+                    <TableCell className="whitespace-nowrap">
+                      {format(new Date(s.appointment_date || s.created_at), 'dd/MM/yyyy', {
+                        locale: ptBR,
+                      })}
+                    </TableCell>
+                    <TableCell className="font-medium max-w-[200px] truncate" title={s.client_name}>
+                      {s.client_name}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        <Package className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <span className="truncate max-w-[150px]" title={s.kit_name || 'Kit Padrão'}>
+                          {s.kit_name || 'Kit Padrão'}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {s.tracking_number ? (
+                        <div className="flex items-center gap-1 text-sm font-medium">
+                          <Truck className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          {s.tracking_number}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {s.delivered_at ? (
+                        format(new Date(s.delivered_at), 'dd/MM/yyyy', { locale: ptBR })
+                      ) : (
+                        <span className="text-muted-foreground text-sm">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      <Badge
+                        variant={
+                          s.kit_status === 'Entregue' || s.kit_status === 'Delivered'
+                            ? 'default'
+                            : s.kit_status === 'Enviado'
+                              ? 'secondary'
+                              : 'outline'
+                        }
+                      >
+                        {s.kit_status || s.status || 'Pendente'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right whitespace-nowrap">
+                      <div className="flex justify-end gap-2 items-center">
+                        {(!s.kit_status ||
+                          s.kit_status === 'Pending' ||
+                          s.kit_status === 'Pendente') && (
+                          <Button
+                            size="sm"
+                            onClick={() => sendKit(s)}
+                            className="bg-blue-600 hover:bg-blue-700 text-white"
+                          >
+                            Enviar Kit
+                          </Button>
+                        )}
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button variant="outline" size="sm">
+                              Detalhes
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-full">
+                            <DialogHeader>
+                              <DialogTitle>Detalhes do Envio</DialogTitle>
+                            </DialogHeader>
+                            <div className="grid md:grid-cols-2 gap-8 py-4">
+                              <div className="space-y-6">
+                                <div className="space-y-4">
+                                  <h4 className="font-semibold text-sm border-b pb-2 text-primary">
+                                    Dados do Cliente
+                                  </h4>
+                                  <CopyField label="Nome" value={s.client_name} />
+                                  <CopyField label="CPF/CNPJ" value={s.resolved_document} />
+                                  <CopyField label="Email" value={s.client_email} />
+                                  <CopyField label="Telefone" value={s.client_phone || ''} />
+                                </div>
+
+                                <div className="space-y-4">
+                                  <h4 className="font-semibold text-sm border-b pb-2 text-primary">
+                                    Cupons Associados
+                                  </h4>
+                                  <div className="space-y-3">
+                                    <div className="space-y-1.5">
+                                      <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                                        Cupom do Prescritor
+                                      </Label>
+                                      <div className="flex gap-2">
+                                        <Input
+                                          id={`nutri-coupon-${s.id}`}
+                                          defaultValue={s.resolved_nutritionist_coupon || ''}
+                                          placeholder="Código do Prescritor"
+                                          className="h-8"
+                                        />
+                                        <Button
+                                          size="sm"
+                                          variant="secondary"
+                                          className="h-8"
+                                          onClick={() => {
+                                            const val = (
+                                              document.getElementById(
+                                                `nutri-coupon-${s.id}`,
+                                              ) as HTMLInputElement
+                                            )?.value
+                                            if (val !== undefined)
+                                              saveCoupon(s.id, 'nutritionist_coupon', val)
+                                          }}
+                                        >
+                                          Salvar
+                                        </Button>
+                                      </div>
+                                    </div>
+                                    <div className="space-y-1.5">
+                                      <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                                        Cupom do Paciente
+                                      </Label>
+                                      <div className="flex gap-2">
+                                        <Input
+                                          id={`patient-coupon-${s.id}`}
+                                          defaultValue={s.resolved_patient_coupon || ''}
+                                          placeholder="Código do Paciente"
+                                          className="h-8"
+                                        />
+                                        <Button
+                                          size="sm"
+                                          variant="secondary"
+                                          className="h-8"
+                                          onClick={() => {
+                                            const val = (
+                                              document.getElementById(
+                                                `patient-coupon-${s.id}`,
+                                              ) as HTMLInputElement
+                                            )?.value
+                                            if (val !== undefined)
+                                              saveCoupon(s.id, 'patient_coupon', val)
+                                          }}
+                                        >
+                                          Salvar
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="space-y-6">
+                                <div className="space-y-4">
+                                  <h4 className="font-semibold text-sm border-b pb-2 text-primary">
+                                    Status do Kit ({s.kit_name || 'Kit Padrão'})
+                                  </h4>
+                                  <div className="flex flex-wrap gap-2 items-center">
+                                    <Badge
+                                      variant={
+                                        s.kit_status === 'Entregue' || s.kit_status === 'Delivered'
+                                          ? 'default'
+                                          : s.kit_status === 'Enviado'
+                                            ? 'secondary'
+                                            : 'outline'
+                                      }
+                                      className="px-3 py-1 text-sm"
+                                    >
+                                      {s.kit_status || s.status || 'Pendente'}
+                                    </Badge>
+
+                                    {(!s.kit_status ||
+                                      s.kit_status === 'Pending' ||
+                                      s.kit_status === 'Pendente') && (
+                                      <Button
+                                        size="sm"
+                                        onClick={() => sendKit(s)}
+                                        className="bg-blue-600 hover:bg-blue-700 text-white h-8"
+                                      >
+                                        Marcar Enviado
+                                      </Button>
+                                    )}
+
+                                    {s.kit_status !== 'Entregue' &&
+                                      s.kit_status !== 'Delivered' && (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-8"
+                                          onClick={() => updateKitStatus(s.id, 'Entregue')}
+                                        >
+                                          Marcar Entregue
+                                        </Button>
+                                      )}
+                                  </div>
+                                </div>
+
+                                <div className="space-y-4">
+                                  <h4 className="font-semibold text-sm border-b pb-2 text-primary">
+                                    Entrega & Logística
+                                  </h4>
+                                  <CopyField label="CEP" value={s.resolved_cep} />
+                                  <CopyField label="Endereço Completo" value={s.resolved_address} />
+
+                                  <div className="space-y-2 pt-4">
+                                    <Label className="text-foreground font-bold flex items-center gap-2">
+                                      <Truck className="h-4 w-4" />
+                                      Código de Rastreio
+                                    </Label>
+                                    <div className="flex gap-2">
+                                      <Input
+                                        defaultValue={s.tracking_number || ''}
+                                        placeholder="Ex: BR123456789BR"
+                                        id={`track-${s.id}`}
+                                        className="bg-background"
+                                      />
+                                      <Button
+                                        onClick={() => {
+                                          const el = document.getElementById(
+                                            `track-${s.id}`,
+                                          ) as HTMLInputElement
+                                          if (el) updateTracking(s.id, el.value)
+                                        }}
+                                      >
+                                        Salvar
+                                      </Button>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">
+                                      Dica: Ao salvar o código, o status do kit é atualizado para
+                                      "Enviado" automaticamente.
+                                    </p>
+                                    {s.tracking_number && (
+                                      <Button
+                                        variant="link"
+                                        size="sm"
+                                        className="h-8 px-0 text-primary"
+                                        asChild
+                                      >
+                                        <a
+                                          href={`https://melhorrastreio.com.br/rastreio/${s.tracking_number}`}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                        >
+                                          Acompanhar Rastreio{' '}
+                                          <ExternalLink className="ml-1 h-3 w-3" />
+                                        </a>
+                                      </Button>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive shrink-0"
+                              title="Excluir"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Esta ação não pode ser desfeita. O registro será excluído
+                                permanentemente.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => deleteShipment(s.id)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Excluir
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
   )
 }
