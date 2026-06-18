@@ -124,19 +124,31 @@ export function KitShipments() {
     } = await supabase.auth.getSession()
     if (!session?.user) return
 
-    const [appRes, contRes] = await Promise.all([
-      supabase
-        .from('appointments')
-        .select('*')
-        .eq('user_id', session.user.id)
-        .not('kit_status', 'is', null)
-        .neq('status', 'Lead')
-        .order('created_at', { ascending: false }),
-      supabase
-        .from('contacts')
-        .select('name, email, phone, document, cep, address, nutritionist_coupon, patient_coupon')
-        .eq('user_id', session.user.id),
-    ])
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', session.user.id)
+      .single()
+
+    const isLogistics = profile?.role === 'logistics'
+
+    let appQuery = supabase
+      .from('appointments')
+      .select('*')
+      .not('kit_status', 'is', null)
+      .neq('status', 'Lead')
+      .order('created_at', { ascending: false })
+
+    let contQuery = supabase
+      .from('contacts')
+      .select('name, email, phone, document, cep, address, nutritionist_coupon, patient_coupon')
+
+    if (!isLogistics) {
+      appQuery = appQuery.eq('user_id', session.user.id)
+      contQuery = contQuery.eq('user_id', session.user.id)
+    }
+
+    const [appRes, contRes] = await Promise.all([appQuery, contQuery])
 
     if (appRes.data) {
       const enriched = appRes.data.map((a: any) => {

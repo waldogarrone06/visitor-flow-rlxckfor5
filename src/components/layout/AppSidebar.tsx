@@ -38,13 +38,14 @@ export function AppSidebar() {
   const location = useLocation()
   const { user } = useAuth()
   const [isAdminOrJunior, setIsAdminOrJunior] = useState(false)
+  const [isLogistics, setIsLogistics] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
 
   useEffect(() => {
     if (user) {
       supabase
         .from('profiles')
-        .select('is_admin, name, email')
+        .select('is_admin, name, email, role')
         .eq('id', user.id)
         .single()
         .then(({ data }) => {
@@ -54,6 +55,7 @@ export function AppSidebar() {
               data.email?.toLowerCase().includes('junior') ||
               data.name?.toLowerCase().includes('jr')
             setIsAdminOrJunior(!!data.is_admin || isJunior)
+            setIsLogistics(data.role === 'logistics')
           }
         })
 
@@ -96,6 +98,12 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => {
+                if (
+                  isLogistics &&
+                  item.title !== 'Gestão de Kits' &&
+                  item.title !== 'Configurações'
+                )
+                  return null
                 if (item.title === 'Logs do WhatsApp' && !isAdminOrJunior) return null
 
                 const isActive =
