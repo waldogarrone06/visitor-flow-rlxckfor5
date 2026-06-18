@@ -19,8 +19,19 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 import { useToast } from '@/hooks/use-toast'
-import { Copy, Truck, ExternalLink, Package, Check } from 'lucide-react'
+import { Copy, Truck, ExternalLink, Package, Check, Trash2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
@@ -121,6 +132,17 @@ export function KitShipments() {
       setShipments(enriched)
     }
     setLoading(false)
+  }
+
+  const deleteShipment = async (id: string) => {
+    const { error } = await supabase.from('appointments').delete().eq('id', id)
+
+    if (error) {
+      toast({ title: 'Erro', description: 'Falha ao excluir o registro.', variant: 'destructive' })
+    } else {
+      toast({ title: 'Sucesso', description: 'Registro excluído com sucesso.' })
+      setShipments((prev) => prev.filter((s) => s.id !== id))
+    }
   }
 
   const updateTracking = async (id: string, tracking: string) => {
@@ -511,6 +533,35 @@ Obrigado por confiar em nosso trabalho!`
                           </div>
                         </DialogContent>
                       </Dialog>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            title="Excluir"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Excluir Registro</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Tem certeza que deseja excluir este registro?
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => deleteShipment(s.id)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Excluir
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   </TableCell>
                 </TableRow>
