@@ -72,8 +72,31 @@ function CopyField({ label, value }: { label: string; value: string }) {
   )
 }
 
+type Shipment = {
+  id: string
+  created_at: string
+  client_name: string
+  client_email: string
+  client_phone: string | null
+  kit_name: string | null
+  tracking_number: string | null
+  delivered_at: string | null
+  kit_status: string | null
+  user_id: string
+  client_document: string | null
+  clinic_cep: string | null
+  clinic_address: string | null
+  nutritionist_coupon: string | null
+  patient_coupon: string | null
+  resolved_document: string
+  resolved_cep: string
+  resolved_address: string
+  resolved_nutritionist_coupon: string
+  resolved_patient_coupon: string
+}
+
 export function KitShipments() {
-  const [shipments, setShipments] = useState<any[]>([])
+  const [shipments, setShipments] = useState<Shipment[]>([])
   const [loading, setLoading] = useState(true)
   const { toast } = useToast()
 
@@ -188,7 +211,7 @@ export function KitShipments() {
     }
   }
 
-  const sendKit = async (s: any) => {
+  const sendKit = async (s: Shipment) => {
     if (!s.tracking_number || !s.resolved_nutritionist_coupon || !s.resolved_patient_coupon) {
       toast({
         title: 'Atenção',
