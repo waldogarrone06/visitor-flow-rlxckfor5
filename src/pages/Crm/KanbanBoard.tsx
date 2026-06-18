@@ -4,7 +4,14 @@ import { LeadStage, Lead } from '@/lib/types'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { Badge } from '@/components/ui/badge'
-import { format, isSameDay, isWithinInterval, startOfDay } from 'date-fns'
+import {
+  format,
+  isSameDay,
+  isWithinInterval,
+  startOfDay,
+  differenceInDays,
+  parseISO,
+} from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Calendar } from '@/components/ui/calendar'
@@ -44,34 +51,74 @@ export function KanbanBoard() {
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
 
+      const { data: relationsData } = await supabase.from('contact_tag_relations').select(`
+          contacts!inner ( email, document ),
+          contact_tags!inner ( name )
+        `)
+
+      const revisitaEmails = new Set<string>()
+      const revisitaDocs = new Set<string>()
+
+      if (relationsData) {
+        relationsData.forEach((r: any) => {
+          if (r.contact_tags?.name?.toLowerCase() === 'revisita') {
+            if (r.contacts?.email) revisitaEmails.add(r.contacts.email)
+            if (r.contacts?.document) revisitaDocs.add(r.contacts.document)
+          }
+        })
+      }
+
       if (data && !error) {
-        const mappedLeads: Lead[] = data.map(
-          (app: any) =>
-            ({
-              id: app.id,
-              name: app.client_name,
-              type: 'B2B',
-              stage:
-                app.status === 'visited'
-                  ? 'Visitado'
-                  : app.status === 'revisit'
-                    ? 'Revisitar'
-                    : 'Agendado',
-              score: 3,
-              document: '',
-              address: '',
-              profession: '',
-              specialty: '',
-              registrationNumber: '',
-              phone: app.client_phone || '',
-              email: app.client_email || '',
-              lastInteraction: app.created_at || new Date().toISOString(),
-              avatarSeed: app.client_email ? app.client_email.length : 1,
-              state: 'SP', // Padrão
-              meetLink: app.google_meet_link,
-              confirmationCode: app.id.split('-')[0].toUpperCase(),
-            }) as Lead & { meetLink?: string; confirmationCode?: string },
-        )
+        const now = new Date()
+
+        const mappedLeads: Lead[] = data
+          .filter((app: any) => {
+            const appDateStr = app.appointment_date || app.created_at
+            if (!appDateStr) return true
+
+            try {
+              const appDate = parseISO(appDateStr)
+              const daysOld = differenceInDays(now, appDate)
+
+              if (daysOld > 30) {
+                const hasTag =
+                  (app.client_email && revisitaEmails.has(app.client_email)) ||
+                  (app.client_document && revisitaDocs.has(app.client_document))
+
+                if (!hasTag) return false
+              }
+            } catch (e) {
+              // Ignore invalid date fallback
+            }
+            return true
+          })
+          .map(
+            (app: any) =>
+              ({
+                id: app.id,
+                name: app.client_name,
+                type: 'B2B',
+                stage:
+                  app.status === 'visited'
+                    ? 'Visitado'
+                    : app.status === 'revisit'
+                      ? 'Revisitar'
+                      : 'Agendado',
+                score: 3,
+                document: '',
+                address: '',
+                profession: '',
+                specialty: '',
+                registrationNumber: '',
+                phone: app.client_phone || '',
+                email: app.client_email || '',
+                lastInteraction: app.created_at || new Date().toISOString(),
+                avatarSeed: app.client_email ? app.client_email.length : 1,
+                state: 'SP', // Padrão
+                meetLink: app.google_meet_link,
+                confirmationCode: app.id.split('-')[0].toUpperCase(),
+              }) as Lead & { meetLink?: string; confirmationCode?: string },
+          )
 
         const unique = new Map<string, Lead>()
         mappedLeads.forEach((l) => {

@@ -16,6 +16,7 @@ import {
   Copy,
   Mail,
   Smartphone,
+  Trash2,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -23,6 +24,17 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { syncCalendarService } from '@/features/syncCalendarService'
@@ -39,6 +51,7 @@ export function LeadCard({
   const [dbApp, setDbApp] = useState<any>(null)
   const [isSyncing, setIsSyncing] = useState(false)
   const [isResending, setIsResending] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   useEffect(() => {
     const fetchApp = async () => {
@@ -193,6 +206,21 @@ Até logo! 😊
     }
   }
 
+  const handleDelete = async () => {
+    try {
+      setIsDeleting(true)
+      const { error } = await supabase.from('appointments').delete().eq('id', lead.id)
+      if (error) throw error
+      toast.success('Agendamento apagado com sucesso!')
+      dispatch({ type: 'REMOVE_LEAD', payload: lead.id })
+    } catch (err: any) {
+      console.error(err)
+      toast.error('Falha ao apagar agendamento.')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   const locationStr = lead.state
     ? `${lead.neighborhood ? lead.neighborhood + ', ' : ''}${lead.state}`
     : lead.neighborhood || (lead.type === 'B2B' ? lead.company : 'Consumidor')
@@ -201,7 +229,7 @@ Até logo! 😊
     <Card
       draggable
       onDragStart={(e) => onDragStart(e, lead.id)}
-      className="cursor-grab active:cursor-grabbing shadow-sm hover:shadow-md transition-shadow border-border/60"
+      className={`cursor-grab active:cursor-grabbing shadow-sm hover:shadow-md transition-shadow border-border/60 ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}
     >
       <CardContent className="p-3">
         <div className="flex justify-between items-start mb-2">
@@ -221,30 +249,76 @@ Até logo! 😊
             </div>
           </div>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-6 w-6 p-0 -mr-1">
-                <span className="sr-only">Ações</span>
-                <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                onClick={() =>
-                  dispatch({ type: 'ADD_TAG', payload: { id: lead.id, tag: 'Revisitar 30 dias' } })
-                }
-              >
-                <TagIcon className="mr-2 h-4 w-4" /> Revisitar 30 dias
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() =>
-                  dispatch({ type: 'ADD_TAG', payload: { id: lead.id, tag: 'Revisitar 90 dias' } })
-                }
-              >
-                <TagIcon className="mr-2 h-4 w-4" /> Revisitar 90 dias
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="flex items-center">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="h-6 w-6 p-0 text-muted-foreground hover:text-red-600 hover:bg-red-50"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <span className="sr-only">Apagar</span>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Apagar Agendamento</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Tem certeza que deseja apagar este agendamento? Esta ação não pode ser desfeita.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel onClick={(e) => e.stopPropagation()}>
+                    Cancelar
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleDelete()
+                    }}
+                    className="bg-red-600 hover:bg-red-700"
+                  >
+                    Apagar
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="h-6 w-6 p-0 -mr-1 ml-1"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <span className="sr-only">Ações</span>
+                  <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                <DropdownMenuItem
+                  onClick={() =>
+                    dispatch({
+                      type: 'ADD_TAG',
+                      payload: { id: lead.id, tag: 'Revisitar 30 dias' },
+                    })
+                  }
+                >
+                  <TagIcon className="mr-2 h-4 w-4" /> Revisitar 30 dias
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() =>
+                    dispatch({
+                      type: 'ADD_TAG',
+                      payload: { id: lead.id, tag: 'Revisitar 90 dias' },
+                    })
+                  }
+                >
+                  <TagIcon className="mr-2 h-4 w-4" /> Revisitar 90 dias
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
 
         <div className="mt-3 flex flex-col gap-2">
