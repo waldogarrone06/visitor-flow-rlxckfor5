@@ -106,36 +106,55 @@ export async function createPublicAppointment(data: any) {
 
   // Trigger Automations asynchronously
   if (newApp) {
-    // 1. Google Calendar Sync
+    // 1. Google Calendar Sync & Email Notification
     supabase.functions
       .invoke('sync-calendar', {
         body: { appointmentId: newApp.id },
       })
-      .catch(console.error)
+      .then((res) => {
+        if (res.error) console.error('Sync Calendar Error:', res.error)
+        return res.data?.meetLink || newApp.google_meet_link
+      })
+      .catch((err) => {
+        console.error('Invoke Sync Calendar Error:', err)
+        return newApp.google_meet_link
+      })
+      .then((meetLink) => {
+        const formattedDate = newApp.appointment_date.split('-').reverse().join('/')
 
-    // 2. Email Notification (Automated flow with verified domain)
-    const formattedDate = newApp.appointment_date.split('-').reverse().join('/')
-    supabase.functions
-      .invoke('send-email', {
-        body: {
-          to: newApp.client_email,
-          subject: 'Confirmação de Agendamento - FourLab Nutrition',
-          html: `
-            <div style="font-family: sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #eaeaea; border-radius: 8px; overflow: hidden;">
-              <div style="background-color: #e10050; padding: 24px; text-align: center;">
-                <h1 style="color: white; margin: 0; font-size: 20px;">Agendamento Confirmado! 🎉</h1>
-              </div>
-              <div style="padding: 32px; background-color: #ffffff;">
-                <p style="font-size: 16px; line-height: 1.5;">Olá <strong>${newApp.client_name}</strong>,</p>
-                <p style="font-size: 16px; line-height: 1.5;">Seu agendamento foi realizado com sucesso para o dia <strong>${formattedDate}</strong> às <strong>${newApp.start_time}</strong>.</p>
-                <p style="font-size: 16px; line-height: 1.5;">Em breve nossa equipe entrará em contato com você para alinhar os detalhes da visita ou da reunião virtual.</p>
-                <br/>
-                <p style="font-size: 14px; color: #666;">Atenciosamente,<br/>Equipe FourLab Nutrition</p>
-              </div>
+        let meetLinkHtml = ''
+        if (meetLink) {
+          meetLinkHtml = `
+            <div style="margin-top: 24px; padding: 16px; background-color: #f8f9fa; border-radius: 8px; text-align: center;">
+              <p style="margin: 0; font-size: 16px; font-weight: bold; color: #333;">Link da reunião no Google Meet:</p>
+              <a href="${meetLink}" style="display: inline-block; margin-top: 8px; font-size: 16px; color: #e10050; word-break: break-all;">${meetLink}</a>
             </div>
-          `,
-          senderName: 'FourLab Nutrition',
-        },
+          `
+        }
+
+        // 2. Email Notification (Automated flow with verified domain)
+        return supabase.functions.invoke('send-email', {
+          body: {
+            to: newApp.client_email,
+            subject: 'Confirmação de Agendamento - FourLab Nutrition',
+            html: `
+              <div style="font-family: sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #eaeaea; border-radius: 8px; overflow: hidden;">
+                <div style="background-color: #e10050; padding: 24px; text-align: center;">
+                  <h1 style="color: white; margin: 0; font-size: 20px;">Agendamento Confirmado! 🎉</h1>
+                </div>
+                <div style="padding: 32px; background-color: #ffffff;">
+                  <p style="font-size: 16px; line-height: 1.5;">Olá <strong>${newApp.client_name}</strong>,</p>
+                  <p style="font-size: 16px; line-height: 1.5;">Seu agendamento foi realizado com sucesso para o dia <strong>${formattedDate}</strong> às <strong>${newApp.start_time}</strong>.</p>
+                  <p style="font-size: 16px; line-height: 1.5;">Em breve nossa equipe entrará em contato com você para alinhar os detalhes da visita ou da reunião virtual.</p>
+                  ${meetLinkHtml}
+                  <br/>
+                  <p style="font-size: 14px; color: #666;">Atenciosamente,<br/>Equipe FourLab Nutrition</p>
+                </div>
+              </div>
+            `,
+            senderName: 'FourLab Nutrition',
+          },
+        })
       })
       .catch(console.error)
   }
