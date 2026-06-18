@@ -45,29 +45,11 @@ function appReducer(state: AppState, action: Action): AppState {
       return { ...state, leads: [...state.leads, action.payload] }
 
     case 'UPDATE_LEAD_STAGE': {
-      let newShipments = [...state.shipments]
-      const lead = state.leads.find((l) => l.id === action.payload.id)
-
-      if (lead && action.payload.stage === 'Visitado' && lead.stage !== 'Visitado') {
-        const kitId = lead.assignedKitId || state.kits[0].id
-        const newShipment: Shipment = {
-          id: `s-${Date.now()}`,
-          contactId: lead.id,
-          kitId,
-          status: 'Requested',
-          date: new Date().toISOString(),
-          expectedDeliveryDate: new Date(Date.now() + 5 * 86400000).toISOString(),
-          trackingNumber: `BR${Math.floor(Math.random() * 1000000)}XP`,
-        }
-        newShipments = [newShipment, ...newShipments]
-      }
-
       return {
         ...state,
         leads: state.leads.map((l) =>
           l.id === action.payload.id ? { ...l, stage: action.payload.stage } : l,
         ),
-        shipments: newShipments,
       }
     }
 
