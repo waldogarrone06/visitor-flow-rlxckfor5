@@ -31,8 +31,15 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
-import { Copy, Truck, ExternalLink, Package, Check, Trash2 } from 'lucide-react'
+import { Copy, Truck, ExternalLink, Package, Check, Trash2, Search } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
@@ -98,15 +105,16 @@ type Shipment = {
   resolved_patient_coupon: string
 }
 
-export function KitShipments() {
+export function KitShipments({ consolidated = false }: { consolidated?: boolean }) {
   const [shipments, setShipments] = useState<Shipment[]>([])
   const [loading, setLoading] = useState(true)
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set())
+  const [searchQuery, setSearchQuery] = useState('')
   const { toast } = useToast()
 
   useEffect(() => {
     fetchShipments()
-  }, [])
+  }, [consolidated])
 
   const extractCEP = (address: string | null) => {
     if (!address) return ''
@@ -127,11 +135,12 @@ export function KitShipments() {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, is_admin')
       .eq('id', session.user.id)
       .single()
 
-    const isLogistics = profile?.role === 'logistics'
+    const isManager =
+      profile?.role === 'logistics' || profile?.role === 'kit_manager' || profile?.is_admin
 
     let appQuery = supabase
       .from('appointments')
@@ -144,9 +153,18 @@ export function KitShipments() {
       .from('contacts')
       .select('name, email, phone, document, cep, address, nutritionist_coupon, patient_coupon')
 
-    if (!isLogistics) {
+    if (!consolidated) {
       appQuery = appQuery.eq('user_id', session.user.id)
       contQuery = contQuery.eq('user_id', session.user.id)
+    } else {
+      if (!isManager) {
+        // Fallback for security if a regular user forces the prop
+        appQuery = appQuery.eq('user_id', session.user.id)
+        contQuery = contQuery.eq('user_id', session.user.id)
+      } else {
+        // Consolidated for managers: fetch all appointments that have a kit assigned
+        appQuery = appQuery.not('kit_name', 'is', null)
+      }
     }
 
     const [appRes, contRes] = await Promise.all([appQuery, contQuery])
@@ -205,7 +223,7 @@ export function KitShipments() {
     if (error)
       toast({ title: 'Erro', description: 'Falha ao atualizar status.', variant: 'destructive' })
     else {
-      toast({ title: 'Sucesso', description: 'Status atualizado.' })
+      toast({ title: 'Sucesso', description: 'Status atualizado com sucesso.' })
       fetchShipments()
     }
   }
@@ -336,24 +354,57 @@ Obrigado por confiar em nosso trabalho!`
     }
   }
 
+  const getStatusBadgeVariant = (status: string | null) => {
+    if (status === 'Entregue' || status === 'Delivered' || status === 'NF Emitida') return 'default'
+    if (status === 'Enviado') return 'secondary'
+    if (status === 'Aguardando NF') return 'destructive'
+    return 'outline'
+  }
+
+  const filteredShipments = shipments.filter((s) => {
+    if (!searchQuery) return true
+    const q = searchQuery.toLowerCase()
+    return (
+      s.client_name?.toLowerCase().includes(q) ||
+      s.tracking_number?.toLowerCase().includes(q) ||
+      s.kit_name?.toLowerCase().includes(q)
+    )
+  })
+
   return (
     <Card className="w-full max-w-full shadow-sm animate-fade-in">
-      <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <CardHeader className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
-          <CardTitle className="text-xl font-semibold tracking-tight">Envios e Entregas</CardTitle>
-          <CardDescription className="mt-1">
-            Acompanhe e gerencie a logística dos kits solicitados.
+          <CardTitle className="text-xl font-semibold tracking-tight">
+            {consolidated ? 'Envios Consolidados' : 'Envios e Entregas'}
+          </CardTitle>
+          <CardDescription className="mt-1 max-w-xl">
+            {consolidated
+              ? 'Gestão centralizada de todos os envios de kits e controle de Notas Fiscais.'
+              : 'Acompanhe e gerencie a logística dos kits solicitados.'}
           </CardDescription>
         </div>
-        <Button
-          onClick={fetchShipments}
-          disabled={loading}
-          variant="outline"
-          size="sm"
-          className="shrink-0"
-        >
-          {loading ? 'Atualizando...' : 'Atualizar Lista'}
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-2">
+          {consolidated && (
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar cliente ou rastreio..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full sm:w-[250px] pl-9"
+              />
+            </div>
+          )}
+          <Button
+            onClick={fetchShipments}
+            disabled={loading}
+            variant="outline"
+            className="shrink-0"
+          >
+            {loading ? 'Atualizando...' : 'Atualizar'}
+          </Button>
+        </div>
       </CardHeader>
 
       <CardContent className="p-0 sm:p-6 sm:pt-0">
@@ -377,14 +428,16 @@ Obrigado por confiar em nosso trabalho!`
                     Carregando...
                   </TableCell>
                 </TableRow>
-              ) : shipments.length === 0 ? (
+              ) : filteredShipments.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                    Nenhum envio encontrado.
+                    {searchQuery
+                      ? 'Nenhum envio encontrado para a busca.'
+                      : 'Nenhum envio encontrado.'}
                   </TableCell>
                 </TableRow>
               ) : (
-                shipments.map((s) => (
+                filteredShipments.map((s) => (
                   <TableRow key={s.id}>
                     <TableCell className="whitespace-nowrap">
                       {format(new Date(s.appointment_date || s.created_at), 'dd/MM/yyyy', {
@@ -420,15 +473,7 @@ Obrigado por confiar em nosso trabalho!`
                       )}
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
-                      <Badge
-                        variant={
-                          s.kit_status === 'Entregue' || s.kit_status === 'Delivered'
-                            ? 'default'
-                            : s.kit_status === 'Enviado'
-                              ? 'secondary'
-                              : 'outline'
-                        }
-                      >
+                      <Badge variant={getStatusBadgeVariant(s.kit_status || s.status)}>
                         {s.kit_status || s.status || 'Pendente'}
                       </Badge>
                     </TableCell>
@@ -540,44 +585,64 @@ Obrigado por confiar em nosso trabalho!`
                                   <h4 className="font-semibold text-sm border-b pb-2 text-primary">
                                     Status do Kit ({s.kit_name || 'Kit Padrão'})
                                   </h4>
-                                  <div className="flex flex-wrap gap-2 items-center">
-                                    <Badge
-                                      variant={
-                                        s.kit_status === 'Entregue' || s.kit_status === 'Delivered'
-                                          ? 'default'
-                                          : s.kit_status === 'Enviado'
-                                            ? 'secondary'
-                                            : 'outline'
-                                      }
-                                      className="px-3 py-1 text-sm"
-                                    >
-                                      {s.kit_status || s.status || 'Pendente'}
-                                    </Badge>
-
-                                    {(!s.kit_status ||
-                                      s.kit_status === 'Pending' ||
-                                      s.kit_status === 'Pendente') && (
-                                      <Button
-                                        size="sm"
-                                        onClick={() => sendKit(s)}
-                                        disabled={processingIds.has(s.id)}
-                                        className="bg-blue-600 hover:bg-blue-700 text-white h-8"
+                                  <div className="flex flex-col gap-3">
+                                    <div className="flex items-center gap-2">
+                                      <Badge
+                                        variant={getStatusBadgeVariant(s.kit_status || s.status)}
+                                        className="px-3 py-1 text-sm"
                                       >
-                                        {processingIds.has(s.id) ? 'Enviando...' : 'Marcar Enviado'}
-                                      </Button>
-                                    )}
-
-                                    {s.kit_status !== 'Entregue' &&
-                                      s.kit_status !== 'Delivered' && (
+                                        {s.kit_status || s.status || 'Pendente'}
+                                      </Badge>
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <Select
+                                        value={
+                                          [
+                                            'Pendente',
+                                            'Aguardando NF',
+                                            'NF Emitida',
+                                            'Enviado',
+                                            'Entregue',
+                                          ].includes(s.kit_status || '')
+                                            ? s.kit_status || ''
+                                            : 'Pendente'
+                                        }
+                                        onValueChange={(val) => {
+                                          if (val === 'Enviado' && s.kit_status !== 'Enviado') {
+                                            sendKit(s)
+                                          } else {
+                                            updateKitStatus(s.id, val)
+                                          }
+                                        }}
+                                      >
+                                        <SelectTrigger className="w-[180px] h-9">
+                                          <SelectValue placeholder="Alterar Status" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="Pendente">Pendente</SelectItem>
+                                          <SelectItem value="Aguardando NF">
+                                            Aguardando NF
+                                          </SelectItem>
+                                          <SelectItem value="NF Emitida">NF Emitida</SelectItem>
+                                          <SelectItem value="Enviado">Enviado</SelectItem>
+                                          <SelectItem value="Entregue">Entregue</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                      {(!s.kit_status ||
+                                        s.kit_status === 'Pending' ||
+                                        s.kit_status === 'Pendente') && (
                                         <Button
-                                          variant="ghost"
                                           size="sm"
-                                          className="h-8"
-                                          onClick={() => updateKitStatus(s.id, 'Entregue')}
+                                          onClick={() => sendKit(s)}
+                                          disabled={processingIds.has(s.id)}
+                                          className="bg-blue-600 hover:bg-blue-700 text-white h-9"
                                         >
-                                          Marcar Entregue
+                                          {processingIds.has(s.id)
+                                            ? 'Enviando...'
+                                            : 'Marcar Enviado'}
                                         </Button>
                                       )}
+                                    </div>
                                   </div>
                                 </div>
 

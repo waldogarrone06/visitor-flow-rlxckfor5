@@ -55,7 +55,7 @@ export function AppSidebar() {
               data.email?.toLowerCase().includes('junior') ||
               data.name?.toLowerCase().includes('jr')
             setIsAdminOrJunior(!!data.is_admin || isJunior)
-            setIsLogistics(data.role === 'logistics')
+            setIsLogistics(data.role === 'logistics' || data.role === 'kit_manager')
           }
         })
 

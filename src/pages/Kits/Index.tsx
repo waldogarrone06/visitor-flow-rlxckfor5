@@ -2,11 +2,31 @@ import { KitInventory } from './Inventory'
 import { KitShipments } from './Shipments'
 import { KitBuilder } from './KitBuilder'
 import { KitCatalog } from './KitCatalog'
+import { useEffect, useState } from 'react'
+import { supabase } from '@/lib/supabase/client'
+import { useAuth } from '@/hooks/use-auth'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 
 export default function KitsPage() {
+  const { user } = useAuth()
+  const [profile, setProfile] = useState<any>(null)
+
+  useEffect(() => {
+    if (user) {
+      supabase
+        .from('profiles')
+        .select('role, is_admin')
+        .eq('id', user.id)
+        .single()
+        .then(({ data }) => setProfile(data))
+    }
+  }, [user])
+
+  const isManager =
+    profile?.role === 'kit_manager' || profile?.role === 'logistics' || profile?.is_admin
+
   return (
     <Card className="w-full max-w-full overflow-hidden animate-slide-up border-none shadow-none sm:border sm:shadow-sm bg-transparent sm:bg-card">
       <CardHeader className="px-0 sm:px-6 pt-0 sm:pt-6">
@@ -20,11 +40,12 @@ export default function KitsPage() {
 
       <CardContent className="px-0 sm:px-6 pb-0 sm:pb-6">
         <Tabs defaultValue="catalog" className="w-full max-w-full">
-          <TabsList className="grid w-full md:w-[800px] grid-cols-4">
+          <TabsList className="flex flex-wrap w-full md:w-auto overflow-x-auto h-auto gap-1 p-1">
             <TabsTrigger value="catalog">Catálogo</TabsTrigger>
             <TabsTrigger value="builder">Kit e Cupom</TabsTrigger>
             <TabsTrigger value="inventory">Estoque</TabsTrigger>
-            <TabsTrigger value="shipments">Envio</TabsTrigger>
+            <TabsTrigger value="shipments">Meus Envios</TabsTrigger>
+            {isManager && <TabsTrigger value="consolidated">Envios Consolidados</TabsTrigger>}
           </TabsList>
 
           <TabsContent value="catalog" className="mt-6">
@@ -65,6 +86,14 @@ export default function KitsPage() {
               </p>
             </div>
           </TabsContent>
+
+          {isManager && (
+            <TabsContent value="consolidated" className="mt-6 space-y-6">
+              <div className="w-full max-w-full overflow-hidden">
+                <KitShipments consolidated />
+              </div>
+            </TabsContent>
+          )}
         </Tabs>
       </CardContent>
     </Card>
