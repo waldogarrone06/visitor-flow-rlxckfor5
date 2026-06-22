@@ -8,6 +8,7 @@ import { format } from 'date-fns'
 import { useMainStore } from '@/stores/main'
 import { Lead } from '@/lib/types'
 import { syncCalendarService } from '@/features/syncCalendarService'
+import { Loader2 } from 'lucide-react'
 
 interface BookingFormProps {
   userId: string
@@ -23,6 +24,7 @@ export function BookingForm({ userId, date, slot, onSuccess }: BookingFormProps)
     name: '',
     email: '',
     phone: '',
+    document: '',
     specialty: '',
     professional_id: '',
     clinic_address: '',
@@ -34,28 +36,40 @@ export function BookingForm({ userId, date, slot, onSuccess }: BookingFormProps)
     const savedName = localStorage.getItem('fourlab_booking_name')
     const savedEmail = localStorage.getItem('fourlab_booking_email')
     const savedPhone = localStorage.getItem('fourlab_booking_phone')
+    const savedDocument = localStorage.getItem('fourlab_booking_document')
     const savedSpecialty = localStorage.getItem('fourlab_booking_specialty')
     const savedProfId = localStorage.getItem('fourlab_booking_prof_id')
     const savedAddress = localStorage.getItem('fourlab_booking_address')
 
-    if (savedName || savedEmail || savedPhone) {
-      setFormData({
-        name: savedName || '',
-        email: savedEmail || '',
-        phone: savedPhone || '',
-        specialty: savedSpecialty || '',
-        professional_id: savedProfId || '',
-        clinic_address: savedAddress || '',
-      })
-    }
+    setFormData((prev) => ({
+      ...prev,
+      name: savedName || '',
+      email: savedEmail || '',
+      phone: savedPhone || '',
+      document: savedDocument || '',
+      specialty: savedSpecialty || '',
+      professional_id: savedProfId || '',
+      clinic_address: savedAddress || '',
+    }))
   }, [])
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    setFormData((prev) => ({ ...prev, [name]: value }))
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!formData.name || !formData.email || !formData.phone || !formData.specialty) {
+    if (
+      !formData.name ||
+      !formData.email ||
+      !formData.phone ||
+      !formData.document ||
+      !formData.specialty
+    ) {
       toast({
         title: 'Campos Obrigatórios',
-        description: 'Preencha nome, e-mail, telefone e especialidade.',
+        description: 'Preencha nome, e-mail, telefone, CPF e especialidade.',
         variant: 'destructive',
       })
       return
@@ -66,6 +80,7 @@ export function BookingForm({ userId, date, slot, onSuccess }: BookingFormProps)
       localStorage.setItem('fourlab_booking_name', formData.name)
       localStorage.setItem('fourlab_booking_email', formData.email)
       localStorage.setItem('fourlab_booking_phone', formData.phone)
+      localStorage.setItem('fourlab_booking_document', formData.document)
       localStorage.setItem('fourlab_booking_specialty', formData.specialty)
       localStorage.setItem('fourlab_booking_prof_id', formData.professional_id)
       localStorage.setItem('fourlab_booking_address', formData.clinic_address)
@@ -77,6 +92,7 @@ export function BookingForm({ userId, date, slot, onSuccess }: BookingFormProps)
         client_name: formData.name,
         client_email: formData.email,
         client_phone: formData.phone,
+        client_document: formData.document,
         specialty: formData.specialty,
         professional_id: formData.professional_id,
         clinic_address: formData.clinic_address,
@@ -86,7 +102,6 @@ export function BookingForm({ userId, date, slot, onSuccess }: BookingFormProps)
         status: 'scheduled',
       })
 
-      // Update local CRM state for immediate feedback
       const newLeadId = `l-${Date.now()}`
       const newLead: Lead = {
         id: newLeadId,
@@ -94,46 +109,32 @@ export function BookingForm({ userId, date, slot, onSuccess }: BookingFormProps)
         type: 'B2B',
         stage: 'Agendado',
         score: 3,
-        document: formData.professional_id || '000.000.000-00',
+        document: formData.document,
         address: formData.clinic_address || 'Endereço não informado',
         profession: 'médico',
         specialty: formData.specialty,
-        registrationNumber: formData.professional_id,
-        phone: formData.phone,
-        email: formData.email,
-        instagram: formData.instagram,
-        patientsPerMonth: formData.patientsPerMonth,
-        lastInteraction: new Date().toISOString(),
+        contact: { email: formData.email, phone: formData.phone },
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        userId: userId,
       }
 
-      dispatch({
-        type: 'SCHEDULE_APPOINTMENT',
-        payload: {
-          lead: newLead,
-          appointment: {
-            id: newApp.id,
-            leadId: newLeadId,
-            date: `${newApp.appointment_date}T${newApp.start_time}:00`,
-            vendor: 'Visitador',
-            status: 'Scheduled',
-            isVirtual: true,
-            appointment_date: newApp.appointment_date,
-            start_time: newApp.start_time,
-            end_time: newApp.end_time,
-            client_name: formData.name,
-            google_meet_link: null,
-          },
-        },
+      dispatch({ type: 'ADD_LEAD', payload: newLead })
+
+      if (newApp) {
+        await syncCalendarService.syncAppointment(newApp).catch(console.error)
+      }
+
+      toast({
+        title: 'Agendamento Confirmado',
+        description: 'Seu horário foi agendado com sucesso!',
       })
-
-      // Sync with Google Calendar asynchronously to generate Google Meet link
-      syncCalendarService.syncCreate(newApp.id).catch(console.error)
-
       onSuccess(newApp)
     } catch (error) {
+      console.error(error)
       toast({
-        title: 'Erro',
-        description: 'Falha ao agendar. Tente novamente.',
+        title: 'Erro no agendamento',
+        description: 'Ocorreu um erro ao tentar agendar. Tente novamente.',
         variant: 'destructive',
       })
     } finally {
@@ -142,90 +143,129 @@ export function BookingForm({ userId, date, slot, onSuccess }: BookingFormProps)
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 animate-slide-up">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-4 py-2">
         <div className="space-y-2">
           <Label htmlFor="name">Nome Completo *</Label>
           <Input
             id="name"
+            name="name"
             value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            onChange={handleChange}
             required
-            placeholder="Ex: João da Silva"
+            placeholder="Dr. João Silva"
           />
         </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="email">E-mail *</Label>
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              value={formData.email}
+              onChange={handleChange}
+              required
+              placeholder="joao@exemplo.com"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="phone">Telefone / WhatsApp *</Label>
+            <Input
+              id="phone"
+              name="phone"
+              value={formData.phone}
+              onChange={handleChange}
+              required
+              placeholder="(11) 99999-9999"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="document">CPF *</Label>
+            <Input
+              id="document"
+              name="document"
+              value={formData.document}
+              onChange={handleChange}
+              required
+              placeholder="000.000.000-00"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="specialty">Especialidade *</Label>
+            <Input
+              id="specialty"
+              name="specialty"
+              value={formData.specialty}
+              onChange={handleChange}
+              required
+              placeholder="Ex: Nutrologia"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="professional_id">Registro Profissional (CRM/CRN)</Label>
+            <Input
+              id="professional_id"
+              name="professional_id"
+              value={formData.professional_id}
+              onChange={handleChange}
+              placeholder="Ex: CRM 12345"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="instagram">Instagram</Label>
+            <Input
+              id="instagram"
+              name="instagram"
+              value={formData.instagram}
+              onChange={handleChange}
+              placeholder="@seu_perfil"
+            />
+          </div>
+        </div>
+
         <div className="space-y-2">
-          <Label htmlFor="email">E-mail *</Label>
-          <Input
-            id="email"
-            type="email"
-            value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            required
-            placeholder="joao@exemplo.com"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="phone">Telefone/WhatsApp *</Label>
-          <Input
-            id="phone"
-            value={formData.phone}
-            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-            required
-            placeholder="(00) 00000-0000"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="specialty">Especialidade *</Label>
-          <Input
-            id="specialty"
-            value={formData.specialty}
-            onChange={(e) => setFormData({ ...formData, specialty: e.target.value })}
-            required
-            placeholder="Ex: Nutricionista Esportiva"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="instagram">Instagram Profissional</Label>
-          <Input
-            id="instagram"
-            value={formData.instagram}
-            onChange={(e) => setFormData({ ...formData, instagram: e.target.value })}
-            placeholder="@usuario"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="patientsPerMonth">Nº Pacientes / Mês</Label>
-          <Input
-            id="patientsPerMonth"
-            type="number"
-            value={formData.patientsPerMonth}
-            onChange={(e) => setFormData({ ...formData, patientsPerMonth: e.target.value })}
-            placeholder="Ex: 50"
-          />
-        </div>
-        <div className="space-y-2 md:col-span-2">
-          <Label htmlFor="professional_id">Registro Profissional (CRN/CRM)</Label>
-          <Input
-            id="professional_id"
-            value={formData.professional_id}
-            onChange={(e) => setFormData({ ...formData, professional_id: e.target.value })}
-            placeholder="Ex: CRN 12345"
-          />
-        </div>
-        <div className="space-y-2 md:col-span-2">
           <Label htmlFor="clinic_address">Endereço da Clínica / Consultório</Label>
           <Input
             id="clinic_address"
+            name="clinic_address"
             value={formData.clinic_address}
-            onChange={(e) => setFormData({ ...formData, clinic_address: e.target.value })}
-            placeholder="Av. Exemplo, 100 - Sala 2, São Paulo - SP"
+            onChange={handleChange}
+            placeholder="Rua, Número, Bairro, Cidade - UF"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="patientsPerMonth">Média de pacientes por mês</Label>
+          <Input
+            id="patientsPerMonth"
+            name="patientsPerMonth"
+            value={formData.patientsPerMonth}
+            onChange={handleChange}
+            placeholder="Ex: 50"
           />
         </div>
       </div>
-      <Button type="submit" className="w-full h-12 text-base font-medium" disabled={submitting}>
-        {submitting ? 'Confirmando Agendamento...' : 'Confirmar Agendamento'}
-      </Button>
+
+      <div className="pt-2">
+        <Button type="submit" className="w-full" disabled={submitting}>
+          {submitting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Agendando...
+            </>
+          ) : (
+            'Confirmar Agendamento'
+          )}
+        </Button>
+      </div>
     </form>
   )
 }
