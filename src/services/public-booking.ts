@@ -62,12 +62,24 @@ export async function getDayScheduleData(userId: string, date: Date) {
 }
 
 export async function createPublicAppointment(data: any) {
-  const { error, data: newApp } = await supabase
-    .from('appointments' as any)
-    .insert([data])
-    .select()
-    .single()
-  if (error) throw error
+  const appointmentId =
+    typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+          const r = (Math.random() * 16) | 0
+          return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16)
+        })
+
+  const appointmentData = { ...data, id: appointmentId }
+
+  const { error } = await supabase.from('appointments' as any).insert([appointmentData])
+
+  if (error) {
+    console.error('Error inserting appointment:', error)
+    throw error
+  }
+
+  const newApp = appointmentData
 
   // Upsert Contact/Lead
   if (data.user_id && data.client_phone) {
@@ -104,62 +116,57 @@ export async function createPublicAppointment(data: any) {
     }
   }
 
-  // Trigger Automations asynchronously
+  let syncWarning = false
+
+  // Trigger Automations
   if (newApp) {
-    // 1. Google Calendar Sync & Email Notification
-    supabase.functions
-      .invoke('sync-calendar', {
+    try {
+      const syncRes = await supabase.functions.invoke('sync-calendar', {
         body: { appointmentId: newApp.id },
       })
-      .then((res) => {
-        if (res.error) console.error('Sync Calendar Error:', res.error)
-        return res.data?.meetLink || newApp.google_meet_link
-      })
-      .catch((err) => {
-        console.error('Invoke Sync Calendar Error:', err)
-        return newApp.google_meet_link
-      })
-      .then((meetLink) => {
-        const formattedDate = newApp.appointment_date.split('-').reverse().join('/')
 
-        let meetLinkHtml = ''
-        if (meetLink) {
-          meetLinkHtml = `
-            <div style="margin-top: 24px; padding: 16px; background-color: #f8f9fa; border-radius: 8px; text-align: center;">
-              <p style="margin: 0; font-size: 16px; font-weight: bold; color: #333;">Link da reunião no Google Meet:</p>
-              <a href="${meetLink}" style="display: inline-block; margin-top: 8px; font-size: 16px; color: #e10050; word-break: break-all;">${meetLink}</a>
-            </div>
-          `
-        }
+      const meetLink = syncRes.data?.meetLink || newApp.google_meet_link
+      const formattedDate = newApp.appointment_date.split('-').reverse().join('/')
+      let meetLinkHtml = ''
 
-        // 2. Email Notification (Automated flow with verified domain)
-        return supabase.functions.invoke('send-email', {
-          body: {
-            to: newApp.client_email,
-            subject: 'Confirmação de Agendamento - FourLab Nutrition',
-            html: `
-              <div style="font-family: sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #eaeaea; border-radius: 8px; overflow: hidden;">
-                <div style="background-color: #e10050; padding: 24px; text-align: center;">
-                  <h1 style="color: white; margin: 0; font-size: 20px;">Agendamento Confirmado! 🎉</h1>
-                </div>
-                <div style="padding: 32px; background-color: #ffffff;">
-                  <p style="font-size: 16px; line-height: 1.5;">Olá <strong>${newApp.client_name}</strong>,</p>
-                  <p style="font-size: 16px; line-height: 1.5;">Seu agendamento foi realizado com sucesso para o dia <strong>${formattedDate}</strong> às <strong>${newApp.start_time}</strong>.</p>
-                  <p style="font-size: 16px; line-height: 1.5;">Em breve nossa equipe entrará em contato com você para alinhar os detalhes da visita ou da reunião virtual.</p>
-                  ${meetLinkHtml}
-                  <br/>
-                  <p style="font-size: 14px; color: #666;">Atenciosamente,<br/>Equipe FourLab Nutrition</p>
-                </div>
+      if (meetLink) {
+        meetLinkHtml = `
+          <div style="margin-top: 24px; padding: 16px; background-color: #f8f9fa; border-radius: 8px; text-align: center;">
+            <p style="margin: 0; font-size: 16px; font-weight: bold; color: #333;">Link da reunião no Google Meet:</p>
+            <a href="${meetLink}" style="display: inline-block; margin-top: 8px; font-size: 16px; color: #e10050; word-break: break-all;">${meetLink}</a>
+          </div>
+        `
+      }
+
+      await supabase.functions.invoke('send-email', {
+        body: {
+          to: newApp.client_email,
+          subject: 'Confirmação de Agendamento - FourLab Nutrition',
+          html: `
+            <div style="font-family: sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #eaeaea; border-radius: 8px; overflow: hidden;">
+              <div style="background-color: #e10050; padding: 24px; text-align: center;">
+                <h1 style="color: white; margin: 0; font-size: 20px;">Agendamento Confirmado! 🎉</h1>
               </div>
-            `,
-            senderName: 'FourLab Nutrition',
-          },
-        })
+              <div style="padding: 32px; background-color: #ffffff;">
+                <p style="font-size: 16px; line-height: 1.5;">Olá <strong>${newApp.client_name}</strong>,</p>
+                <p style="font-size: 16px; line-height: 1.5;">Seu agendamento foi realizado com sucesso para o dia <strong>${formattedDate}</strong> às <strong>${newApp.start_time}</strong>.</p>
+                <p style="font-size: 16px; line-height: 1.5;">Em breve nossa equipe entrará em contato com você para alinhar os detalhes da visita ou da reunião virtual.</p>
+                ${meetLinkHtml}
+                <br/>
+                <p style="font-size: 14px; color: #666;">Atenciosamente,<br/>Equipe FourLab Nutrition</p>
+              </div>
+            </div>
+          `,
+          senderName: 'FourLab Nutrition',
+        },
       })
-      .catch(console.error)
+    } catch (err) {
+      console.error('Integration Error:', err)
+      syncWarning = true
+    }
   }
 
-  return newApp
+  return { newApp, syncWarning }
 }
 
 export async function toggleSlotLock(

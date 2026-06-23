@@ -20,6 +20,7 @@ interface BookingFormProps {
 export function BookingForm({ userId, date, slot, onSuccess }: BookingFormProps) {
   const [submitting, setSubmitting] = useState(false)
   const { dispatch } = useMainStore()
+  const [formErrors, setFormErrors] = useState<Record<string, boolean>>({})
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -56,17 +57,23 @@ export function BookingForm({ userId, date, slot, onSuccess }: BookingFormProps)
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
+    if (formErrors[name]) {
+      setFormErrors((prev) => ({ ...prev, [name]: false }))
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (
-      !formData.name ||
-      !formData.email ||
-      !formData.phone ||
-      !formData.document ||
-      !formData.specialty
-    ) {
+
+    const errors: Record<string, boolean> = {}
+    if (!formData.name) errors.name = true
+    if (!formData.email) errors.email = true
+    if (!formData.phone) errors.phone = true
+    if (!formData.document) errors.document = true
+    if (!formData.specialty) errors.specialty = true
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors)
       toast({
         title: 'Campos Obrigatórios',
         description: 'Preencha nome, e-mail, telefone, CPF e especialidade.',
@@ -85,7 +92,7 @@ export function BookingForm({ userId, date, slot, onSuccess }: BookingFormProps)
       localStorage.setItem('fourlab_booking_prof_id', formData.professional_id)
       localStorage.setItem('fourlab_booking_address', formData.clinic_address)
 
-      const newApp = await createPublicAppointment({
+      const { newApp, syncWarning } = await createPublicAppointment({
         instagram: formData.instagram,
         patients_per_month: formData.patientsPerMonth,
         user_id: userId,
@@ -121,14 +128,19 @@ export function BookingForm({ userId, date, slot, onSuccess }: BookingFormProps)
 
       dispatch({ type: 'ADD_LEAD', payload: newLead })
 
-      if (newApp) {
-        await syncCalendarService.syncAppointment(newApp).catch(console.error)
+      if (syncWarning) {
+        toast({
+          title: 'Agendamento Confirmado (Aviso)',
+          description:
+            'Horário salvo com sucesso, mas houve falha ao sincronizar com integrações externas.',
+          variant: 'destructive',
+        })
+      } else {
+        toast({
+          title: 'Agendamento Confirmado',
+          description: 'Seu horário foi agendado com sucesso!',
+        })
       }
-
-      toast({
-        title: 'Agendamento Confirmado',
-        description: 'Seu horário foi agendado com sucesso!',
-      })
       onSuccess(newApp)
     } catch (error) {
       console.error(error)
@@ -154,6 +166,7 @@ export function BookingForm({ userId, date, slot, onSuccess }: BookingFormProps)
             onChange={handleChange}
             required
             placeholder="Dr. João Silva"
+            className={formErrors.name ? 'border-destructive focus-visible:ring-destructive' : ''}
           />
         </div>
 
@@ -168,6 +181,9 @@ export function BookingForm({ userId, date, slot, onSuccess }: BookingFormProps)
               onChange={handleChange}
               required
               placeholder="joao@exemplo.com"
+              className={
+                formErrors.email ? 'border-destructive focus-visible:ring-destructive' : ''
+              }
             />
           </div>
           <div className="space-y-2">
@@ -179,6 +195,9 @@ export function BookingForm({ userId, date, slot, onSuccess }: BookingFormProps)
               onChange={handleChange}
               required
               placeholder="(11) 99999-9999"
+              className={
+                formErrors.phone ? 'border-destructive focus-visible:ring-destructive' : ''
+              }
             />
           </div>
         </div>
@@ -193,6 +212,9 @@ export function BookingForm({ userId, date, slot, onSuccess }: BookingFormProps)
               onChange={handleChange}
               required
               placeholder="000.000.000-00"
+              className={
+                formErrors.document ? 'border-destructive focus-visible:ring-destructive' : ''
+              }
             />
           </div>
           <div className="space-y-2">
@@ -204,6 +226,9 @@ export function BookingForm({ userId, date, slot, onSuccess }: BookingFormProps)
               onChange={handleChange}
               required
               placeholder="Ex: Nutrologia"
+              className={
+                formErrors.specialty ? 'border-destructive focus-visible:ring-destructive' : ''
+              }
             />
           </div>
         </div>

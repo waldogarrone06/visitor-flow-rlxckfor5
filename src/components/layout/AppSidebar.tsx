@@ -62,7 +62,8 @@ export function AppSidebar() {
       const fetchUnread = () => {
         supabase
           .from('messages')
-          .select('id', { count: 'exact', head: true })
+          .select('id', { count: 'exact' })
+          .limit(0)
           .eq('direction', 'inbound')
           .neq('status', 'read')
           .then(({ count }) => {
