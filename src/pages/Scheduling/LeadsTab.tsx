@@ -46,14 +46,19 @@ export function LeadsTab() {
           appointments?.map((a: any) => a.client_phone?.replace(/\D/g, '')).filter(Boolean),
         )
 
-        const filteredLeads = (contacts || []).filter((c) => {
-          if (c.email && appointmentEmails.has(c.email)) return false
-          if (c.document && appointmentDocs.has(c.document)) return false
-          if (c.phone && appointmentPhones.has(c.phone.replace(/\D/g, ''))) return false
-          return true
+        const leadsWithVisitStatus = (contacts || []).map((c) => {
+          const hasVisit =
+            (c.email && appointmentEmails.has(c.email)) ||
+            (c.document && appointmentDocs.has(c.document)) ||
+            (c.phone && appointmentPhones.has(c.phone.replace(/\D/g, '')))
+
+          return {
+            ...c,
+            has_visit: !!hasVisit,
+          }
         })
 
-        setLeads(filteredLeads)
+        setLeads(leadsWithVisitStatus)
       } catch (err) {
         console.error('Error loading leads', err)
       } finally {
@@ -104,12 +109,13 @@ export function LeadsTab() {
               <TableHead className="min-w-[120px] whitespace-nowrap">Cupom Nutricionista</TableHead>
               <TableHead className="min-w-[120px] whitespace-nowrap">Cupom Paciente</TableHead>
               <TableHead className="min-w-[150px] whitespace-nowrap">Data de Cadastro</TableHead>
+              <TableHead className="min-w-[100px] whitespace-nowrap">Visita</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredLeads.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={14} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={15} className="text-center text-muted-foreground py-8">
                   Nenhum lead encontrado.
                 </TableCell>
               </TableRow>
@@ -139,6 +145,17 @@ export function LeadsTab() {
                   <TableCell className="whitespace-nowrap">{lead.patient_coupon || '-'}</TableCell>
                   <TableCell className="whitespace-nowrap">
                     {lead.created_at ? format(new Date(lead.created_at), 'dd/MM/yyyy HH:mm') : '-'}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    {lead.has_visit ? (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        Sim
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">
+                        Não
+                      </span>
+                    )}
                   </TableCell>
                 </TableRow>
               ))
