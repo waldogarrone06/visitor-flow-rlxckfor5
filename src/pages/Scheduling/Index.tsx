@@ -22,6 +22,7 @@ import { useMainStore } from '@/stores/main'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { RecurringSchedule } from './RecurringSchedule'
 import { SpecificSchedule } from './SpecificSchedule'
+import { LeadsTab } from './LeadsTab'
 
 export default function SchedulingPage() {
   const [viewMode, setViewMode] = useState<string>('appointments')
@@ -142,6 +143,12 @@ export default function SchedulingPage() {
           >
             Exceções por Data
           </TabsTrigger>
+          <TabsTrigger
+            value="leads"
+            className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none rounded-none px-2 py-2"
+          >
+            Leads
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="appointments" className="mt-0">
@@ -193,6 +200,10 @@ export default function SchedulingPage() {
 
         <TabsContent value="specific" className="mt-0">
           <SpecificSchedule />
+        </TabsContent>
+
+        <TabsContent value="leads" className="mt-0">
+          <LeadsTab />
         </TabsContent>
       </Tabs>
     </div>
