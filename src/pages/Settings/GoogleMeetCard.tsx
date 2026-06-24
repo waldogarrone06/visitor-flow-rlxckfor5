@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { toast } from '@/hooks/use-toast'
@@ -21,6 +22,7 @@ export function GoogleMeetCard({ targetUserId }: { targetUserId: string }) {
   const [isMock, setIsMock] = useState(false)
   const [loading, setLoading] = useState(true)
   const [bodyText, setBodyText] = useState('')
+  const [fixedLink, setFixedLink] = useState('')
   const [saving, setSaving] = useState(false)
   const [connecting, setConnecting] = useState(false)
 
@@ -32,12 +34,12 @@ export function GoogleMeetCard({ targetUserId }: { targetUserId: string }) {
       if (data?.google_access_token) {
         setConnected(true)
         setIsMock(data.google_email?.includes('demo.integration') || false)
-        setBodyText(data.google_invitation_body || '')
       } else {
         setConnected(false)
         setIsMock(false)
-        setBodyText('')
       }
+      setBodyText(data.google_invitation_body || '')
+      setFixedLink(data.fixed_meet_link || '')
     } finally {
       setLoading(false)
     }
@@ -111,9 +113,15 @@ export function GoogleMeetCard({ targetUserId }: { targetUserId: string }) {
 
   const handleSaveBody = async () => {
     setSaving(true)
-    await saveIntegrations({ google_invitation_body: bodyText }, targetUserId)
+    await saveIntegrations(
+      { google_invitation_body: bodyText, fixed_meet_link: fixedLink },
+      targetUserId,
+    )
     setSaving(false)
-    toast({ title: 'Template Salvo', description: 'O corpo do convite foi atualizado.' })
+    toast({
+      title: 'Configurações Salvas',
+      description: 'As configurações de reunião foram atualizadas.',
+    })
   }
 
   if (!targetUserId) return null
@@ -139,8 +147,8 @@ export function GoogleMeetCard({ targetUserId }: { targetUserId: string }) {
             </Badge>
           </div>
         </div>
-        <CardTitle>Google Meet</CardTitle>
-        <CardDescription>Gere links de reunião únicos para agendamentos.</CardDescription>
+        <CardTitle>Sala de Videoconferência</CardTitle>
+        <CardDescription>Gere links únicos no Google Meet ou use um link fixo.</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 space-y-4">
         {loading ? (
@@ -148,32 +156,49 @@ export function GoogleMeetCard({ targetUserId }: { targetUserId: string }) {
             <div className="h-10 bg-muted rounded-md w-full"></div>
             <div className="h-24 bg-muted rounded-md w-full mt-4"></div>
           </div>
-        ) : connected ? (
+        ) : (
           <div className="space-y-4">
+            {!connected && (
+              <p className="text-sm text-muted-foreground mb-4">
+                A conexão do Google Meet é compartilhada com o Calendar. Conecte sua conta para
+                geração dinâmica de salas, ou defina um link fixo abaixo.
+              </p>
+            )}
+
             <div className="space-y-2">
-              <Label className="text-xs">Template do Convite (Corpo do Evento)</Label>
+              <Label className="text-xs">Link Fixo de Reunião</Label>
+              <Input
+                value={fixedLink}
+                onChange={(e) => setFixedLink(e.target.value)}
+                placeholder="https://meet.google.com/abc-defg-hij ou link do Zoom"
+                className="text-sm"
+              />
+              <p className="text-[10px] text-muted-foreground">
+                Se preenchido, este link será usado para todos os agendamentos (prioridade sobre os
+                links gerados).
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs">Template do Convite do Calendar (Se conectado)</Label>
               <Textarea
                 value={bodyText}
                 onChange={(e) => setBodyText(e.target.value)}
                 placeholder="Olá! Segue o link para nossa reunião virtual..."
                 className="resize-none h-24 text-sm"
               />
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={handleSaveBody}
-                disabled={saving}
-                className="w-full gap-2 mt-2"
-              >
-                <Save className="h-4 w-4" /> {saving ? 'Salvando...' : 'Salvar Template'}
-              </Button>
             </div>
+
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleSaveBody}
+              disabled={saving}
+              className="w-full gap-2 mt-2"
+            >
+              <Save className="h-4 w-4" /> {saving ? 'Salvando...' : 'Salvar Configurações'}
+            </Button>
           </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            A conexão é compartilhada com o Google Calendar. Conecte sua conta para habilitar a
-            geração de salas.
-          </p>
         )}
       </CardContent>
       {!connected && (

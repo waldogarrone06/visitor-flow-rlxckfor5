@@ -44,10 +44,14 @@ Deno.serve(async (req: Request) => {
 
     let token = integration?.google_access_token
     const refreshToken = integration?.google_refresh_token
+    const fixedMeetLink = integration?.fixed_meet_link
 
-    if (!token) {
+    if (!token && !fixedMeetLink) {
       return new Response(
-        JSON.stringify({ success: true, message: 'No Google integration found, skipping.' }),
+        JSON.stringify({
+          success: true,
+          message: 'No Google integration or fixed link found, skipping.',
+        }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       )
     }
@@ -84,10 +88,11 @@ Deno.serve(async (req: Request) => {
     }
 
     let eventId = appointment.google_event_id || `mock-event-${Date.now()}`
-    let meetLink = appointment.google_meet_link || `https://meet.google.com/mock-abc-xyz`
+    let meetLink =
+      appointment.google_meet_link || fixedMeetLink || `https://meet.google.com/mock-abc-xyz`
 
     // Only call real API if it's not a mocked token
-    if (!token.includes('mock_access_token') && clientId && clientSecret) {
+    if (token && !token.includes('mock_access_token') && clientId && clientSecret) {
       const makeRequest = async (accessToken: string) => {
         const isUpdate = !!appointment.google_event_id
         const url = isUpdate
@@ -100,7 +105,7 @@ Deno.serve(async (req: Request) => {
 
         const payload: any = {
           summary: `Reunião: ${appointment.client_name}`,
-          description: integration.google_invitation_body || defaultDescription,
+          description: integration?.google_invitation_body || defaultDescription,
           start: {
             dateTime: `${appointment.appointment_date}T${appointment.start_time}:00-03:00`,
             timeZone: 'America/Sao_Paulo',
@@ -111,12 +116,18 @@ Deno.serve(async (req: Request) => {
           },
         }
 
+        if (fixedMeetLink) {
+          payload.location = fixedMeetLink
+        }
+
         if (!isUpdate || !appointment.google_meet_link) {
-          payload.conferenceData = {
-            createRequest: {
-              requestId: `meet-${appointment.id}-${Date.now()}`,
-              conferenceSolutionKey: { type: 'hangoutsMeet' },
-            },
+          if (!fixedMeetLink) {
+            payload.conferenceData = {
+              createRequest: {
+                requestId: `meet-${appointment.id}-${Date.now()}`,
+                conferenceSolutionKey: { type: 'hangoutsMeet' },
+              },
+            }
           }
         }
 
@@ -165,26 +176,31 @@ Deno.serve(async (req: Request) => {
         let data = await response.json()
 
         // Handle potential Google API delays for conferenceData
-        let attempts = 0
-        while (
-          data.conferenceData?.createRequest?.status?.statusCode === 'pending' &&
-          attempts < 3
-        ) {
-          await new Promise((resolve) => setTimeout(resolve, 1000))
-          const getRes = await fetch(
-            `https://www.googleapis.com/calendar/v3/calendars/primary/events/${data.id}`,
-            {
-              headers: { Authorization: `Bearer ${token}` },
-            },
-          )
-          if (getRes.ok) {
-            data = await getRes.json()
+        if (!fixedMeetLink && (!isUpdate || !appointment.google_meet_link)) {
+          let attempts = 0
+          while (
+            data.conferenceData?.createRequest?.status?.statusCode === 'pending' &&
+            attempts < 3
+          ) {
+            await new Promise((resolve) => setTimeout(resolve, 1000))
+            const getRes = await fetch(
+              `https://www.googleapis.com/calendar/v3/calendars/primary/events/${data.id}`,
+              {
+                headers: { Authorization: `Bearer ${token}` },
+              },
+            )
+            if (getRes.ok) {
+              data = await getRes.json()
+            }
+            attempts++
           }
-          attempts++
         }
 
         eventId = data.id || eventId
+        // Keep existing dynamic link if any, else fixed, else newly generated
         meetLink =
+          appointment.google_meet_link ||
+          fixedMeetLink ||
           data.hangoutLink ||
           data.conferenceData?.entryPoints?.find((e: any) => e.entryPointType === 'video')?.uri ||
           meetLink
@@ -193,6 +209,10 @@ Deno.serve(async (req: Request) => {
         console.error('Google API Error:', errorText)
         throw new Error(`Falha ao sincronizar com Google Calendar. Erro: ${errorText}`)
       }
+    } else if (fixedMeetLink) {
+      // No Google Calendar Token, but we have a fixed link
+      meetLink = appointment.google_meet_link || fixedMeetLink
+      eventId = appointment.google_event_id || null
     }
 
     // Save generated links to database
