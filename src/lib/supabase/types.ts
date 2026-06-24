@@ -12,12 +12,15 @@ export type Database = {
       appointments: {
         Row: {
           appointment_date: string
-          client_document: string | null
+          client_document: string
           client_email: string
           client_name: string
           client_phone: string | null
           clinic_address: string | null
           clinic_cep: string | null
+          clinic_complement: string | null
+          clinic_neighborhood: string | null
+          clinic_number: string | null
           coupon_code: string | null
           coupon_usage_count: number
           coupon_verified: boolean | null
@@ -44,12 +47,15 @@ export type Database = {
         }
         Insert: {
           appointment_date: string
-          client_document?: string | null
+          client_document: string
           client_email: string
           client_name: string
           client_phone?: string | null
           clinic_address?: string | null
           clinic_cep?: string | null
+          clinic_complement?: string | null
+          clinic_neighborhood?: string | null
+          clinic_number?: string | null
           coupon_code?: string | null
           coupon_usage_count?: number
           coupon_verified?: boolean | null
@@ -76,12 +82,15 @@ export type Database = {
         }
         Update: {
           appointment_date?: string
-          client_document?: string | null
+          client_document?: string
           client_email?: string
           client_name?: string
           client_phone?: string | null
           clinic_address?: string | null
           clinic_cep?: string | null
+          clinic_complement?: string | null
+          clinic_neighborhood?: string | null
+          clinic_number?: string | null
           coupon_code?: string | null
           coupon_usage_count?: number
           coupon_verified?: boolean | null

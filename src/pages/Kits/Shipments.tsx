@@ -96,11 +96,17 @@ type Shipment = {
   client_document: string | null
   clinic_cep: string | null
   clinic_address: string | null
+  clinic_number: string | null
+  clinic_neighborhood: string | null
+  clinic_complement: string | null
   nutritionist_coupon: string | null
   patient_coupon: string | null
   resolved_document: string
   resolved_cep: string
   resolved_address: string
+  resolved_number: string
+  resolved_neighborhood: string
+  resolved_complement: string
   resolved_nutritionist_coupon: string
   resolved_patient_coupon: string
 }
@@ -182,6 +188,9 @@ export function KitShipments({ consolidated = false }: { consolidated?: boolean 
           resolved_document: c?.document || a.client_document || '',
           resolved_cep: c?.cep || a.clinic_cep || extractCEP(a.clinic_address) || '',
           resolved_address: c?.address || a.clinic_address || '',
+          resolved_number: a.clinic_number || '',
+          resolved_neighborhood: a.clinic_neighborhood || '',
+          resolved_complement: a.clinic_complement || '',
           resolved_nutritionist_coupon: a.nutritionist_coupon || c?.nutritionist_coupon || '',
           resolved_patient_coupon: a.patient_coupon || c?.patient_coupon || '',
         }
@@ -650,8 +659,20 @@ Obrigado por confiar em nosso trabalho!`
                                   <h4 className="font-semibold text-sm border-b pb-2 text-primary">
                                     Entrega & Logística
                                   </h4>
-                                  <CopyField label="CEP" value={s.resolved_cep} />
-                                  <CopyField label="Endereço Completo" value={s.resolved_address} />
+                                  <div className="space-y-4">
+                                    <CopyField label="Endereço" value={s.resolved_address} />
+                                    <div className="grid grid-cols-2 gap-3">
+                                      <CopyField label="Número" value={s.resolved_number} />
+                                      <CopyField
+                                        label="Complemento"
+                                        value={s.resolved_complement}
+                                      />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                      <CopyField label="Bairro" value={s.resolved_neighborhood} />
+                                      <CopyField label="CEP" value={s.resolved_cep} />
+                                    </div>
+                                  </div>
 
                                   <div className="space-y-2 pt-4">
                                     <Label className="text-foreground font-bold flex items-center gap-2">
