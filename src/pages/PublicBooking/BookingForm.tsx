@@ -28,7 +28,11 @@ export function BookingForm({ userId, date, slot, onSuccess }: BookingFormProps)
     document: '',
     specialty: '',
     professional_id: '',
+    clinic_cep: '',
     clinic_address: '',
+    clinic_number: '',
+    clinic_neighborhood: '',
+    clinic_complement: '',
     instagram: '',
     patientsPerMonth: '',
   })
@@ -41,6 +45,10 @@ export function BookingForm({ userId, date, slot, onSuccess }: BookingFormProps)
     const savedSpecialty = localStorage.getItem('fourlab_booking_specialty')
     const savedProfId = localStorage.getItem('fourlab_booking_prof_id')
     const savedAddress = localStorage.getItem('fourlab_booking_address')
+    const savedCep = localStorage.getItem('fourlab_booking_cep')
+    const savedNumber = localStorage.getItem('fourlab_booking_number')
+    const savedNeighborhood = localStorage.getItem('fourlab_booking_neighborhood')
+    const savedComplement = localStorage.getItem('fourlab_booking_complement')
 
     setFormData((prev) => ({
       ...prev,
@@ -51,6 +59,10 @@ export function BookingForm({ userId, date, slot, onSuccess }: BookingFormProps)
       specialty: savedSpecialty || '',
       professional_id: savedProfId || '',
       clinic_address: savedAddress || '',
+      clinic_cep: savedCep || '',
+      clinic_number: savedNumber || '',
+      clinic_neighborhood: savedNeighborhood || '',
+      clinic_complement: savedComplement || '',
     }))
   }, [])
 
@@ -91,6 +103,10 @@ export function BookingForm({ userId, date, slot, onSuccess }: BookingFormProps)
       localStorage.setItem('fourlab_booking_specialty', formData.specialty)
       localStorage.setItem('fourlab_booking_prof_id', formData.professional_id)
       localStorage.setItem('fourlab_booking_address', formData.clinic_address)
+      localStorage.setItem('fourlab_booking_cep', formData.clinic_cep)
+      localStorage.setItem('fourlab_booking_number', formData.clinic_number)
+      localStorage.setItem('fourlab_booking_neighborhood', formData.clinic_neighborhood)
+      localStorage.setItem('fourlab_booking_complement', formData.clinic_complement)
 
       const { newApp, syncWarning } = await createPublicAppointment({
         instagram: formData.instagram,
@@ -102,11 +118,15 @@ export function BookingForm({ userId, date, slot, onSuccess }: BookingFormProps)
         client_document: formData.document,
         specialty: formData.specialty,
         professional_id: formData.professional_id,
+        clinic_cep: formData.clinic_cep,
         clinic_address: formData.clinic_address,
+        clinic_number: formData.clinic_number,
+        clinic_neighborhood: formData.clinic_neighborhood,
+        clinic_complement: formData.clinic_complement,
         appointment_date: format(date, 'yyyy-MM-dd'),
         start_time: slot.start_time,
         end_time: slot.end_time,
-        status: 'scheduled',
+        status: 'lead',
       })
 
       const newLeadId = `l-${Date.now()}`
@@ -256,14 +276,60 @@ export function BookingForm({ userId, date, slot, onSuccess }: BookingFormProps)
           </div>
         </div>
 
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="clinic_cep">CEP</Label>
+            <Input
+              id="clinic_cep"
+              name="clinic_cep"
+              value={formData.clinic_cep}
+              onChange={handleChange}
+              placeholder="00000-000"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="clinic_address">Endereço (Rua/Avenida)</Label>
+            <Input
+              id="clinic_address"
+              name="clinic_address"
+              value={formData.clinic_address}
+              onChange={handleChange}
+              placeholder="Ex: Av. Paulista"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="clinic_number">Número</Label>
+            <Input
+              id="clinic_number"
+              name="clinic_number"
+              value={formData.clinic_number}
+              onChange={handleChange}
+              placeholder="123"
+            />
+          </div>
+          <div className="space-y-2 md:col-span-2">
+            <Label htmlFor="clinic_neighborhood">Bairro</Label>
+            <Input
+              id="clinic_neighborhood"
+              name="clinic_neighborhood"
+              value={formData.clinic_neighborhood}
+              onChange={handleChange}
+              placeholder="Bela Vista"
+            />
+          </div>
+        </div>
+
         <div className="space-y-2">
-          <Label htmlFor="clinic_address">Endereço da Clínica / Consultório</Label>
+          <Label htmlFor="clinic_complement">Complemento</Label>
           <Input
-            id="clinic_address"
-            name="clinic_address"
-            value={formData.clinic_address}
+            id="clinic_complement"
+            name="clinic_complement"
+            value={formData.clinic_complement}
             onChange={handleChange}
-            placeholder="Rua, Número, Bairro, Cidade - UF"
+            placeholder="Sala 101, Andar 2"
           />
         </div>
 

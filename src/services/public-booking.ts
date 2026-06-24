@@ -93,8 +93,9 @@ export async function createPublicAppointment(data: any) {
     const contactPayload = {
       name: data.client_name,
       email: data.client_email,
-      document: data.professional_id,
+      document: data.client_document,
       address: data.clinic_address,
+      cep: data.clinic_cep,
       specialty: data.specialty,
       registration_number: data.professional_id,
       instagram: data.instagram,

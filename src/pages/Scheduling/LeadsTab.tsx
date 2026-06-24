@@ -24,41 +24,16 @@ export function LeadsTab() {
       if (!user) return
 
       try {
-        const [{ data: contacts }, { data: appointments }] = await Promise.all([
-          supabase
-            .from('contacts')
-            .select('*')
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false }),
-          supabase
-            .from('appointments')
-            .select('client_email, client_document, client_phone')
-            .eq('user_id', user.id),
-        ])
+        const { data, error } = await supabase
+          .from('appointments')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('status', 'lead')
+          .order('created_at', { ascending: false })
 
-        const appointmentEmails = new Set(
-          appointments?.map((a: any) => a.client_email).filter(Boolean),
-        )
-        const appointmentDocs = new Set(
-          appointments?.map((a: any) => a.client_document).filter(Boolean),
-        )
-        const appointmentPhones = new Set(
-          appointments?.map((a: any) => a.client_phone?.replace(/\D/g, '')).filter(Boolean),
-        )
-
-        const leadsWithVisitStatus = (contacts || []).map((c) => {
-          const hasVisit =
-            (c.email && appointmentEmails.has(c.email)) ||
-            (c.document && appointmentDocs.has(c.document)) ||
-            (c.phone && appointmentPhones.has(c.phone.replace(/\D/g, '')))
-
-          return {
-            ...c,
-            has_visit: !!hasVisit,
-          }
-        })
-
-        setLeads(leadsWithVisitStatus)
+        if (!error && data) {
+          setLeads(data)
+        }
       } catch (err) {
         console.error('Error loading leads', err)
       } finally {
@@ -70,8 +45,8 @@ export function LeadsTab() {
 
   const filteredLeads = leads.filter(
     (l) =>
-      (l.name && l.name.toLowerCase().includes(search.toLowerCase())) ||
-      (l.email && l.email.toLowerCase().includes(search.toLowerCase())),
+      (l.client_name && l.client_name.toLowerCase().includes(search.toLowerCase())) ||
+      (l.client_email && l.client_email.toLowerCase().includes(search.toLowerCase())),
   )
 
   if (loading)
@@ -96,66 +71,44 @@ export function LeadsTab() {
               <TableHead className="min-w-[150px] whitespace-nowrap">Nome</TableHead>
               <TableHead className="min-w-[150px] whitespace-nowrap">E-mail</TableHead>
               <TableHead className="min-w-[120px] whitespace-nowrap">Telefone</TableHead>
-              <TableHead className="min-w-[120px] whitespace-nowrap">CPF/Documento</TableHead>
-              <TableHead className="min-w-[120px] whitespace-nowrap">Especialidade</TableHead>
-              <TableHead className="min-w-[120px] whitespace-nowrap">Profissão</TableHead>
-              <TableHead className="min-w-[120px] whitespace-nowrap">
-                Registro Profissional
-              </TableHead>
-              <TableHead className="min-w-[100px] whitespace-nowrap">Instagram</TableHead>
-              <TableHead className="min-w-[200px] whitespace-nowrap">Endereço</TableHead>
+              <TableHead className="min-w-[120px] whitespace-nowrap">Documento (CPF)</TableHead>
               <TableHead className="min-w-[100px] whitespace-nowrap">CEP</TableHead>
-              <TableHead className="min-w-[120px] whitespace-nowrap">Pacientes por Mês</TableHead>
-              <TableHead className="min-w-[120px] whitespace-nowrap">Cupom Nutricionista</TableHead>
-              <TableHead className="min-w-[120px] whitespace-nowrap">Cupom Paciente</TableHead>
-              <TableHead className="min-w-[150px] whitespace-nowrap">Data de Cadastro</TableHead>
-              <TableHead className="min-w-[100px] whitespace-nowrap">Visita</TableHead>
+              <TableHead className="min-w-[200px] whitespace-nowrap">Endereço</TableHead>
+              <TableHead className="min-w-[80px] whitespace-nowrap">Número</TableHead>
+              <TableHead className="min-w-[150px] whitespace-nowrap">Bairro</TableHead>
+              <TableHead className="min-w-[120px] whitespace-nowrap">Complemento</TableHead>
+              <TableHead className="min-w-[150px] whitespace-nowrap">Data de Captura</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredLeads.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={15} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
                   Nenhum lead encontrado.
                 </TableCell>
               </TableRow>
             ) : (
               filteredLeads.map((lead) => (
                 <TableRow key={lead.id} className="hover:bg-slate-50/50">
-                  <TableCell className="font-medium whitespace-nowrap">{lead.name}</TableCell>
-                  <TableCell className="whitespace-nowrap">{lead.email || '-'}</TableCell>
-                  <TableCell className="whitespace-nowrap">{lead.phone || '-'}</TableCell>
-                  <TableCell className="whitespace-nowrap">{lead.document || '-'}</TableCell>
-                  <TableCell className="whitespace-nowrap">{lead.specialty || '-'}</TableCell>
-                  <TableCell className="whitespace-nowrap">{lead.profession || '-'}</TableCell>
-                  <TableCell className="whitespace-nowrap">
-                    {lead.registration_number || '-'}
+                  <TableCell className="font-medium whitespace-nowrap">
+                    {lead.client_name}
                   </TableCell>
-                  <TableCell className="whitespace-nowrap">{lead.instagram || '-'}</TableCell>
-                  <TableCell className="max-w-[200px] truncate" title={lead.address}>
-                    {lead.address || '-'}
+                  <TableCell className="whitespace-nowrap">{lead.client_email || '-'}</TableCell>
+                  <TableCell className="whitespace-nowrap">{lead.client_phone || '-'}</TableCell>
+                  <TableCell className="whitespace-nowrap">{lead.client_document || '-'}</TableCell>
+                  <TableCell className="whitespace-nowrap">{lead.clinic_cep || '-'}</TableCell>
+                  <TableCell className="max-w-[200px] truncate" title={lead.clinic_address}>
+                    {lead.clinic_address || '-'}
                   </TableCell>
-                  <TableCell className="whitespace-nowrap">{lead.cep || '-'}</TableCell>
+                  <TableCell className="whitespace-nowrap">{lead.clinic_number || '-'}</TableCell>
                   <TableCell className="whitespace-nowrap">
-                    {lead.patients_per_month || '-'}
+                    {lead.clinic_neighborhood || '-'}
                   </TableCell>
                   <TableCell className="whitespace-nowrap">
-                    {lead.nutritionist_coupon || '-'}
+                    {lead.clinic_complement || '-'}
                   </TableCell>
-                  <TableCell className="whitespace-nowrap">{lead.patient_coupon || '-'}</TableCell>
                   <TableCell className="whitespace-nowrap">
                     {lead.created_at ? format(new Date(lead.created_at), 'dd/MM/yyyy HH:mm') : '-'}
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap">
-                    {lead.has_visit ? (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        Sim
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">
-                        Não
-                      </span>
-                    )}
                   </TableCell>
                 </TableRow>
               ))
