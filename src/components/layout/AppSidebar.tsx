@@ -27,7 +27,6 @@ import { FourLabLogo } from '@/components/FourLabLogo'
 const menuItems = [
   { title: 'Painel', url: '/', icon: LayoutDashboard },
   { title: 'Agendamento', url: '/agendamento', icon: CalendarDays },
-  { title: 'CRM', url: '/crm', icon: Users },
   { title: 'Mensagens', url: '/chat', icon: MessageCircle },
   { title: 'Gestão de Kits', url: '/kits', icon: Package },
   { title: 'Logs do WhatsApp', url: '/logs', icon: Activity },

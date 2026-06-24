@@ -375,17 +375,18 @@ Obrigado por confiar em nosso trabalho!`
     const q = searchQuery.toLowerCase()
     return (
       s.client_name?.toLowerCase().includes(q) ||
+      s.client_email?.toLowerCase().includes(q) ||
       s.tracking_number?.toLowerCase().includes(q) ||
       s.kit_name?.toLowerCase().includes(q)
     )
   })
 
   return (
-    <Card className="w-full max-w-full shadow-sm animate-fade-in">
-      <CardHeader className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+    <Card className="w-full max-w-full shadow-sm animate-fade-in flex flex-col h-full">
+      <CardHeader className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 pb-4">
         <div>
           <CardTitle className="text-xl font-semibold tracking-tight">
-            {consolidated ? 'Envios Consolidados' : 'Envios e Entregas'}
+            {consolidated ? 'Envios Consolidados' : 'Meus Envios'}
           </CardTitle>
           <CardDescription className="mt-1 max-w-xl">
             {consolidated
@@ -393,18 +394,16 @@ Obrigado por confiar em nosso trabalho!`
               : 'Acompanhe e gerencie a logística dos kits solicitados.'}
           </CardDescription>
         </div>
-        <div className="flex flex-col sm:flex-row gap-2">
-          {consolidated && (
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar cliente ou rastreio..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full sm:w-[250px] pl-9"
-              />
-            </div>
-          )}
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <div className="relative flex-1 sm:flex-initial">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar prescritor ou email..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full sm:w-[250px] pl-9"
+            />
+          </div>
           <Button
             onClick={fetchShipments}
             disabled={loading}
@@ -416,10 +415,10 @@ Obrigado por confiar em nosso trabalho!`
         </div>
       </CardHeader>
 
-      <CardContent className="p-0 sm:p-6 sm:pt-0">
-        <div className="w-full overflow-x-auto border-y sm:border rounded-none sm:rounded-md bg-card">
-          <Table className="w-full min-w-[800px]">
-            <TableHeader>
+      <CardContent className="p-0 sm:p-6 sm:pt-0 flex-1 overflow-hidden flex flex-col">
+        <div className="w-full flex-1 overflow-auto border-y sm:border rounded-none sm:rounded-md bg-card max-h-[calc(100vh-280px)]">
+          <Table className="w-full min-w-[800px] relative">
+            <TableHeader className="sticky top-0 bg-background z-10 shadow-sm">
               <TableRow>
                 <TableHead className="whitespace-nowrap">Data</TableHead>
                 <TableHead className="whitespace-nowrap">Cliente</TableHead>
