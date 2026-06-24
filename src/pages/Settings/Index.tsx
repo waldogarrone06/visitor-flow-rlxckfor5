@@ -11,6 +11,7 @@ import { SecretsVaultCard } from './SecretsVaultCard'
 import { PersonalScheduleCard } from './PersonalScheduleCard'
 import { MelhorEnvioCard } from './MelhorEnvioCard'
 import { ReminderSettingsCard } from './ReminderSettingsCard'
+import { CatalogSettingsCard } from './CatalogSettingsCard'
 import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -202,6 +203,7 @@ export default function SettingsPage() {
           <GoogleMeetCard targetUserId={selectedUserId} />
           <WhatsAppCard targetUserId={selectedUserId} />
           <MelhorEnvioCard targetUserId={selectedUserId} />
+          <CatalogSettingsCard targetUserId={selectedUserId} />
         </div>
         <div className="grid gap-6">
           <ReminderSettingsCard targetUserId={selectedUserId} />

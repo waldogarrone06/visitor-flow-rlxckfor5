@@ -4,8 +4,9 @@ import { Calendar } from '@/components/ui/calendar'
 import { FourLabLogo } from '@/components/FourLabLogo'
 import { ptBR } from 'date-fns/locale'
 import { startOfMonth, endOfMonth, format } from 'date-fns'
-import { Copy } from 'lucide-react'
+import { Copy, ExternalLink } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
+import { getIntegrations } from '@/services/settings'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/hooks/use-toast'
 import {
@@ -30,8 +31,15 @@ export default function SchedulingPage() {
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date())
   const [monthAppointments, setMonthAppointments] = useState<Date[]>([])
   const [refreshTrigger, setRefreshTrigger] = useState(0)
+  const [catalogLink, setCatalogLink] = useState<string | null>(null)
   const { user } = useAuth()
   const { state } = useMainStore()
+
+  useEffect(() => {
+    if (user?.id) {
+      getIntegrations(user.id).then((res) => setCatalogLink(res?.catalog_link || null))
+    }
+  }, [user?.id])
 
   useEffect(() => {
     if (!user) return
@@ -98,6 +106,25 @@ export default function SchedulingPage() {
               <SelectItem value="v2">Equipe</SelectItem>
             </SelectContent>
           </Select>
+          {catalogLink ? (
+            <Button
+              variant="outline"
+              onClick={() => window.open(catalogLink, '_blank')}
+              className="gap-2"
+              title="Abrir catálogo"
+            >
+              <ExternalLink className="h-4 w-4" /> Ver Catálogo
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              disabled
+              className="gap-2"
+              title="Configure o link do catálogo nas configurações"
+            >
+              <ExternalLink className="h-4 w-4" /> Ver Catálogo
+            </Button>
+          )}
           <Button
             variant="default"
             onClick={handleCopyLink}

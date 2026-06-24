@@ -572,6 +572,7 @@ export type Database = {
       user_integrations: {
         Row: {
           created_at: string
+          fixed_meet_link: string | null
           google_access_token: string | null
           google_email: string | null
           google_invitation_body: string | null
@@ -593,6 +594,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          fixed_meet_link?: string | null
           google_access_token?: string | null
           google_email?: string | null
           google_invitation_body?: string | null
@@ -614,6 +616,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          fixed_meet_link?: string | null
           google_access_token?: string | null
           google_email?: string | null
           google_invitation_body?: string | null
