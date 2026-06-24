@@ -524,6 +524,20 @@ Obrigado por confiar em nosso trabalho!`
 
                                 <div className="space-y-4">
                                   <h4 className="font-semibold text-sm border-b pb-2 text-primary">
+                                    Endereço de Entrega
+                                  </h4>
+                                  <CopyField label="CEP" value={s.clinic_cep || '-'} />
+                                  <CopyField label="Endereço" value={s.clinic_address || '-'} />
+                                  <CopyField label="Número" value={s.clinic_number || '-'} />
+                                  <CopyField label="Bairro" value={s.clinic_neighborhood || '-'} />
+                                  <CopyField
+                                    label="Complemento"
+                                    value={s.clinic_complement || '-'}
+                                  />
+                                </div>
+
+                                <div className="space-y-4">
+                                  <h4 className="font-semibold text-sm border-b pb-2 text-primary">
                                     Cupons Associados
                                   </h4>
                                   <div className="space-y-3">
