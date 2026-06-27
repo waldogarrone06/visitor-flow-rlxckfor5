@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import {
   Table,
@@ -136,11 +136,42 @@ export function KitShipments({ consolidated = false }: { consolidated?: boolean 
   const [loading, setLoading] = useState(true)
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set())
   const [searchQuery, setSearchQuery] = useState('')
+  const [cepLoading, setCepLoading] = useState(false)
+  const clinicNumberRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
 
   useEffect(() => {
     fetchShipments()
   }, [consolidated])
+
+  useEffect(() => {
+    const cleanCep = addressForm.clinic_cep.replace(/\D/g, '')
+    if (cleanCep.length === 8) {
+      setCepLoading(true)
+      fetch(`https://viacep.com.br/ws/${cleanCep}/json/`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.erro) {
+            toast({ title: 'CEP não encontrado', description: 'Preencha o endereço manualmente.' })
+            return
+          }
+          setAddressForm((prev) => ({
+            ...prev,
+            clinic_address: data.logradouro || prev.clinic_address,
+            clinic_neighborhood: data.bairro || prev.clinic_neighborhood,
+          }))
+          toast({ title: 'Endereço encontrado', description: 'Campos preenchidos via CEP.' })
+          setTimeout(() => clinicNumberRef.current?.focus(), 100)
+        })
+        .catch(() => {
+          toast({
+            title: 'CEP não encontrado',
+            description: 'Serviço indisponível. Preencha manualmente.',
+          })
+        })
+        .finally(() => setCepLoading(false))
+    }
+  }, [addressForm.clinic_cep])
 
   const startEditingAddress = (s: Shipment) => {
     setEditingAddressId(s.id)
@@ -779,22 +810,29 @@ Obrigado por confiar em nosso trabalho!`
                                         <Label className="text-xs uppercase tracking-wider text-muted-foreground">
                                           CEP
                                         </Label>
-                                        <Input
-                                          value={addressForm.clinic_cep}
-                                          onChange={(e) => {
-                                            let val = e.target.value.replace(/\D/g, '')
-                                            if (val.length > 8) val = val.slice(0, 8)
-                                            if (val.length > 5)
-                                              val = `${val.slice(0, 5)}-${val.slice(5)}`
-                                            setAddressForm((p) => ({
-                                              ...p,
-                                              clinic_cep: val,
-                                            }))
-                                          }}
-                                          maxLength={9}
-                                          placeholder="00000-000"
-                                          className="h-8 text-sm"
-                                        />
+                                        <div className="relative">
+                                          <Input
+                                            value={addressForm.clinic_cep}
+                                            onChange={(e) => {
+                                              let val = e.target.value.replace(/\D/g, '')
+                                              if (val.length > 8) val = val.slice(0, 8)
+                                              if (val.length > 5)
+                                                val = `${val.slice(0, 5)}-${val.slice(5)}`
+                                              setAddressForm((p) => ({
+                                                ...p,
+                                                clinic_cep: val,
+                                              }))
+                                            }}
+                                            maxLength={9}
+                                            placeholder="00000-000"
+                                            className={`h-8 text-sm ${cepLoading ? 'pr-9' : ''}`}
+                                          />
+                                          {cepLoading && (
+                                            <div className="absolute right-2.5 top-2">
+                                              <div className="w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                                            </div>
+                                          )}
+                                        </div>
                                       </div>
                                       <div className="space-y-1.5">
                                         <Label className="text-xs uppercase tracking-wider text-muted-foreground">
@@ -817,6 +855,7 @@ Obrigado por confiar em nosso trabalho!`
                                             Número
                                           </Label>
                                           <Input
+                                            ref={clinicNumberRef}
                                             value={addressForm.clinic_number}
                                             onChange={(e) =>
                                               setAddressForm((p) => ({
