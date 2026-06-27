@@ -781,12 +781,18 @@ Obrigado por confiar em nosso trabalho!`
                                         </Label>
                                         <Input
                                           value={addressForm.clinic_cep}
-                                          onChange={(e) =>
+                                          onChange={(e) => {
+                                            let val = e.target.value.replace(/\D/g, '')
+                                            if (val.length > 8) val = val.slice(0, 8)
+                                            if (val.length > 5)
+                                              val = `${val.slice(0, 5)}-${val.slice(5)}`
                                             setAddressForm((p) => ({
                                               ...p,
-                                              clinic_cep: e.target.value,
+                                              clinic_cep: val,
                                             }))
-                                          }
+                                          }}
+                                          maxLength={9}
+                                          placeholder="00000-000"
                                           className="h-8 text-sm"
                                         />
                                       </div>
