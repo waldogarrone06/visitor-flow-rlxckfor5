@@ -239,8 +239,12 @@ export function KitShipments({ consolidated = false }: { consolidated?: boolean 
         return {
           ...a,
           resolved_document: c?.document || a.client_document || '',
-          resolved_cep: c?.cep || a.clinic_cep || extractCEP(a.clinic_address) || '',
-          resolved_address: c?.address || a.clinic_address || '',
+          resolved_cep: a.is_address_edited
+            ? a.clinic_cep || ''
+            : c?.cep || a.clinic_cep || extractCEP(a.clinic_address) || '',
+          resolved_address: a.is_address_edited
+            ? a.clinic_address || ''
+            : c?.address || a.clinic_address || '',
           resolved_number: a.clinic_number || '',
           resolved_neighborhood: a.clinic_neighborhood || '',
           resolved_complement: a.clinic_complement || '',
@@ -579,13 +583,16 @@ Obrigado por confiar em nosso trabalho!`
                                   <h4 className="font-semibold text-sm border-b pb-2 text-primary">
                                     Endereço de Entrega
                                   </h4>
-                                  <CopyField label="CEP" value={s.clinic_cep || '-'} />
-                                  <CopyField label="Endereço" value={s.clinic_address || '-'} />
-                                  <CopyField label="Número" value={s.clinic_number || '-'} />
-                                  <CopyField label="Bairro" value={s.clinic_neighborhood || '-'} />
+                                  <CopyField label="CEP" value={s.resolved_cep || '-'} />
+                                  <CopyField label="Endereço" value={s.resolved_address || '-'} />
+                                  <CopyField label="Número" value={s.resolved_number || '-'} />
+                                  <CopyField
+                                    label="Bairro"
+                                    value={s.resolved_neighborhood || '-'}
+                                  />
                                   <CopyField
                                     label="Complemento"
-                                    value={s.clinic_complement || '-'}
+                                    value={s.resolved_complement || '-'}
                                   />
                                 </div>
 
