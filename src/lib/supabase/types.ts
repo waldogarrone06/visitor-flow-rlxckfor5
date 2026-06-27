@@ -571,6 +571,7 @@ export type Database = {
       }
       user_integrations: {
         Row: {
+          catalog_link: string | null
           created_at: string
           fixed_meet_link: string | null
           google_access_token: string | null
@@ -593,6 +594,7 @@ export type Database = {
           yampi_token: string | null
         }
         Insert: {
+          catalog_link?: string | null
           created_at?: string
           fixed_meet_link?: string | null
           google_access_token?: string | null
@@ -615,6 +617,7 @@ export type Database = {
           yampi_token?: string | null
         }
         Update: {
+          catalog_link?: string | null
           created_at?: string
           fixed_meet_link?: string | null
           google_access_token?: string | null

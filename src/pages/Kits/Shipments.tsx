@@ -39,7 +39,18 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
-import { Copy, Truck, ExternalLink, Package, Check, Trash2, Search } from 'lucide-react'
+import {
+  Copy,
+  Truck,
+  ExternalLink,
+  Package,
+  Check,
+  Trash2,
+  Search,
+  Edit2,
+  X,
+  Save,
+} from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
@@ -109,10 +120,19 @@ type Shipment = {
   resolved_complement: string
   resolved_nutritionist_coupon: string
   resolved_patient_coupon: string
+  is_address_edited: boolean
 }
 
 export function KitShipments({ consolidated = false }: { consolidated?: boolean }) {
   const [shipments, setShipments] = useState<Shipment[]>([])
+  const [editingAddressId, setEditingAddressId] = useState<string | null>(null)
+  const [addressForm, setAddressForm] = useState({
+    clinic_cep: '',
+    clinic_address: '',
+    clinic_number: '',
+    clinic_neighborhood: '',
+    clinic_complement: '',
+  })
   const [loading, setLoading] = useState(true)
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set())
   const [searchQuery, setSearchQuery] = useState('')
@@ -121,6 +141,39 @@ export function KitShipments({ consolidated = false }: { consolidated?: boolean 
   useEffect(() => {
     fetchShipments()
   }, [consolidated])
+
+  const startEditingAddress = (s: Shipment) => {
+    setEditingAddressId(s.id)
+    setAddressForm({
+      clinic_cep: s.resolved_cep || '',
+      clinic_address: s.resolved_address || '',
+      clinic_number: s.resolved_number || '',
+      clinic_neighborhood: s.resolved_neighborhood || '',
+      clinic_complement: s.resolved_complement || '',
+    })
+  }
+
+  const saveAddress = async (id: string) => {
+    const { error } = await supabase
+      .from('appointments')
+      .update({
+        clinic_cep: addressForm.clinic_cep,
+        clinic_address: addressForm.clinic_address,
+        clinic_number: addressForm.clinic_number,
+        clinic_neighborhood: addressForm.clinic_neighborhood,
+        clinic_complement: addressForm.clinic_complement,
+        is_address_edited: true,
+      })
+      .eq('id', id)
+
+    if (error) {
+      toast({ title: 'Erro', description: 'Falha ao salvar endereço.', variant: 'destructive' })
+    } else {
+      toast({ title: 'Sucesso', description: 'Endereço atualizado com sucesso.' })
+      setEditingAddressId(null)
+      fetchShipments()
+    }
+  }
 
   const extractCEP = (address: string | null) => {
     if (!address) return ''
@@ -193,6 +246,7 @@ export function KitShipments({ consolidated = false }: { consolidated?: boolean 
           resolved_complement: a.clinic_complement || '',
           resolved_nutritionist_coupon: a.nutritionist_coupon || c?.nutritionist_coupon || '',
           resolved_patient_coupon: a.patient_coupon || c?.patient_coupon || '',
+          is_address_edited: a.is_address_edited || false,
         }
       })
       setShipments(enriched)
@@ -669,25 +723,147 @@ Obrigado por confiar em nosso trabalho!`
                                 </div>
 
                                 <div className="space-y-4">
-                                  <h4 className="font-semibold text-sm border-b pb-2 text-primary">
-                                    Entrega & Logística
-                                  </h4>
-                                  <div className="space-y-4">
-                                    <CopyField label="Endereço" value={s.resolved_address} />
-                                    <div className="grid grid-cols-2 gap-3">
-                                      <CopyField label="Número" value={s.resolved_number} />
-                                      <CopyField
-                                        label="Complemento"
-                                        value={s.resolved_complement}
-                                      />
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-3">
-                                      <CopyField label="Bairro" value={s.resolved_neighborhood} />
-                                      <CopyField label="CEP" value={s.resolved_cep} />
-                                    </div>
+                                  <div className="flex items-center justify-between border-b pb-2">
+                                    <h4 className="font-semibold text-sm text-primary flex items-center gap-2">
+                                      Entrega & Logística
+                                      {s.is_address_edited && (
+                                        <Badge
+                                          variant="outline"
+                                          className="text-xs bg-amber-100 text-amber-800 hover:bg-amber-100 border-amber-300 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800"
+                                        >
+                                          Endereço Editado
+                                        </Badge>
+                                      )}
+                                    </h4>
+                                    {editingAddressId !== s.id ? (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => startEditingAddress(s)}
+                                        className="h-7 text-xs px-2"
+                                      >
+                                        <Edit2 className="h-3 w-3 mr-1" /> Editar
+                                      </Button>
+                                    ) : (
+                                      <div className="flex gap-1">
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => setEditingAddressId(null)}
+                                          className="h-7 text-xs px-2 text-muted-foreground"
+                                        >
+                                          <X className="h-3 w-3 mr-1" /> Cancelar
+                                        </Button>
+                                        <Button
+                                          variant="default"
+                                          size="sm"
+                                          onClick={() => saveAddress(s.id)}
+                                          className="h-7 text-xs px-2"
+                                        >
+                                          <Save className="h-3 w-3 mr-1" /> Salvar
+                                        </Button>
+                                      </div>
+                                    )}
                                   </div>
 
-                                  <div className="space-y-2 pt-4">
+                                  {editingAddressId === s.id ? (
+                                    <div className="space-y-3 pt-2">
+                                      <div className="space-y-1.5">
+                                        <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                                          CEP
+                                        </Label>
+                                        <Input
+                                          value={addressForm.clinic_cep}
+                                          onChange={(e) =>
+                                            setAddressForm((p) => ({
+                                              ...p,
+                                              clinic_cep: e.target.value,
+                                            }))
+                                          }
+                                          className="h-8 text-sm"
+                                        />
+                                      </div>
+                                      <div className="space-y-1.5">
+                                        <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                                          Endereço
+                                        </Label>
+                                        <Input
+                                          value={addressForm.clinic_address}
+                                          onChange={(e) =>
+                                            setAddressForm((p) => ({
+                                              ...p,
+                                              clinic_address: e.target.value,
+                                            }))
+                                          }
+                                          className="h-8 text-sm"
+                                        />
+                                      </div>
+                                      <div className="grid grid-cols-2 gap-3">
+                                        <div className="space-y-1.5">
+                                          <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                                            Número
+                                          </Label>
+                                          <Input
+                                            value={addressForm.clinic_number}
+                                            onChange={(e) =>
+                                              setAddressForm((p) => ({
+                                                ...p,
+                                                clinic_number: e.target.value,
+                                              }))
+                                            }
+                                            className="h-8 text-sm"
+                                          />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                          <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                                            Complemento
+                                          </Label>
+                                          <Input
+                                            value={addressForm.clinic_complement}
+                                            onChange={(e) =>
+                                              setAddressForm((p) => ({
+                                                ...p,
+                                                clinic_complement: e.target.value,
+                                              }))
+                                            }
+                                            className="h-8 text-sm"
+                                          />
+                                        </div>
+                                      </div>
+                                      <div className="space-y-1.5">
+                                        <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                                          Bairro
+                                        </Label>
+                                        <Input
+                                          value={addressForm.clinic_neighborhood}
+                                          onChange={(e) =>
+                                            setAddressForm((p) => ({
+                                              ...p,
+                                              clinic_neighborhood: e.target.value,
+                                            }))
+                                          }
+                                          className="h-8 text-sm"
+                                        />
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="space-y-4 pt-2">
+                                      <CopyField label="Endereço" value={s.resolved_address} />
+                                      <div className="grid grid-cols-2 gap-3">
+                                        <CopyField label="Número" value={s.resolved_number} />
+                                        <CopyField
+                                          label="Complemento"
+                                          value={s.resolved_complement}
+                                        />
+                                      </div>
+                                      <div className="grid grid-cols-2 gap-3">
+                                        <CopyField label="Bairro" value={s.resolved_neighborhood} />
+                                        <CopyField label="CEP" value={s.resolved_cep} />
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  <div className="space-y-2 pt-4 border-t mt-4">
                                     <Label className="text-foreground font-bold flex items-center gap-2">
                                       <Truck className="h-4 w-4" />
                                       Código de Rastreio
