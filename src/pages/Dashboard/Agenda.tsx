@@ -3,7 +3,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { CheckCircle2, Clock, CalendarDays } from 'lucide-react'
+import { CheckCircle2, Clock, CalendarDays, Trash2 } from 'lucide-react'
 import { format, isToday, isTomorrow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { toast } from '@/hooks/use-toast'
@@ -18,6 +18,16 @@ import {
   DialogTrigger,
   DialogFooter,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { supabase } from '@/lib/supabase/client'
 import { syncCalendarService } from '@/features/syncCalendarService'
 import { Input } from '@/components/ui/input'
@@ -31,11 +41,51 @@ export function DashboardAgenda({ dateRange }: { dateRange?: DateRange }) {
     date: string
     time: string
   } | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deletedIds, setDeletedIds] = useState<string[]>([])
 
   const upcoming = state.appointments
-    .filter((a) => a.status === 'Scheduled' && isDateInRange(a.date, dateRange))
+    .filter(
+      (a) =>
+        a.status === 'Scheduled' && isDateInRange(a.date, dateRange) && !deletedIds.includes(a.id),
+    )
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     .slice(0, 5)
+
+  const handleDeleteAppointment = async () => {
+    if (!deleteTarget) return
+    setIsDeleting(true)
+    try {
+      const { error } = await supabase.from('appointments').delete().eq('id', deleteTarget.id)
+
+      if (error) throw error
+
+      try {
+        const result = await syncCalendarService.syncDelete(deleteTarget.id)
+        if (!result.success) {
+          console.error('Calendar sync error:', result.error)
+        }
+      } catch (syncErr) {
+        console.error('Google Calendar Sync Delete Error:', syncErr)
+      }
+
+      setDeletedIds((prev) => [...prev, deleteTarget.id])
+      toast({
+        title: 'Agendamento Cancelado',
+        description: 'O horário foi liberado para novos agendamentos.',
+      })
+      setDeleteTarget(null)
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao cancelar',
+        description: err.message || 'Falha na operação.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsDeleting(false)
+    }
+  }
 
   const handleMarkVisited = (id: string) => {
     dispatch({ type: 'MARK_VISITED', payload: { appointmentId: id } })
@@ -161,6 +211,15 @@ export function DashboardAgenda({ dateRange }: { dateRange?: DateRange }) {
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 p-0"
+                      title="Cancelar agendamento"
+                      onClick={() => setDeleteTarget({ id: apt.id, name: lead.name })}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
                     <Dialog
                       open={rescheduleData?.id === apt.id}
                       onOpenChange={(open) => (!open ? setRescheduleData(null) : null)}
@@ -249,6 +308,34 @@ export function DashboardAgenda({ dateRange }: { dateRange?: DateRange }) {
           </div>
         )}
       </CardContent>
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && !isDeleting && setDeleteTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Cancelamento</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja cancelar o agendamento de <strong>{deleteTarget?.name}</strong>
+              ? O horário será liberado para novos agendamentos. Os dados do contato serão
+              preservados.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Voltar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault()
+                handleDeleteAppointment()
+              }}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? 'Cancelando...' : 'Sim, Cancelar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   )
 }

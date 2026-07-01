@@ -32,6 +32,7 @@ export default function SchedulingPage() {
   const [monthAppointments, setMonthAppointments] = useState<Date[]>([])
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [catalogLink, setCatalogLink] = useState<string | null>(null)
+  const [duplicateData, setDuplicateData] = useState<any | null>(null)
   const { user } = useAuth()
   const { state } = useMainStore()
 
@@ -202,7 +203,14 @@ export default function SchedulingPage() {
                 </CardContent>
               </Card>
 
-              <DayAppointments date={date} onUpdate={() => setRefreshTrigger((prev) => prev + 1)} />
+              <DayAppointments
+                date={date}
+                onUpdate={() => setRefreshTrigger((prev) => prev + 1)}
+                onDuplicate={(app) => {
+                  setDuplicateData(app)
+                  toast({ title: 'Duplicação', description: 'Selecione a nova data e horário.' })
+                }}
+              />
             </div>
 
             <div className="xl:col-span-5">
@@ -214,6 +222,8 @@ export default function SchedulingPage() {
                   <ScheduleForm
                     selectedDate={date}
                     onSuccess={() => setRefreshTrigger((prev) => prev + 1)}
+                    duplicateData={duplicateData}
+                    onDuplicateClear={() => setDuplicateData(null)}
                   />
                 </CardContent>
               </Card>

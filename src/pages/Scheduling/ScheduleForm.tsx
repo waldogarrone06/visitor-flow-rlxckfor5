@@ -95,9 +95,13 @@ type FormValues = z.infer<typeof formSchema>
 export function ScheduleForm({
   selectedDate,
   onSuccess,
+  duplicateData,
+  onDuplicateClear,
 }: {
   selectedDate: Date | undefined
   onSuccess: () => void
+  duplicateData?: any | null
+  onDuplicateClear?: () => void
 }) {
   const { state, dispatch } = useMainStore()
   const [loading, setLoading] = useState(false)
@@ -216,6 +220,37 @@ export function ScheduleForm({
     const timer = setTimeout(searchContacts, 400)
     return () => clearTimeout(timer)
   }, [searchLead])
+
+  useEffect(() => {
+    if (duplicateData) {
+      form.reset({
+        ...form.getValues(),
+        name: duplicateData.client_name || '',
+        cpf: duplicateData.client_document || '',
+        phone: duplicateData.client_phone || '',
+        email: duplicateData.client_email || '',
+        profession: undefined,
+        specialty: duplicateData.specialty || '',
+        registrationNumber: duplicateData.professional_id || '',
+        instagram: duplicateData.instagram || '',
+        patientsPerMonth: duplicateData.patients_per_month || '',
+        cep: duplicateData.clinic_cep || '',
+        street: duplicateData.clinic_address || '',
+        number: duplicateData.clinic_number || '',
+        complement: duplicateData.clinic_complement || '',
+        neighborhood: duplicateData.clinic_neighborhood || '',
+        city: '',
+        state: '',
+        time: '',
+        endTime: '',
+        authorizeInfo: false,
+      })
+      toast({
+        title: 'Agendamento Duplicado',
+        description: 'Dados preenchidos. Selecione uma nova data e horário.',
+      })
+    }
+  }, [duplicateData, form])
 
   useEffect(() => {
     const cleanCep = cepValue?.replace(/\D/g, '')
@@ -442,6 +477,7 @@ export function ScheduleForm({
       form.reset()
       setLoading(false)
       onSuccess()
+      onDuplicateClear?.()
     } catch (err) {
       console.error(err)
       toast({
