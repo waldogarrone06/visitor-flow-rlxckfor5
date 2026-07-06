@@ -39,18 +39,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
-import {
-  Copy,
-  Truck,
-  ExternalLink,
-  Package,
-  Check,
-  Trash2,
-  Search,
-  Edit2,
-  X,
-  Save,
-} from 'lucide-react'
+import { Copy, Truck, ExternalLink, Check, Trash2, Search, Edit2, X, Save } from 'lucide-react'
+import { KitSelect } from '@/components/kit-select'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
@@ -551,12 +541,11 @@ Obrigado por confiar em nosso trabalho!`
                       {s.client_name}
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
-                      <div className="flex items-center gap-2">
-                        <Package className="h-4 w-4 text-muted-foreground shrink-0" />
-                        <span className="truncate max-w-[150px]" title={s.kit_name || 'Kit Padrão'}>
-                          {s.kit_name || 'Kit Padrão'}
-                        </span>
-                      </div>
+                      <KitSelect
+                        appointmentId={s.id}
+                        value={s.kit_name}
+                        onUpdated={fetchShipments}
+                      />
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
                       {s.tracking_number ? (
