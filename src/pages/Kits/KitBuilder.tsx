@@ -11,12 +11,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Trash2, Plus, Package } from 'lucide-react'
+import { Trash2, Plus, Package, Check, ChevronsUpDown } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import { getKits, createKit, deleteKit, assignKitToPrescriber } from '@/services/kits'
 import { getAllLeadsForKits, LeadOption } from '@/services/leads'
 import { updateContactCoupons } from '@/services/contacts'
 import { supabase } from '@/lib/supabase/client'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
+import { cn } from '@/lib/utils'
 
 export function KitBuilder() {
   const { user } = useAuth()
@@ -24,6 +34,7 @@ export function KitBuilder() {
   const [kits, setKits] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [kitName, setKitName] = useState('')
+  const [kitComboOpen, setKitComboOpen] = useState(false)
   const [selectedLeadId, setSelectedLeadId] = useState('')
   const [nutriCoupon, setNutriCoupon] = useState('')
   const [patientCoupon, setPatientCoupon] = useState('')
@@ -129,11 +140,47 @@ export function KitBuilder() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Nome do Kit</Label>
-              <Input
-                value={kitName}
-                onChange={(e) => setKitName(e.target.value)}
-                placeholder="Ex: Kit Iniciante"
-              />
+              <Popover open={kitComboOpen} onOpenChange={setKitComboOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={kitComboOpen}
+                    className="w-full justify-between font-normal"
+                  >
+                    {kitName || 'Selecione um kit...'}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Buscar kit..." />
+                    <CommandList>
+                      <CommandEmpty>Nenhum kit encontrado.</CommandEmpty>
+                      <CommandGroup>
+                        {kits.map((kit) => (
+                          <CommandItem
+                            key={kit.id}
+                            value={kit.name}
+                            onSelect={() => {
+                              setKitName(kit.name)
+                              setKitComboOpen(false)
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                'mr-2 h-4 w-4',
+                                kitName === kit.name ? 'opacity-100' : 'opacity-0',
+                              )}
+                            />
+                            {kit.name}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="space-y-2">
               <Label>Lead / Prescritor</Label>
