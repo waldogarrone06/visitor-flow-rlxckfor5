@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
 import {
   Table,
   TableBody,
@@ -10,38 +11,73 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { format } from 'date-fns'
-import { Search } from 'lucide-react'
+import { Search, Trash2 } from 'lucide-react'
+import { toast } from '@/hooks/use-toast'
+import { deleteLead } from '@/services/leads'
 
-export function LeadsTab() {
+interface LeadsTabProps {
+  onRefresh?: () => void
+}
+
+export function LeadsTab({ onRefresh }: LeadsTabProps) {
   const { user } = useAuth()
   const [leads, setLeads] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
+
+  const loadLeads = useCallback(async () => {
+    if (!user) return
+    try {
+      const { data, error } = await supabase
+        .from('appointments')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('status', 'lead')
+        .order('created_at', { ascending: false })
+      if (!error && data) setLeads(data)
+    } catch (err) {
+      console.error('Error loading leads', err)
+    } finally {
+      setLoading(false)
+    }
+  }, [user])
 
   useEffect(() => {
-    async function loadData() {
-      if (!user) return
+    loadLeads()
+  }, [loadLeads])
 
-      try {
-        const { data, error } = await supabase
-          .from('appointments')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('status', 'lead')
-          .order('created_at', { ascending: false })
-
-        if (!error && data) {
-          setLeads(data)
-        }
-      } catch (err) {
-        console.error('Error loading leads', err)
-      } finally {
-        setLoading(false)
-      }
+  const handleDelete = async () => {
+    if (!deleteId) return
+    setDeleting(true)
+    try {
+      await deleteLead(deleteId)
+      toast({ title: 'Lead excluído', description: 'O registro foi removido com sucesso.' })
+      setLeads((prev) => prev.filter((l) => l.id !== deleteId))
+      onRefresh?.()
+    } catch (err) {
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível excluir o lead.',
+        variant: 'destructive',
+      })
+    } finally {
+      setDeleting(false)
+      setDeleteId(null)
     }
-    loadData()
-  }, [user])
+  }
 
   const filteredLeads = leads.filter(
     (l) =>
@@ -78,12 +114,13 @@ export function LeadsTab() {
               <TableHead className="min-w-[150px] whitespace-nowrap">Bairro</TableHead>
               <TableHead className="min-w-[120px] whitespace-nowrap">Complemento</TableHead>
               <TableHead className="min-w-[150px] whitespace-nowrap">Data de Captura</TableHead>
+              <TableHead className="min-w-[80px] whitespace-nowrap text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredLeads.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={11} className="text-center text-muted-foreground py-8">
                   Nenhum lead encontrado.
                 </TableCell>
               </TableRow>
@@ -110,12 +147,43 @@ export function LeadsTab() {
                   <TableCell className="whitespace-nowrap">
                     {lead.created_at ? format(new Date(lead.created_at), 'dd/MM/yyyy HH:mm') : '-'}
                   </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                      onClick={() => setDeleteId(lead.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))
             )}
           </TableBody>
         </Table>
       </div>
+
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir este lead? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleting ? 'Excluindo...' : 'Excluir'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

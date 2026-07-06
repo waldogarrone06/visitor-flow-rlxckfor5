@@ -83,7 +83,6 @@ export async function assignKitToPrescriber(userId: string, email: string, kitNa
     .select('id')
     .eq('user_id', userId)
     .eq('client_email', email)
-    .neq('status', 'Lead')
     .order('created_at', { ascending: false })
     .limit(1)
     .single()

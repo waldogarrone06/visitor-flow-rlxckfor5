@@ -240,7 +240,7 @@ export default function SchedulingPage() {
         </TabsContent>
 
         <TabsContent value="leads" className="mt-0">
-          <LeadsTab />
+          <LeadsTab onRefresh={() => setRefreshTrigger((prev) => prev + 1)} />
         </TabsContent>
       </Tabs>
     </div>
