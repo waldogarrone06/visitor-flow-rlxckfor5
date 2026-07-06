@@ -18,6 +18,7 @@ export type Database = {
           client_phone: string | null
           clinic_address: string | null
           clinic_cep: string | null
+          clinic_city: string | null
           clinic_complement: string | null
           clinic_neighborhood: string | null
           clinic_number: string | null
@@ -54,6 +55,7 @@ export type Database = {
           client_phone?: string | null
           clinic_address?: string | null
           clinic_cep?: string | null
+          clinic_city?: string | null
           clinic_complement?: string | null
           clinic_neighborhood?: string | null
           clinic_number?: string | null
@@ -90,6 +92,7 @@ export type Database = {
           client_phone?: string | null
           clinic_address?: string | null
           clinic_cep?: string | null
+          clinic_city?: string | null
           clinic_complement?: string | null
           clinic_neighborhood?: string | null
           clinic_number?: string | null

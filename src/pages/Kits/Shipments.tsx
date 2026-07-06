@@ -110,6 +110,7 @@ type Shipment = {
   clinic_number: string | null
   clinic_neighborhood: string | null
   clinic_complement: string | null
+  clinic_city: string | null
   nutritionist_coupon: string | null
   patient_coupon: string | null
   resolved_document: string
@@ -118,6 +119,7 @@ type Shipment = {
   resolved_number: string
   resolved_neighborhood: string
   resolved_complement: string
+  resolved_city: string
   resolved_nutritionist_coupon: string
   resolved_patient_coupon: string
   is_address_edited: boolean
@@ -132,6 +134,7 @@ export function KitShipments({ consolidated = false }: { consolidated?: boolean 
     clinic_number: '',
     clinic_neighborhood: '',
     clinic_complement: '',
+    clinic_city: '',
   })
   const [loading, setLoading] = useState(true)
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set())
@@ -181,6 +184,7 @@ export function KitShipments({ consolidated = false }: { consolidated?: boolean 
       clinic_number: s.resolved_number || '',
       clinic_neighborhood: s.resolved_neighborhood || '',
       clinic_complement: s.resolved_complement || '',
+      clinic_city: s.resolved_city || '',
     })
   }
 
@@ -193,6 +197,7 @@ export function KitShipments({ consolidated = false }: { consolidated?: boolean 
         clinic_number: addressForm.clinic_number,
         clinic_neighborhood: addressForm.clinic_neighborhood,
         clinic_complement: addressForm.clinic_complement,
+        clinic_city: addressForm.clinic_city,
         is_address_edited: true,
       })
       .eq('id', id)
@@ -279,6 +284,7 @@ export function KitShipments({ consolidated = false }: { consolidated?: boolean 
           resolved_number: a.clinic_number || '',
           resolved_neighborhood: a.clinic_neighborhood || '',
           resolved_complement: a.clinic_complement || '',
+          resolved_city: a.clinic_city || '',
           resolved_nutritionist_coupon: a.nutritionist_coupon || c?.nutritionist_coupon || '',
           resolved_patient_coupon: a.patient_coupon || c?.patient_coupon || '',
           is_address_edited: a.is_address_edited || false,
@@ -897,6 +903,21 @@ Obrigado por confiar em nosso trabalho!`
                                           className="h-8 text-sm"
                                         />
                                       </div>
+                                      <div className="space-y-1.5">
+                                        <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                                          Cidade
+                                        </Label>
+                                        <Input
+                                          value={addressForm.clinic_city}
+                                          onChange={(e) =>
+                                            setAddressForm((p) => ({
+                                              ...p,
+                                              clinic_city: e.target.value,
+                                            }))
+                                          }
+                                          className="h-8 text-sm"
+                                        />
+                                      </div>
                                     </div>
                                   ) : (
                                     <div className="space-y-4 pt-2">
@@ -912,6 +933,7 @@ Obrigado por confiar em nosso trabalho!`
                                         <CopyField label="Bairro" value={s.resolved_neighborhood} />
                                         <CopyField label="CEP" value={s.resolved_cep} />
                                       </div>
+                                      <CopyField label="Cidade" value={s.resolved_city} />
                                     </div>
                                   )}
 
