@@ -679,6 +679,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_fixed_meet_link: { Args: { p_user_id: string }; Returns: string }
       get_prescriber_email: { Args: { p_user_id: string }; Returns: string }
       is_admin: { Args: never; Returns: boolean }
     }

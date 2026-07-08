@@ -193,6 +193,8 @@ Até logo! 😊
             subject: 'Sua visita online está pronta - Fourlab',
             html: `<div style="font-family: sans-serif; padding: 20px; color: #333;"><p>${finalMsg.replace(/\n/g, '<br/>')}</p></div>`,
             senderName: 'Atendimento',
+            userId: user.id,
+            meetLink: app.google_meet_link,
           },
         })
         if (error) throw error

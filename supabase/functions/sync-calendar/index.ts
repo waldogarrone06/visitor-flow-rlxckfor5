@@ -303,6 +303,8 @@ Sistema de Agendamento`
                   msg.replace(/\n/g, '<br/>') +
                   '</p></div>',
                 senderName: 'Notificação do Sistema',
+                userId: appointment.user_id,
+                meetLink: meetLink,
               }),
             })
 

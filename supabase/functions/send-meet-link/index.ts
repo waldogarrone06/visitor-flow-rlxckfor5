@@ -33,7 +33,19 @@ Deno.serve(async (req: Request) => {
       throw new Error('Agendamento não encontrado.')
     }
 
-    if (!appointment.google_meet_link) {
+    let effectiveMeetLink = appointment.google_meet_link
+
+    if (!effectiveMeetLink) {
+      const { data: fixedLink } = await supabase.rpc('get_fixed_meet_link', {
+        p_user_id: appointment.user_id,
+      })
+
+      if (fixedLink) {
+        effectiveMeetLink = fixedLink
+      }
+    }
+
+    if (!effectiveMeetLink) {
       return new Response(
         JSON.stringify({ error: 'Link ainda não gerado. Gere o link primeiro.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
@@ -62,7 +74,7 @@ Deno.serve(async (req: Request) => {
         ? appointment.appointment_date.split('-').reverse().join('/')
         : '',
       '\\{\\{hora\\}\\}': appointment.start_time || '',
-      '\\{\\{meet_link\\}\\}': appointment.google_meet_link,
+      '\\{\\{meet_link\\}\\}': effectiveMeetLink,
       '\\{\\{professional_name\\}\\}': profile?.name || 'Nossa equipe',
     }
 
@@ -123,6 +135,8 @@ Até logo! 😊
             subject: 'Sua visita online está pronta - Fourlab',
             html: `<div style="font-family: sans-serif; padding: 20px; color: #333;"><p>${msg.replace(/\n/g, '<br/>')}</p></div>`,
             senderName: 'FourLab Nutrition',
+            userId: appointment.user_id,
+            meetLink: effectiveMeetLink,
           }),
         })
         sentAny = true
