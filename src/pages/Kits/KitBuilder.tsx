@@ -255,7 +255,7 @@ export function KitBuilder() {
 
           <div className="flex gap-2 flex-wrap">
             <Button onClick={handleCreateKit} disabled={!kitName} className="gap-2">
-              <Plus className="h-4 w-4" /> Criar Kit
+              <Plus className="h-4 w-4" /> Solicitar Kit
             </Button>
             {selectedLeadId && (nutriCoupon || patientCoupon) && (
               <Button variant="outline" onClick={handleAssignCoupons}>
