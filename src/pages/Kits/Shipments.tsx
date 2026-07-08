@@ -231,6 +231,8 @@ export function KitShipments({ consolidated = false }: { consolidated?: boolean 
       .from('appointments')
       .select('*')
       .not('kit_status', 'is', null)
+      .not('kit_name', 'is', null)
+      .neq('kit_name', '')
       .neq('status', 'Lead')
       .order('created_at', { ascending: false })
 

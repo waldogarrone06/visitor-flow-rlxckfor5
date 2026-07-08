@@ -70,7 +70,21 @@ export async function createPublicAppointment(data: any) {
           return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16)
         })
 
-  const appointmentData = { ...data, id: appointmentId }
+  let fixedMeetLink: string | null = null
+  try {
+    const { data: linkData } = await supabase.rpc('get_fixed_meet_link' as any, {
+      p_user_id: data.user_id,
+    })
+    fixedMeetLink = (linkData as string) || null
+  } catch (e) {
+    console.error('Failed to fetch fixed meet link', e)
+  }
+
+  const appointmentData = {
+    ...data,
+    id: appointmentId,
+    ...(fixedMeetLink ? { google_meet_link: fixedMeetLink } : {}),
+  }
 
   const { error } = await supabase.from('appointments' as any).insert([appointmentData])
 
@@ -126,7 +140,7 @@ export async function createPublicAppointment(data: any) {
         body: { appointmentId: newApp.id },
       })
 
-      const meetLink = syncRes.data?.meetLink || newApp.google_meet_link
+      const meetLink = syncRes.data?.meetLink || fixedMeetLink || newApp.google_meet_link
       const formattedDate = newApp.appointment_date.split('-').reverse().join('/')
       let meetLinkHtml = ''
 
