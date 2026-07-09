@@ -1,62 +1,113 @@
-import { useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Users, CalendarCheck, Truck, AlertTriangle } from 'lucide-react'
-import { useMainStore } from '@/stores/main'
+import { Skeleton } from '@/components/ui/skeleton'
+import { CalendarCheck, Users, Package, Star } from 'lucide-react'
+import { useAuth } from '@/hooks/use-auth'
+import { supabase } from '@/lib/supabase/client'
 import { DateRange } from 'react-day-picker'
-import { isDateInRange } from '@/lib/utils'
+import { format } from 'date-fns'
+
+interface KpiData {
+  totalVisits: number
+  totalPrescribers: number
+  totalKits: number
+  averageNps: number
+  hasNps: boolean
+}
 
 export function KpiCards({ dateRange }: { dateRange?: DateRange }) {
-  const { state } = useMainStore()
+  const { user } = useAuth()
+  const [data, setData] = useState<KpiData | null>(null)
+  const [loading, setLoading] = useState(true)
 
-  const kpis = useMemo(() => {
-    const scheduled = state.appointments.filter(
-      (a) => a.status === 'Scheduled' && isDateInRange(a.date, dateRange),
-    ).length
+  useEffect(() => {
+    if (!user) return
+    const fetchKpis = async () => {
+      setLoading(true)
 
-    const newLeads = state.leads.filter(
-      (l) =>
-        (l.stage === 'Prospect' || l.stage === 'Lead') &&
-        isDateInRange(l.lastInteraction, dateRange),
-    ).length
+      const fromDate = dateRange?.from ? format(dateRange.from, 'yyyy-MM-dd') : null
+      const toDate = dateRange?.to ? format(dateRange.to, 'yyyy-MM-dd') : null
 
-    const activeShipments = state.shipments.filter(
-      (s) =>
-        (s.status === 'Requested' || s.status === 'In Transit') && isDateInRange(s.date, dateRange),
-    ).length
+      let visitsQuery = supabase
+        .from('appointments')
+        .select('id', { count: 'exact' })
+        .eq('user_id', user.id)
+      if (fromDate) visitsQuery = visitsQuery.gte('appointment_date', fromDate)
+      if (toDate) visitsQuery = visitsQuery.lte('appointment_date', toDate)
+      const { count: totalVisits } = await visitsQuery
 
-    const lowStock = state.kits.filter((k) => k.stock <= k.threshold).length
+      const { count: totalPrescribers } = await supabase
+        .from('contacts')
+        .select('id', { count: 'exact' })
+        .eq('user_id', user.id)
 
-    return [
-      {
-        title: 'Visitas Agendadas',
-        value: scheduled,
-        icon: CalendarCheck,
-        trend: 'No período',
-        color: 'text-primary',
-      },
-      {
-        title: 'Novos Leads',
-        value: newLeads,
-        icon: Users,
-        trend: 'No período',
-        color: 'text-success',
-      },
-      {
-        title: 'Kits em Trânsito',
-        value: activeShipments,
-        icon: Truck,
-        trend: 'No período',
-        color: 'text-blue-500',
-      },
-      {
-        title: 'Alertas de Estoque',
-        value: lowStock,
-        icon: AlertTriangle,
-        trend: 'Atenção necessária',
-        color: lowStock > 0 ? 'text-destructive' : 'text-muted-foreground',
-      },
-    ]
-  }, [state, dateRange])
+      const { count: totalKits } = await supabase
+        .from('kits')
+        .select('id', { count: 'exact' })
+        .eq('user_id', user.id)
+
+      const { data: userAppointments } = await supabase
+        .from('appointments')
+        .select('id')
+        .eq('user_id', user.id)
+
+      let averageNps = 0
+      let hasNps = false
+      if (userAppointments && userAppointments.length > 0) {
+        const appointmentIds = userAppointments.map((a) => a.id)
+        const { data: npsData } = await supabase
+          .from('nps_responses')
+          .select('score')
+          .in('appointment_id', appointmentIds)
+
+        if (npsData && npsData.length > 0) {
+          averageNps = npsData.reduce((sum, n) => sum + n.score, 0) / npsData.length
+          hasNps = true
+        }
+      }
+
+      setData({
+        totalVisits: totalVisits || 0,
+        totalPrescribers: totalPrescribers || 0,
+        totalKits: totalKits || 0,
+        averageNps: Math.round(averageNps * 10) / 10,
+        hasNps,
+      })
+      setLoading(false)
+    }
+    fetchKpis()
+  }, [user, dateRange])
+
+  const kpis = [
+    {
+      title: 'Total de Visitas',
+      value: data?.totalVisits,
+      icon: CalendarCheck,
+      color: 'text-primary',
+      trend: 'No período',
+    },
+    {
+      title: 'Prescritores',
+      value: data?.totalPrescribers,
+      icon: Users,
+      color: 'text-success',
+      trend: 'Cadastrados',
+    },
+    {
+      title: 'Kits Solicitados',
+      value: data?.totalKits,
+      icon: Package,
+      color: 'text-blue-500',
+      trend: 'Total',
+    },
+    {
+      title: 'NPS Médio',
+      value: data?.hasNps ? data.averageNps.toFixed(1) : 'N/A',
+      icon: Star,
+      color: 'text-amber-500',
+      trend: 'Avaliação média',
+    },
+  ]
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -67,7 +118,11 @@ export function KpiCards({ dateRange }: { dateRange?: DateRange }) {
             <kpi.icon className={`h-4 w-4 ${kpi.color}`} />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{kpi.value}</div>
+            {loading ? (
+              <Skeleton className="h-8 w-20" />
+            ) : (
+              <div className="text-2xl font-bold">{kpi.value ?? 0}</div>
+            )}
             <p className="text-xs text-muted-foreground mt-1">{kpi.trend}</p>
           </CardContent>
         </Card>

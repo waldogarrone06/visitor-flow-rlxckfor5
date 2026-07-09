@@ -39,6 +39,8 @@ export function AppSidebar() {
   const [isAdminOrJunior, setIsAdminOrJunior] = useState(false)
   const [isLogistics, setIsLogistics] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
+  const [appointmentsCount, setAppointmentsCount] = useState(0)
+  const [lowStockCount, setLowStockCount] = useState(0)
 
   useEffect(() => {
     if (user) {
@@ -72,11 +74,51 @@ export function AppSidebar() {
 
       fetchUnread()
 
+      const fetchAppointments = () => {
+        supabase
+          .from('appointments')
+          .select('id', { count: 'exact' })
+          .eq('user_id', user.id)
+          .neq('status', 'Cancelled')
+          .then(({ count }) => setAppointmentsCount(count || 0))
+      }
+
+      const fetchLowStock = () => {
+        supabase
+          .from('inventory_items')
+          .select('id, stock_level, min_threshold')
+          .eq('user_id', user.id)
+          .then(({ data }) => {
+            const lowStock = (data || []).filter(
+              (i: any) => i.stock_level <= i.min_threshold,
+            ).length
+            setLowStockCount(lowStock)
+          })
+      }
+
+      fetchAppointments()
+      fetchLowStock()
+
       const channel = supabase
         .channel('sidebar_unread')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => {
           fetchUnread()
         })
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'appointments', filter: `user_id=eq.${user.id}` },
+          () => fetchAppointments(),
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'inventory_items',
+            filter: `user_id=eq.${user.id}`,
+          },
+          () => fetchLowStock(),
+        )
         .subscribe()
 
       return () => {
@@ -125,6 +167,22 @@ export function AppSidebar() {
                             className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] animate-pulse shadow-sm shadow-destructive/50"
                           >
                             {unreadCount > 99 ? '99+' : unreadCount}
+                          </Badge>
+                        )}
+                        {item.title === 'Agendamento' && appointmentsCount > 0 && (
+                          <Badge
+                            variant="secondary"
+                            className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px]"
+                          >
+                            {appointmentsCount > 99 ? '99+' : appointmentsCount}
+                          </Badge>
+                        )}
+                        {item.title === 'Gestão de Kits' && lowStockCount > 0 && (
+                          <Badge
+                            variant="destructive"
+                            className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px]"
+                          >
+                            {lowStockCount > 99 ? '99+' : lowStockCount}
                           </Badge>
                         )}
                       </Link>

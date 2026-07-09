@@ -6,6 +6,7 @@ import { PerformancePanel } from './PerformancePanel'
 import { StateVisitsTrendChart } from './StateVisitsTrendChart'
 import { TopPerformersWidget } from './TopPerformersWidget'
 import { UpcomingOnlineMeetings } from './UpcomingOnlineMeetings'
+import { InventoryAlerts } from './InventoryAlerts'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Calendar } from '@/components/ui/calendar'
 import { Button } from '@/components/ui/button'
@@ -76,6 +77,7 @@ export default function DashboardPage() {
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-4 flex flex-col">
           <StateVisitsTrendChart dateRange={dateRange} />
+          <InventoryAlerts />
           <TopPerformersWidget />
         </div>
         <div className="space-y-4 flex flex-col h-full">
