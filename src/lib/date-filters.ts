@@ -1,13 +1,14 @@
 import { DateRange } from 'react-day-picker'
 import { startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths } from 'date-fns'
 
-export type DateFilterType = 'current_month' | 'last_month' | 'current_year' | 'all'
+export type DateFilterType = 'current_month' | 'last_month' | 'current_year' | 'all' | 'custom'
 
 export const dateFilterLabels: Record<DateFilterType, string> = {
   current_month: 'Mês Atual',
   last_month: 'Mês Passado',
   current_year: 'Este Ano',
   all: 'Tudo',
+  custom: 'Período Personalizado',
 }
 
 export function getDateRangeFromFilter(filter: DateFilterType): DateRange | undefined {
@@ -23,6 +24,8 @@ export function getDateRangeFromFilter(filter: DateFilterType): DateRange | unde
     case 'current_year':
       return { from: startOfYear(now), to: endOfYear(now) }
     case 'all':
+      return undefined
+    case 'custom':
       return undefined
     default:
       return undefined
