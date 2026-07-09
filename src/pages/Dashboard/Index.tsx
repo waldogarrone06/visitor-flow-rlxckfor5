@@ -1,5 +1,4 @@
-import { useState } from 'react'
-import { DateRange } from 'react-day-picker'
+import { useState, useMemo } from 'react'
 import { KpiCards } from './KpiCards'
 import { DashboardAgenda } from './Agenda'
 import { PerformancePanel } from './PerformancePanel'
@@ -7,15 +6,19 @@ import { StateVisitsTrendChart } from './StateVisitsTrendChart'
 import { TopPerformersWidget } from './TopPerformersWidget'
 import { UpcomingOnlineMeetings } from './UpcomingOnlineMeetings'
 import { InventoryAlerts } from './InventoryAlerts'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Calendar } from '@/components/ui/calendar'
-import { Button } from '@/components/ui/button'
-import { Calendar as CalendarIcon, X } from 'lucide-react'
-import { format } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { CalendarRange } from 'lucide-react'
+import { DateFilterType, dateFilterLabels, getDateRangeFromFilter } from '@/lib/date-filters'
 
 export default function DashboardPage() {
-  const [dateRange, setDateRange] = useState<DateRange | undefined>()
+  const [dateFilter, setDateFilter] = useState<DateFilterType>('current_month')
+  const dateRange = useMemo(() => getDateRangeFromFilter(dateFilter), [dateFilter])
 
   return (
     <div className="space-y-6 animate-slide-up pb-8">
@@ -25,51 +28,19 @@ export default function DashboardPage() {
           <p className="text-muted-foreground">Acompanhe seus agendamentos, funil e logística.</p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={`w-full sm:w-[280px] justify-start text-left font-normal ${!dateRange ? 'text-muted-foreground' : ''}`}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {dateRange?.from ? (
-                  dateRange.to ? (
-                    <>
-                      {format(dateRange.from, "dd 'de' MMM, yyyy", { locale: ptBR })} -{' '}
-                      {format(dateRange.to, "dd 'de' MMM, yyyy", { locale: ptBR })}
-                    </>
-                  ) : (
-                    format(dateRange.from, "dd 'de' MMM, yyyy", { locale: ptBR })
-                  )
-                ) : (
-                  <span>Filtrar por data...</span>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="end">
-              <Calendar
-                initialFocus
-                mode="range"
-                defaultMonth={dateRange?.from}
-                selected={dateRange}
-                onSelect={setDateRange}
-                numberOfMonths={2}
-                locale={ptBR}
-              />
-            </PopoverContent>
-          </Popover>
-          {dateRange && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setDateRange(undefined)}
-              title="Limpar filtro"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
+        <Select value={dateFilter} onValueChange={(v) => setDateFilter(v as DateFilterType)}>
+          <SelectTrigger className="w-full sm:w-[200px] gap-2">
+            <CalendarRange className="h-4 w-4 text-muted-foreground" />
+            <SelectValue placeholder="Selecione o período" />
+          </SelectTrigger>
+          <SelectContent>
+            {(Object.keys(dateFilterLabels) as DateFilterType[]).map((key) => (
+              <SelectItem key={key} value={key}>
+                {dateFilterLabels[key]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <KpiCards dateRange={dateRange} />

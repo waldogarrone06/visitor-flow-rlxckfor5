@@ -41,15 +41,15 @@ export function KpiCards({ dateRange }: { dateRange?: DateRange }) {
         .select('id', { count: 'exact' })
         .eq('user_id', user.id)
 
-      const { count: totalKits } = await supabase
-        .from('kits')
-        .select('id', { count: 'exact' })
-        .eq('user_id', user.id)
+      let kitsQuery = supabase.from('kits').select('id', { count: 'exact' }).eq('user_id', user.id)
+      if (fromDate) kitsQuery = kitsQuery.gte('created_at', fromDate)
+      if (toDate) kitsQuery = kitsQuery.lte('created_at', toDate + 'T23:59:59')
+      const { count: totalKits } = await kitsQuery
 
-      const { data: userAppointments } = await supabase
-        .from('appointments')
-        .select('id')
-        .eq('user_id', user.id)
+      let npsAptsQuery = supabase.from('appointments').select('id').eq('user_id', user.id)
+      if (fromDate) npsAptsQuery = npsAptsQuery.gte('appointment_date', fromDate)
+      if (toDate) npsAptsQuery = npsAptsQuery.lte('appointment_date', toDate)
+      const { data: userAppointments } = await npsAptsQuery
 
       let averageNps = 0
       let hasNps = false
