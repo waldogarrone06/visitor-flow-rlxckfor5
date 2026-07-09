@@ -12,10 +12,11 @@
     "whatsapp-send": 39,
     "whatsapp-webhook": 43,
     "trigger-reminders": 3,
-    "sync-calendar-delete": 1,
+    "sync-calendar-delete": 2,
     "send-meet-link": 5,
     "whatsapp-manage-message": 4,
     "whatsapp-edit": 4,
-    "whatsapp-delete": 3
+    "whatsapp-delete": 3,
+    "purge-appointments": 1
   }
 }
