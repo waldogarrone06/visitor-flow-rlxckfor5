@@ -39,7 +39,18 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
-import { Copy, Truck, ExternalLink, Check, Trash2, Search, Edit2, X, Save } from 'lucide-react'
+import {
+  Copy,
+  Truck,
+  ExternalLink,
+  Check,
+  Trash2,
+  Search,
+  Edit2,
+  X,
+  Save,
+  Mail,
+} from 'lucide-react'
 import { KitSelect } from '@/components/kit-select'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -450,6 +461,93 @@ Obrigado por confiar em nosso trabalho!`
     }
   }
 
+  const sendCouponEmail = async (s: Shipment) => {
+    const nutriVal = (document.getElementById(`nutri-coupon-${s.id}`) as HTMLInputElement)?.value
+    const patientVal = (document.getElementById(`patient-coupon-${s.id}`) as HTMLInputElement)
+      ?.value
+
+    const nutriCoupon = nutriVal !== undefined ? nutriVal : s.resolved_nutritionist_coupon || ''
+    const patientCoupon = patientVal !== undefined ? patientVal : s.resolved_patient_coupon || ''
+
+    if (!s.client_email) {
+      toast({
+        title: 'Erro',
+        description: 'Email do prescritor não encontrado neste registro.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    if (!nutriCoupon && !patientCoupon) {
+      toast({
+        title: 'Atenção',
+        description: 'Preencha ao menos um cupom antes de enviar o email.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    const html = `<div style="font-family: sans-serif; color: #333; max-width: 600px; margin: 0 auto;">
+  <h2 style="color: #0d9488;">Olá! Seus cupons Fourlab estão prontos! 🎉</h2>
+  <p>Que bom ter você com a gente! Seus cupons já estão ativos e prontos para uso.</p>
+
+  <div style="background-color: #f0fdfa; border: 1px solid #14b8a6; border-radius: 8px; padding: 16px; margin: 16px 0;">
+    <p style="margin: 0 0 8px 0; font-size: 16px; color: #0f766e; font-weight: bold;">🧑‍⚕️ Cupom do Nutricionista (uso pessoal)</p>
+    <p style="margin: 0; font-size: 22px; font-weight: bold; color: #0d9488;">${nutriCoupon || 'Não informado'}</p>
+    <p style="margin: 8px 0 0 0; font-size: 14px; color: #555;">Este é o seu cupom exclusivo para suas próprias compras na Fourlab. Use-o em seus pedidos e aproveite as condições especiais reservadas para você!</p>
+  </div>
+
+  <div style="background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 16px; margin: 16px 0;">
+    <p style="margin: 0 0 8px 0; font-size: 16px; color: #92400e; font-weight: bold;">👥 Cupom do Paciente (para seus pacientes)</p>
+    <p style="margin: 0; font-size: 22px; font-weight: bold; color: #b45309;">${patientCoupon || 'Não informado'}</p>
+    <p style="margin: 8px 0 0 0; font-size: 14px; color: #555;">Compartilhe este cupom com seus pacientes para que eles também aproveitem os produtos Fourlab com condições especiais. Indique-o nas suas consultas e nas suas redes!</p>
+  </div>
+
+  <div style="background-color: #f8fafc; border-radius: 8px; padding: 12px 16px; margin: 16px 0;">
+    <p style="margin: 0; font-size: 14px; color: #555;"><strong>Resumo:</strong></p>
+    <ul style="margin: 8px 0 0 0; font-size: 14px; color: #555; padding-left: 20px;">
+      <li><strong>Cupom do Nutricionista</strong> → para o seu próprio uso</li>
+      <li><strong>Cupom do Paciente</strong> → para compartilhar com seus pacientes</li>
+    </ul>
+  </div>
+
+  <p>Qualquer dúvida, estamos à disposição!</p>
+  <p>Abraços,</p>
+  <p style="font-weight: bold; color: #0d9488;">Equipe Fourlab Nutrition</p>
+</div>`
+
+    try {
+      const { error } = await supabase.functions.invoke('send-email', {
+        body: {
+          to: s.client_email,
+          subject: 'Seu cumpom da Fourlab ja esta aivo e vc ja pode usar.',
+          html,
+          senderName: 'FourLab Nutrition',
+        },
+      })
+
+      if (error) {
+        toast({
+          title: 'Erro',
+          description: 'Falha ao enviar o email de cupons.',
+          variant: 'destructive',
+        })
+      } else {
+        toast({
+          title: 'Sucesso!',
+          description: `Email com os cupons enviado para ${s.client_email}.`,
+        })
+      }
+    } catch (err) {
+      console.error('Error sending coupon email:', err)
+      toast({
+        title: 'Erro',
+        description: 'Ocorreu um erro ao enviar o email.',
+        variant: 'destructive',
+      })
+    }
+  }
+
   const getStatusBadgeVariant = (status: string | null) => {
     if (status === 'Entregue' || status === 'Delivered' || status === 'NF Emitida') return 'default'
     if (status === 'Enviado') return 'secondary'
@@ -687,6 +785,14 @@ Obrigado por confiar em nosso trabalho!`
                                         </Button>
                                       </div>
                                     </div>
+                                    <Button
+                                      size="sm"
+                                      variant="default"
+                                      className="w-full bg-green-600 hover:bg-green-700 text-white"
+                                      onClick={() => sendCouponEmail(s)}
+                                    >
+                                      <Mail className="h-3 w-3 mr-1.5" /> enviar cupom
+                                    </Button>
                                   </div>
                                 </div>
                               </div>
