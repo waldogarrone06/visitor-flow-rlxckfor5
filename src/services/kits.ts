@@ -1,10 +1,16 @@
 import { supabase } from '@/lib/supabase/client'
 
-export async function getKits(userId?: string) {
-  const { data, error } = await supabase
+export async function getKits(userId?: string, onlyStandard = false) {
+  let query = supabase
     .from('kits' as any)
     .select('*, kit_items(*)')
     .order('created_at', { ascending: false })
+
+  if (onlyStandard) {
+    query = query.or('is_personalized.eq.false,is_personalized.is.null')
+  }
+
+  const { data, error } = await query
 
   if (error) throw error
   return data || []

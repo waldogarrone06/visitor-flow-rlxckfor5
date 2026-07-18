@@ -35,7 +35,7 @@ export function KitCatalog() {
   const fetchKits = async () => {
     try {
       if (!user) return
-      const data = await getKits(user.id)
+      const data = await getKits(user.id, true)
       setKits(data)
     } catch (error) {
       console.error('Error fetching kits:', error)
