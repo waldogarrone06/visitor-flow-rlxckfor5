@@ -47,7 +47,8 @@ export function KitBuilder() {
       const [leadsData, kitsData] = await Promise.all([
         getAllLeadsForKits(user.id),
         getKits(user.id, true),
-      ])      setLeads(leadsData)
+      ])
+      setLeads(leadsData)
       setKits(kitsData)
     } catch (err) {
       console.error('Error loading data', err)
@@ -273,7 +274,8 @@ export function KitBuilder() {
             <Badge variant="secondary">{kits.length} kit(s) padrão</Badge>
           </div>
           <p className="text-sm text-muted-foreground">
-            Apenas kits padrão são exibidos nesta tela. Kits personalizados permanecem no banco de dados e são acessíveis em outras áreas do sistema.
+            Apenas kits padrão são exibidos nesta tela. Kits personalizados permanecem no banco de
+            dados e são acessíveis em outras áreas do sistema.
           </p>
         </CardHeader>
         <CardContent>
