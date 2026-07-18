@@ -52,6 +52,7 @@ import {
   Mail,
 } from 'lucide-react'
 import { KitSelect } from '@/components/kit-select'
+import { KitItemsDialog } from '@/components/kit-items-dialog'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
@@ -799,9 +800,12 @@ Obrigado por confiar em nosso trabalho!`
 
                               <div className="space-y-6">
                                 <div className="space-y-4">
-                                  <h4 className="font-semibold text-sm border-b pb-2 text-primary">
-                                    Status do Kit ({s.kit_name || 'Kit Padrão'})
-                                  </h4>
+                                  <div className="flex items-center justify-between border-b pb-2">
+                                    <h4 className="font-semibold text-sm text-primary">
+                                      Status do Kit ({s.kit_name || 'Kit Padrão'})
+                                    </h4>
+                                    <KitItemsDialog kitName={s.kit_name} />
+                                  </div>
                                   <div className="flex flex-col gap-3">
                                     <div className="flex items-center gap-2">
                                       <Badge
