@@ -7,7 +7,7 @@ export async function getKits(userId?: string, onlyStandard = false) {
     .order('created_at', { ascending: false })
 
   if (onlyStandard) {
-    query = query.or('is_personalized.eq.false,is_personalized.is.null')
+    query = query.eq('is_personalized', false)
   }
 
   const { data, error } = await query

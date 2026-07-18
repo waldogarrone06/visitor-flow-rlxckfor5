@@ -26,6 +26,7 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command'
+import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 
 export function KitBuilder() {
@@ -45,9 +46,8 @@ export function KitBuilder() {
     try {
       const [leadsData, kitsData] = await Promise.all([
         getAllLeadsForKits(user.id),
-        getKits(user.id),
-      ])
-      setLeads(leadsData)
+        getKits(user.id, true),
+      ])      setLeads(leadsData)
       setKits(kitsData)
     } catch (err) {
       console.error('Error loading data', err)
@@ -268,7 +268,13 @@ export function KitBuilder() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Kits Existentes</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg">Kits Existentes</CardTitle>
+            <Badge variant="secondary">{kits.length} kit(s) padrão</Badge>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Apenas kits padrão são exibidos nesta tela. Kits personalizados permanecem no banco de dados e são acessíveis em outras áreas do sistema.
+          </p>
         </CardHeader>
         <CardContent>
           {kits.length === 0 ? (
