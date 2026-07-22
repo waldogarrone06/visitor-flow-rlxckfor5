@@ -1,9 +1,19 @@
 import { supabase } from '@/lib/supabase/client'
 import { FunctionsHttpError } from '@supabase/supabase-js'
 
-export async function sendWhatsAppMessage(to: string, text: string, messageId?: string) {
+export async function sendWhatsAppMessage(
+  to: string,
+  text: string,
+  messageId?: string,
+  options?: {
+    isTemplate?: boolean
+    templateName?: string
+    templateLanguage?: string
+    templateComponents?: any[]
+  },
+) {
   const { data, error } = await supabase.functions.invoke('whatsapp-send', {
-    body: { to, text, messageId },
+    body: { to, text, messageId, ...options },
   })
 
   if (error && error instanceof FunctionsHttpError) {

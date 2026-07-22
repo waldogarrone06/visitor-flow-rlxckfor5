@@ -16,6 +16,10 @@ export async function getIntegrations(targetUserId?: string) {
       return null
     }
 
+    if (data) {
+      delete (data as any).whatsapp_official_access_token
+    }
+
     return data
   } catch (err) {
     console.error('Exception fetching integrations:', err)
