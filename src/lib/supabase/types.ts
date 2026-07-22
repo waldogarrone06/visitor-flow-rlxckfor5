@@ -596,6 +596,11 @@ export type Database = {
           whatsapp_api_url: string | null
           whatsapp_connected: boolean | null
           whatsapp_instance_id: string | null
+          whatsapp_official_access_token: string | null
+          whatsapp_official_phone_number_id: string | null
+          whatsapp_official_verify_token: string | null
+          whatsapp_official_waba_id: string | null
+          whatsapp_provider_type: string | null
           yampi_alias: string | null
           yampi_token: string | null
         }
@@ -619,6 +624,11 @@ export type Database = {
           whatsapp_api_url?: string | null
           whatsapp_connected?: boolean | null
           whatsapp_instance_id?: string | null
+          whatsapp_official_access_token?: string | null
+          whatsapp_official_phone_number_id?: string | null
+          whatsapp_official_verify_token?: string | null
+          whatsapp_official_waba_id?: string | null
+          whatsapp_provider_type?: string | null
           yampi_alias?: string | null
           yampi_token?: string | null
         }
@@ -642,6 +652,11 @@ export type Database = {
           whatsapp_api_url?: string | null
           whatsapp_connected?: boolean | null
           whatsapp_instance_id?: string | null
+          whatsapp_official_access_token?: string | null
+          whatsapp_official_phone_number_id?: string | null
+          whatsapp_official_verify_token?: string | null
+          whatsapp_official_waba_id?: string | null
+          whatsapp_provider_type?: string | null
           yampi_alias?: string | null
           yampi_token?: string | null
         }

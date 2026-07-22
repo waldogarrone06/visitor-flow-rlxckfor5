@@ -32,7 +32,7 @@ const DEFAULT_VERIFY_TOKEN = 'vf_wh_2026_k9Xm2pQ7nR4tZ'
 const WEBHOOK_URL = 'https://zbtaxosxmxoidrtmojfx.supabase.co/functions/v1/whatsapp-webhook'
 
 export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
-  const [providerType, setProviderType] = useState<'official' | 'evolution'>('official')
+  const [providerType, setProviderType] = useState<'official' | 'evolution'>('evolution')
 
   const [officialPhoneId, setOfficialPhoneId] = useState('')
   const [officialWabaId, setOfficialWabaId] = useState('')
@@ -58,7 +58,7 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
     getIntegrations(targetUserId)
       .then((data) => {
         if (data) {
-          setProviderType(data.whatsapp_provider_type || 'official')
+          setProviderType(data.whatsapp_provider_type || 'evolution')
           setOfficialPhoneId(data.whatsapp_official_phone_number_id || '')
           setOfficialWabaId(data.whatsapp_official_waba_id || '')
           setHasOfficialToken(!!data.whatsapp_official_access_token)
@@ -150,31 +150,7 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
   const handleSave = async () => {
     setLoading(true)
     try {
-      if (providerType === 'official') {
-        if (!officialPhoneId) {
-          toast({
-            title: 'Aviso',
-            description: 'Preencha o Phone Number ID.',
-            variant: 'destructive',
-          })
-          setLoading(false)
-          return false
-        }
-        const updates: Record<string, any> = {
-          whatsapp_provider_type: 'official',
-          whatsapp_official_phone_number_id: officialPhoneId.trim(),
-          whatsapp_official_waba_id: officialWabaId.trim(),
-          whatsapp_official_verify_token: officialVerifyToken.trim() || DEFAULT_VERIFY_TOKEN,
-          whatsapp_connected: true,
-        }
-        if (officialToken.trim()) {
-          updates.whatsapp_official_access_token = officialToken.trim()
-        }
-        await saveIntegrations(updates, targetUserId)
-        setHasOfficialToken(true)
-        setOfficialToken('')
-        setConnected(true)
-      } else {
+      if (providerType === 'evolution') {
         if (!apiUrl || !instanceName || !apiToken) {
           toast({
             title: 'Aviso',
@@ -201,6 +177,30 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
           targetUserId,
         )
         setConnected(true)
+      } else {
+        if (!officialPhoneId) {
+          toast({
+            title: 'Aviso',
+            description: 'Preencha o Phone Number ID.',
+            variant: 'destructive',
+          })
+          setLoading(false)
+          return false
+        }
+        const updates: Record<string, any> = {
+          whatsapp_provider_type: 'official',
+          whatsapp_official_phone_number_id: officialPhoneId.trim(),
+          whatsapp_official_waba_id: officialWabaId.trim(),
+          whatsapp_official_verify_token: officialVerifyToken.trim() || DEFAULT_VERIFY_TOKEN,
+          whatsapp_connected: true,
+        }
+        if (officialToken.trim()) {
+          updates.whatsapp_official_access_token = officialToken.trim()
+        }
+        await saveIntegrations(updates, targetUserId)
+        setHasOfficialToken(true)
+        setOfficialToken('')
+        setConnected(true)
       }
       toast({ title: 'Configuração Salva', description: 'Credenciais salvas com sucesso!' })
       return true
@@ -213,22 +213,7 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
   }
 
   const handleDisconnect = async () => {
-    if (providerType === 'official') {
-      await saveIntegrations(
-        {
-          whatsapp_official_phone_number_id: null,
-          whatsapp_official_waba_id: null,
-          whatsapp_official_access_token: null,
-          whatsapp_connected: false,
-        },
-        targetUserId,
-      )
-      setOfficialPhoneId('')
-      setOfficialWabaId('')
-      setHasOfficialToken(false)
-      setOfficialToken('')
-      setConnected(false)
-    } else {
+    if (providerType === 'evolution') {
       await saveIntegrations(
         {
           whatsapp_api_url: null,
@@ -243,6 +228,21 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
       setApiToken('')
       setConnected(false)
       setConnectionState('disconnected')
+    } else {
+      await saveIntegrations(
+        {
+          whatsapp_official_phone_number_id: null,
+          whatsapp_official_waba_id: null,
+          whatsapp_official_access_token: null,
+          whatsapp_connected: false,
+        },
+        targetUserId,
+      )
+      setOfficialPhoneId('')
+      setOfficialWabaId('')
+      setHasOfficialToken(false)
+      setOfficialToken('')
+      setConnected(false)
     }
     toast({ title: 'WhatsApp Desconectado' })
   }
@@ -258,7 +258,7 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
     }
     setTesting(true)
     try {
-      const testCredentials: any = { providerType }
+      const testCredentials: any = { providerType: providerType || 'evolution' }
       if (providerType === 'official') {
         testCredentials.officialPhoneNumberId = officialPhoneId.trim()
         if (officialToken.trim()) testCredentials.officialAccessToken = officialToken.trim()

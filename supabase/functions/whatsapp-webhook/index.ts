@@ -619,7 +619,7 @@ async function handleEvolutionWebhook(bodyData: any, supabaseAdmin: any): Promis
                 if (!recentMsg.client_id && messageId)
                   await supabaseAdmin
                     .from('messages')
-                    .update({ client_id: messageId, status: 'sent' })
+                    .update({ client_id: messageId, status: 'sent', whatsapp_key: keyData })
                     .eq('id', recentMsg.id)
               }
             }
@@ -631,6 +631,7 @@ async function handleEvolutionWebhook(bodyData: any, supabaseAdmin: any): Promis
                 direction: isFromMe ? 'outbound' : 'inbound',
                 status: isFromMe ? 'sent' : 'delivered',
                 client_id: messageId,
+                whatsapp_key: keyData,
               })
               await supabaseAdmin.from('interaction_log').insert({
                 user_id: userId,

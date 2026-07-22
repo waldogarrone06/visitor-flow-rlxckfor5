@@ -31,7 +31,7 @@ Deno.serve(async (req: Request) => {
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
 
-    let providerType: string = body.providerType || 'official'
+    let providerType: string = body.providerType || 'evolution'
     let cfg: Record<string, string> = {}
 
     if (body.testCredentials?.providerType) {
@@ -49,7 +49,7 @@ Deno.serve(async (req: Request) => {
       if (!integration) {
         throw new Error('Integração não encontrada. Configure nas Configurações.')
       }
-      providerType = integration.whatsapp_provider_type || 'official'
+      providerType = integration.whatsapp_provider_type || 'evolution'
       cfg = {
         officialAccessToken:
           integration.whatsapp_official_access_token ||
@@ -69,17 +69,32 @@ Deno.serve(async (req: Request) => {
     if (number.length === 10 || number.length === 11) number = '55' + number
 
     if (providerType === 'official') {
-      return await sendOfficial({
-        number,
-        text,
-        isTemplate,
-        templateName,
-        templateLanguage,
-        templateComponents,
-        cfg,
-        userId,
-        supabaseAdmin,
-      })
+      try {
+        return await sendOfficial({
+          number,
+          text,
+          isTemplate,
+          templateName,
+          templateLanguage,
+          templateComponents,
+          cfg,
+          userId,
+          supabaseAdmin,
+        })
+      } catch (officialError: any) {
+        if (cfg.apiUrl && cfg.instanceId && cfg.apiToken) {
+          console.error('Official API failed, falling back to Evolution:', officialError.message)
+          try {
+            await supabaseAdmin.from('interaction_log').insert({
+              user_id: userId,
+              type: 'whatsapp_fallback_to_evolution',
+              details: { to: number, error: officialError.message },
+            })
+          } catch {}
+          return await sendEvolution({ number, text, cfg, userId, supabaseAdmin })
+        }
+        throw officialError
+      }
     } else {
       return await sendEvolution({ number, text, cfg, userId, supabaseAdmin })
     }

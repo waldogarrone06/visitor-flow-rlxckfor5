@@ -423,6 +423,13 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
           whatsappKey = evData?.key || evData?.message?.key || evData?.data?.key
         }
 
+        if (contactId && (clientId || whatsappKey)) {
+          const updateData: any = { status: 'sent' }
+          if (clientId) updateData.client_id = clientId
+          if (whatsappKey) updateData.whatsapp_key = whatsappKey
+          await supabase.from('messages').update(updateData).eq('id', newMessageId)
+        }
+
         // Database update is handled securely by the Edge Function,
         // but we update the local state for immediate visual feedback
         setDbMessages((prev) =>
