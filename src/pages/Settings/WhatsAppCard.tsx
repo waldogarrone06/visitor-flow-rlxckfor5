@@ -38,6 +38,7 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
   const [officialWabaId, setOfficialWabaId] = useState('')
   const [officialToken, setOfficialToken] = useState('')
   const [hasOfficialToken, setHasOfficialToken] = useState(false)
+  const [savedAccessToken, setSavedAccessToken] = useState('')
   const [officialVerifyToken, setOfficialVerifyToken] = useState(DEFAULT_VERIFY_TOKEN)
 
   const [apiUrl, setApiUrl] = useState('')
@@ -62,6 +63,7 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
           setOfficialPhoneId(data.whatsapp_official_phone_number_id || '')
           setOfficialWabaId(data.whatsapp_official_waba_id || '')
           setHasOfficialToken(!!(data as any)._has_official_access_token)
+          setSavedAccessToken((data as any).whatsapp_official_access_token || '')
           setOfficialVerifyToken(data.whatsapp_official_verify_token || DEFAULT_VERIFY_TOKEN)
           setApiUrl(data.whatsapp_api_url || '')
           setInstanceName(data.whatsapp_instance_id || '')
@@ -198,6 +200,7 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
         await saveIntegrations(updates, targetUserId)
         setHasOfficialToken(true)
         setOfficialToken('')
+        if (officialToken.trim()) setSavedAccessToken(officialToken.trim())
         setConnected(true)
       }
       toast({ title: 'Configuração Salva', description: 'Credenciais salvas com sucesso!' })
@@ -245,6 +248,7 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
       setOfficialWabaId('')
       setHasOfficialToken(false)
       setOfficialToken('')
+      setSavedAccessToken('')
       setConnected(false)
     }
     toast({ title: 'WhatsApp Desconectado' })
@@ -264,7 +268,8 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
       const testCredentials: any = { providerType: providerType || 'evolution' }
       if (providerType === 'official') {
         testCredentials.officialPhoneNumberId = officialPhoneId.trim()
-        if (officialToken.trim()) testCredentials.officialAccessToken = officialToken.trim()
+        const tokenToUse = officialToken.trim() || savedAccessToken
+        if (tokenToUse) testCredentials.officialAccessToken = tokenToUse
       } else {
         let cleanUrl = apiUrl
           .trim()

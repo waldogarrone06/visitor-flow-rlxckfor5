@@ -37,6 +37,23 @@ Deno.serve(async (req: Request) => {
     if (body.testCredentials?.providerType) {
       providerType = body.testCredentials.providerType
       cfg = body.testCredentials
+
+      if (providerType === 'official' && userId && !cfg.officialAccessToken && !cfg.accessToken) {
+        const { data: fallbackIntegration } = await supabaseAdmin
+          .from('user_integrations')
+          .select(
+            'whatsapp_official_access_token, whatsapp_official_phone_number_id, whatsapp_official_waba_id',
+          )
+          .eq('user_id', userId)
+          .maybeSingle()
+
+        if (fallbackIntegration?.whatsapp_official_access_token) {
+          cfg.officialAccessToken = fallbackIntegration.whatsapp_official_access_token
+        }
+        if (!cfg.officialPhoneNumberId && fallbackIntegration?.whatsapp_official_phone_number_id) {
+          cfg.officialPhoneNumberId = fallbackIntegration.whatsapp_official_phone_number_id
+        }
+      }
     } else if (userId) {
       const { data: integration } = await supabaseAdmin
         .from('user_integrations')
@@ -69,6 +86,24 @@ Deno.serve(async (req: Request) => {
     if (number.length === 10 || number.length === 11) number = '55' + number
 
     if (providerType === 'official') {
+      const officialToken = cfg.officialAccessToken || cfg.accessToken || cfg.apiToken || ''
+      const officialPhoneId = cfg.officialPhoneNumberId || ''
+      if (!officialToken) {
+        return new Response(
+          JSON.stringify({
+            error: 'Access token não encontrado. Salve suas credenciais do WhatsApp primeiro.',
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        )
+      }
+      if (!officialPhoneId) {
+        return new Response(
+          JSON.stringify({
+            error: 'Phone Number ID não encontrado. Salve suas credenciais do WhatsApp primeiro.',
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        )
+      }
       try {
         return await sendOfficial({
           number,
@@ -121,10 +156,11 @@ async function sendOfficial({
   const accessToken = cfg.officialAccessToken || cfg.apiToken || ''
   const phoneNumberId = cfg.officialPhoneNumberId || ''
 
-  if (!accessToken || !phoneNumberId) {
-    throw new Error(
-      'Credenciais da API Oficial do WhatsApp não configuradas. Configure o Phone Number ID e o Access Token.',
-    )
+  if (!accessToken) {
+    throw new Error('Access token não encontrado. Salve suas credenciais do WhatsApp primeiro.')
+  }
+  if (!phoneNumberId) {
+    throw new Error('Phone Number ID não configurado. Salve o Phone Number ID nas configurações.')
   }
 
   if (!isTemplate && userId) {

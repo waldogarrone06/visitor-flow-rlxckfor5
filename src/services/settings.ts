@@ -18,7 +18,6 @@ export async function getIntegrations(targetUserId?: string) {
 
     if (data) {
       ;(data as any)._has_official_access_token = !!(data as any).whatsapp_official_access_token
-      delete (data as any).whatsapp_official_access_token
     }
 
     return data
