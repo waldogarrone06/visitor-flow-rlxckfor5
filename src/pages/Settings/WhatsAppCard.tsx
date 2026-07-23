@@ -292,8 +292,8 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
           userId: targetUserId,
           testCredentials,
           isTemplate: providerType === 'official',
-          templateName: providerType === 'official' ? 'hello_world' : undefined,
-          templateLanguage: providerType === 'official' ? 'en_US' : undefined,
+          templateName: providerType === 'official' ? 'recupcar1' : undefined,
+          templateLanguage: providerType === 'official' ? 'pt_BR' : undefined,
         },
       })
 
