@@ -17,6 +17,7 @@ export async function getIntegrations(targetUserId?: string) {
     }
 
     if (data) {
+      ;(data as any)._has_official_access_token = !!(data as any).whatsapp_official_access_token
       delete (data as any).whatsapp_official_access_token
     }
 
@@ -33,35 +34,18 @@ export async function saveIntegrations(updates: any, targetUserId?: string) {
     if (!userId) return null
 
     const payload = {
+      user_id: userId,
       ...updates,
       updated_at: new Date().toISOString(),
     }
 
-    const { data: existing } = await supabase
+    const { data, error } = await supabase
       .from('user_integrations' as any)
-      .select('id')
-      .eq('user_id', userId)
-      .maybeSingle()
+      .upsert(payload, { onConflict: 'user_id' })
+      .select()
 
-    let resultData
-    if (existing) {
-      const { data, error } = await supabase
-        .from('user_integrations' as any)
-        .update(payload)
-        .eq('user_id', userId)
-        .select()
-      if (error) throw error
-      resultData = data
-    } else {
-      const { data, error } = await supabase
-        .from('user_integrations' as any)
-        .insert({ user_id: userId, ...payload })
-        .select()
-      if (error) throw error
-      resultData = data
-    }
-
-    return resultData
+    if (error) throw error
+    return data
   } catch (err) {
     console.error('Error saving integrations:', err)
     throw err

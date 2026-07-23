@@ -61,7 +61,7 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
           setProviderType(data.whatsapp_provider_type || 'evolution')
           setOfficialPhoneId(data.whatsapp_official_phone_number_id || '')
           setOfficialWabaId(data.whatsapp_official_waba_id || '')
-          setHasOfficialToken(!!data.whatsapp_official_access_token)
+          setHasOfficialToken(!!(data as any)._has_official_access_token)
           setOfficialVerifyToken(data.whatsapp_official_verify_token || DEFAULT_VERIFY_TOKEN)
           setApiUrl(data.whatsapp_api_url || '')
           setInstanceName(data.whatsapp_instance_id || '')
@@ -157,7 +157,6 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
             description: 'Preencha URL da API, Instância e Token.',
             variant: 'destructive',
           })
-          setLoading(false)
           return false
         }
         let cleanUrl = apiUrl
@@ -184,7 +183,6 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
             description: 'Preencha o Phone Number ID.',
             variant: 'destructive',
           })
-          setLoading(false)
           return false
         }
         const updates: Record<string, any> = {
@@ -205,7 +203,12 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
       toast({ title: 'Configuração Salva', description: 'Credenciais salvas com sucesso!' })
       return true
     } catch (error: any) {
-      toast({ title: 'Erro ao salvar', description: error.message, variant: 'destructive' })
+      toast({
+        title: 'Erro ao salvar',
+        description:
+          error?.message || 'Falha ao salvar o token. Verifique as credenciais e tente novamente.',
+        variant: 'destructive',
+      })
       return false
     } finally {
       setLoading(false)
