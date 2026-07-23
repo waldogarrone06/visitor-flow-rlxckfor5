@@ -19,7 +19,7 @@ import NpsPage from './pages/NPS/Index'
 import NotFound from './pages/NotFound'
 import GoogleCallback from './pages/Auth/GoogleCallback'
 import CrmPage from './pages/Crm/Index'
-import { LeadDetail } from './pages/Crm/LeadDetail'
+import LeadDetail from './pages/Crm/LeadDetail'
 
 const App = () => (
   <AuthProvider>
