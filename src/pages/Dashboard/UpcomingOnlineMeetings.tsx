@@ -122,9 +122,9 @@ export function UpcomingOnlineMeetings({ dateRange }: { dateRange?: DateRange })
     )
 
     return Object.values(grouped).sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(), // Sort descending to see newest first
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
     )
-  }, [state.appointments, dateRange])
+  }, [state.appointments, dateRange, dbAppointments])
 
   const openReport = (slot: any) => {
     setSelectedSlot(slot)

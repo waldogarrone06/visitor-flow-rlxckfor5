@@ -44,7 +44,7 @@ Deno.serve(async (req: Request) => {
           'whatsapp_provider_type, whatsapp_official_phone_number_id, whatsapp_official_waba_id, whatsapp_official_access_token, whatsapp_api_url, whatsapp_instance_id, whatsapp_api_token',
         )
         .eq('user_id', userId)
-        .single()
+        .maybeSingle()
 
       if (!integration) {
         throw new Error('Integração não encontrada. Configure nas Configurações.')

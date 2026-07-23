@@ -45,26 +45,31 @@ export function DashboardAgenda({ dateRange }: { dateRange?: DateRange }) {
   const fetchAppointments = useCallback(async () => {
     if (!user) return
     setLoading(true)
-    let query = supabase
-      .from('appointments')
-      .select('id, client_name, appointment_date, start_time, end_time, status')
-      .eq('user_id', user.id)
-      .neq('status', 'Cancelled')
-      .order('appointment_date', { ascending: true })
-      .order('start_time', { ascending: true })
+    try {
+      let query = supabase
+        .from('appointments')
+        .select('id, client_name, appointment_date, start_time, end_time, status')
+        .eq('user_id', user.id)
+        .neq('status', 'Cancelled')
+        .order('appointment_date', { ascending: true })
+        .order('start_time', { ascending: true })
 
-    if (dateRange?.from) {
-      query = query.gte('appointment_date', format(dateRange.from, 'yyyy-MM-dd'))
-    } else {
-      query = query.gte('appointment_date', format(new Date(), 'yyyy-MM-dd'))
-    }
-    if (dateRange?.to) {
-      query = query.lte('appointment_date', format(dateRange.to, 'yyyy-MM-dd'))
-    }
+      if (dateRange?.from) {
+        query = query.gte('appointment_date', format(dateRange.from, 'yyyy-MM-dd'))
+      } else {
+        query = query.gte('appointment_date', format(new Date(), 'yyyy-MM-dd'))
+      }
+      if (dateRange?.to) {
+        query = query.lte('appointment_date', format(dateRange.to, 'yyyy-MM-dd'))
+      }
 
-    const { data } = await query.limit(5)
-    setAppointments(data || [])
-    setLoading(false)
+      const { data } = await query.limit(5)
+      setAppointments(data || [])
+    } catch (err) {
+      console.error('Error fetching appointments:', err)
+    } finally {
+      setLoading(false)
+    }
   }, [user, dateRange])
 
   useEffect(() => {

@@ -24,56 +24,63 @@ export function KpiCards({ dateRange }: { dateRange?: DateRange }) {
     if (!user) return
     const fetchKpis = async () => {
       setLoading(true)
+      try {
+        const fromDate = dateRange?.from ? format(dateRange.from, 'yyyy-MM-dd') : null
+        const toDate = dateRange?.to ? format(dateRange.to, 'yyyy-MM-dd') : null
 
-      const fromDate = dateRange?.from ? format(dateRange.from, 'yyyy-MM-dd') : null
-      const toDate = dateRange?.to ? format(dateRange.to, 'yyyy-MM-dd') : null
+        let visitsQuery = supabase
+          .from('appointments')
+          .select('id', { count: 'exact' })
+          .eq('user_id', user.id)
+        if (fromDate) visitsQuery = visitsQuery.gte('appointment_date', fromDate)
+        if (toDate) visitsQuery = visitsQuery.lte('appointment_date', toDate)
+        const { count: totalVisits } = await visitsQuery
 
-      let visitsQuery = supabase
-        .from('appointments')
-        .select('id', { count: 'exact' })
-        .eq('user_id', user.id)
-      if (fromDate) visitsQuery = visitsQuery.gte('appointment_date', fromDate)
-      if (toDate) visitsQuery = visitsQuery.lte('appointment_date', toDate)
-      const { count: totalVisits } = await visitsQuery
+        const { count: totalPrescribers } = await supabase
+          .from('contacts')
+          .select('id', { count: 'exact' })
+          .eq('user_id', user.id)
 
-      const { count: totalPrescribers } = await supabase
-        .from('contacts')
-        .select('id', { count: 'exact' })
-        .eq('user_id', user.id)
+        let kitsQuery = supabase
+          .from('kits')
+          .select('id', { count: 'exact' })
+          .eq('user_id', user.id)
+        if (fromDate) kitsQuery = kitsQuery.gte('created_at', fromDate)
+        if (toDate) kitsQuery = kitsQuery.lte('created_at', toDate + 'T23:59:59')
+        const { count: totalKits } = await kitsQuery
 
-      let kitsQuery = supabase.from('kits').select('id', { count: 'exact' }).eq('user_id', user.id)
-      if (fromDate) kitsQuery = kitsQuery.gte('created_at', fromDate)
-      if (toDate) kitsQuery = kitsQuery.lte('created_at', toDate + 'T23:59:59')
-      const { count: totalKits } = await kitsQuery
+        let npsAptsQuery = supabase.from('appointments').select('id').eq('user_id', user.id)
+        if (fromDate) npsAptsQuery = npsAptsQuery.gte('appointment_date', fromDate)
+        if (toDate) npsAptsQuery = npsAptsQuery.lte('appointment_date', toDate)
+        const { data: userAppointments } = await npsAptsQuery
 
-      let npsAptsQuery = supabase.from('appointments').select('id').eq('user_id', user.id)
-      if (fromDate) npsAptsQuery = npsAptsQuery.gte('appointment_date', fromDate)
-      if (toDate) npsAptsQuery = npsAptsQuery.lte('appointment_date', toDate)
-      const { data: userAppointments } = await npsAptsQuery
+        let averageNps = 0
+        let hasNps = false
+        if (userAppointments && userAppointments.length > 0) {
+          const appointmentIds = userAppointments.map((a) => a.id)
+          const { data: npsData } = await supabase
+            .from('nps_responses')
+            .select('score')
+            .in('appointment_id', appointmentIds)
 
-      let averageNps = 0
-      let hasNps = false
-      if (userAppointments && userAppointments.length > 0) {
-        const appointmentIds = userAppointments.map((a) => a.id)
-        const { data: npsData } = await supabase
-          .from('nps_responses')
-          .select('score')
-          .in('appointment_id', appointmentIds)
-
-        if (npsData && npsData.length > 0) {
-          averageNps = npsData.reduce((sum, n) => sum + n.score, 0) / npsData.length
-          hasNps = true
+          if (npsData && npsData.length > 0) {
+            averageNps = npsData.reduce((sum, n) => sum + n.score, 0) / npsData.length
+            hasNps = true
+          }
         }
-      }
 
-      setData({
-        totalVisits: totalVisits || 0,
-        totalPrescribers: totalPrescribers || 0,
-        totalKits: totalKits || 0,
-        averageNps: Math.round(averageNps * 10) / 10,
-        hasNps,
-      })
-      setLoading(false)
+        setData({
+          totalVisits: totalVisits || 0,
+          totalPrescribers: totalPrescribers || 0,
+          totalKits: totalKits || 0,
+          averageNps: Math.round(averageNps * 10) / 10,
+          hasNps,
+        })
+      } catch (err) {
+        console.error('Error fetching KPIs:', err)
+      } finally {
+        setLoading(false)
+      }
     }
     fetchKpis()
   }, [user, dateRange])

@@ -18,6 +18,8 @@ import LeadCapturePage from './pages/LeadCapture/Index'
 import NpsPage from './pages/NPS/Index'
 import NotFound from './pages/NotFound'
 import GoogleCallback from './pages/Auth/GoogleCallback'
+import CrmPage from './pages/Crm/Index'
+import { LeadDetail } from './pages/Crm/LeadDetail'
 
 const App = () => (
   <AuthProvider>
@@ -39,6 +41,8 @@ const App = () => (
               <Route path="/kits" element={<KitsPage />} />
               <Route path="/logs" element={<LogsPage />} />
               <Route path="/config" element={<SettingsPage />} />
+              <Route path="/crm" element={<CrmPage />} />
+              <Route path="/crm/prescritor/:id" element={<LeadDetail />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

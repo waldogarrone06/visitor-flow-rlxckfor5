@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -34,11 +34,15 @@ export function MeetingReportDialog({ slot, open, onOpenChange }: Props) {
   const { state, dispatch } = useMainStore()
   const [attendedIds, setAttendedIds] = useState<string[]>([])
 
-  const leads = state.leads.filter((l) =>
-    state.appointments
-      .filter((a) => slot?.ids.includes(a.id))
-      .map((a) => a.leadId)
-      .includes(l.id),
+  const leads = useMemo(
+    () =>
+      state.leads.filter((l) =>
+        state.appointments
+          .filter((a) => slot?.ids.includes(a.id))
+          .map((a) => a.leadId)
+          .includes(l.id),
+      ),
+    [state.leads, state.appointments, slot],
   )
 
   const existingReport = state.meetingReports?.find((r) => r.date === slot?.date)

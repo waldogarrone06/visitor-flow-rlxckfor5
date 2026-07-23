@@ -22,15 +22,20 @@ export function InventoryAlerts() {
     if (!user) return
     const fetchInventory = async () => {
       setLoading(true)
-      const { data } = await supabase
-        .from('inventory_items')
-        .select('id, product_name, stock_level, min_threshold')
-        .eq('user_id', user.id)
-        .order('stock_level', { ascending: true })
+      try {
+        const { data } = await supabase
+          .from('inventory_items')
+          .select('id, product_name, stock_level, min_threshold')
+          .eq('user_id', user.id)
+          .order('stock_level', { ascending: true })
 
-      const lowStock = (data || []).filter((item) => item.stock_level <= item.min_threshold)
-      setItems(lowStock)
-      setLoading(false)
+        const lowStock = (data || []).filter((item) => item.stock_level <= item.min_threshold)
+        setItems(lowStock)
+      } catch (err) {
+        console.error('Error fetching inventory:', err)
+      } finally {
+        setLoading(false)
+      }
     }
     fetchInventory()
   }, [user])

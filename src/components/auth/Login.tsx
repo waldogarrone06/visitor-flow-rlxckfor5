@@ -7,8 +7,8 @@ import { toast } from '@/hooks/use-toast'
 import { FourLabLogo } from '@/components/FourLabLogo'
 
 export function Login() {
-  const [email, setEmail] = useState('admin@example.com')
-  const [password, setPassword] = useState('StrongPassword123!')
+  const [email, setEmail] = useState('wal@fourlabnutri.com.br')
+  const [password, setPassword] = useState('Skip@Pass')
   const [isLoading, setIsLoading] = useState(false)
   const { signIn } = useAuth()
 

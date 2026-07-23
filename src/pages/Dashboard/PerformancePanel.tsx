@@ -18,20 +18,25 @@ export function PerformancePanel({ dateRange }: { dateRange?: DateRange }) {
     if (!user) return
     const fetchStats = async () => {
       setLoading(true)
-      let query = supabase.from('appointments').select('status').eq('user_id', user.id)
+      try {
+        let query = supabase.from('appointments').select('status').eq('user_id', user.id)
 
-      if (dateRange?.from) {
-        query = query.gte('appointment_date', format(dateRange.from, 'yyyy-MM-dd'))
-      }
-      if (dateRange?.to) {
-        query = query.lte('appointment_date', format(dateRange.to, 'yyyy-MM-dd'))
-      }
+        if (dateRange?.from) {
+          query = query.gte('appointment_date', format(dateRange.from, 'yyyy-MM-dd'))
+        }
+        if (dateRange?.to) {
+          query = query.lte('appointment_date', format(dateRange.to, 'yyyy-MM-dd'))
+        }
 
-      const { data } = await query
-      const scheduled = (data || []).filter((a) => a.status?.toLowerCase() === 'scheduled').length
-      const visited = (data || []).filter((a) => a.status?.toLowerCase() === 'visited').length
-      setStats({ scheduled, visited })
-      setLoading(false)
+        const { data } = await query
+        const scheduled = (data || []).filter((a) => a.status?.toLowerCase() === 'scheduled').length
+        const visited = (data || []).filter((a) => a.status?.toLowerCase() === 'visited').length
+        setStats({ scheduled, visited })
+      } catch (err) {
+        console.error('Error fetching stats:', err)
+      } finally {
+        setLoading(false)
+      }
     }
     fetchStats()
   }, [user, dateRange])

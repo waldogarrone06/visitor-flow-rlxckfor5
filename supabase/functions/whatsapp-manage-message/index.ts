@@ -15,9 +15,10 @@ Deno.serve(async (req) => {
       throw new Error('Missing environment variables')
     }
 
+    const authHeader = req.headers.get('Authorization') || ''
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       global: {
-        headers: { Authorization: req.headers.get('Authorization')! },
+        headers: { Authorization: authHeader },
       },
     })
 
@@ -36,7 +37,7 @@ Deno.serve(async (req) => {
       .from('user_integrations')
       .select('whatsapp_instance_id, whatsapp_api_token, whatsapp_api_url')
       .eq('user_id', user.id)
-      .single()
+      .maybeSingle()
 
     if (!integration?.whatsapp_instance_id || !integration?.whatsapp_api_token) {
       return new Response(JSON.stringify({ error: 'WhatsApp not connected' }), {

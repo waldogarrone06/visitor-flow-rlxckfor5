@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -27,21 +27,25 @@ export function TopPerformersWidget() {
   const { state } = useMainStore()
   const [hasNotified, setHasNotified] = useState(false)
 
-  const topLeads = state.leads
-    .filter((l) => l.couponUsage && l.couponUsage > 0)
-    .map((lead) => {
-      let growth = 0
-      if (lead.conversionsHistory && lead.conversionsHistory.length >= 2) {
-        const last = lead.conversionsHistory[lead.conversionsHistory.length - 1].count
-        const prev = lead.conversionsHistory[lead.conversionsHistory.length - 2].count
-        if (prev > 0) {
-          growth = ((last - prev) / prev) * 100
-        }
-      }
-      return { ...lead, growth }
-    })
-    .sort((a, b) => (b.couponUsage || 0) - (a.couponUsage || 0))
-    .slice(0, 5)
+  const topLeads = useMemo(
+    () =>
+      state.leads
+        .filter((l) => l.couponUsage && l.couponUsage > 0)
+        .map((lead) => {
+          let growth = 0
+          if (lead.conversionsHistory && lead.conversionsHistory.length >= 2) {
+            const last = lead.conversionsHistory[lead.conversionsHistory.length - 1].count
+            const prev = lead.conversionsHistory[lead.conversionsHistory.length - 2].count
+            if (prev > 0) {
+              growth = ((last - prev) / prev) * 100
+            }
+          }
+          return { ...lead, growth }
+        })
+        .sort((a, b) => (b.couponUsage || 0) - (a.couponUsage || 0))
+        .slice(0, 5),
+    [state.leads],
+  )
 
   useEffect(() => {
     if (!hasNotified) {
