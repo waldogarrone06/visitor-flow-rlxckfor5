@@ -9,7 +9,16 @@ Deno.serve(async (req: Request) => {
 
   try {
     const body = await req.json().catch(() => ({}))
-    const { to, text, isTemplate, templateName, templateLanguage, templateComponents } = body
+    const {
+      to,
+      text,
+      isTemplate,
+      templateName,
+      templateLanguage,
+      templateComponents,
+      parameters,
+      parameterFormat,
+    } = body
 
     if (!to) throw new Error('Parâmetro "to" é obrigatório.')
 
@@ -53,12 +62,15 @@ Deno.serve(async (req: Request) => {
         if (!cfg.officialPhoneNumberId && fallbackIntegration?.whatsapp_official_phone_number_id) {
           cfg.officialPhoneNumberId = fallbackIntegration.whatsapp_official_phone_number_id
         }
+        if (!cfg.officialWabaId && fallbackIntegration?.whatsapp_official_waba_id) {
+          cfg.officialWabaId = fallbackIntegration.whatsapp_official_waba_id
+        }
       }
     } else if (userId) {
       const { data: integration } = await supabaseAdmin
         .from('user_integrations')
         .select(
-          'whatsapp_provider_type, whatsapp_official_phone_number_id, whatsapp_official_waba_id, whatsapp_official_access_token, whatsapp_api_url, whatsapp_instance_id, whatsapp_api_token',
+          'primary_provider, whatsapp_provider_type, whatsapp_official_phone_number_id, whatsapp_official_waba_id, whatsapp_official_access_token, whatsapp_api_url, whatsapp_instance_id, whatsapp_api_token',
         )
         .eq('user_id', userId)
         .maybeSingle()
@@ -66,12 +78,14 @@ Deno.serve(async (req: Request) => {
       if (!integration) {
         throw new Error('Integração não encontrada. Configure nas Configurações.')
       }
-      providerType = integration.whatsapp_provider_type || 'evolution'
+
+      const primaryProvider =
+        integration.primary_provider || integration.whatsapp_provider_type || 'evolution'
+
+      providerType = primaryProvider
       cfg = {
         officialAccessToken:
-          integration.whatsapp_official_access_token ||
-          Deno.env.get('WHATSAPP_OFFICIAL_ACCESS_TOKEN') ||
-          '',
+          integration.whatsapp_official_access_token || Deno.env.get('WHATSAPP_ACCESS_TOKEN') || '',
         officialPhoneNumberId: integration.whatsapp_official_phone_number_id || '',
         officialWabaId: integration.whatsapp_official_waba_id || '',
         apiUrl: integration.whatsapp_api_url || '',
@@ -85,40 +99,63 @@ Deno.serve(async (req: Request) => {
     let number = to.replace(/\D/g, '')
     if (number.length === 10 || number.length === 11) number = '55' + number
 
-    if (providerType === 'official') {
-      const officialToken = cfg.officialAccessToken || cfg.accessToken || cfg.apiToken || ''
-      const officialPhoneId = cfg.officialPhoneNumberId || ''
-      if (!officialToken) {
-        return new Response(
-          JSON.stringify({
-            error: 'Access token não encontrado. Salve suas credenciais do WhatsApp primeiro.',
-          }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-        )
+    const officialReady =
+      !!(cfg.officialAccessToken || cfg.accessToken) && !!cfg.officialPhoneNumberId
+    const evolutionReady = !!cfg.apiUrl && !!cfg.instanceId
+
+    let resolvedParameterFormat = parameterFormat
+
+    if (
+      isTemplate &&
+      templateName &&
+      parameters &&
+      !resolvedParameterFormat &&
+      cfg.officialWabaId
+    ) {
+      const token = cfg.officialAccessToken || cfg.accessToken || ''
+      try {
+        resolvedParameterFormat = await fetchTemplateFormat(cfg.officialWabaId, token, templateName)
+      } catch (e) {
+        console.warn('Could not fetch template format, defaulting to POSITIONAL:', e.message)
+        resolvedParameterFormat = 'POSITIONAL'
       }
-      if (!officialPhoneId) {
-        return new Response(
-          JSON.stringify({
-            error: 'Phone Number ID não encontrado. Salve suas credenciais do WhatsApp primeiro.',
-          }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-        )
+    }
+
+    let resolvedComponents = templateComponents
+    if (parameters && parameters.length > 0) {
+      resolvedComponents = buildTemplateComponents(
+        parameters,
+        resolvedParameterFormat || 'POSITIONAL',
+      )
+    }
+
+    const sendArgs = {
+      number,
+      text,
+      isTemplate,
+      templateName,
+      templateLanguage,
+      templateComponents: resolvedComponents,
+      cfg,
+      userId,
+      supabaseAdmin,
+    }
+
+    if (providerType === 'official') {
+      if (!officialReady && !evolutionReady) {
+        throw new Error('Nenhum provedor configurado. Configure o WhatsApp nas Configurações.')
+      }
+      if (!officialReady && evolutionReady) {
+        console.log('[whatsapp-send] Official not ready, using Evolution directly')
+        return await sendEvolution(sendArgs)
       }
       try {
-        return await sendOfficial({
-          number,
-          text,
-          isTemplate,
-          templateName,
-          templateLanguage,
-          templateComponents,
-          cfg,
-          userId,
-          supabaseAdmin,
-        })
+        console.log('[whatsapp-send] Attempting Official API (primary)')
+        return await sendOfficial(sendArgs)
       } catch (officialError: any) {
-        if (cfg.apiUrl && cfg.instanceId && cfg.apiToken) {
-          console.error('Official API failed, falling back to Evolution:', officialError.message)
+        console.error('[whatsapp-send] Official failed:', officialError.message)
+        if (evolutionReady) {
+          console.log('[whatsapp-send] Falling back to Evolution API')
           try {
             await supabaseAdmin.from('interaction_log').insert({
               user_id: userId,
@@ -126,12 +163,36 @@ Deno.serve(async (req: Request) => {
               details: { to: number, error: officialError.message },
             })
           } catch {}
-          return await sendEvolution({ number, text, cfg, userId, supabaseAdmin })
+          return await sendEvolution(sendArgs)
         }
         throw officialError
       }
     } else {
-      return await sendEvolution({ number, text, cfg, userId, supabaseAdmin })
+      if (!evolutionReady && !officialReady) {
+        throw new Error('Nenhum provedor configurado. Configure o WhatsApp nas Configurações.')
+      }
+      if (!evolutionReady && officialReady) {
+        console.log('[whatsapp-send] Evolution not ready, using Official directly')
+        return await sendOfficial(sendArgs)
+      }
+      try {
+        console.log('[whatsapp-send] Attempting Evolution API (primary)')
+        return await sendEvolution(sendArgs)
+      } catch (evoError: any) {
+        console.error('[whatsapp-send] Evolution failed:', evoError.message)
+        if (officialReady) {
+          console.log('[whatsapp-send] Falling back to Official API')
+          try {
+            await supabaseAdmin.from('interaction_log').insert({
+              user_id: userId,
+              type: 'whatsapp_fallback_to_official',
+              details: { to: number, error: evoError.message },
+            })
+          } catch {}
+          return await sendOfficial(sendArgs)
+        }
+        throw evoError
+      }
     }
   } catch (error: any) {
     console.error('Erro na Edge Function whatsapp-send:', error.message)
@@ -141,6 +202,48 @@ Deno.serve(async (req: Request) => {
     })
   }
 })
+
+function buildTemplateComponents(parameters: any[], format: string): any[] {
+  const formattedParams = parameters.map((p) => {
+    const textValue = p.text || p.value || ''
+    if (format === 'NAMED') {
+      return {
+        type: 'text',
+        parameter_name: p.parameter_name || p.name,
+        text: textValue,
+      }
+    }
+    return { type: 'text', text: textValue }
+  })
+  return [{ type: 'body', parameters: formattedParams }]
+}
+
+async function fetchTemplateFormat(
+  wabaId: string,
+  accessToken: string,
+  templateName: string,
+): Promise<string> {
+  const url = `https://graph.facebook.com/v21.0/${wabaId}/message_templates?name=${encodeURIComponent(templateName)}`
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 10000)
+
+  try {
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      signal: controller.signal,
+    })
+    if (!response.ok) {
+      const errText = await response.text()
+      throw new Error(`Meta API error (${response.status}): ${errText}`)
+    }
+    const data = await response.json()
+    const template = data.data?.find((t: any) => t.name === templateName)
+    if (!template) throw new Error(`Template "${templateName}" not found in Meta API`)
+    return template.parameter_format || 'POSITIONAL'
+  } finally {
+    clearTimeout(timeoutId)
+  }
+}
 
 async function sendOfficial({
   number,
@@ -220,12 +323,10 @@ async function sendOfficial({
     if (r.status === 402) {
       errorMsg =
         'ERRO_PAGAMENTO: A conta do WhatsApp Business está com problema de pagamento. Verifique as configurações de cobrança no Meta Business Manager.'
-      console.error('[whatsapp-send] Payment Required (402) for user:', userId)
     }
     if (responseText.includes('restricted') || responseText.includes('Account Restricted')) {
       errorMsg =
         'ERRO_CONTA_RESTRITA: A conta do WhatsApp Business está restrita. Verifique o status no Meta Business Manager.'
-      console.error('[whatsapp-send] Account restricted for user:', userId)
     }
     throw new Error(errorMsg)
   }
@@ -345,24 +446,17 @@ async function check24hWindow(supabaseAdmin: any, userId: string, phone: string)
 
   const { data: contact } = await supabaseAdmin
     .from('contacts')
-    .select('id')
+    .select('id, last_inbound_at')
     .eq('user_id', userId)
     .in('phone', searchPhones)
     .limit(1)
     .maybeSingle()
 
   if (!contact) return false
+  if (!contact.last_inbound_at) return false
 
-  const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-  const { data: lastInbound } = await supabaseAdmin
-    .from('messages')
-    .select('created_at')
-    .eq('contact_id', contact.id)
-    .eq('direction', 'inbound')
-    .gte('created_at', twentyFourHoursAgo)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
+  const lastInbound = new Date(contact.last_inbound_at)
+  const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
 
-  return !!lastInbound
+  return lastInbound > twentyFourHoursAgo
 }

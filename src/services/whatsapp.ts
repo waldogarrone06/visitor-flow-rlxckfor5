@@ -10,6 +10,8 @@ export async function sendWhatsAppMessage(
     templateName?: string
     templateLanguage?: string
     templateComponents?: any[]
+    parameters?: any[]
+    parameterFormat?: string
   },
 ) {
   const { data, error } = await supabase.functions.invoke('whatsapp-send', {
@@ -33,6 +35,30 @@ export async function sendWhatsAppMessage(
   }
 
   return data
+}
+
+export async function fetchWhatsAppTemplates(userId: string) {
+  const { data, error } = await supabase.functions.invoke('whatsapp-templates', {
+    body: { userId },
+  })
+
+  if (error && error instanceof FunctionsHttpError) {
+    let errorMessage
+    try {
+      errorMessage = await error.context.json()
+    } catch (e) {
+      errorMessage = { error: await error.context.text() }
+    }
+    throw new Error(`Erro de conexão com o servidor: ${errorMessage?.error || error.message}`)
+  } else if (error) {
+    throw new Error(`Erro de conexão com o servidor: ${error.message}`)
+  }
+
+  if (data?.error) {
+    throw new Error(data.error)
+  }
+
+  return data?.templates || []
 }
 
 export async function manageWhatsAppMessage(

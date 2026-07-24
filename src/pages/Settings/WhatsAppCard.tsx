@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   Card,
   CardHeader,
@@ -23,13 +23,18 @@ import {
   Copy,
   ShieldCheck,
   Zap,
+  AlertTriangle,
 } from 'lucide-react'
 import { getIntegrations, saveIntegrations } from '@/services/settings'
 import { supabase } from '@/lib/supabase/client'
 import { FunctionsHttpError } from '@supabase/supabase-js'
+import {
+  WhatsAppTemplateSelector,
+  type SelectedTemplate,
+} from '@/components/whatsapp-template-selector'
 
 const DEFAULT_VERIFY_TOKEN = 'vf_wh_2026_k9Xm2pQ7nR4tZ'
-const WEBHOOK_URL = 'https://zbtaxosxmxoidrtmojfx.supabase.co/functions/v1/whatsapp-webhook'
+const WEBHOOK_URL = 'https://zbtaxosxmxoidrtmojfx.supabase.co/functions/v1/meta-webhook'
 
 export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
   const [providerType, setProviderType] = useState<'official' | 'evolution'>('evolution')
@@ -46,6 +51,9 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
   const [apiToken, setApiToken] = useState('')
 
   const [testNumber, setTestNumber] = useState('')
+  const [testMode, setTestMode] = useState<'template' | 'freetext'>('template')
+  const [freeText, setFreeText] = useState('')
+  const [selectedTemplate, setSelectedTemplate] = useState<SelectedTemplate | null>(null)
   const [connected, setConnected] = useState(false)
   const [connectionState, setConnectionState] = useState<
     'connected' | 'connecting' | 'disconnected' | 'unknown'
@@ -59,7 +67,10 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
     getIntegrations(targetUserId)
       .then((data) => {
         if (data) {
-          setProviderType(data.whatsapp_provider_type || 'evolution')
+          const pType = (data.primary_provider || data.whatsapp_provider_type || 'evolution') as
+            | 'official'
+            | 'evolution'
+          setProviderType(pType)
           setOfficialPhoneId(data.whatsapp_official_phone_number_id || '')
           setOfficialWabaId(data.whatsapp_official_waba_id || '')
           setHasOfficialToken(!!(data as any)._has_official_access_token)
@@ -169,6 +180,7 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
           cleanUrl = cleanUrl.split('/message/sendText')[0]
         await saveIntegrations(
           {
+            primary_provider: 'evolution',
             whatsapp_provider_type: 'evolution',
             whatsapp_api_url: cleanUrl,
             whatsapp_instance_id: instanceName.trim(),
@@ -188,6 +200,7 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
           return false
         }
         const updates: Record<string, any> = {
+          primary_provider: 'official',
           whatsapp_provider_type: 'official',
           whatsapp_official_phone_number_id: officialPhoneId.trim(),
           whatsapp_official_waba_id: officialWabaId.trim(),
@@ -208,8 +221,7 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
     } catch (error: any) {
       toast({
         title: 'Erro ao salvar',
-        description:
-          error?.message || 'Falha ao salvar o token. Verifique as credenciais e tente novamente.',
+        description: error?.message || 'Falha ao salvar.',
         variant: 'destructive',
       })
       return false
@@ -263,11 +275,18 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
       })
       return
     }
+
+    if (testMode === 'template' && providerType === 'official' && !selectedTemplate) {
+      toast({ title: 'Aviso', description: 'Selecione um template.', variant: 'destructive' })
+      return
+    }
+
     setTesting(true)
     try {
       const testCredentials: any = { providerType: providerType || 'evolution' }
       if (providerType === 'official') {
         testCredentials.officialPhoneNumberId = officialPhoneId.trim()
+        testCredentials.officialWabaId = officialWabaId.trim()
         const tokenToUse = officialToken.trim() || savedAccessToken
         if (tokenToUse) testCredentials.officialAccessToken = tokenToUse
       } else {
@@ -282,18 +301,25 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
         testCredentials.apiToken = apiToken.trim()
       }
 
+      const useTemplate = providerType === 'official' && testMode === 'template'
+
       const { data, error } = await supabase.functions.invoke('whatsapp-send', {
         body: {
           to: testNumber,
-          text:
-            providerType === 'official'
-              ? 'Testando envio via API Oficial do WhatsApp'
-              : 'Testando envio via Exchange Mode',
+          text: freeText || 'Testando envio via WhatsApp',
           userId: targetUserId,
           testCredentials,
-          isTemplate: providerType === 'official',
-          templateName: providerType === 'official' ? 'recupcar1' : undefined,
-          templateLanguage: providerType === 'official' ? 'pt_BR' : undefined,
+          isTemplate: useTemplate,
+          templateName: useTemplate ? selectedTemplate?.name : undefined,
+          templateLanguage: useTemplate ? selectedTemplate?.language : undefined,
+          parameterFormat: useTemplate ? selectedTemplate?.parameter_format : undefined,
+          parameters: useTemplate
+            ? selectedTemplate?.parameters?.map((p) => ({
+                type: 'text',
+                text: p.value,
+                parameter_name: p.name,
+              }))
+            : undefined,
         },
       })
 
@@ -325,6 +351,10 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
     navigator.clipboard.writeText(text)
     toast({ title: 'Copiado!', description: `${label} copiada para a área de transferência.` })
   }
+
+  const handleTemplateChange = useCallback((template: SelectedTemplate | null) => {
+    setSelectedTemplate(template)
+  }, [])
 
   if (!targetUserId) return null
 
@@ -373,7 +403,7 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
         ) : (
           <>
             <div className="space-y-3">
-              <Label>Provedor Ativo</Label>
+              <Label>Provedor Principal</Label>
               <RadioGroup
                 value={providerType}
                 onValueChange={(v) => setProviderType(v as 'official' | 'evolution')}
@@ -404,6 +434,9 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
                   </div>
                 </div>
               </RadioGroup>
+              <p className="text-xs text-muted-foreground">
+                O provedor principal é tentado primeiro. Se falhar, o outro é usado como fallback.
+              </p>
             </div>
 
             {providerType === 'official' ? (
@@ -474,7 +507,7 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>URL do Webhook</Label>
+                  <Label>URL do Webhook (Meta Cloud API)</Label>
                   <div className="flex gap-2">
                     <div className="flex-1 relative">
                       <Link2 className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -490,7 +523,7 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
                   </div>
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     No Meta Business Manager, configure o webhook com esta URL e o Verify Token
-                    acima. Marque os campos: <code>messages</code>.
+                    acima. Marque os campos: <code>messages</code> e <code>message_status</code>.
                   </p>
                 </div>
               </>
@@ -543,12 +576,21 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
                   <div className="flex gap-2">
                     <div className="flex-1 relative">
                       <Link2 className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input readOnly value={WEBHOOK_URL} className="pl-9 bg-muted/50 text-xs" />
+                      <Input
+                        readOnly
+                        value="https://zbtaxosxmxoidrtmojfx.supabase.co/functions/v1/whatsapp-webhook"
+                        className="pl-9 bg-muted/50 text-xs"
+                      />
                     </div>
                     <Button
                       variant="outline"
                       size="icon"
-                      onClick={() => copyToClipboard(WEBHOOK_URL, 'URL do Webhook')}
+                      onClick={() =>
+                        copyToClipboard(
+                          'https://zbtaxosxmxoidrtmojfx.supabase.co/functions/v1/whatsapp-webhook',
+                          'URL do Webhook',
+                        )
+                      }
                     >
                       <Copy className="h-4 w-4" />
                     </Button>
@@ -562,7 +604,7 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
               </>
             )}
 
-            <div className="space-y-2 pt-4 border-t">
+            <div className="space-y-3 pt-4 border-t">
               <Label>Número para Teste</Label>
               <div className="flex relative">
                 <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -574,6 +616,53 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
                   disabled={testing}
                 />
               </div>
+
+              {providerType === 'official' && isOfficialConnected && (
+                <>
+                  <div className="flex gap-2">
+                    <Button
+                      variant={testMode === 'template' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setTestMode('template')}
+                    >
+                      Template
+                    </Button>
+                    <Button
+                      variant={testMode === 'freetext' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setTestMode('freetext')}
+                    >
+                      Texto Livre
+                    </Button>
+                  </div>
+
+                  {testMode === 'template' ? (
+                    <WhatsAppTemplateSelector
+                      userId={targetUserId}
+                      enabled={isOfficialConnected}
+                      onTemplateChange={handleTemplateChange}
+                    />
+                  ) : (
+                    <>
+                      <div className="space-y-2">
+                        <Label className="text-xs">Mensagem</Label>
+                        <Input
+                          value={freeText}
+                          onChange={(e) => setFreeText(e.target.value)}
+                          placeholder="Digite a mensagem..."
+                        />
+                      </div>
+                      <div className="flex items-start gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <AlertTriangle className="h-4 w-4 text-yellow-600 mt-0.5 shrink-0" />
+                        <p className="text-xs text-yellow-800">
+                          Texto livre só é permitido se o contato respondeu nas últimas 24 horas.
+                          Caso contrário, use um template.
+                        </p>
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
             </div>
           </>
         )}
