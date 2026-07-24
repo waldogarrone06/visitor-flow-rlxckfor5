@@ -84,8 +84,7 @@ Deno.serve(async (req: Request) => {
 
       providerType = primaryProvider
       cfg = {
-        officialAccessToken:
-          integration.whatsapp_official_access_token || Deno.env.get('WHATSAPP_ACCESS_TOKEN') || '',
+        officialAccessToken: integration.whatsapp_official_access_token || '',
         officialPhoneNumberId: integration.whatsapp_official_phone_number_id || '',
         officialWabaId: integration.whatsapp_official_waba_id || '',
         apiUrl: integration.whatsapp_api_url || '',
@@ -256,7 +255,7 @@ async function sendOfficial({
   userId,
   supabaseAdmin,
 }: any) {
-  const accessToken = cfg.officialAccessToken || cfg.apiToken || ''
+  const accessToken = cfg.officialAccessToken || ''
   const phoneNumberId = cfg.officialPhoneNumberId || ''
 
   if (!accessToken) {

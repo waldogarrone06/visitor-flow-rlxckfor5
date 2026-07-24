@@ -75,6 +75,7 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
           setOfficialWabaId(data.whatsapp_official_waba_id || '')
           setHasOfficialToken(!!(data as any)._has_official_access_token)
           setSavedAccessToken((data as any).whatsapp_official_access_token || '')
+          setOfficialToken((data as any).whatsapp_official_access_token || '')
           setOfficialVerifyToken(data.whatsapp_official_verify_token || DEFAULT_VERIFY_TOKEN)
           setApiUrl(data.whatsapp_api_url || '')
           setInstanceName(data.whatsapp_instance_id || '')
@@ -212,8 +213,7 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
         }
         await saveIntegrations(updates, targetUserId)
         setHasOfficialToken(true)
-        setOfficialToken('')
-        if (officialToken.trim()) setSavedAccessToken(officialToken.trim())
+        setSavedAccessToken(officialToken.trim() || savedAccessToken)
         setConnected(true)
       }
       toast({ title: 'Configuração Salva', description: 'Credenciais salvas com sucesso!' })
@@ -473,11 +473,7 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
                     <Input
                       value={officialToken}
                       onChange={(e) => setOfficialToken(e.target.value)}
-                      placeholder={
-                        hasOfficialToken
-                          ? '•••• Token configurado (digite para alterar)'
-                          : 'SUA_ACCESS_TOKEN'
-                      }
+                      placeholder="SUA_ACCESS_TOKEN"
                       type="password"
                       className="pl-9"
                     />
