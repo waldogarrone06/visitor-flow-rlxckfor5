@@ -269,9 +269,7 @@ async function sendOfficial({
   if (!isTemplate && userId) {
     const withinWindow = await check24hWindow(supabaseAdmin, userId, number)
     if (!withinWindow) {
-      throw new Error(
-        'FORA_DA_JANELA_24H: A última interação do contato foi há mais de 24 horas. Use um Template para iniciar a conversa.',
-      )
+      throw new Error('Janela de 24h expirou. Envie um template para iniciar a conversa.')
     }
   }
 

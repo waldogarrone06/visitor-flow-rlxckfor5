@@ -25,9 +25,9 @@ export async function sendWhatsAppMessage(
     } catch (e) {
       errorMessage = { error: await error.context.text() }
     }
-    throw new Error(`Erro de conexão com o servidor: ${errorMessage?.error || error.message}`)
+    throw new Error(errorMessage?.error || error.message)
   } else if (error) {
-    throw new Error(`Erro de conexão com o servidor: ${error.message}`)
+    throw new Error(error.message)
   }
 
   if (data?.error) {

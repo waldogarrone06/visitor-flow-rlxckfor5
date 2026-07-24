@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase/client'
+import { FunctionsHttpError } from '@supabase/supabase-js'
 import { Loader2, RefreshCw } from 'lucide-react'
 
 export interface TemplateParameter {
@@ -50,13 +51,32 @@ export function WhatsAppTemplateSelector({
       const { data, error } = await supabase.functions.invoke('whatsapp-templates', {
         body: { userId },
       })
-      if (error) throw error
+      if (error) {
+        let errorDetail = error.message
+        if (error instanceof FunctionsHttpError) {
+          try {
+            const errorBody = await error.context.json()
+            errorDetail = errorBody?.error || errorDetail
+          } catch {
+            try {
+              errorDetail = await error.context.text()
+            } catch {
+              /* intentionally ignored */
+            }
+          }
+        }
+        console.error('[WhatsAppTemplateSelector] Erro ao carregar templates:', errorDetail)
+        setError(`Erro ao carregar templates: ${errorDetail}`)
+        return
+      }
       if (data?.templates) {
         setTemplates(data.templates)
       } else if (data?.error) {
-        setError(data.error)
+        console.error('[WhatsAppTemplateSelector] Erro ao carregar templates:', data.error)
+        setError(`Erro ao carregar templates: ${data.error}`)
       }
     } catch (err: any) {
+      console.error('[WhatsAppTemplateSelector] Erro ao carregar templates:', err)
       setError(err.message || 'Falha ao carregar templates')
     } finally {
       setLoading(false)

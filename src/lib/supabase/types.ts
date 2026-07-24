@@ -189,6 +189,7 @@ export type Database = {
           email: string | null
           id: string
           instagram: string | null
+          last_inbound_at: string | null
           name: string
           nutritionist_coupon: string | null
           patient_coupon: string | null
@@ -207,6 +208,7 @@ export type Database = {
           email?: string | null
           id?: string
           instagram?: string | null
+          last_inbound_at?: string | null
           name: string
           nutritionist_coupon?: string | null
           patient_coupon?: string | null
@@ -225,6 +227,7 @@ export type Database = {
           email?: string | null
           id?: string
           instagram?: string | null
+          last_inbound_at?: string | null
           name?: string
           nutritionist_coupon?: string | null
           patient_coupon?: string | null
@@ -586,6 +589,7 @@ export type Database = {
           google_refresh_token: string | null
           id: string
           melhor_envio_token: string | null
+          primary_provider: string | null
           reminder_email_template: string | null
           reminder_enabled: boolean | null
           reminder_whatsapp_template: string | null
@@ -614,6 +618,7 @@ export type Database = {
           google_refresh_token?: string | null
           id?: string
           melhor_envio_token?: string | null
+          primary_provider?: string | null
           reminder_email_template?: string | null
           reminder_enabled?: boolean | null
           reminder_whatsapp_template?: string | null
@@ -642,6 +647,7 @@ export type Database = {
           google_refresh_token?: string | null
           id?: string
           melhor_envio_token?: string | null
+          primary_provider?: string | null
           reminder_email_template?: string | null
           reminder_enabled?: boolean | null
           reminder_whatsapp_template?: string | null
