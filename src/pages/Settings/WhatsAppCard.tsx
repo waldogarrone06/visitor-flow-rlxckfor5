@@ -213,8 +213,15 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
           updates.whatsapp_official_access_token = officialToken.trim()
         }
         await saveIntegrations(updates, targetUserId)
-        setHasOfficialToken(true)
-        setSavedAccessToken(officialToken.trim() || savedAccessToken)
+        const refreshedData = await getIntegrations(targetUserId)
+        if (refreshedData) {
+          setHasOfficialToken(!!(refreshedData as any)._has_official_access_token)
+          setSavedAccessToken((refreshedData as any).whatsapp_official_access_token || '')
+          setOfficialToken((refreshedData as any).whatsapp_official_access_token || '')
+        } else {
+          setHasOfficialToken(true)
+          setSavedAccessToken(officialToken.trim() || savedAccessToken)
+        }
         setConnected(true)
         setTemplateRefetchTrigger((prev) => prev + 1)
       }
@@ -264,6 +271,7 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
       setOfficialToken('')
       setSavedAccessToken('')
       setConnected(false)
+      setTemplateRefetchTrigger((prev) => prev + 1)
     }
     toast({ title: 'WhatsApp Desconectado' })
   }

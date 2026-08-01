@@ -1,5 +1,5 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
-import { createClient } from 'jsr:@supabase/supabase-js@2'
+import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 
 Deno.serve(async (req: Request) => {
@@ -27,8 +27,7 @@ Deno.serve(async (req: Request) => {
         .limit(1)
         .maybeSingle()
 
-      const envToken = Deno.env.get('WHATSAPP_OFFICIAL_VERIFY_TOKEN')
-      if (integration || (envToken && token === envToken) || token === 'vf_wh_2026_k9Xm2pQ7nR4tZ') {
+      if (integration) {
         return new Response(challenge || '', {
           status: 200,
           headers: { 'Content-Type': 'text/plain' },

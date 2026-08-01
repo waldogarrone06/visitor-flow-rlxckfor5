@@ -1,6 +1,6 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { corsHeaders } from '../_shared/cors.ts'
-import { createClient } from 'jsr:@supabase/supabase-js@2'
+import { createClient } from 'npm:@supabase/supabase-js@2'
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -10,6 +10,7 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
 
     if (!supabaseUrl || !supabaseAnonKey) {
       throw new Error('Missing environment variables')
@@ -33,9 +34,13 @@ Deno.serve(async (req) => {
       })
     }
 
-    const { data: integration } = await supabase
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
+
+    const { data: integration } = await supabaseAdmin
       .from('user_integrations')
-      .select('whatsapp_instance_id, whatsapp_api_token, whatsapp_api_url')
+      .select(
+        'whatsapp_instance_id, whatsapp_api_token, whatsapp_api_url, primary_provider, whatsapp_provider_type, whatsapp_official_phone_number_id, whatsapp_official_waba_id, whatsapp_official_access_token',
+      )
       .eq('user_id', user.id)
       .maybeSingle()
 

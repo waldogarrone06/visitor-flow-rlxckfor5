@@ -49,6 +49,7 @@ export function WhatsAppTemplateSelector({
     if (!userId || !enabled) return
     setLoading(true)
     setError('')
+    setTemplates([])
     try {
       const { data, error } = await supabase.functions.invoke('whatsapp-templates', {
         body: { userId },

@@ -1,5 +1,5 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
-import { createClient } from 'jsr:@supabase/supabase-js@2'
+import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 
 Deno.serve(async (req: Request) => {
@@ -43,7 +43,9 @@ Deno.serve(async (req: Request) => {
       .eq('user_id', userId)
       .maybeSingle()
 
-    if (!integration?.whatsapp_official_access_token) {
+    const accessToken = (integration?.whatsapp_official_access_token || '').trim()
+
+    if (!accessToken) {
       return new Response(
         JSON.stringify({
           error: 'WhatsApp Official API not configured. Save your Access Token first.',
@@ -61,8 +63,16 @@ Deno.serve(async (req: Request) => {
       )
     }
 
-    const wabaId = integration.whatsapp_official_waba_id
-    const accessToken = integration.whatsapp_official_access_token
+    const wabaId = integration.whatsapp_official_waba_id.trim()
+
+    console.log(
+      '[whatsapp-templates] Loading templates for user:',
+      userId,
+      'hasWabaId:',
+      !!wabaId,
+      'hasToken:',
+      !!accessToken,
+    )
 
     const url = `https://graph.facebook.com/v21.0/${wabaId}/message_templates`
 
