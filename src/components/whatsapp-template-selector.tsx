@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase/client'
 import { FunctionsHttpError } from '@supabase/supabase-js'
-import { Loader2, RefreshCw } from 'lucide-react'
+import { Loader2, RefreshCw, AlertCircle } from 'lucide-react'
 
 export interface TemplateParameter {
   name: string
@@ -30,12 +30,14 @@ interface WhatsAppTemplateSelectorProps {
   userId?: string
   enabled: boolean
   onTemplateChange: (template: SelectedTemplate | null) => void
+  refetchTrigger?: number
 }
 
 export function WhatsAppTemplateSelector({
   userId,
   enabled,
   onTemplateChange,
+  refetchTrigger,
 }: WhatsAppTemplateSelectorProps) {
   const [templates, setTemplates] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
@@ -85,7 +87,7 @@ export function WhatsAppTemplateSelector({
 
   useEffect(() => {
     fetchTemplates()
-  }, [fetchTemplates])
+  }, [fetchTemplates, refetchTrigger])
 
   useEffect(() => {
     if (!selectedName) {
@@ -124,7 +126,10 @@ export function WhatsAppTemplateSelector({
   if (error) {
     return (
       <div className="space-y-2">
-        <p className="text-xs text-destructive">{error}</p>
+        <div className="flex items-start gap-2 p-3 bg-destructive/5 border border-destructive/20 rounded-lg">
+          <AlertCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+          <p className="text-xs text-destructive leading-relaxed">{error}</p>
+        </div>
         <Button variant="outline" size="sm" onClick={fetchTemplates}>
           <RefreshCw className="h-3 w-3 mr-1" />
           Tentar novamente
@@ -135,9 +140,16 @@ export function WhatsAppTemplateSelector({
 
   if (templates.length === 0) {
     return (
-      <p className="text-xs text-muted-foreground">
-        Nenhum template aprovado encontrado. Salve o Access Token e WABA ID primeiro.
-      </p>
+      <div className="space-y-2">
+        <p className="text-xs text-muted-foreground">
+          Nenhum template aprovado encontrado na sua conta do Meta. Crie e aprove templates no Meta
+          Business Manager para que apareçam aqui.
+        </p>
+        <Button variant="outline" size="sm" onClick={fetchTemplates}>
+          <RefreshCw className="h-3 w-3 mr-1" />
+          Atualizar
+        </Button>
+      </div>
     )
   }
 

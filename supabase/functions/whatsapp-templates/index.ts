@@ -84,9 +84,25 @@ Deno.serve(async (req: Request) => {
 
     if (!response.ok) {
       const errText = await response.text()
+      let errorDetail = errText
+      let metaErrorCode: number | undefined
+      try {
+        const errJson = JSON.parse(errText)
+        if (errJson?.error) {
+          errorDetail = errJson.error.message || errJson.error.error_msg || errText
+          metaErrorCode = errJson.error.code
+          if (errJson.error.error_subcode) {
+            errorDetail = `${errorDetail} (subcode: ${errJson.error.error_subcode})`
+          }
+        }
+      } catch {
+        // errText is not JSON, use as-is
+      }
       return new Response(
         JSON.stringify({
-          error: `Meta API error (${response.status}): ${errText}`,
+          error: `Meta API error (${response.status}): ${errorDetail}`,
+          httpStatus: response.status,
+          metaErrorCode,
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       )

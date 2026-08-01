@@ -60,6 +60,7 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
   >('unknown')
   const [loading, setLoading] = useState(true)
   const [testing, setTesting] = useState(false)
+  const [templateRefetchTrigger, setTemplateRefetchTrigger] = useState(0)
 
   useEffect(() => {
     if (!targetUserId) return
@@ -215,6 +216,7 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
         setHasOfficialToken(true)
         setSavedAccessToken(officialToken.trim() || savedAccessToken)
         setConnected(true)
+        setTemplateRefetchTrigger((prev) => prev + 1)
       }
       toast({ title: 'Configuração Salva', description: 'Credenciais salvas com sucesso!' })
       return true
@@ -637,6 +639,7 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
                       userId={targetUserId}
                       enabled={isOfficialConnected}
                       onTemplateChange={handleTemplateChange}
+                      refetchTrigger={templateRefetchTrigger}
                     />
                   ) : (
                     <>
