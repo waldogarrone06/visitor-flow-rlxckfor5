@@ -406,7 +406,10 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
 
     try {
       if (lead?.phone) {
-        const response: any = await sendWhatsAppMessage(lead.phone, messageText, newMessageId)
+        const response: any = await sendWhatsAppMessage(lead.phone, messageText, newMessageId, {
+          contactId: contactId || undefined,
+          dbMessageId: newMessageId,
+        })
         const ev = response?.evolutionResponse
 
         const evData = Array.isArray(ev) ? ev[0] : ev

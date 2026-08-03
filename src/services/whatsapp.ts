@@ -17,7 +17,7 @@ export async function sendWhatsAppMessage(
   },
 ) {
   const { data, error } = await supabase.functions.invoke('whatsapp-send', {
-    body: { to, text, messageId, ...options },
+    body: { to, text, dbMessageId: options?.dbMessageId ?? messageId, ...options },
   })
 
   if (error && error instanceof FunctionsHttpError) {

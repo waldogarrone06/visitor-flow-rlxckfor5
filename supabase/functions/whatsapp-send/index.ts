@@ -378,37 +378,15 @@ async function sendOfficial({
   const wamid = parsedResult?.messages?.[0]?.id
 
   if (userId) {
-    try {
-      await supabaseAdmin.from('interaction_log').insert({
-        user_id: userId,
-        type: 'whatsapp_send_official',
-        details: { to: number, success: true, messageId: wamid },
-      })
-    } catch (err) {
-      console.warn('Failed to log interaction:', err)
-    }
-
-    if (wamid) {
-      try {
-        if (dbMessageId) {
-          await supabaseAdmin
-            .from('messages')
-            .update({ client_id: wamid, status: 'sent' })
-            .eq('id', dbMessageId)
-        } else if (contactId) {
-          await supabaseAdmin.from('messages').insert({
-            user_id: userId,
-            contact_id: contactId,
-            content: text || '',
-            direction: 'outbound',
-            status: 'sent',
-            client_id: wamid,
-          })
-        }
-      } catch (err) {
-        console.warn('[whatsapp-send] Failed to persist wamid:', err)
-      }
-    }
+    await persistOutboundMessage(supabaseAdmin, {
+      userId,
+      contactId,
+      dbMessageId,
+      content: text || '',
+      providerMessageId: wamid || null,
+      provider: 'official',
+      number,
+    })
   }
 
   return new Response(
@@ -485,37 +463,16 @@ async function sendEvolution({
   const evoMessageId = parsedResult?.key?.id || parsedResult?.messageId || parsedResult?.id
 
   if (userId) {
-    try {
-      await supabaseAdmin.from('interaction_log').insert({
-        user_id: userId,
-        type: 'whatsapp_send_evolution',
-        details: { to: number, instance: sessionId, success: true },
-      })
-    } catch (err) {
-      console.warn('Failed to log interaction:', err)
-    }
-
-    if (evoMessageId) {
-      try {
-        if (dbMessageId) {
-          await supabaseAdmin
-            .from('messages')
-            .update({ client_id: evoMessageId, status: 'sent' })
-            .eq('id', dbMessageId)
-        } else if (contactId) {
-          await supabaseAdmin.from('messages').insert({
-            user_id: userId,
-            contact_id: contactId,
-            content: text || '',
-            direction: 'outbound',
-            status: 'sent',
-            client_id: evoMessageId,
-          })
-        }
-      } catch (err) {
-        console.warn('[whatsapp-send] Failed to persist message ID:', err)
-      }
-    }
+    await persistOutboundMessage(supabaseAdmin, {
+      userId,
+      contactId,
+      dbMessageId,
+      content: text || '',
+      providerMessageId: evoMessageId || null,
+      provider: 'evolution',
+      number,
+      instance: sessionId,
+    })
   }
 
   return new Response(
@@ -527,6 +484,59 @@ async function sendEvolution({
     }),
     { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
   )
+}
+
+async function persistOutboundMessage(
+  supabaseAdmin: any,
+  params: {
+    userId: string
+    contactId?: string
+    dbMessageId?: string
+    content: string
+    providerMessageId: string | null
+    provider: 'official' | 'evolution'
+    number: string
+    instance?: string
+  },
+) {
+  const logType =
+    params.provider === 'official' ? 'whatsapp_send_official' : 'whatsapp_send_evolution'
+
+  const logDetails: any = { to: params.number, success: true, messageId: params.providerMessageId }
+  if (params.instance) logDetails.instance = params.instance
+
+  try {
+    await supabaseAdmin.from('interaction_log').insert({
+      user_id: params.userId,
+      contact_id: params.contactId || null,
+      type: logType,
+      details: logDetails,
+    })
+  } catch (err) {
+    console.warn('Failed to log interaction:', err)
+  }
+
+  if (params.providerMessageId) {
+    try {
+      if (params.dbMessageId) {
+        await supabaseAdmin
+          .from('messages')
+          .update({ client_id: params.providerMessageId, status: 'sent' })
+          .eq('id', params.dbMessageId)
+      } else if (params.contactId) {
+        await supabaseAdmin.from('messages').insert({
+          user_id: params.userId,
+          contact_id: params.contactId,
+          content: params.content || '',
+          direction: 'outbound',
+          status: 'sent',
+          client_id: params.providerMessageId,
+        })
+      }
+    } catch (err) {
+      console.warn(`[whatsapp-send] Failed to persist ${params.provider} message:`, err)
+    }
+  }
 }
 
 async function check24hWindow(supabaseAdmin: any, userId: string, phone: string): Promise<boolean> {
