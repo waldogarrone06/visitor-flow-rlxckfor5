@@ -36,36 +36,60 @@ Deno.serve(async (req: Request) => {
       auth: { persistSession: false },
     })
     const body = await req.json().catch(() => ({}))
-    const { key, value } = body
 
-    if (!key || !isAllowedKey(key)) {
+    const rawKey =
+      body.key || body.credentialKey || (body.accessToken ? 'whatsapp_official_access_token' : null)
+    const isClear = !!body.clear
+    const rawValue = isClear
+      ? null
+      : (body.value ?? body.credentialValue ?? body.accessToken ?? null)
+    const targetUserId = body.userId || null
+
+    if (!rawKey || !isAllowedKey(rawKey)) {
       return new Response(JSON.stringify({ error: 'Invalid credential key' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
+    let effectiveUserId = user.id
+    if (targetUserId && targetUserId !== user.id) {
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('is_admin')
+        .eq('id', user.id)
+        .maybeSingle()
+      if (profile?.is_admin) {
+        effectiveUserId = targetUserId
+      }
+    }
+
     const { data: existing } = await supabaseAdmin
       .from('integration_secrets')
       .select('user_id')
-      .eq('user_id', user.id)
+      .eq('user_id', effectiveUserId)
       .maybeSingle()
 
     if (existing) {
       await supabaseAdmin
         .from('integration_secrets')
-        .update({ [key]: value || null, updated_at: new Date().toISOString() })
-        .eq('user_id', user.id)
+        .update({ [rawKey]: rawValue, updated_at: new Date().toISOString() })
+        .eq('user_id', effectiveUserId)
     } else {
       await supabaseAdmin
         .from('integration_secrets')
-        .insert({ user_id: user.id, [key]: value || null })
+        .insert({ user_id: effectiveUserId, [rawKey]: rawValue })
     }
 
-    await updateIndicator(supabaseAdmin, user.id, key, !!value && String(value).trim() !== '')
+    await updateIndicator(
+      supabaseAdmin,
+      effectiveUserId,
+      rawKey,
+      !!rawValue && String(rawValue).trim() !== '',
+    )
 
     let redeployResult: any = null
-    if (WHATSAPP_KEYS.includes(key)) {
+    if (WHATSAPP_KEYS.includes(rawKey)) {
       try {
         const r = await fetch(`${supabaseUrl}/functions/v1/whatsapp-redeploy`, {
           method: 'POST',
@@ -74,7 +98,7 @@ Deno.serve(async (req: Request) => {
             Authorization: authHeader,
             apikey: supabaseAnonKey,
           },
-          body: JSON.stringify({ userId: user.id }),
+          body: JSON.stringify({ userId: effectiveUserId }),
         })
         redeployResult = await r.json()
       } catch (e: any) {

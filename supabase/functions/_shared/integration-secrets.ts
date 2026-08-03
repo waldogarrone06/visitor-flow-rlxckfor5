@@ -74,6 +74,7 @@ export async function getGoogleTokens(
 
 const INDICATOR_MAP: Record<string, string> = {
   whatsapp_official_access_token: 'whatsapp_official_configured',
+  whatsapp_app_secret: 'whatsapp_app_secret_configured',
   google_access_token: 'google_configured',
   google_refresh_token: 'google_configured',
   melhor_envio_token: 'melhor_envio_configured',

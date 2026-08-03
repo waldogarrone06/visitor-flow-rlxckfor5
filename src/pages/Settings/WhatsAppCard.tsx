@@ -45,6 +45,8 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
   const [hasOfficialToken, setHasOfficialToken] = useState(false)
   const [savedAccessToken, setSavedAccessToken] = useState('')
   const [officialVerifyToken, setOfficialVerifyToken] = useState(DEFAULT_VERIFY_TOKEN)
+  const [appSecret, setAppSecret] = useState('')
+  const [hasAppSecret, setHasAppSecret] = useState(false)
 
   const [apiUrl, setApiUrl] = useState('')
   const [instanceName, setInstanceName] = useState('')
@@ -82,6 +84,7 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
           setSavedAccessToken('')
           setOfficialToken('')
           setOfficialVerifyToken(data.whatsapp_official_verify_token || DEFAULT_VERIFY_TOKEN)
+          setHasAppSecret(!!(data as any).whatsapp_app_secret_configured)
           setApiUrl(data.whatsapp_api_url || '')
           setInstanceName(data.whatsapp_instance_id || '')
           setHasApiToken(!!(data as any).whatsapp_api_configured)
@@ -200,9 +203,9 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
             'save-integration-secret',
             {
               body: {
+                key: 'whatsapp_api_token',
+                value: apiToken.trim(),
                 userId: targetUserId,
-                credentialKey: 'whatsapp_api_token',
-                credentialValue: apiToken.trim(),
               },
             },
           )
@@ -234,11 +237,27 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
           const { error: secretError } = await supabase.functions.invoke(
             'save-integration-secret',
             {
-              body: { userId: targetUserId, accessToken: officialToken.trim() },
+              body: {
+                key: 'whatsapp_official_access_token',
+                value: officialToken.trim(),
+                userId: targetUserId,
+              },
             },
           )
           if (secretError) throw new Error('Falha ao salvar token seguro')
           setOfficialToken('')
+        }
+
+        if (appSecret.trim()) {
+          const { error: appSecretError } = await supabase.functions.invoke(
+            'save-integration-secret',
+            {
+              body: { key: 'whatsapp_app_secret', value: appSecret.trim(), userId: targetUserId },
+            },
+          )
+          if (appSecretError) throw new Error('Falha ao salvar App Secret')
+          setAppSecret('')
+          setHasAppSecret(true)
         }
 
         const refreshedData = await getIntegrations(targetUserId)
@@ -247,10 +266,12 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
             !!(refreshedData as any).whatsapp_official_configured ||
               !!(refreshedData as any)._has_official_access_token,
           )
+          setHasAppSecret(!!(refreshedData as any).whatsapp_app_secret_configured)
           setSavedAccessToken('')
           setOfficialToken('')
         } else {
           setHasOfficialToken(true)
+          setHasAppSecret(true)
           setSavedAccessToken('')
         }
         setConnected(true)
@@ -282,7 +303,7 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
       )
       await supabase.functions
         .invoke('save-integration-secret', {
-          body: { userId: targetUserId, credentialKey: 'whatsapp_api_token', clear: true },
+          body: { key: 'whatsapp_api_token', clear: true, userId: targetUserId },
         })
         .catch(() => {})
       setApiUrl('')
@@ -303,7 +324,12 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
       )
       await supabase.functions
         .invoke('save-integration-secret', {
-          body: { userId: targetUserId, clear: true },
+          body: { key: 'whatsapp_official_access_token', clear: true, userId: targetUserId },
+        })
+        .catch(() => {})
+      await supabase.functions
+        .invoke('save-integration-secret', {
+          body: { key: 'whatsapp_app_secret', clear: true, userId: targetUserId },
         })
         .catch(() => {})
       setOfficialPhoneId('')
@@ -311,6 +337,8 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
       setHasOfficialToken(false)
       setOfficialToken('')
       setSavedAccessToken('')
+      setHasAppSecret(false)
+      setAppSecret('')
       setConnected(false)
       setTemplateRefetchTrigger((prev) => prev + 1)
     }
@@ -533,6 +561,24 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
                     {hasOfficialToken
                       ? 'Token configurado e armazenado com segurança. Digite um novo token para substituir.'
                       : 'O token é armazenado de forma segura e não é exibido após salvar.'}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label>App Secret</Label>
+                  <div className="flex relative">
+                    <ShieldCheck className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      value={appSecret}
+                      onChange={(e) => setAppSecret(e.target.value)}
+                      placeholder={hasAppSecret ? '•••••• (Configurado ✅)' : 'SUA_APP_SECRET'}
+                      type="password"
+                      className="pl-9"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {hasAppSecret
+                      ? 'App Secret configurado e armazenado com segurança. Digite um novo valor para substituir.'
+                      : 'O App Secret é usado para validar a assinatura do webhook da Meta. Encontre-o no App Dashboard do Meta for Developers.'}
                   </p>
                 </div>
                 <div className="space-y-2 pt-4 border-t">
