@@ -216,13 +216,25 @@ Deno.serve(async (req: Request) => {
       }
     }
   } catch (error: any) {
-    console.error('Erro na Edge Function whatsapp-send:', error.message)
-    return new Response(JSON.stringify({ error: error.message }), {
+    const safeMessage =
+      error.message?.replace(/Bearer\s+[^\s]+/gi, 'Bearer [REDACTED]') || 'Erro desconhecido'
+    console.error('Erro na Edge Function whatsapp-send:', safeMessage)
+    return new Response(JSON.stringify({ error: safeMessage }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   }
 })
+
+function sanitizeApiError(provider: string, status: number, responseText: string): string {
+  try {
+    const parsed = JSON.parse(responseText)
+    const msg = parsed?.error?.message || parsed?.message || 'Unknown error'
+    return `Erro na API ${provider} (${status}): ${msg}`
+  } catch {
+    return `Erro na API ${provider} (${status})`
+  }
+}
 
 function buildTemplateComponents(parameters: any[], format: string): any[] {
   const formattedParams = parameters.map((p) => {
@@ -338,7 +350,7 @@ async function sendOfficial({
   const responseText = await r.text().catch(() => '')
 
   if (!r.ok) {
-    let errorMsg = `Erro na API Oficial (${r.status}): ${responseText || r.statusText}`
+    let errorMsg = sanitizeApiError('Oficial', r.status, responseText)
     if (r.status === 402) {
       errorMsg =
         'ERRO_PAGAMENTO: A conta do WhatsApp Business está com problema de pagamento. Verifique as configurações de cobrança no Meta Business Manager.'
@@ -423,7 +435,7 @@ async function sendEvolution({ number, text, cfg, userId, supabaseAdmin }: any) 
   }
 
   const responseText = await r.text().catch(() => '')
-  if (!r.ok) throw new Error(`Erro na API (${r.status}): ${responseText || r.statusText}`)
+  if (!r.ok) throw new Error(sanitizeApiError('Evolution', r.status, responseText))
 
   let parsedResult: any
   try {

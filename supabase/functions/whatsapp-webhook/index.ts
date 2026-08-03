@@ -1,12 +1,6 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'npm:@supabase/supabase-js@2'
-
-export const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers':
-    'authorization, x-client-info, x-supabase-client-platform, apikey, content-type',
-}
+import { corsHeaders } from '../_shared/cors.ts'
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -212,6 +206,11 @@ async function handleMetaWebhook(bodyData: any, supabaseAdmin: any): Promise<Res
                 type: 'whatsapp_receive_official',
                 details: { text: text.substring(0, 50), messageId, eventType: 'meta_message' },
               })
+
+              await supabaseAdmin
+                .from('contacts')
+                .update({ last_inbound_at: timestamp })
+                .eq('id', contactId)
             }
           }
           results.push({ status: 'ok', handled: 'meta_message', phone })
@@ -638,6 +637,12 @@ async function handleEvolutionWebhook(bodyData: any, supabaseAdmin: any): Promis
                 type: 'whatsapp_receive',
                 details: { text: text.substring(0, 50), isFromMe, messageId, eventType },
               })
+              if (!isFromMe) {
+                await supabaseAdmin
+                  .from('contacts')
+                  .update({ last_inbound_at: new Date().toISOString() })
+                  .eq('id', contactId)
+              }
             }
           }
         }

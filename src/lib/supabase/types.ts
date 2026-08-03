@@ -273,24 +273,39 @@ export type Database = {
       integration_secrets: {
         Row: {
           created_at: string
+          google_access_token: string | null
+          google_refresh_token: string | null
           id: string
+          melhor_envio_token: string | null
           updated_at: string
           user_id: string
+          whatsapp_api_token: string | null
           whatsapp_official_access_token: string | null
+          yampi_token: string | null
         }
         Insert: {
           created_at?: string
+          google_access_token?: string | null
+          google_refresh_token?: string | null
           id?: string
+          melhor_envio_token?: string | null
           updated_at?: string
           user_id: string
+          whatsapp_api_token?: string | null
           whatsapp_official_access_token?: string | null
+          yampi_token?: string | null
         }
         Update: {
           created_at?: string
+          google_access_token?: string | null
+          google_refresh_token?: string | null
           id?: string
+          melhor_envio_token?: string | null
           updated_at?: string
           user_id?: string
+          whatsapp_api_token?: string | null
           whatsapp_official_access_token?: string | null
+          yampi_token?: string | null
         }
         Relationships: []
       }
@@ -607,12 +622,11 @@ export type Database = {
           catalog_link: string | null
           created_at: string
           fixed_meet_link: string | null
-          google_access_token: string | null
+          google_configured: boolean | null
           google_email: string | null
           google_invitation_body: string | null
-          google_refresh_token: string | null
           id: string
-          melhor_envio_token: string | null
+          melhor_envio_configured: boolean | null
           primary_provider: string | null
           reminder_email_template: string | null
           reminder_enabled: boolean | null
@@ -620,29 +634,27 @@ export type Database = {
           sync_enabled: boolean | null
           updated_at: string
           user_id: string
-          whatsapp_api_token: string | null
+          whatsapp_api_configured: boolean | null
           whatsapp_api_url: string | null
           whatsapp_connected: boolean | null
           whatsapp_instance_id: string | null
-          whatsapp_official_access_token: string | null
           whatsapp_official_configured: boolean | null
           whatsapp_official_phone_number_id: string | null
           whatsapp_official_verify_token: string | null
           whatsapp_official_waba_id: string | null
           whatsapp_provider_type: string | null
           yampi_alias: string | null
-          yampi_token: string | null
+          yampi_configured: boolean | null
         }
         Insert: {
           catalog_link?: string | null
           created_at?: string
           fixed_meet_link?: string | null
-          google_access_token?: string | null
+          google_configured?: boolean | null
           google_email?: string | null
           google_invitation_body?: string | null
-          google_refresh_token?: string | null
           id?: string
-          melhor_envio_token?: string | null
+          melhor_envio_configured?: boolean | null
           primary_provider?: string | null
           reminder_email_template?: string | null
           reminder_enabled?: boolean | null
@@ -650,29 +662,27 @@ export type Database = {
           sync_enabled?: boolean | null
           updated_at?: string
           user_id: string
-          whatsapp_api_token?: string | null
+          whatsapp_api_configured?: boolean | null
           whatsapp_api_url?: string | null
           whatsapp_connected?: boolean | null
           whatsapp_instance_id?: string | null
-          whatsapp_official_access_token?: string | null
           whatsapp_official_configured?: boolean | null
           whatsapp_official_phone_number_id?: string | null
           whatsapp_official_verify_token?: string | null
           whatsapp_official_waba_id?: string | null
           whatsapp_provider_type?: string | null
           yampi_alias?: string | null
-          yampi_token?: string | null
+          yampi_configured?: boolean | null
         }
         Update: {
           catalog_link?: string | null
           created_at?: string
           fixed_meet_link?: string | null
-          google_access_token?: string | null
+          google_configured?: boolean | null
           google_email?: string | null
           google_invitation_body?: string | null
-          google_refresh_token?: string | null
           id?: string
-          melhor_envio_token?: string | null
+          melhor_envio_configured?: boolean | null
           primary_provider?: string | null
           reminder_email_template?: string | null
           reminder_enabled?: boolean | null
@@ -680,18 +690,17 @@ export type Database = {
           sync_enabled?: boolean | null
           updated_at?: string
           user_id?: string
-          whatsapp_api_token?: string | null
+          whatsapp_api_configured?: boolean | null
           whatsapp_api_url?: string | null
           whatsapp_connected?: boolean | null
           whatsapp_instance_id?: string | null
-          whatsapp_official_access_token?: string | null
           whatsapp_official_configured?: boolean | null
           whatsapp_official_phone_number_id?: string | null
           whatsapp_official_verify_token?: string | null
           whatsapp_official_waba_id?: string | null
           whatsapp_provider_type?: string | null
           yampi_alias?: string | null
-          yampi_token?: string | null
+          yampi_configured?: boolean | null
         }
         Relationships: []
       }
