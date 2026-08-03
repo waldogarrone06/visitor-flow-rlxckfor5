@@ -3,10 +3,14 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 import { isAllowedKey, updateIndicator } from '../_shared/integration-secrets.ts'
 
+const WHATSAPP_KEYS = [
+  'whatsapp_official_access_token',
+  'whatsapp_app_secret',
+  'whatsapp_api_token',
+]
+
 Deno.serve(async (req: Request) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
@@ -14,118 +18,75 @@ Deno.serve(async (req: Request) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
 
     const authHeader = req.headers.get('Authorization') || ''
-    let userId: string | null = null
-
-    if (authHeader) {
-      const tmpClient = createClient(supabaseUrl, supabaseAnonKey, {
-        global: { headers: { Authorization: authHeader } },
-      })
-      const {
-        data: { user },
-      } = await tmpClient.auth.getUser()
-      if (user) userId = user.id
-    }
-
-    const body = await req.json().catch(() => ({}))
-    if (!userId && body.userId) userId = body.userId
-
-    if (!userId) {
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    })
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+    if (authError || !user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: { persistSession: false },
+    })
+    const body = await req.json().catch(() => ({}))
+    const { key, value } = body
 
-    const { credentialKey, credentialValue, clear, credentials, accessToken } = body
-
-    if (credentials && typeof credentials === 'object') {
-      const updates: Record<string, string> = {}
-      for (const [key, value] of Object.entries(credentials)) {
-        if (isAllowedKey(key) && typeof value === 'string' && value.trim()) {
-          updates[key] = value.trim()
-        }
-      }
-
-      if (Object.keys(updates).length > 0) {
-        updates['updated_at'] = new Date().toISOString()
-        const { error: secretError } = await supabaseAdmin
-          .from('integration_secrets')
-          .upsert({ user_id: userId, ...updates }, { onConflict: 'user_id' })
-
-        if (secretError) throw secretError
-
-        for (const key of Object.keys(updates)) {
-          if (key !== 'updated_at') {
-            await updateIndicator(supabaseAdmin, userId, key, true)
-          }
-        }
-      }
-
-      return new Response(JSON.stringify({ success: true }), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
-
-    let resolvedKey = credentialKey
-    let resolvedValue = credentialValue
-
-    if (!resolvedKey && accessToken !== undefined) {
-      resolvedKey = 'whatsapp_official_access_token'
-      resolvedValue = accessToken
-    }
-
-    if (!resolvedKey || !isAllowedKey(resolvedKey)) {
-      return new Response(JSON.stringify({ error: 'Invalid or missing credentialKey' }), {
+    if (!key || !isAllowedKey(key)) {
+      return new Response(JSON.stringify({ error: 'Invalid credential key' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
-    if (clear === true) {
-      const { error: clearError } = await supabaseAdmin
+    const { data: existing } = await supabaseAdmin
+      .from('integration_secrets')
+      .select('user_id')
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    if (existing) {
+      await supabaseAdmin
         .from('integration_secrets')
-        .update({ [resolvedKey]: null, updated_at: new Date().toISOString() })
-        .eq('user_id', userId)
-
-      if (clearError) throw clearError
-
-      await updateIndicator(supabaseAdmin, userId, resolvedKey, false)
-
-      return new Response(JSON.stringify({ success: true, configured: false }), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
+        .update({ [key]: value || null, updated_at: new Date().toISOString() })
+        .eq('user_id', user.id)
+    } else {
+      await supabaseAdmin
+        .from('integration_secrets')
+        .insert({ user_id: user.id, [key]: value || null })
     }
 
-    if (!resolvedValue || typeof resolvedValue !== 'string' || !resolvedValue.trim()) {
-      return new Response(JSON.stringify({ error: 'credentialValue is required' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
+    await updateIndicator(supabaseAdmin, user.id, key, !!value && String(value).trim() !== '')
+
+    let redeployResult: any = null
+    if (WHATSAPP_KEYS.includes(key)) {
+      try {
+        const r = await fetch(`${supabaseUrl}/functions/v1/whatsapp-redeploy`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: authHeader,
+            apikey: supabaseAnonKey,
+          },
+          body: JSON.stringify({ userId: user.id }),
+        })
+        redeployResult = await r.json()
+      } catch (e: any) {
+        redeployResult = { error: e.message, overall: 'incomplete' }
+      }
     }
 
-    const { error: secretError } = await supabaseAdmin.from('integration_secrets').upsert(
-      {
-        user_id: userId,
-        [resolvedKey]: resolvedValue.trim(),
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'user_id' },
-    )
-
-    if (secretError) throw secretError
-
-    await updateIndicator(supabaseAdmin, userId, resolvedKey, true)
-
-    return new Response(JSON.stringify({ success: true, configured: true }), {
+    return new Response(JSON.stringify({ success: true, redeploy: redeployResult }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (err: any) {
-    console.error('[save-integration-secret] Error:', err.message)
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

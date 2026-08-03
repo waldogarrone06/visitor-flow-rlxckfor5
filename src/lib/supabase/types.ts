@@ -280,6 +280,7 @@ export type Database = {
           updated_at: string
           user_id: string
           whatsapp_api_token: string | null
+          whatsapp_app_secret: string | null
           whatsapp_official_access_token: string | null
           yampi_token: string | null
         }
@@ -292,6 +293,7 @@ export type Database = {
           updated_at?: string
           user_id: string
           whatsapp_api_token?: string | null
+          whatsapp_app_secret?: string | null
           whatsapp_official_access_token?: string | null
           yampi_token?: string | null
         }
@@ -304,6 +306,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
           whatsapp_api_token?: string | null
+          whatsapp_app_secret?: string | null
           whatsapp_official_access_token?: string | null
           yampi_token?: string | null
         }
@@ -464,6 +467,7 @@ export type Database = {
           content: string
           created_at: string
           direction: string
+          error_details: Json | null
           id: string
           is_edited: boolean | null
           status: string | null
@@ -476,6 +480,7 @@ export type Database = {
           content: string
           created_at?: string
           direction: string
+          error_details?: Json | null
           id?: string
           is_edited?: boolean | null
           status?: string | null
@@ -488,6 +493,7 @@ export type Database = {
           content?: string
           created_at?: string
           direction?: string
+          error_details?: Json | null
           id?: string
           is_edited?: boolean | null
           status?: string | null
