@@ -1,24 +1,13 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
-import { createClient } from 'jsr:@supabase/supabase-js@2'
+import { createClient } from 'npm:@supabase/supabase-js@2'
+import { corsHeaders } from '../_shared/cors.ts'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers':
-    'authorization, x-client-info, x-supabase-client-platform, apikey, content-type',
-}
-
-// Remove prefixo de transportadora (LGI-, etc)
 const normalizeTracking = (code: string) => code.replace(/^[A-Z]+-/i, '').trim()
 
-// Status EXATOS do Melhor Envio que significam entrega ao destinatário
-// NÃO usar keywords genéricas como "recebido" — causa falsos positivos
 const MELHOR_ENVIO_DELIVERED_STATUSES = new Set(['delivered'])
 
 const isOrderDelivered = (order: any): boolean => {
-  // Fonte 1: campo delivered_at preenchido = entregue com certeza
   if (order.delivered_at) return true
-  // Fonte 2: status exato "delivered"
   if (MELHOR_ENVIO_DELIVERED_STATUSES.has(String(order.status || '').toLowerCase())) return true
   return false
 }
@@ -32,7 +21,7 @@ const fetchJson = async (url: string, token: string): Promise<any | null> => {
     },
   })
   const text = await res.text()
-  if (text.trimStart().startsWith('<')) return null // retornou HTML
+  if (text.trimStart().startsWith('<')) return null
   try {
     return JSON.parse(text)
   } catch (_) {
@@ -40,7 +29,6 @@ const fetchJson = async (url: string, token: string): Promise<any | null> => {
   }
 }
 
-// Busca o order no Melhor Envio paginando /purchases
 const findOrderByTracking = async (
   normalizedCode: string,
   originalTracking: string,
@@ -120,7 +108,6 @@ Deno.serve(async (req: Request) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
     const supabase = createClient(supabaseUrl, supabaseKey)
 
-    // Busca appointments com rastreio pendente
     let query = supabase
       .from('appointments')
       .select('id, user_id, tracking_number, kit_status')
@@ -140,16 +127,17 @@ Deno.serve(async (req: Request) => {
       })
     }
 
-    // Carrega tokens por usuário
     const userIds = [...new Set(appointments.map((a) => a.user_id))]
-    const { data: integrations } = await supabase
-      .from('user_integrations')
+    const { data: secrets } = await supabase
+      .from('integration_secrets')
       .select('user_id, melhor_envio_token')
       .in('user_id', userIds)
 
     const tokens = new Map<string, string>()
-    if (integrations) {
-      integrations.forEach((i) => tokens.set(String(i.user_id), i.melhor_envio_token))
+    if (secrets) {
+      secrets.forEach((s) => {
+        if (s.melhor_envio_token) tokens.set(String(s.user_id), s.melhor_envio_token)
+      })
     }
 
     const updates: string[] = []
@@ -190,7 +178,6 @@ Deno.serve(async (req: Request) => {
           continue
         }
 
-        // Usa delivered_at do Melhor Envio ou fallback para agora
         let deliveredAt = new Date().toISOString()
         if (order.delivered_at) {
           try {

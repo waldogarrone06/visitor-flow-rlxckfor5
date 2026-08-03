@@ -28,7 +28,7 @@ export function GoogleCalendarCard({ targetUserId }: { targetUserId: string }) {
     setLoading(true)
     try {
       const data = await getIntegrations(targetUserId)
-      if (data?.google_access_token) {
+      if ((data as any)?._has_google || (data as any)?.google_configured) {
         setEmail(data.google_email || 'Conta Integrada')
         setConnected(true)
         setSyncEnabled(data.sync_enabled || false)
@@ -120,12 +120,21 @@ export function GoogleCalendarCard({ targetUserId }: { targetUserId: string }) {
     await saveIntegrations(
       {
         google_email: null,
-        google_access_token: null,
-        google_refresh_token: null,
+        google_configured: false,
         sync_enabled: false,
       },
       targetUserId,
     )
+    await supabase.functions
+      .invoke('save-integration-secret', {
+        body: { userId: targetUserId, credentialKey: 'google_access_token', clear: true },
+      })
+      .catch(() => {})
+    await supabase.functions
+      .invoke('save-integration-secret', {
+        body: { userId: targetUserId, credentialKey: 'google_refresh_token', clear: true },
+      })
+      .catch(() => {})
     toast({
       title: 'Google Calendar Desconectado',
       description: 'Integração removida com sucesso.',

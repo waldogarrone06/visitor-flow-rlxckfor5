@@ -14,23 +14,22 @@ import { Badge } from '@/components/ui/badge'
 import { toast } from '@/hooks/use-toast'
 import { PackageSearch } from 'lucide-react'
 import { getIntegrations, saveIntegrations } from '@/services/settings'
+import { supabase } from '@/lib/supabase/client'
 
 export function MelhorEnvioCard({ targetUserId }: { targetUserId?: string }) {
   const [token, setToken] = useState('')
-  const [connected, setConnected] = useState(false)
+  const [configured, setConfigured] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     if (!targetUserId) return
     setLoading(true)
     getIntegrations(targetUserId).then((data) => {
-      if (data && data.melhor_envio_token) {
-        setToken(data.melhor_envio_token)
-        setConnected(true)
-      } else {
-        setToken('')
-        setConnected(false)
-      }
+      const isConfigured =
+        !!(data as any)?._has_melhor_envio || !!(data as any)?.melhor_envio_configured
+      setConfigured(isConfigured)
+      setToken('')
       setLoading(false)
     })
   }, [targetUserId])
@@ -44,19 +43,54 @@ export function MelhorEnvioCard({ targetUserId }: { targetUserId?: string }) {
       })
       return
     }
-    await saveIntegrations({ melhor_envio_token: token }, targetUserId)
-    setConnected(true)
-    toast({
-      title: 'Melhor Envio Conectado',
-      description: 'Token de integração salvo com sucesso.',
-    })
+    setSaving(true)
+    try {
+      const { error } = await supabase.functions.invoke('save-integration-secret', {
+        body: {
+          userId: targetUserId,
+          credentialKey: 'melhor_envio_token',
+          credentialValue: token.trim(),
+        },
+      })
+      if (error) throw new Error('Falha ao salvar token seguro')
+
+      await saveIntegrations({ melhor_envio_configured: true }, targetUserId)
+      setConfigured(true)
+      setToken('')
+      toast({
+        title: 'Melhor Envio Conectado',
+        description: 'Token de integração salvo com segurança.',
+      })
+    } catch (err: any) {
+      toast({
+        title: 'Erro',
+        description: err.message || 'Falha ao salvar.',
+        variant: 'destructive',
+      })
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handleDisconnect = async () => {
-    await saveIntegrations({ melhor_envio_token: null }, targetUserId)
-    setToken('')
-    setConnected(false)
-    toast({ title: 'Melhor Envio Desconectado' })
+    setSaving(true)
+    try {
+      await supabase.functions.invoke('save-integration-secret', {
+        body: { userId: targetUserId, credentialKey: 'melhor_envio_token', clear: true },
+      })
+      await saveIntegrations({ melhor_envio_configured: false }, targetUserId)
+      setConfigured(false)
+      setToken('')
+      toast({ title: 'Melhor Envio Desconectado' })
+    } catch (err: any) {
+      toast({
+        title: 'Erro',
+        description: err.message || 'Falha ao desconectar.',
+        variant: 'destructive',
+      })
+    } finally {
+      setSaving(false)
+    }
   }
 
   if (!targetUserId) return null
@@ -69,10 +103,10 @@ export function MelhorEnvioCard({ targetUserId }: { targetUserId?: string }) {
             <PackageSearch className="h-6 w-6" />
           </div>
           <Badge
-            variant={connected ? 'default' : 'secondary'}
-            className={connected ? 'bg-green-600 hover:bg-green-700' : ''}
+            variant={configured ? 'default' : 'secondary'}
+            className={configured ? 'bg-green-600 hover:bg-green-700' : ''}
           >
-            {connected ? 'Ativo' : 'Inativo'}
+            {configured ? 'Ativo' : 'Inativo'}
           </Badge>
         </div>
         <CardTitle>Integração Melhor Envio</CardTitle>
@@ -89,25 +123,41 @@ export function MelhorEnvioCard({ targetUserId }: { targetUserId?: string }) {
             <Input
               value={token}
               onChange={(e) => setToken(e.target.value)}
-              placeholder="Seu token de acesso (Bearer)"
+              placeholder={configured ? '•••••• (Configurado ✅)' : 'Seu token de acesso (Bearer)'}
               type="password"
-              disabled={connected}
             />
+            {configured && (
+              <p className="text-xs text-muted-foreground">
+                Token configurado e armazenado com segurança. Digite um novo token para substituir.
+              </p>
+            )}
           </div>
         )}
       </CardContent>
       <CardFooter className="flex flex-wrap gap-2">
-        {connected ? (
-          <Button
-            variant="outline"
-            onClick={handleDisconnect}
-            className="w-full text-destructive hover:bg-destructive/10"
-          >
-            Desconectar
-          </Button>
+        {configured ? (
+          <>
+            {token && (
+              <Button onClick={handleSave} className="flex-1" disabled={saving}>
+                {saving ? 'Salvando...' : 'Atualizar Token'}
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              onClick={handleDisconnect}
+              className={
+                token
+                  ? 'flex-1 text-destructive hover:bg-destructive/10'
+                  : 'w-full text-destructive hover:bg-destructive/10'
+              }
+              disabled={saving}
+            >
+              Desconectar
+            </Button>
+          </>
         ) : (
-          <Button onClick={handleSave} className="w-full" disabled={loading || !token}>
-            Salvar Token
+          <Button onClick={handleSave} className="w-full" disabled={loading || !token || saving}>
+            {saving ? 'Salvando...' : 'Salvar Token'}
           </Button>
         )}
       </CardFooter>

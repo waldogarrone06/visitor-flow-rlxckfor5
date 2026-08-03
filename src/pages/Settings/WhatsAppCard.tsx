@@ -49,6 +49,7 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
   const [apiUrl, setApiUrl] = useState('')
   const [instanceName, setInstanceName] = useState('')
   const [apiToken, setApiToken] = useState('')
+  const [hasApiToken, setHasApiToken] = useState(false)
 
   const [testNumber, setTestNumber] = useState('')
   const [testMode, setTestMode] = useState<'template' | 'freetext'>('template')
@@ -83,7 +84,8 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
           setOfficialVerifyToken(data.whatsapp_official_verify_token || DEFAULT_VERIFY_TOKEN)
           setApiUrl(data.whatsapp_api_url || '')
           setInstanceName(data.whatsapp_instance_id || '')
-          setApiToken(data.whatsapp_api_token || '')
+          setHasApiToken(!!(data as any).whatsapp_api_configured)
+          setApiToken('')
           setConnected(data.whatsapp_connected || false)
           setConnectionState(data.whatsapp_connected ? 'connected' : 'disconnected')
         }
@@ -189,11 +191,25 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
             whatsapp_provider_type: 'evolution',
             whatsapp_api_url: cleanUrl,
             whatsapp_instance_id: instanceName.trim(),
-            whatsapp_api_token: apiToken.trim(),
             whatsapp_connected: true,
           },
           targetUserId,
         )
+        if (apiToken.trim()) {
+          const { error: secretError } = await supabase.functions.invoke(
+            'save-integration-secret',
+            {
+              body: {
+                userId: targetUserId,
+                credentialKey: 'whatsapp_api_token',
+                credentialValue: apiToken.trim(),
+              },
+            },
+          )
+          if (secretError) throw new Error('Falha ao salvar token seguro')
+          setHasApiToken(true)
+          setApiToken('')
+        }
         setConnected(true)
       } else {
         if (!officialPhoneId) {
@@ -260,14 +276,19 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
         {
           whatsapp_api_url: null,
           whatsapp_instance_id: null,
-          whatsapp_api_token: null,
           whatsapp_connected: false,
         },
         targetUserId,
       )
+      await supabase.functions
+        .invoke('save-integration-secret', {
+          body: { userId: targetUserId, credentialKey: 'whatsapp_api_token', clear: true },
+        })
+        .catch(() => {})
       setApiUrl('')
       setInstanceName('')
       setApiToken('')
+      setHasApiToken(false)
       setConnected(false)
       setConnectionState('disconnected')
     } else {
@@ -592,10 +613,11 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
                     <Input
                       value={apiToken}
                       onChange={(e) => setApiToken(e.target.value)}
-                      placeholder="SUA_ACCESS_KEY_SECRET"
+                      placeholder={
+                        hasApiToken ? '•••••• (Configurado ✅)' : 'SUA_ACCESS_KEY_SECRET'
+                      }
                       type="password"
                       className="pl-9"
-                      disabled={isEvolutionConnected}
                     />
                   </div>
                 </div>

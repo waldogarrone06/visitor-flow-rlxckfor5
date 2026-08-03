@@ -31,7 +31,7 @@ export function GoogleMeetCard({ targetUserId }: { targetUserId: string }) {
     setLoading(true)
     try {
       const data = await getIntegrations(targetUserId)
-      if (data?.google_access_token) {
+      if ((data as any)?._has_google || (data as any)?.google_configured) {
         setConnected(true)
         setIsMock(data.google_email?.includes('demo.integration') || false)
       } else {

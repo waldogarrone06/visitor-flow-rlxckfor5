@@ -1,7 +1,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
-import { getOfficialAccessToken } from '../_shared/integration-secrets.ts'
+import { getOfficialAccessToken, getSecret } from '../_shared/integration-secrets.ts'
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -66,11 +66,31 @@ Deno.serve(async (req: Request) => {
           cfg.officialWabaId = fallbackIntegration.whatsapp_official_waba_id
         }
       }
+
+      if (providerType === 'evolution' && userId && !cfg.apiToken) {
+        const fallbackToken = await getSecret(supabaseAdmin, userId, 'whatsapp_api_token')
+        if (fallbackToken) {
+          cfg.apiToken = fallbackToken
+        }
+        if (!cfg.apiUrl || !cfg.instanceId) {
+          const { data: fallbackEvoIntegration } = await supabaseAdmin
+            .from('user_integrations')
+            .select('whatsapp_api_url, whatsapp_instance_id')
+            .eq('user_id', userId)
+            .maybeSingle()
+          if (!cfg.apiUrl && fallbackEvoIntegration?.whatsapp_api_url) {
+            cfg.apiUrl = fallbackEvoIntegration.whatsapp_api_url
+          }
+          if (!cfg.instanceId && fallbackEvoIntegration?.whatsapp_instance_id) {
+            cfg.instanceId = fallbackEvoIntegration.whatsapp_instance_id
+          }
+        }
+      }
     } else if (userId) {
       const { data: integration } = await supabaseAdmin
         .from('user_integrations')
         .select(
-          'primary_provider, whatsapp_provider_type, whatsapp_official_phone_number_id, whatsapp_official_waba_id, whatsapp_api_url, whatsapp_instance_id, whatsapp_api_token',
+          'primary_provider, whatsapp_provider_type, whatsapp_official_phone_number_id, whatsapp_official_waba_id, whatsapp_api_url, whatsapp_instance_id',
         )
         .eq('user_id', userId)
         .maybeSingle()
@@ -80,6 +100,7 @@ Deno.serve(async (req: Request) => {
       }
 
       const officialToken = await getOfficialAccessToken(supabaseAdmin, userId)
+      const apiTokenSecret = await getSecret(supabaseAdmin, userId, 'whatsapp_api_token')
       const primaryProvider =
         integration.primary_provider || integration.whatsapp_provider_type || 'evolution'
 
@@ -90,7 +111,7 @@ Deno.serve(async (req: Request) => {
         officialWabaId: integration.whatsapp_official_waba_id || '',
         apiUrl: integration.whatsapp_api_url || '',
         instanceId: integration.whatsapp_instance_id || '',
-        apiToken: integration.whatsapp_api_token || '',
+        apiToken: apiTokenSecret || '',
       }
     } else {
       throw new Error('Usuário não autenticado e credenciais de teste não fornecidas.')

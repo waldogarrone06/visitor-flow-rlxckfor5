@@ -1,6 +1,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { corsHeaders } from '../_shared/cors.ts'
 import { createClient } from 'npm:@supabase/supabase-js@2'
+import { getSecret } from '../_shared/integration-secrets.ts'
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -18,9 +19,7 @@ Deno.serve(async (req) => {
 
     const authHeader = req.headers.get('Authorization') || ''
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: {
-        headers: { Authorization: authHeader },
-      },
+      global: { headers: { Authorization: authHeader } },
     })
 
     const {
@@ -39,17 +38,19 @@ Deno.serve(async (req) => {
     const { data: integration } = await supabaseAdmin
       .from('user_integrations')
       .select(
-        'whatsapp_instance_id, whatsapp_api_token, whatsapp_api_url, primary_provider, whatsapp_provider_type, whatsapp_official_phone_number_id, whatsapp_official_waba_id',
+        'whatsapp_instance_id, whatsapp_api_url, primary_provider, whatsapp_provider_type, whatsapp_official_phone_number_id, whatsapp_official_waba_id',
       )
       .eq('user_id', user.id)
       .maybeSingle()
 
-    if (!integration?.whatsapp_instance_id || !integration?.whatsapp_api_token) {
+    if (!integration?.whatsapp_instance_id) {
       return new Response(JSON.stringify({ error: 'WhatsApp not connected' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
+
+    const apiKey = (await getSecret(supabaseAdmin, user.id, 'whatsapp_api_token')).trim()
 
     const body = await req.json()
     const { action, id, fromMe, remoteJid, text, to, messageId, newContent } = body
@@ -59,31 +60,21 @@ Deno.serve(async (req) => {
     if (action === 'delete') {
       const payloadId = id || messageId
       if (!payloadId || fromMe === undefined || !remoteJid) {
-        return new Response(
-          JSON.stringify({ error: 'Missing required fields for deletion (id, fromMe, remoteJid)' }),
-          {
-            status: 400,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          },
-        )
+        return new Response(JSON.stringify({ error: 'Missing required fields for deletion' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
       }
 
       const evolutionPayload = {
-        key: {
-          id: payloadId,
-          fromMe: fromMe,
-          remoteJid: remoteJid,
-        },
+        key: { id: payloadId, fromMe: fromMe, remoteJid: remoteJid },
       }
 
       const response = await fetch(
         `${apiUrl}/chat/deleteMessage/${integration.whatsapp_instance_id}`,
         {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            apikey: integration.whatsapp_api_token,
-          },
+          headers: { 'Content-Type': 'application/json', apikey: apiKey },
           body: JSON.stringify(evolutionPayload),
         },
       )
@@ -112,10 +103,7 @@ Deno.serve(async (req) => {
         `${apiUrl}/chat/editMessage/${integration.whatsapp_instance_id}`,
         {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            apikey: integration.whatsapp_api_token,
-          },
+          headers: { 'Content-Type': 'application/json', apikey: apiKey },
           body: JSON.stringify({
             number: targetPhone,
             messageId: payloadId,
@@ -125,9 +113,7 @@ Deno.serve(async (req) => {
               remoteJid: remoteJid || `${targetPhone}@s.whatsapp.net`,
               fromMe: fromMe !== undefined ? fromMe : true,
             },
-            message: {
-              conversation: contentToUpdate,
-            },
+            message: { conversation: contentToUpdate },
           }),
         },
       )
@@ -135,17 +121,10 @@ Deno.serve(async (req) => {
       if (!response.ok) {
         const errorText = await response.text()
         console.error('Evolution API edit error:', errorText)
-        let parsedError = errorText
-        try {
-          parsedError = JSON.parse(errorText)
-        } catch (e) {}
-        return new Response(
-          JSON.stringify({ error: 'Failed to edit message on WhatsApp', details: parsedError }),
-          {
-            status: 400,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          },
-        )
+        return new Response(JSON.stringify({ error: 'Failed to edit message on WhatsApp' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
       }
 
       return new Response(JSON.stringify({ success: true }), {

@@ -1,12 +1,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
-import { createClient } from 'jsr:@supabase/supabase-js@2'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers':
-    'authorization, x-client-info, x-supabase-client-platform, apikey, content-type',
-}
+import { createClient } from 'npm:@supabase/supabase-js@2'
+import { corsHeaders } from '../_shared/cors.ts'
+import { getGoogleTokens } from '../_shared/integration-secrets.ts'
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -38,12 +33,13 @@ Deno.serve(async (req: Request) => {
 
     const { data: integration } = await supabase
       .from('user_integrations')
-      .select('*')
+      .select('fixed_meet_link, google_invitation_body, google_email, reminder_email_template')
       .eq('user_id', appointment.user_id)
-      .single()
+      .maybeSingle()
 
-    let token = integration?.google_access_token
-    const refreshToken = integration?.google_refresh_token
+    const googleTokens = await getGoogleTokens(supabase, appointment.user_id)
+    let token = googleTokens.accessToken
+    const refreshToken = googleTokens.refreshToken
     const fixedMeetLink = integration?.fixed_meet_link
 
     if (!token && !fixedMeetLink) {
@@ -60,7 +56,6 @@ Deno.serve(async (req: Request) => {
     const clientSecret =
       Deno.env.get('GOOGLE_CLIENT_SECRET') || Deno.env.get('VITE_GOOGLE_CLIENT_SECRET') || ''
 
-    // Check conflicts considering overrides priority logic
     const appDate = new Date(`${appointment.appointment_date}T12:00:00-03:00`)
     const dayOfWeek = appDate.getDay()
     const { data: specific } = await supabase
@@ -91,18 +86,14 @@ Deno.serve(async (req: Request) => {
     let meetLink =
       appointment.google_meet_link || fixedMeetLink || `https://meet.google.com/mock-abc-xyz`
 
-    // Only call real API if it's not a mocked token
     if (token && !token.includes('mock_access_token') && clientId && clientSecret) {
       const makeRequest = async (accessToken: string) => {
         const isUpdate = !!appointment.google_event_id
         const url = isUpdate
           ? `https://www.googleapis.com/calendar/v3/calendars/primary/events/${appointment.google_event_id}?conferenceDataVersion=1`
           : 'https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1'
-
         const method = isUpdate ? 'PATCH' : 'POST'
-
         const defaultDescription = `Agendamento confirmado.\n\nPaciente: ${appointment.client_name}\nEspecialidade: ${appointment.specialty || 'Não informada'}\nEndereço da Clínica: ${appointment.clinic_address || 'Não informado'}\n\nAcesse o link do Meet no horário marcado.`
-
         const payload: any = {
           summary: `Reunião: ${appointment.client_name}`,
           description: integration?.google_invitation_body || defaultDescription,
@@ -115,11 +106,7 @@ Deno.serve(async (req: Request) => {
             timeZone: 'America/Sao_Paulo',
           },
         }
-
-        if (fixedMeetLink) {
-          payload.location = fixedMeetLink
-        }
-
+        if (fixedMeetLink) payload.location = fixedMeetLink
         if (!isUpdate || !appointment.google_meet_link) {
           if (!fixedMeetLink) {
             payload.conferenceData = {
@@ -130,20 +117,15 @@ Deno.serve(async (req: Request) => {
             }
           }
         }
-
         return fetch(url, {
           method,
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-          },
+          headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         })
       }
 
       let response = await makeRequest(token)
 
-      // Refresh logic
       if (response.status === 401 && refreshToken) {
         const refreshRes = await fetch('https://oauth2.googleapis.com/token', {
           method: 'POST',
@@ -155,28 +137,20 @@ Deno.serve(async (req: Request) => {
             grant_type: 'refresh_token',
           }),
         })
-
         if (refreshRes.ok) {
           const refreshData = await refreshRes.json()
           token = refreshData.access_token
-
           await supabase
-            .from('user_integrations')
-            .update({
-              google_access_token: token,
-              updated_at: new Date().toISOString(),
-            })
+            .from('integration_secrets')
+            .update({ google_access_token: token, updated_at: new Date().toISOString() })
             .eq('user_id', appointment.user_id)
-
           response = await makeRequest(token)
         }
       }
 
       if (response.ok) {
         let data = await response.json()
-
-        // Handle potential Google API delays for conferenceData
-        if (!fixedMeetLink && (!isUpdate || !appointment.google_meet_link)) {
+        if (!fixedMeetLink && (!appointment.google_event_id || !appointment.google_meet_link)) {
           let attempts = 0
           while (
             data.conferenceData?.createRequest?.status?.statusCode === 'pending' &&
@@ -185,19 +159,13 @@ Deno.serve(async (req: Request) => {
             await new Promise((resolve) => setTimeout(resolve, 1000))
             const getRes = await fetch(
               `https://www.googleapis.com/calendar/v3/calendars/primary/events/${data.id}`,
-              {
-                headers: { Authorization: `Bearer ${token}` },
-              },
+              { headers: { Authorization: `Bearer ${token}` } },
             )
-            if (getRes.ok) {
-              data = await getRes.json()
-            }
+            if (getRes.ok) data = await getRes.json()
             attempts++
           }
         }
-
         eventId = data.id || eventId
-        // Keep existing dynamic link if any, else fixed, else newly generated
         meetLink =
           appointment.google_meet_link ||
           fixedMeetLink ||
@@ -210,21 +178,15 @@ Deno.serve(async (req: Request) => {
         throw new Error(`Falha ao sincronizar com Google Calendar. Erro: ${errorText}`)
       }
     } else if (fixedMeetLink) {
-      // No Google Calendar Token, but we have a fixed link
       meetLink = appointment.google_meet_link || fixedMeetLink
       eventId = appointment.google_event_id || null
     }
 
-    // Save generated links to database
     await supabase
       .from('appointments')
-      .update({
-        google_event_id: eventId,
-        google_meet_link: meetLink,
-      })
+      .update({ google_event_id: eventId, google_meet_link: meetLink })
       .eq('id', appointmentId)
 
-    // Notify prescriber
     try {
       if (meetLink) {
         const { data: currentApp } = await supabase
@@ -234,21 +196,19 @@ Deno.serve(async (req: Request) => {
           .single()
 
         if (currentApp && !currentApp.prescriber_notified) {
-          // Get prescriber email using the RPC function
           const { data: targetEmail, error: rpcErr } = await supabase.rpc('get_prescriber_email', {
             p_user_id: appointment.user_id,
           })
-
           const { data: integ } = await supabase
             .from('user_integrations')
             .select('google_email, reminder_email_template')
             .eq('user_id', appointment.user_id)
-            .single()
+            .maybeSingle()
           const { data: profile } = await supabase
             .from('profiles')
             .select('email, name')
             .eq('id', appointment.user_id)
-            .single()
+            .maybeSingle()
 
           let finalEmail = targetEmail
           if (rpcErr || !finalEmail) {
@@ -259,21 +219,7 @@ Deno.serve(async (req: Request) => {
             const formattedDate = currentApp.appointment_date
               ? currentApp.appointment_date.split('-').reverse().join('/')
               : ''
-
-            let msg = `Olá!
-
-Um novo agendamento foi confirmado e o link da reunião foi gerado com sucesso.
-
-Paciente: ${currentApp.client_name}
-Data: ${formattedDate}
-Horário: ${currentApp.start_time}
-
-Link da Reunião: ${meetLink}
-
-Acesse o link no horário marcado para iniciar a consulta.
-
-Atenciosamente,
-Sistema de Agendamento`
+            let msg = `Olá!\n\nUm novo agendamento foi confirmado e o link da reunião foi gerado com sucesso.\n\nPaciente: ${currentApp.client_name}\nData: ${formattedDate}\nHorário: ${currentApp.start_time}\n\nLink da Reunião: ${meetLink}\n\nAcesse o link no horário marcado para iniciar a consulta.\n\nAtenciosamente,\nSistema de Agendamento`
 
             if (integ?.reminder_email_template) {
               const replacements: Record<string, string> = {
@@ -304,7 +250,7 @@ Sistema de Agendamento`
                   '</p></div>',
                 senderName: 'Notificação do Sistema',
                 userId: appointment.user_id,
-                meetLink: meetLink,
+                meetLink,
               }),
             })
 
@@ -313,16 +259,12 @@ Sistema de Agendamento`
                 .from('appointments')
                 .update({ prescriber_notified: true })
                 .eq('id', appointmentId)
-            } else {
-              console.error('Failed to send email API response:', await sendEmailRes.text())
             }
           }
         }
-      } else {
-        console.error('Meet link is empty, skipping prescriber notification.')
       }
     } catch (e) {
-      console.error('Failed to send prescriber notification:', e)
+      console.error('Failed to send prescriber notification:', e.message || e)
     }
 
     return new Response(
@@ -332,7 +274,9 @@ Sistema de Agendamento`
         eventId,
         meetLink,
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      },
     )
   } catch (error: any) {
     return new Response(JSON.stringify({ error: error.message }), {

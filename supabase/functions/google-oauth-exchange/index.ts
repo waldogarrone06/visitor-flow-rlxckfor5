@@ -1,12 +1,6 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
-import { createClient } from 'jsr:@supabase/supabase-js@2'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers':
-    'authorization, x-client-info, x-supabase-client-platform, apikey, content-type',
-}
+import { createClient } from 'npm:@supabase/supabase-js@2'
+import { corsHeaders } from '../_shared/cors.ts'
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -36,10 +30,7 @@ Deno.serve(async (req: Request) => {
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
       return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Nenhum cabeçalho de autorização (Authorization header)',
-        }),
+        JSON.stringify({ success: false, error: 'Nenhum cabeçalho de autorização' }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 401,
@@ -56,13 +47,10 @@ Deno.serve(async (req: Request) => {
       error: authErr,
     } = await supabaseUserClient.auth.getUser()
     if (authErr || !user) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Não autorizado. Sessão inválida.' }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 401,
-        },
-      )
+      return new Response(JSON.stringify({ success: false, error: 'Não autorizado' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 401,
+      })
     }
 
     if (user.id !== targetUserId) {
@@ -73,13 +61,10 @@ Deno.serve(async (req: Request) => {
         .eq('id', user.id)
         .single()
       if (!profile?.is_admin) {
-        return new Response(
-          JSON.stringify({ success: false, error: 'Acesso negado: Apenas administradores.' }),
-          {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 403,
-          },
-        )
+        return new Response(JSON.stringify({ success: false, error: 'Acesso negado' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 403,
+        })
       }
     }
 
@@ -93,7 +78,6 @@ Deno.serve(async (req: Request) => {
     let refresh_token = ''
     let email = 'demo.integration@empresa.com'
 
-    // Verifica se é código mockado ou credenciais inválidas para acionar o fallback imediatamente
     if (
       code.startsWith('mock_code_') ||
       !clientId ||
@@ -119,16 +103,13 @@ Deno.serve(async (req: Request) => {
         }),
       })
 
-      // Fallback para mock tokens caso a API do Google retorne erros de permissão ou internal server error
       if (
         tokenResponse.status === 401 ||
         tokenResponse.status === 403 ||
         tokenResponse.status === 500 ||
         !tokenResponse.ok
       ) {
-        console.warn(
-          'Erro ao trocar token no Google (401/403/500). Realizando fallback para tokens mockados.',
-        )
+        console.warn('Erro ao trocar token no Google. Realizando fallback para tokens mockados.')
         access_token = `mock_access_token_${Date.now()}`
         refresh_token = `mock_refresh_token_${Date.now()}`
         email = 'demo.integration@empresa.com'
@@ -144,26 +125,18 @@ Deno.serve(async (req: Request) => {
           if (userInfoResponse.ok) {
             const userInfo = await userInfoResponse.json()
             email = userInfo.email || email
-          } else {
-            console.warn('Falha na resposta do userInfo. Utilizando email mockado.')
-            email = 'demo.integration@empresa.com'
           }
         } catch {
-          console.warn('Falha ao buscar email do userInfo. Utilizando email mockado.')
-          email = 'demo.integration@empresa.com'
+          console.warn('Falha ao buscar email do userInfo.')
         }
       }
     }
 
-    const payload: any = {
-      google_access_token: access_token,
+    const uiPayload: any = {
       google_email: email,
       sync_enabled: true,
+      google_configured: true,
       updated_at: new Date().toISOString(),
-    }
-
-    if (refresh_token) {
-      payload.google_refresh_token = refresh_token
     }
 
     const { data: existing } = await supabaseAdmin
@@ -176,18 +149,37 @@ Deno.serve(async (req: Request) => {
     if (existing) {
       const { error } = await supabaseAdmin
         .from('user_integrations')
-        .update(payload)
+        .update(uiPayload)
         .eq('user_id', targetUserId)
       dbError = error
     } else {
       const { error } = await supabaseAdmin
         .from('user_integrations')
-        .insert({ user_id: targetUserId, ...payload })
+        .insert({ user_id: targetUserId, ...uiPayload })
       dbError = error
     }
 
     if (dbError) {
       throw new Error(`Erro ao salvar no banco: ${dbError.message}`)
+    }
+
+    const secretUpdates: Record<string, string> = {
+      google_access_token: access_token,
+      updated_at: new Date().toISOString(),
+    }
+    if (refresh_token) {
+      secretUpdates.google_refresh_token = refresh_token
+    }
+
+    const { error: secretError } = await supabaseAdmin
+      .from('integration_secrets')
+      .upsert({ user_id: targetUserId, ...secretUpdates }, { onConflict: 'user_id' })
+
+    if (secretError) {
+      console.error(
+        '[google-oauth-exchange] Error saving tokens to integration_secrets:',
+        secretError.message,
+      )
     }
 
     return new Response(
@@ -202,7 +194,7 @@ Deno.serve(async (req: Request) => {
       },
     )
   } catch (error: any) {
-    console.error('Google OAuth Exchange Caught Error:', error)
+    console.error('Google OAuth Exchange Caught Error:', error.message || 'Erro interno')
     return new Response(
       JSON.stringify({
         success: false,

@@ -1,12 +1,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
-import { createClient } from 'jsr:@supabase/supabase-js@2'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers':
-    'authorization, x-client-info, x-supabase-client-platform, apikey, content-type',
-}
+import { createClient } from 'npm:@supabase/supabase-js@2'
+import { corsHeaders } from '../_shared/cors.ts'
+import { getGoogleTokens } from '../_shared/integration-secrets.ts'
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -22,18 +17,26 @@ Deno.serve(async (req: Request) => {
 
     const { data: integration } = await supabase
       .from('user_integrations')
-      .select('google_access_token, google_refresh_token, sync_enabled')
+      .select('sync_enabled')
       .eq('user_id', userId)
-      .single()
+      .maybeSingle()
 
-    if (!integration || !integration.sync_enabled || !integration.google_access_token) {
+    if (!integration || !integration.sync_enabled) {
       return new Response(JSON.stringify({ busySlots: [] }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
-    let token = integration.google_access_token
-    const refreshToken = integration.google_refresh_token
+    const googleTokens = await getGoogleTokens(supabase, userId)
+    let token = googleTokens.accessToken
+    const refreshToken = googleTokens.refreshToken
+
+    if (!token) {
+      return new Response(JSON.stringify({ busySlots: [] }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
     let busySlots: { start: string; end: string }[] = []
 
     const clientId = Deno.env.get('GOOGLE_CLIENT_ID') || Deno.env.get('VITE_GOOGLE_CLIENT_ID') || ''
@@ -49,10 +52,7 @@ Deno.serve(async (req: Request) => {
       const makeRequest = async (accessToken: string) => {
         return fetch('https://www.googleapis.com/calendar/v3/freeBusy', {
           method: 'POST',
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-          },
+          headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({
             timeMin: startOfDay,
             timeMax: endOfDay,
@@ -74,19 +74,13 @@ Deno.serve(async (req: Request) => {
             grant_type: 'refresh_token',
           }),
         })
-
         if (refreshRes.ok) {
           const refreshData = await refreshRes.json()
           token = refreshData.access_token
-
           await supabase
-            .from('user_integrations')
-            .update({
-              google_access_token: token,
-              updated_at: new Date().toISOString(),
-            })
+            .from('integration_secrets')
+            .update({ google_access_token: token, updated_at: new Date().toISOString() })
             .eq('user_id', userId)
-
           response = await makeRequest(token)
         }
       }
@@ -95,7 +89,6 @@ Deno.serve(async (req: Request) => {
         const data = await response.json()
         const calendars = data.calendars || {}
         const primary = calendars.primary || { busy: [] }
-
         busySlots = primary.busy.map((b: any) => {
           const s = new Date(b.start)
           const e = new Date(b.end)
@@ -115,7 +108,6 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // Implementing Priority Logic (Date-specific overrides > Recurring)
     let localSchedule = []
     if (date) {
       const dayOfWeek = new Date(`${date}T12:00:00-03:00`).getDay()

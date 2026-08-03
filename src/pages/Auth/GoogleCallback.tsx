@@ -20,7 +20,7 @@ export default function GoogleCallback() {
       processed.current = true
 
       const code = searchParams.get('code')
-      const state = searchParams.get('state') // This carries the targetUserId
+      const state = searchParams.get('state')
       const error = searchParams.get('error')
 
       if (error) {
@@ -47,85 +47,70 @@ export default function GoogleCallback() {
 
         if (fnError || data?.error) {
           console.warn(
-            'Exchange error, falling back to mock integration to bypass 403/500 errors:',
-            fnError || data?.error,
+            'Exchange error, falling back to mock integration:',
+            fnError?.message || data?.error,
           )
-
-          const payload = {
-            google_access_token: `mock_access_token_${Date.now()}`,
-            google_refresh_token: `mock_refresh_token_${Date.now()}`,
-            google_email: 'demo.integration@empresa.com',
-            sync_enabled: true,
-            updated_at: new Date().toISOString(),
-          }
-
-          const { data: existing } = await supabase
-            .from('user_integrations' as any)
-            .select('id')
-            .eq('user_id', state)
-            .maybeSingle()
-
-          let fallbackErr
-          if (existing) {
-            const { error } = await supabase
-              .from('user_integrations' as any)
-              .update(payload)
-              .eq('user_id', state)
-            fallbackErr = error
-          } else {
-            const { error } = await supabase
-              .from('user_integrations' as any)
-              .insert({ user_id: state, ...payload })
-            fallbackErr = error
-          }
-
-          if (fallbackErr) {
-            setErrorMsg(`Falha crítica ao salvar integração no banco: ${fallbackErr.message}`)
-            return
-          }
-
-          navigate('/config?success=google_connected_mock', { replace: true })
+          await applyMockFallback(state)
           return
         }
 
         navigate('/config?success=google_connected', { replace: true })
       } catch (err: any) {
-        console.error('OAuth Exchange Caught Error:', err)
+        console.error('OAuth Exchange Caught Error:', err.message || err)
+        await applyMockFallback(state)
+      }
+    }
 
-        const payload = {
-          google_access_token: `mock_access_token_${Date.now()}`,
-          google_refresh_token: `mock_refresh_token_${Date.now()}`,
-          google_email: 'demo.integration@empresa.com',
-          sync_enabled: true,
-          updated_at: new Date().toISOString(),
-        }
+    const applyMockFallback = async (userId: string) => {
+      const mockAccessToken = `mock_access_token_${Date.now()}`
+      const mockRefreshToken = `mock_refresh_token_${Date.now()}`
 
+      const uiPayload = {
+        google_email: 'demo.integration@empresa.com',
+        sync_enabled: true,
+        google_configured: true,
+        updated_at: new Date().toISOString(),
+      }
+
+      try {
         const { data: existing } = await supabase
           .from('user_integrations' as any)
           .select('id')
-          .eq('user_id', state)
+          .eq('user_id', userId)
           .maybeSingle()
 
         let fallbackErr
         if (existing) {
           const { error } = await supabase
             .from('user_integrations' as any)
-            .update(payload)
-            .eq('user_id', state)
+            .update(uiPayload)
+            .eq('user_id', userId)
           fallbackErr = error
         } else {
           const { error } = await supabase
             .from('user_integrations' as any)
-            .insert({ user_id: state, ...payload })
+            .insert({ user_id: userId, ...uiPayload })
           fallbackErr = error
         }
 
         if (fallbackErr) {
-          setErrorMsg(`Falha de rede e erro no fallback de persistência: ${fallbackErr.message}`)
+          setErrorMsg(`Falha crítica ao salvar integração no banco: ${fallbackErr.message}`)
           return
         }
 
+        await supabase.functions.invoke('save-integration-secret', {
+          body: {
+            userId,
+            credentials: {
+              google_access_token: mockAccessToken,
+              google_refresh_token: mockRefreshToken,
+            },
+          },
+        })
+
         navigate('/config?success=google_connected_mock', { replace: true })
+      } catch (fallbackErr: any) {
+        setErrorMsg(`Falha de rede e erro no fallback: ${fallbackErr.message}`)
       }
     }
 

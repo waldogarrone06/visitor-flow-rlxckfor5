@@ -270,6 +270,30 @@ export type Database = {
         }
         Relationships: []
       }
+      integration_secrets: {
+        Row: {
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+          whatsapp_official_access_token: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+          whatsapp_official_access_token?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+          whatsapp_official_access_token?: string | null
+        }
+        Relationships: []
+      }
       interaction_log: {
         Row: {
           contact_id: string | null
@@ -601,6 +625,7 @@ export type Database = {
           whatsapp_connected: boolean | null
           whatsapp_instance_id: string | null
           whatsapp_official_access_token: string | null
+          whatsapp_official_configured: boolean | null
           whatsapp_official_phone_number_id: string | null
           whatsapp_official_verify_token: string | null
           whatsapp_official_waba_id: string | null
@@ -630,6 +655,7 @@ export type Database = {
           whatsapp_connected?: boolean | null
           whatsapp_instance_id?: string | null
           whatsapp_official_access_token?: string | null
+          whatsapp_official_configured?: boolean | null
           whatsapp_official_phone_number_id?: string | null
           whatsapp_official_verify_token?: string | null
           whatsapp_official_waba_id?: string | null
@@ -659,6 +685,7 @@ export type Database = {
           whatsapp_connected?: boolean | null
           whatsapp_instance_id?: string | null
           whatsapp_official_access_token?: string | null
+          whatsapp_official_configured?: boolean | null
           whatsapp_official_phone_number_id?: string | null
           whatsapp_official_verify_token?: string | null
           whatsapp_official_waba_id?: string | null

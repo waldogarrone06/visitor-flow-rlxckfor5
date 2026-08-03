@@ -1,5 +1,14 @@
 import { supabase } from '@/lib/supabase/client'
 
+const SENSITIVE_FIELDS = [
+  'google_access_token',
+  'google_refresh_token',
+  'melhor_envio_token',
+  'whatsapp_api_token',
+  'yampi_token',
+  'whatsapp_official_access_token',
+]
+
 export async function getIntegrations(targetUserId?: string) {
   try {
     const userId = targetUserId || (await supabase.auth.getUser()).data.user?.id
@@ -18,6 +27,10 @@ export async function getIntegrations(targetUserId?: string) {
 
     if (data) {
       ;(data as any)._has_official_access_token = !!(data as any).whatsapp_official_configured
+      ;(data as any)._has_google = !!(data as any).google_configured
+      ;(data as any)._has_melhor_envio = !!(data as any).melhor_envio_configured
+      ;(data as any)._has_whatsapp_api = !!(data as any).whatsapp_api_configured
+      ;(data as any)._has_yampi = !!(data as any).yampi_configured
     }
 
     return data
@@ -32,9 +45,12 @@ export async function saveIntegrations(updates: any, targetUserId?: string) {
     const userId = targetUserId || (await supabase.auth.getUser()).data.user?.id
     if (!userId) return null
 
+    const safePayload = { ...updates }
+    SENSITIVE_FIELDS.forEach((field) => delete safePayload[field])
+
     const payload = {
       user_id: userId,
-      ...updates,
+      ...safePayload,
       updated_at: new Date().toISOString(),
     }
 

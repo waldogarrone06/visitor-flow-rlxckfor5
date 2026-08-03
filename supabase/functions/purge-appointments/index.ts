@@ -1,6 +1,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
-import { createClient } from 'jsr:@supabase/supabase-js@2'
+import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
+import { getGoogleTokens } from '../_shared/integration-secrets.ts'
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
@@ -46,13 +47,9 @@ Deno.serve(async (req: Request) => {
         calSkipped++
         continue
       }
-      const { data: integ } = await supabase
-        .from('user_integrations')
-        .select('google_access_token, google_refresh_token')
-        .eq('user_id', appt.user_id)
-        .single()
 
-      let token = integ?.google_access_token
+      const googleTokens = await getGoogleTokens(supabase, appt.user_id)
+      let token = googleTokens.accessToken
       if (!token || token.includes('mock_access_token') || !clientId || !clientSecret) {
         calSkipped++
         continue
@@ -65,21 +62,21 @@ Deno.serve(async (req: Request) => {
         )
 
       let res = await delEvent(token)
-      if (res.status === 401 && integ?.google_refresh_token) {
+      if (res.status === 401 && googleTokens.refreshToken) {
         const refresh = await fetch('https://oauth2.googleapis.com/token', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: new URLSearchParams({
             client_id: clientId,
             client_secret: clientSecret,
-            refresh_token: integ.google_refresh_token,
+            refresh_token: googleTokens.refreshToken,
             grant_type: 'refresh_token',
           }),
         })
         if (refresh.ok) {
           token = (await refresh.json()).access_token
           await supabase
-            .from('user_integrations')
+            .from('integration_secrets')
             .update({ google_access_token: token, updated_at: new Date().toISOString() })
             .eq('user_id', appt.user_id)
           res = await delEvent(token)

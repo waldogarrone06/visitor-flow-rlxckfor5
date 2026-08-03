@@ -1,6 +1,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
+import { isAllowedKey, updateIndicator } from '../_shared/integration-secrets.ts'
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -35,22 +36,63 @@ Deno.serve(async (req: Request) => {
       })
     }
 
-    const { accessToken, clear } = body
-
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
+
+    const { credentialKey, credentialValue, clear, credentials, accessToken } = body
+
+    if (credentials && typeof credentials === 'object') {
+      const updates: Record<string, string> = {}
+      for (const [key, value] of Object.entries(credentials)) {
+        if (isAllowedKey(key) && typeof value === 'string' && value.trim()) {
+          updates[key] = value.trim()
+        }
+      }
+
+      if (Object.keys(updates).length > 0) {
+        updates['updated_at'] = new Date().toISOString()
+        const { error: secretError } = await supabaseAdmin
+          .from('integration_secrets')
+          .upsert({ user_id: userId, ...updates }, { onConflict: 'user_id' })
+
+        if (secretError) throw secretError
+
+        for (const key of Object.keys(updates)) {
+          if (key !== 'updated_at') {
+            await updateIndicator(supabaseAdmin, userId, key, true)
+          }
+        }
+      }
+
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    let resolvedKey = credentialKey
+    let resolvedValue = credentialValue
+
+    if (!resolvedKey && accessToken !== undefined) {
+      resolvedKey = 'whatsapp_official_access_token'
+      resolvedValue = accessToken
+    }
+
+    if (!resolvedKey || !isAllowedKey(resolvedKey)) {
+      return new Response(JSON.stringify({ error: 'Invalid or missing credentialKey' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
 
     if (clear === true) {
       const { error: clearError } = await supabaseAdmin
         .from('integration_secrets')
-        .update({ whatsapp_official_access_token: null, updated_at: new Date().toISOString() })
+        .update({ [resolvedKey]: null, updated_at: new Date().toISOString() })
         .eq('user_id', userId)
 
       if (clearError) throw clearError
 
-      await supabaseAdmin
-        .from('user_integrations')
-        .update({ whatsapp_official_configured: false })
-        .eq('user_id', userId)
+      await updateIndicator(supabaseAdmin, userId, resolvedKey, false)
 
       return new Response(JSON.stringify({ success: true, configured: false }), {
         status: 200,
@@ -58,8 +100,8 @@ Deno.serve(async (req: Request) => {
       })
     }
 
-    if (!accessToken || typeof accessToken !== 'string' || !accessToken.trim()) {
-      return new Response(JSON.stringify({ error: 'accessToken is required' }), {
+    if (!resolvedValue || typeof resolvedValue !== 'string' || !resolvedValue.trim()) {
+      return new Response(JSON.stringify({ error: 'credentialValue is required' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
@@ -68,7 +110,7 @@ Deno.serve(async (req: Request) => {
     const { error: secretError } = await supabaseAdmin.from('integration_secrets').upsert(
       {
         user_id: userId,
-        whatsapp_official_access_token: accessToken.trim(),
+        [resolvedKey]: resolvedValue.trim(),
         updated_at: new Date().toISOString(),
       },
       { onConflict: 'user_id' },
@@ -76,12 +118,7 @@ Deno.serve(async (req: Request) => {
 
     if (secretError) throw secretError
 
-    const { error: indicatorError } = await supabaseAdmin
-      .from('user_integrations')
-      .update({ whatsapp_official_configured: true })
-      .eq('user_id', userId)
-
-    if (indicatorError) throw indicatorError
+    await updateIndicator(supabaseAdmin, userId, resolvedKey, true)
 
     return new Response(JSON.stringify({ success: true, configured: true }), {
       status: 200,

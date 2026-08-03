@@ -1,6 +1,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { corsHeaders } from '../_shared/cors.ts'
-import { createClient } from 'jsr:@supabase/supabase-js@2'
+import { createClient } from 'npm:@supabase/supabase-js@2'
+import { getSecret } from '../_shared/integration-secrets.ts'
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -14,17 +15,15 @@ Deno.serve(async (req: Request) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
     const supabase = createClient(supabaseUrl, supabaseKey)
 
-    // Retrieve integration token from database or environment
     const { data: integration } = await supabase
       .from('user_integrations')
-      .select('yampi_token, yampi_alias')
+      .select('yampi_alias')
       .eq('user_id', userId)
-      .single()
+      .maybeSingle()
 
-    const apiToken = integration?.yampi_token || Deno.env.get('YAMPI_TOKEN') || 'mock-token'
+    const apiToken = await getSecret(supabase, userId, 'yampi_token')
 
     if (action === 'create-coupon') {
-      // Idempotency Check: Verify if coupon is already created or verified
       const { data: currentApp } = await supabase
         .from('appointments')
         .select('coupon_code, coupon_verified')
@@ -43,7 +42,7 @@ Deno.serve(async (req: Request) => {
         )
       }
 
-      const sanitizedName = name
+      const sanitizedName = (name || '')
         .replace(/[^a-zA-Z]/g, '')
         .substring(0, 4)
         .toUpperCase()
@@ -54,16 +53,12 @@ Deno.serve(async (req: Request) => {
 
       const { error } = await supabase
         .from('appointments')
-        .update({
-          coupon_code: couponCode,
-          coupon_verified: true,
-        })
+        .update({ coupon_code: couponCode, coupon_verified: true })
         .eq('id', appointmentId)
         .eq('user_id', userId)
 
       if (error) throw error
 
-      // Log to interaction_log
       await supabase.from('interaction_log').insert({
         user_id: userId,
         type: 'coupon_created',
@@ -88,7 +83,6 @@ Deno.serve(async (req: Request) => {
 
       if (appointments) {
         for (const app of appointments) {
-          // Simulate fetching usage from Yampi API using the apiToken
           const randomUsage = Math.floor(Math.random() * 4)
           if (randomUsage > 0) {
             const newUsage = (app.coupon_usage_count || 0) + randomUsage
