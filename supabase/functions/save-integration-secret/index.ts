@@ -64,21 +64,44 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    const { data: existing } = await supabaseAdmin
+    const { data: existing, error: fetchError } = await supabaseAdmin
       .from('integration_secrets')
       .select('user_id')
       .eq('user_id', effectiveUserId)
       .maybeSingle()
 
+    if (fetchError) {
+      return new Response(
+        JSON.stringify({ error: `Failed to check existing credentials: ${fetchError.message}` }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      )
+    }
+
+    let upsertError: any = null
     if (existing) {
-      await supabaseAdmin
+      const { error } = await supabaseAdmin
         .from('integration_secrets')
         .update({ [rawKey]: rawValue, updated_at: new Date().toISOString() })
         .eq('user_id', effectiveUserId)
+      upsertError = error
     } else {
-      await supabaseAdmin
+      const { error } = await supabaseAdmin
         .from('integration_secrets')
         .insert({ user_id: effectiveUserId, [rawKey]: rawValue })
+      upsertError = error
+    }
+
+    if (upsertError) {
+      return new Response(
+        JSON.stringify({ error: `Failed to save credential: ${upsertError.message}` }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      )
     }
 
     await updateIndicator(

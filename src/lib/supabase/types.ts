@@ -642,6 +642,7 @@ export type Database = {
           user_id: string
           whatsapp_api_configured: boolean | null
           whatsapp_api_url: string | null
+          whatsapp_app_secret_configured: boolean | null
           whatsapp_connected: boolean | null
           whatsapp_instance_id: string | null
           whatsapp_official_configured: boolean | null
@@ -670,6 +671,7 @@ export type Database = {
           user_id: string
           whatsapp_api_configured?: boolean | null
           whatsapp_api_url?: string | null
+          whatsapp_app_secret_configured?: boolean | null
           whatsapp_connected?: boolean | null
           whatsapp_instance_id?: string | null
           whatsapp_official_configured?: boolean | null
@@ -698,6 +700,7 @@ export type Database = {
           user_id?: string
           whatsapp_api_configured?: boolean | null
           whatsapp_api_url?: string | null
+          whatsapp_app_secret_configured?: boolean | null
           whatsapp_connected?: boolean | null
           whatsapp_instance_id?: string | null
           whatsapp_official_configured?: boolean | null

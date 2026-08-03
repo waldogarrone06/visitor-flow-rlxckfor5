@@ -170,6 +170,9 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
         : 'disconnected'
       : connectionState
 
+  const hasUnsavedCredentials =
+    providerType === 'official' ? !!(officialToken.trim() || appSecret.trim()) : !!apiToken.trim()
+
   const handleSave = async () => {
     setLoading(true)
     try {
@@ -421,6 +424,67 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
       toast({ title: 'Falha no teste', description: error.message, variant: 'destructive' })
     } finally {
       setTesting(false)
+    }
+  }
+
+  const handleSaveCredentials = async () => {
+    setLoading(true)
+    try {
+      if (providerType === 'official') {
+        if (officialToken.trim()) {
+          const { error } = await supabase.functions.invoke('save-integration-secret', {
+            body: {
+              key: 'whatsapp_official_access_token',
+              value: officialToken.trim(),
+              userId: targetUserId,
+            },
+          })
+          if (error) throw new Error('Falha ao salvar token seguro')
+          setOfficialToken('')
+        }
+        if (appSecret.trim()) {
+          const { error } = await supabase.functions.invoke('save-integration-secret', {
+            body: {
+              key: 'whatsapp_app_secret',
+              value: appSecret.trim(),
+              userId: targetUserId,
+            },
+          })
+          if (error) throw new Error('Falha ao salvar App Secret')
+          setAppSecret('')
+        }
+        const refreshedData = await getIntegrations(targetUserId)
+        if (refreshedData) {
+          setHasOfficialToken(!!(refreshedData as any).whatsapp_official_configured)
+          setHasAppSecret(!!(refreshedData as any).whatsapp_app_secret_configured)
+        }
+        setTemplateRefetchTrigger((prev) => prev + 1)
+      } else {
+        if (apiToken.trim()) {
+          const { error } = await supabase.functions.invoke('save-integration-secret', {
+            body: {
+              key: 'whatsapp_api_token',
+              value: apiToken.trim(),
+              userId: targetUserId,
+            },
+          })
+          if (error) throw new Error('Falha ao salvar token seguro')
+          setApiToken('')
+          setHasApiToken(true)
+        }
+      }
+      toast({
+        title: 'Credenciais Salvas',
+        description: 'Credenciais atualizadas com sucesso!',
+      })
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao salvar',
+        description: error?.message || 'Falha ao salvar.',
+        variant: 'destructive',
+      })
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -766,23 +830,30 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
       </CardContent>
       <CardFooter className="flex flex-col gap-2">
         {isProviderConnected ? (
-          <div className="flex w-full gap-2">
-            <Button
-              variant="default"
-              onClick={handleTestConnection}
-              disabled={testing || !testNumber}
-              className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-            >
-              <Send className="w-4 h-4 mr-2" />
-              {testing ? 'Testando...' : 'Testar Conexão'}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={handleDisconnect}
-              className="flex-1 text-destructive hover:bg-destructive/10"
-            >
-              Desconectar
-            </Button>
+          <div className="flex flex-col w-full gap-2">
+            {hasUnsavedCredentials && (
+              <Button onClick={handleSaveCredentials} disabled={loading} className="w-full">
+                {loading ? 'Salvando...' : 'Salvar Alterações'}
+              </Button>
+            )}
+            <div className="flex w-full gap-2">
+              <Button
+                variant="default"
+                onClick={handleTestConnection}
+                disabled={testing || !testNumber}
+                className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+              >
+                <Send className="w-4 h-4 mr-2" />
+                {testing ? 'Testando...' : 'Testar Conexão'}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleDisconnect}
+                className="flex-1 text-destructive hover:bg-destructive/10"
+              >
+                Desconectar
+              </Button>
+            </div>
           </div>
         ) : (
           <Button

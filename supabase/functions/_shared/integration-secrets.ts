@@ -97,26 +97,46 @@ export async function updateIndicator(
       .map(([key]) => key)
 
     if (relatedKeys.length > 1) {
-      const { data: existing } = await supabaseAdmin
+      const { data: existing, error: fetchError } = await supabaseAdmin
         .from('integration_secrets')
         .select(relatedKeys.join(', '))
         .eq('user_id', userId)
         .maybeSingle()
 
+      if (fetchError) {
+        console.error('[integration-secrets] Error fetching related keys:', fetchError.message)
+        return
+      }
+
       const anyExists = relatedKeys.some((k) => existing?.[k] && String(existing[k]).trim() !== '')
 
-      await supabaseAdmin
+      const { error: clearError } = await supabaseAdmin
         .from('user_integrations')
-        .update({ [indicatorCol]: anyExists })
-        .eq('user_id', userId)
+        .upsert(
+          { user_id: userId, [indicatorCol]: anyExists, updated_at: new Date().toISOString() },
+          { onConflict: 'user_id' },
+        )
+
+      if (clearError) {
+        console.error(
+          '[integration-secrets] Error updating indicator on clear:',
+          clearError.message,
+        )
+      }
       return
     }
   }
 
-  await supabaseAdmin
+  const { error: updateError } = await supabaseAdmin
     .from('user_integrations')
-    .update({ [indicatorCol]: configured })
-    .eq('user_id', userId)
+    .upsert(
+      { user_id: userId, [indicatorCol]: configured, updated_at: new Date().toISOString() },
+      { onConflict: 'user_id' },
+    )
+
+  if (updateError) {
+    console.error('[integration-secrets] Error updating indicator:', updateError.message)
+  }
 }
 
 export async function getWhatsAppAppSecret(supabaseAdmin: any, userId: string): Promise<string> {
