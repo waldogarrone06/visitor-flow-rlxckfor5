@@ -74,9 +74,12 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
           setProviderType(pType)
           setOfficialPhoneId(data.whatsapp_official_phone_number_id || '')
           setOfficialWabaId(data.whatsapp_official_waba_id || '')
-          setHasOfficialToken(!!(data as any)._has_official_access_token)
-          setSavedAccessToken((data as any).whatsapp_official_access_token || '')
-          setOfficialToken((data as any).whatsapp_official_access_token || '')
+          setHasOfficialToken(
+            !!(data as any).whatsapp_official_configured ||
+              !!(data as any)._has_official_access_token,
+          )
+          setSavedAccessToken('')
+          setOfficialToken('')
           setOfficialVerifyToken(data.whatsapp_official_verify_token || DEFAULT_VERIFY_TOKEN)
           setApiUrl(data.whatsapp_api_url || '')
           setInstanceName(data.whatsapp_instance_id || '')
@@ -209,18 +212,30 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
           whatsapp_official_verify_token: officialVerifyToken.trim() || DEFAULT_VERIFY_TOKEN,
           whatsapp_connected: true,
         }
-        if (officialToken.trim()) {
-          updates.whatsapp_official_access_token = officialToken.trim()
-        }
         await saveIntegrations(updates, targetUserId)
+
+        if (officialToken.trim()) {
+          const { error: secretError } = await supabase.functions.invoke(
+            'save-integration-secret',
+            {
+              body: { userId: targetUserId, accessToken: officialToken.trim() },
+            },
+          )
+          if (secretError) throw new Error('Falha ao salvar token seguro')
+          setOfficialToken('')
+        }
+
         const refreshedData = await getIntegrations(targetUserId)
         if (refreshedData) {
-          setHasOfficialToken(!!(refreshedData as any)._has_official_access_token)
-          setSavedAccessToken((refreshedData as any).whatsapp_official_access_token || '')
-          setOfficialToken((refreshedData as any).whatsapp_official_access_token || '')
+          setHasOfficialToken(
+            !!(refreshedData as any).whatsapp_official_configured ||
+              !!(refreshedData as any)._has_official_access_token,
+          )
+          setSavedAccessToken('')
+          setOfficialToken('')
         } else {
           setHasOfficialToken(true)
-          setSavedAccessToken(officialToken.trim() || savedAccessToken)
+          setSavedAccessToken('')
         }
         setConnected(true)
         setTemplateRefetchTrigger((prev) => prev + 1)
@@ -260,11 +275,16 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
         {
           whatsapp_official_phone_number_id: null,
           whatsapp_official_waba_id: null,
-          whatsapp_official_access_token: null,
+          whatsapp_official_configured: false,
           whatsapp_connected: false,
         },
         targetUserId,
       )
+      await supabase.functions
+        .invoke('save-integration-secret', {
+          body: { userId: targetUserId, clear: true },
+        })
+        .catch(() => {})
       setOfficialPhoneId('')
       setOfficialWabaId('')
       setHasOfficialToken(false)
@@ -297,8 +317,6 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
       if (providerType === 'official') {
         testCredentials.officialPhoneNumberId = officialPhoneId.trim()
         testCredentials.officialWabaId = officialWabaId.trim()
-        const tokenToUse = officialToken.trim() || savedAccessToken
-        if (tokenToUse) testCredentials.officialAccessToken = tokenToUse
       } else {
         let cleanUrl = apiUrl
           .trim()
@@ -483,13 +501,17 @@ export function WhatsAppCard({ targetUserId }: { targetUserId?: string }) {
                     <Input
                       value={officialToken}
                       onChange={(e) => setOfficialToken(e.target.value)}
-                      placeholder="SUA_ACCESS_TOKEN"
+                      placeholder={
+                        hasOfficialToken ? '•••••• (Configurado ✅)' : 'SUA_ACCESS_TOKEN'
+                      }
                       type="password"
                       className="pl-9"
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    O token é armazenado de forma segura e não é exibido após salvar.
+                    {hasOfficialToken
+                      ? 'Token configurado e armazenado com segurança. Digite um novo token para substituir.'
+                      : 'O token é armazenado de forma segura e não é exibido após salvar.'}
                   </p>
                 </div>
                 <div className="space-y-2 pt-4 border-t">

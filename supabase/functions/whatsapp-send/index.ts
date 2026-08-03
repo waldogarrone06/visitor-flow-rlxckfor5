@@ -1,6 +1,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
+import { getOfficialAccessToken } from '../_shared/integration-secrets.ts'
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -50,14 +51,13 @@ Deno.serve(async (req: Request) => {
       if (providerType === 'official' && userId && !cfg.officialAccessToken && !cfg.accessToken) {
         const { data: fallbackIntegration } = await supabaseAdmin
           .from('user_integrations')
-          .select(
-            'whatsapp_official_access_token, whatsapp_official_phone_number_id, whatsapp_official_waba_id',
-          )
+          .select('whatsapp_official_phone_number_id, whatsapp_official_waba_id')
           .eq('user_id', userId)
           .maybeSingle()
 
-        if (fallbackIntegration?.whatsapp_official_access_token) {
-          cfg.officialAccessToken = fallbackIntegration.whatsapp_official_access_token
+        const fallbackToken = await getOfficialAccessToken(supabaseAdmin, userId)
+        if (fallbackToken) {
+          cfg.officialAccessToken = fallbackToken
         }
         if (!cfg.officialPhoneNumberId && fallbackIntegration?.whatsapp_official_phone_number_id) {
           cfg.officialPhoneNumberId = fallbackIntegration.whatsapp_official_phone_number_id
@@ -70,7 +70,7 @@ Deno.serve(async (req: Request) => {
       const { data: integration } = await supabaseAdmin
         .from('user_integrations')
         .select(
-          'primary_provider, whatsapp_provider_type, whatsapp_official_phone_number_id, whatsapp_official_waba_id, whatsapp_official_access_token, whatsapp_api_url, whatsapp_instance_id, whatsapp_api_token',
+          'primary_provider, whatsapp_provider_type, whatsapp_official_phone_number_id, whatsapp_official_waba_id, whatsapp_api_url, whatsapp_instance_id, whatsapp_api_token',
         )
         .eq('user_id', userId)
         .maybeSingle()
@@ -79,12 +79,13 @@ Deno.serve(async (req: Request) => {
         throw new Error('Integração não encontrada. Configure nas Configurações.')
       }
 
+      const officialToken = await getOfficialAccessToken(supabaseAdmin, userId)
       const primaryProvider =
         integration.primary_provider || integration.whatsapp_provider_type || 'evolution'
 
       providerType = primaryProvider
       cfg = {
-        officialAccessToken: integration.whatsapp_official_access_token || '',
+        officialAccessToken: officialToken,
         officialPhoneNumberId: integration.whatsapp_official_phone_number_id || '',
         officialWabaId: integration.whatsapp_official_waba_id || '',
         apiUrl: integration.whatsapp_api_url || '',

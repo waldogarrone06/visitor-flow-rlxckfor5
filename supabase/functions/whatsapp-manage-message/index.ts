@@ -39,7 +39,7 @@ Deno.serve(async (req) => {
     const { data: integration } = await supabaseAdmin
       .from('user_integrations')
       .select(
-        'whatsapp_instance_id, whatsapp_api_token, whatsapp_api_url, primary_provider, whatsapp_provider_type, whatsapp_official_phone_number_id, whatsapp_official_waba_id, whatsapp_official_access_token',
+        'whatsapp_instance_id, whatsapp_api_token, whatsapp_api_url, primary_provider, whatsapp_provider_type, whatsapp_official_phone_number_id, whatsapp_official_waba_id',
       )
       .eq('user_id', user.id)
       .maybeSingle()

@@ -1,6 +1,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
+import { getOfficialAccessToken } from '../_shared/integration-secrets.ts'
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -39,11 +40,11 @@ Deno.serve(async (req: Request) => {
 
     const { data: integration } = await supabaseAdmin
       .from('user_integrations')
-      .select('whatsapp_official_waba_id, whatsapp_official_access_token')
+      .select('whatsapp_official_waba_id')
       .eq('user_id', userId)
       .maybeSingle()
 
-    const accessToken = (integration?.whatsapp_official_access_token || '').trim()
+    const accessToken = (await getOfficialAccessToken(supabaseAdmin, userId)).trim()
 
     if (!accessToken) {
       return new Response(
