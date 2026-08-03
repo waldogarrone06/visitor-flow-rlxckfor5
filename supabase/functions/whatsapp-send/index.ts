@@ -376,6 +376,14 @@ async function sendOfficial({
   }
 
   const wamid = parsedResult?.messages?.[0]?.id
+  console.log(
+    '[whatsapp-send] Official send result - wamid:',
+    wamid,
+    'contactId:',
+    contactId,
+    'dbMessageId:',
+    dbMessageId,
+  )
 
   if (userId) {
     await persistOutboundMessage(supabaseAdmin, {
@@ -461,6 +469,14 @@ async function sendEvolution({
   }
 
   const evoMessageId = parsedResult?.key?.id || parsedResult?.messageId || parsedResult?.id
+  console.log(
+    '[whatsapp-send] Evolution send result - messageId:',
+    evoMessageId,
+    'contactId:',
+    contactId,
+    'dbMessageId:',
+    dbMessageId,
+  )
 
   if (userId) {
     await persistOutboundMessage(supabaseAdmin, {
@@ -484,6 +500,11 @@ async function sendEvolution({
     }),
     { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
   )
+}
+
+function isValidUuid(id: string | undefined | null): boolean {
+  if (!id) return false
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
 }
 
 async function persistOutboundMessage(
@@ -516,26 +537,70 @@ async function persistOutboundMessage(
     console.warn('Failed to log interaction:', err)
   }
 
-  if (params.providerMessageId) {
-    try {
-      if (params.dbMessageId) {
-        await supabaseAdmin
-          .from('messages')
-          .update({ client_id: params.providerMessageId, status: 'sent' })
-          .eq('id', params.dbMessageId)
-      } else if (params.contactId) {
-        await supabaseAdmin.from('messages').insert({
-          user_id: params.userId,
-          contact_id: params.contactId,
-          content: params.content || '',
-          direction: 'outbound',
-          status: 'sent',
-          client_id: params.providerMessageId,
-        })
+  try {
+    let persisted = false
+
+    if (isValidUuid(params.dbMessageId)) {
+      const { data: updateData, error: updateError } = await supabaseAdmin
+        .from('messages')
+        .update({ client_id: params.providerMessageId || null, status: 'sent' })
+        .eq('id', params.dbMessageId)
+        .select('id')
+
+      if (!updateError && updateData && updateData.length > 0) {
+        persisted = true
+        console.log('[whatsapp-send] Message UPDATE succeeded for id:', params.dbMessageId)
+      } else if (updateError) {
+        console.warn('[whatsapp-send] UPDATE failed, falling back to INSERT:', updateError.message)
+      } else {
+        console.log(
+          '[whatsapp-send] UPDATE matched 0 rows for dbMessageId:',
+          params.dbMessageId,
+          '- falling back to INSERT',
+        )
       }
-    } catch (err) {
-      console.warn(`[whatsapp-send] Failed to persist ${params.provider} message:`, err)
     }
+
+    if (!persisted) {
+      const insertData: any = {
+        user_id: params.userId,
+        contact_id: params.contactId || null,
+        content: params.content || '',
+        direction: 'outbound',
+        status: 'sent',
+      }
+      if (params.providerMessageId) {
+        insertData.client_id = params.providerMessageId
+      }
+      if (isValidUuid(params.dbMessageId)) {
+        insertData.id = params.dbMessageId
+      }
+
+      const { error: insertError } = await supabaseAdmin.from('messages').insert(insertData)
+
+      if (insertError) {
+        console.warn(
+          `[whatsapp-send] Failed to INSERT ${params.provider} message:`,
+          insertError.message,
+        )
+      } else {
+        persisted = true
+        console.log(
+          '[whatsapp-send] Message INSERT succeeded - client_id:',
+          params.providerMessageId,
+          'contactId:',
+          params.contactId,
+        )
+      }
+    }
+
+    if (!persisted) {
+      console.warn(
+        `[whatsapp-send] Message NOT persisted - userId:${params.userId} contactId:${params.contactId} providerMessageId:${params.providerMessageId}`,
+      )
+    }
+  } catch (err) {
+    console.warn(`[whatsapp-send] Failed to persist ${params.provider} message:`, err)
   }
 }
 
