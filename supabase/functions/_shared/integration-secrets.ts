@@ -1,5 +1,6 @@
 const ALLOWED_KEYS = [
   'whatsapp_official_access_token',
+  'whatsapp_app_secret',
   'google_access_token',
   'google_refresh_token',
   'melhor_envio_token',
@@ -115,4 +116,23 @@ export async function updateIndicator(
     .from('user_integrations')
     .update({ [indicatorCol]: configured })
     .eq('user_id', userId)
+}
+
+export async function getWhatsAppAppSecret(supabaseAdmin: any, userId: string): Promise<string> {
+  return getSecret(supabaseAdmin, userId, 'whatsapp_app_secret')
+}
+
+export async function getAllAppSecrets(
+  supabaseAdmin: any,
+): Promise<Array<{ userId: string; appSecret: string }>> {
+  const { data, error } = await supabaseAdmin
+    .from('integration_secrets')
+    .select('user_id, whatsapp_app_secret')
+    .not('whatsapp_app_secret', 'is', null)
+
+  if (error || !data) return []
+
+  return data
+    .filter((row: any) => row.whatsapp_app_secret && String(row.whatsapp_app_secret).trim() !== '')
+    .map((row: any) => ({ userId: row.user_id, appSecret: String(row.whatsapp_app_secret).trim() }))
 }

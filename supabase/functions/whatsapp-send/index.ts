@@ -19,6 +19,8 @@ Deno.serve(async (req: Request) => {
       templateComponents,
       parameters,
       parameterFormat,
+      contactId,
+      dbMessageId,
     } = body
 
     if (!to) throw new Error('Parâmetro "to" é obrigatório.')
@@ -160,6 +162,8 @@ Deno.serve(async (req: Request) => {
       cfg,
       userId,
       supabaseAdmin,
+      contactId,
+      dbMessageId,
     }
 
     if (providerType === 'official') {
@@ -288,6 +292,8 @@ async function sendOfficial({
   cfg,
   userId,
   supabaseAdmin,
+  contactId,
+  dbMessageId,
 }: any) {
   const accessToken = cfg.officialAccessToken || ''
   const phoneNumberId = cfg.officialPhoneNumberId || ''
@@ -369,25 +375,57 @@ async function sendOfficial({
     parsedResult = { rawText: responseText }
   }
 
+  const wamid = parsedResult?.messages?.[0]?.id
+
   if (userId) {
     try {
       await supabaseAdmin.from('interaction_log').insert({
         user_id: userId,
         type: 'whatsapp_send_official',
-        details: { to: number, success: true, messageId: parsedResult?.messages?.[0]?.id },
+        details: { to: number, success: true, messageId: wamid },
       })
     } catch (err) {
       console.warn('Failed to log interaction:', err)
     }
+
+    if (wamid) {
+      try {
+        if (dbMessageId) {
+          await supabaseAdmin
+            .from('messages')
+            .update({ client_id: wamid, status: 'sent' })
+            .eq('id', dbMessageId)
+        } else if (contactId) {
+          await supabaseAdmin.from('messages').insert({
+            user_id: userId,
+            contact_id: contactId,
+            content: text || '',
+            direction: 'outbound',
+            status: 'sent',
+            client_id: wamid,
+          })
+        }
+      } catch (err) {
+        console.warn('[whatsapp-send] Failed to persist wamid:', err)
+      }
+    }
   }
 
   return new Response(
-    JSON.stringify({ success: true, provider: 'official', response: parsedResult }),
+    JSON.stringify({ success: true, provider: 'official', wamid, response: parsedResult }),
     { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
   )
 }
 
-async function sendEvolution({ number, text, cfg, userId, supabaseAdmin }: any) {
+async function sendEvolution({
+  number,
+  text,
+  cfg,
+  userId,
+  supabaseAdmin,
+  contactId,
+  dbMessageId,
+}: any) {
   const apiUrl = cfg.apiUrl || ''
   const sessionId = (cfg.instanceId || '').trim()
   const apiKey = (cfg.apiToken || '').trim()
@@ -444,6 +482,8 @@ async function sendEvolution({ number, text, cfg, userId, supabaseAdmin }: any) 
     parsedResult = { rawText: responseText }
   }
 
+  const evoMessageId = parsedResult?.key?.id || parsedResult?.messageId || parsedResult?.id
+
   if (userId) {
     try {
       await supabaseAdmin.from('interaction_log').insert({
@@ -454,10 +494,37 @@ async function sendEvolution({ number, text, cfg, userId, supabaseAdmin }: any) 
     } catch (err) {
       console.warn('Failed to log interaction:', err)
     }
+
+    if (evoMessageId) {
+      try {
+        if (dbMessageId) {
+          await supabaseAdmin
+            .from('messages')
+            .update({ client_id: evoMessageId, status: 'sent' })
+            .eq('id', dbMessageId)
+        } else if (contactId) {
+          await supabaseAdmin.from('messages').insert({
+            user_id: userId,
+            contact_id: contactId,
+            content: text || '',
+            direction: 'outbound',
+            status: 'sent',
+            client_id: evoMessageId,
+          })
+        }
+      } catch (err) {
+        console.warn('[whatsapp-send] Failed to persist message ID:', err)
+      }
+    }
   }
 
   return new Response(
-    JSON.stringify({ success: true, provider: 'evolution', evolutionResponse: parsedResult }),
+    JSON.stringify({
+      success: true,
+      provider: 'evolution',
+      messageId: evoMessageId,
+      evolutionResponse: parsedResult,
+    }),
     { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
   )
 }

@@ -1,6 +1,12 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
+import {
+  verifyMetaSignature,
+  normalizePhoneVariants,
+  shouldUpdateStatus,
+} from '../_shared/whatsapp-security.ts'
+import { getAllAppSecrets } from '../_shared/integration-secrets.ts'
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -42,7 +48,30 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const bodyData = await req.json().catch(() => ({}))
+    const rawBody = await req.text()
+    const signatureHeader = req.headers.get('X-Hub-Signature-256')
+
+    const appSecrets = await getAllAppSecrets(supabaseAdmin)
+
+    if (appSecrets.length === 0) {
+      console.warn('[meta-webhook] No WhatsApp App Secret configured. Rejecting webhook.')
+      return new Response('Unauthorized', { status: 401, headers: corsHeaders })
+    }
+
+    let validatedUserId: string | null = null
+    for (const { userId, appSecret } of appSecrets) {
+      const isValid = await verifyMetaSignature(rawBody, signatureHeader, appSecret)
+      if (isValid) {
+        validatedUserId = userId
+        break
+      }
+    }
+
+    if (!validatedUserId) {
+      return new Response('Unauthorized', { status: 401, headers: corsHeaders })
+    }
+
+    const bodyData = JSON.parse(rawBody)
 
     if (bodyData?.object !== 'whatsapp_business_account' || !Array.isArray(bodyData?.entry)) {
       return new Response(JSON.stringify({ status: 'ignored' }), {
@@ -64,7 +93,7 @@ Deno.serve(async (req: Request) => {
         if (phoneNumberId) {
           const { data: integration } = await supabaseAdmin
             .from('user_integrations')
-            .select('user_id')
+            .select('user_id, whatsapp_official_phone_number_id')
             .eq('whatsapp_official_phone_number_id', phoneNumberId)
             .limit(1)
             .maybeSingle()
@@ -90,17 +119,48 @@ Deno.serve(async (req: Request) => {
             else if (statusValue === 'failed') mappedStatus = 'failed'
 
             if (messageId) {
-              await supabaseAdmin
+              const { data: existingMsg } = await supabaseAdmin
                 .from('messages')
-                .update({ status: mappedStatus })
+                .select('id, status')
                 .eq('client_id', messageId)
+                .maybeSingle()
+
+              if (existingMsg) {
+                if (shouldUpdateStatus(existingMsg.status, mappedStatus)) {
+                  const updateData: any = { status: mappedStatus }
+                  if (mappedStatus === 'failed') {
+                    updateData.error_details = {
+                      errors: status.errors || [
+                        { code: status.error_code, message: status.error_message },
+                      ],
+                      timestamp: new Date().toISOString(),
+                    }
+                  }
+                  await supabaseAdmin.from('messages').update(updateData).eq('id', existingMsg.id)
+                }
+                results.push({ status: 'ok', handled: 'status_update', messageId, mappedStatus })
+              } else {
+                console.warn(`[meta-webhook] Status update for unknown message: ${messageId}`)
+                results.push({ status: 'ignored', reason: 'message_not_found', messageId })
+              }
+            } else {
+              results.push({ status: 'ignored', reason: 'no_message_id' })
             }
-            results.push({ status: 'ok', handled: 'status_update', messageId, mappedStatus })
           }
           continue
         }
 
-        if (value.messages && Array.isArray(value.messages) && userId) {
+        if (value.messages && Array.isArray(value.messages)) {
+          if (!userId) {
+            console.warn(
+              '[meta-webhook] Inbound message received but no matching user integration for phone_number_id. Message will not be processed.',
+            )
+            for (const msg of value.messages) {
+              results.push({ status: 'ignored', reason: 'no_user_integration', phone: msg.from })
+            }
+            continue
+          }
+
           for (const msg of value.messages) {
             const phone = msg.from || ''
             if (!phone || phone.length < 8) {
@@ -116,6 +176,7 @@ Deno.serve(async (req: Request) => {
             else if (msg.type === 'document') text = msg.document?.filename || '[Documento]'
             else if (msg.type === 'sticker') text = '[Sticker]'
             else if (msg.type === 'location') text = '[Localização]'
+            else if (msg.type === 'contacts') text = '[Contato]'
             else if (msg.type === 'interactive')
               text =
                 msg.interactive?.button_reply?.title ||
@@ -129,9 +190,7 @@ Deno.serve(async (req: Request) => {
               ? new Date(parseInt(msg.timestamp) * 1000).toISOString()
               : new Date().toISOString()
 
-            const searchPhones = [phone]
-            if (phone.startsWith('55')) searchPhones.push(phone.substring(2))
-            else if (phone.length === 10 || phone.length === 11) searchPhones.push(`55${phone}`)
+            const searchPhones = normalizePhoneVariants(phone)
 
             const { data: matchedContact } = await supabaseAdmin
               .from('contacts')

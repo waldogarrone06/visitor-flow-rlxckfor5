@@ -12,6 +12,8 @@ export async function sendWhatsAppMessage(
     templateComponents?: any[]
     parameters?: any[]
     parameterFormat?: string
+    contactId?: string
+    dbMessageId?: string
   },
 ) {
   const { data, error } = await supabase.functions.invoke('whatsapp-send', {

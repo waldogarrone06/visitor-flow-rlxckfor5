@@ -1,6 +1,12 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
+import {
+  verifyMetaSignature,
+  normalizePhoneVariants,
+  shouldUpdateStatus,
+} from '../_shared/whatsapp-security.ts'
+import { getAllAppSecrets } from '../_shared/integration-secrets.ts'
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -43,14 +49,44 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const bodyData = await req.json().catch(() => ({}))
+    const rawBody = await req.text()
+    const isMetaPayload =
+      rawBody.includes('"whatsapp_business_account"') && rawBody.includes('"entry"')
 
-    // Detect Meta Cloud API webhook payload
-    if (bodyData?.object === 'whatsapp_business_account' && Array.isArray(bodyData?.entry)) {
+    if (isMetaPayload) {
+      const signatureHeader = req.headers.get('X-Hub-Signature-256')
+      const appSecrets = await getAllAppSecrets(supabaseAdmin)
+
+      if (appSecrets.length === 0) {
+        console.warn(
+          '[whatsapp-webhook] No WhatsApp App Secret configured. Rejecting Meta webhook.',
+        )
+        return new Response('Unauthorized', { status: 401, headers: corsHeaders })
+      }
+
+      let validatedUserId: string | null = null
+      for (const { userId, appSecret } of appSecrets) {
+        const isValid = await verifyMetaSignature(rawBody, signatureHeader, appSecret)
+        if (isValid) {
+          validatedUserId = userId
+          break
+        }
+      }
+
+      if (!validatedUserId) {
+        return new Response('Unauthorized', { status: 401, headers: corsHeaders })
+      }
+
+      const bodyData = JSON.parse(rawBody)
       return await handleMetaWebhook(bodyData, supabaseAdmin)
     }
 
-    // Evolution API webhook handling (existing logic)
+    let bodyData: any
+    try {
+      bodyData = JSON.parse(rawBody)
+    } catch {
+      bodyData = {}
+    }
     return await handleEvolutionWebhook(bodyData, supabaseAdmin)
   } catch (err: any) {
     console.error('❌ ERRO GERAL NO WEBHOOK:', err)
@@ -105,18 +141,48 @@ async function handleMetaWebhook(bodyData: any, supabaseAdmin: any): Promise<Res
           else if (statusValue === 'failed') mappedStatus = 'failed'
 
           if (messageId) {
-            await supabaseAdmin
+            const { data: existingMsg } = await supabaseAdmin
               .from('messages')
-              .update({ status: mappedStatus })
+              .select('id, status')
               .eq('client_id', messageId)
+              .maybeSingle()
+
+            if (existingMsg) {
+              if (shouldUpdateStatus(existingMsg.status, mappedStatus)) {
+                const updateData: any = { status: mappedStatus }
+                if (mappedStatus === 'failed') {
+                  updateData.error_details = {
+                    errors: status.errors || [
+                      { code: status.error_code, message: status.error_message },
+                    ],
+                    timestamp: new Date().toISOString(),
+                  }
+                }
+                await supabaseAdmin.from('messages').update(updateData).eq('id', existingMsg.id)
+              }
+              results.push({ status: 'ok', handled: 'status_update', messageId, mappedStatus })
+            } else {
+              console.warn(`[whatsapp-webhook] Status update for unknown message: ${messageId}`)
+              results.push({ status: 'ignored', reason: 'message_not_found', messageId })
+            }
+          } else {
+            results.push({ status: 'ignored', reason: 'no_message_id' })
           }
-          results.push({ status: 'ok', handled: 'status_update', messageId, mappedStatus })
         }
         continue
       }
 
       // Handle incoming messages
-      if (value.messages && Array.isArray(value.messages) && userId) {
+      if (value.messages && Array.isArray(value.messages)) {
+        if (!userId) {
+          console.warn(
+            '[whatsapp-webhook] Inbound message received but no matching user integration for phone_number_id. Message will not be processed.',
+          )
+          for (const msg of value.messages) {
+            results.push({ status: 'ignored', reason: 'no_user_integration', phone: msg.from })
+          }
+          continue
+        }
         for (const msg of value.messages) {
           const phone = msg.from || ''
           if (!phone || phone.length < 8) {
@@ -148,12 +214,7 @@ async function handleMetaWebhook(bodyData: any, supabaseAdmin: any): Promise<Res
 
           // Find or create contact
           let contactId: string | null = null
-          const searchPhones = [phone]
-          if (phone.startsWith('55')) {
-            searchPhones.push(phone.substring(2))
-          } else if (phone.length === 10 || phone.length === 11) {
-            searchPhones.push(`55${phone}`)
-          }
+          const searchPhones = normalizePhoneVariants(phone)
 
           const { data: matchedContact } = await supabaseAdmin
             .from('contacts')
@@ -165,13 +226,17 @@ async function handleMetaWebhook(bodyData: any, supabaseAdmin: any): Promise<Res
 
           if (matchedContact) {
             contactId = matchedContact.id
+            await supabaseAdmin
+              .from('contacts')
+              .update({ last_inbound_at: timestamp })
+              .eq('id', contactId)
           } else {
             const pushName =
               value.contacts?.find((c: any) => c.wa_id === phone)?.profile?.name ||
               `Contato (${phone})`
             const { data: newContact } = await supabaseAdmin
               .from('contacts')
-              .insert({ user_id: userId, phone, name: pushName })
+              .insert({ user_id: userId, phone, name: pushName, last_inbound_at: timestamp })
               .select('id')
               .maybeSingle()
             if (newContact) contactId = newContact.id
@@ -206,11 +271,6 @@ async function handleMetaWebhook(bodyData: any, supabaseAdmin: any): Promise<Res
                 type: 'whatsapp_receive_official',
                 details: { text: text.substring(0, 50), messageId, eventType: 'meta_message' },
               })
-
-              await supabaseAdmin
-                .from('contacts')
-                .update({ last_inbound_at: timestamp })
-                .eq('id', contactId)
             }
           }
           results.push({ status: 'ok', handled: 'meta_message', phone })
