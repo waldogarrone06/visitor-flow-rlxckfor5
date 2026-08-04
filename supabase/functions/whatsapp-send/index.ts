@@ -2,6 +2,7 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 import { getOfficialAccessToken, getSecret } from '../_shared/integration-secrets.ts'
+import { normalizePhoneVariants } from '../_shared/whatsapp-security.ts'
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -122,6 +123,11 @@ Deno.serve(async (req: Request) => {
     let number = to.replace(/\D/g, '')
     if (number.length === 10 || number.length === 11) number = '55' + number
 
+    let resolvedContactId = contactId
+    if (!resolvedContactId && userId && number) {
+      resolvedContactId = await resolveOrCreateContact(supabaseAdmin, userId, number)
+    }
+
     const officialReady =
       !!(cfg.officialAccessToken || cfg.accessToken) && !!cfg.officialPhoneNumberId
     const evolutionReady = !!cfg.apiUrl && !!cfg.instanceId
@@ -162,7 +168,7 @@ Deno.serve(async (req: Request) => {
       cfg,
       userId,
       supabaseAdmin,
-      contactId,
+      contactId: resolvedContactId,
       dbMessageId,
     }
 
@@ -520,6 +526,13 @@ async function persistOutboundMessage(
     instance?: string
   },
 ) {
+  if (!params.contactId) {
+    console.warn(
+      '[whatsapp-send] Cannot persist message: no contact_id resolved. Message was sent but not saved to database.',
+    )
+    return
+  }
+
   const logType =
     params.provider === 'official' ? 'whatsapp_send_official' : 'whatsapp_send_evolution'
 
@@ -602,6 +615,39 @@ async function persistOutboundMessage(
   } catch (err) {
     console.warn(`[whatsapp-send] Failed to persist ${params.provider} message:`, err)
   }
+}
+
+async function resolveOrCreateContact(
+  supabaseAdmin: any,
+  userId: string,
+  phone: string,
+): Promise<string | null> {
+  const searchPhones = normalizePhoneVariants(phone)
+  const { data: existing } = await supabaseAdmin
+    .from('contacts')
+    .select('id')
+    .eq('user_id', userId)
+    .in('phone', searchPhones)
+    .limit(1)
+    .maybeSingle()
+
+  if (existing) return existing.id
+
+  const { data: newContact, error } = await supabaseAdmin
+    .from('contacts')
+    .insert({
+      user_id: userId,
+      phone,
+      name: `Contato (${phone})`,
+    })
+    .select('id')
+    .maybeSingle()
+
+  if (error) {
+    console.warn('[whatsapp-send] Failed to create contact:', error.message)
+    return null
+  }
+  return newContact?.id || null
 }
 
 async function check24hWindow(supabaseAdmin: any, userId: string, phone: string): Promise<boolean> {

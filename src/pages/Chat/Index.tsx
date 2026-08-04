@@ -24,6 +24,7 @@ import {
   Plus,
   Tag as TagIcon,
   X,
+  Clock,
 } from 'lucide-react'
 import {
   Dialog,
@@ -32,6 +33,10 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
+import {
+  WhatsAppTemplateSelector,
+  type SelectedTemplate,
+} from '@/components/whatsapp-template-selector'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -69,6 +74,7 @@ interface Contact {
   updatedAt?: string
   tags?: ContactTag[]
   hasUnread?: boolean
+  last_inbound_at?: string | null
 }
 
 interface Message {
@@ -134,6 +140,11 @@ export default function ChatPage() {
   const [editingText, setEditingText] = useState('')
   const [deletingMessage, setDeletingMessage] = useState<Message | null>(null)
 
+  const [primaryProvider, setPrimaryProvider] = useState<'official' | 'evolution'>('evolution')
+  const [isWindowOpen, setIsWindowOpen] = useState(true)
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false)
+  const [selectedTemplate, setSelectedTemplate] = useState<SelectedTemplate | null>(null)
+
   const scrollRef = useRef<HTMLDivElement>(null)
   const selectedContactRef = useRef<Contact | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -151,12 +162,15 @@ export default function ChatPage() {
     const checkConnection = async () => {
       const { data: integration } = await supabase
         .from('user_integrations')
-        .select('whatsapp_connected, whatsapp_instance_id')
+        .select('whatsapp_connected, whatsapp_instance_id, primary_provider')
         .eq('user_id', user.id)
         .maybeSingle()
 
       if (integration) {
         setInstanceStatus(integration.whatsapp_connected ? 'online' : 'offline')
+        if (integration.primary_provider) {
+          setPrimaryProvider(integration.primary_provider as 'official' | 'evolution')
+        }
 
         if (integration.whatsapp_instance_id) {
           const { data: latestEvent } = await supabase
@@ -218,6 +232,9 @@ export default function ChatPage() {
             })
             if (newMsg.direction === 'inbound') {
               supabase.from('messages').update({ status: 'read' }).eq('id', newMsg.id).then()
+              setSelectedContact((prev) =>
+                prev ? { ...prev, last_inbound_at: newMsg.created_at } : prev,
+              )
             }
           } else if (newMsg.direction === 'inbound') {
             toast.info('Nova mensagem recebida!', {
@@ -270,6 +287,8 @@ export default function ChatPage() {
                     ...c,
                     lastMessage: newMsg.content,
                     updatedAt: newMsg.created_at,
+                    last_inbound_at:
+                      newMsg.direction === 'inbound' ? newMsg.created_at : c.last_inbound_at,
                     hasUnread:
                       newMsg.direction === 'inbound' && !isCurrentlySelected ? true : c.hasUnread,
                   }
@@ -319,6 +338,20 @@ export default function ChatPage() {
       setMessages([])
     }
   }, [selectedContact?.id])
+
+  useEffect(() => {
+    if (primaryProvider !== 'official' || !selectedContact) {
+      setIsWindowOpen(true)
+      return
+    }
+    if (!selectedContact.last_inbound_at) {
+      setIsWindowOpen(false)
+      return
+    }
+    const lastInbound = new Date(selectedContact.last_inbound_at)
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
+    setIsWindowOpen(lastInbound > twentyFourHoursAgo)
+  }, [selectedContact, primaryProvider])
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -386,6 +419,7 @@ export default function ChatPage() {
             updatedAt: lastMsg?.created_at || c.created_at,
             tags,
             hasUnread,
+            last_inbound_at: c.last_inbound_at,
           }
         })
 
@@ -475,6 +509,7 @@ export default function ChatPage() {
           updatedAt: finalContact.created_at,
           tags: [],
           hasUnread: false,
+          last_inbound_at: null as string | null,
         }
 
         setContacts((prev) => {
@@ -553,6 +588,7 @@ export default function ChatPage() {
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newMessage.trim() || !selectedContact || !user) return
+    if (primaryProvider === 'official' && !isWindowOpen) return
 
     const content = newMessage.trim()
     setNewMessage('')
@@ -596,14 +632,27 @@ export default function ChatPage() {
 
       setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, id: actualMessageId } : m)))
 
-      const response: any = await sendWhatsAppMessage(selectedContact.phone, content)
+      const response: any = await sendWhatsAppMessage(
+        selectedContact.phone,
+        content,
+        actualMessageId,
+        { contactId: selectedContact.id },
+      )
 
       let clientId = null
       let whatsappKey = null
+      if (response?.wamid) {
+        clientId = response.wamid
+      }
       if (response && response.evolutionResponse) {
         const ev = response.evolutionResponse
         clientId =
-          ev?.key?.id || ev?.message?.key?.id || ev?.messageId || ev?.id || ev?.data?.key?.id
+          clientId ||
+          ev?.key?.id ||
+          ev?.message?.key?.id ||
+          ev?.messageId ||
+          ev?.id ||
+          ev?.data?.key?.id
         whatsappKey = ev?.key || ev?.message?.key || ev?.data?.key
       }
 
@@ -633,6 +682,107 @@ export default function ChatPage() {
         ),
       )
       toast.error(error.message || 'Falha ao enviar mensagem. Tente novamente.')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  const handleSendTemplate = async () => {
+    if (!selectedContact || !user || !selectedTemplate) return
+    setSending(true)
+
+    const templateContent = `[Template: ${selectedTemplate.name}]`
+    const tempId = `temp-${Date.now()}`
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: tempId,
+        content: templateContent,
+        direction: 'outbound',
+        created_at: new Date().toISOString(),
+        contact_id: selectedContact.id,
+        status: 'sending',
+        client_id: null,
+      },
+    ])
+
+    let actualTemplateId = tempId
+
+    try {
+      const { data: dbMsg } = await supabase
+        .from('messages')
+        .insert({
+          user_id: user.id,
+          contact_id: selectedContact.id,
+          content: templateContent,
+          direction: 'outbound',
+          status: 'sending',
+        })
+        .select()
+        .single()
+
+      if (dbMsg) {
+        actualTemplateId = dbMsg.id
+        setMessages((prev) =>
+          prev.map((m) => (m.id === tempId ? { ...m, id: actualTemplateId } : m)),
+        )
+      }
+
+      const response: any = await sendWhatsAppMessage(
+        selectedContact.phone,
+        templateContent,
+        actualTemplateId,
+        {
+          isTemplate: true,
+          templateName: selectedTemplate.name,
+          templateLanguage: selectedTemplate.language,
+          parameterFormat: selectedTemplate.parameter_format,
+          parameters: selectedTemplate.parameters?.map((p) => ({
+            type: 'text',
+            text: p.value,
+            parameter_name: p.name,
+          })),
+          contactId: selectedContact.id,
+        },
+      )
+
+      let clientId = null
+      if (response?.wamid) clientId = response.wamid
+      if (response?.evolutionResponse) {
+        const ev = response.evolutionResponse
+        clientId =
+          clientId ||
+          ev?.key?.id ||
+          ev?.message?.key?.id ||
+          ev?.messageId ||
+          ev?.id ||
+          ev?.data?.key?.id
+      }
+
+      const updatePayload: any = { status: 'delivered' }
+      if (clientId) updatePayload.client_id = clientId
+
+      if (actualTemplateId !== tempId) {
+        await supabase.from('messages').update(updatePayload).eq('id', actualTemplateId)
+      }
+
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === actualTemplateId ? { ...m, status: 'delivered', client_id: clientId } : m,
+        ),
+      )
+
+      setTemplateDialogOpen(false)
+      setSelectedTemplate(null)
+      toast.success('Template enviado com sucesso!')
+    } catch (error: any) {
+      toast.error('Erro ao enviar template: ' + error.message)
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === tempId || m.id === actualTemplateId ? { ...m, status: 'error' } : m,
+        ),
+      )
     } finally {
       setSending(false)
     }
@@ -1013,11 +1163,54 @@ export default function ChatPage() {
               )}
             </div>
 
-            <div className="p-3 bg-card border-t">
+            <div className="p-3 bg-card border-t space-y-2">
+              {primaryProvider === 'official' && (
+                <div className="flex items-center gap-2">
+                  {isWindowOpen ? (
+                    <Badge className="bg-green-500 hover:bg-green-600 text-white text-xs">
+                      <Clock className="w-3 h-3 mr-1" /> Janela ativa
+                    </Badge>
+                  ) : (
+                    <Badge variant="destructive" className="text-xs">
+                      <AlertCircle className="w-3 h-3 mr-1" /> Janela de 24h fechada
+                    </Badge>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setTemplateDialogOpen(true)}
+                    className="ml-auto h-7 text-xs"
+                  >
+                    <FileText className="w-3 h-3 mr-1" /> Enviar Template
+                  </Button>
+                </div>
+              )}
+              {primaryProvider === 'official' && !isWindowOpen && (
+                <p className="text-xs text-destructive text-center">
+                  A janela de 24h está fechada. Envie um template para iniciar a conversa.
+                </p>
+              )}
               <form onSubmit={handleSendMessage} className="flex items-end gap-2">
+                {primaryProvider === 'official' && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="rounded-full shrink-0 h-10 w-10 text-muted-foreground hover:text-foreground mb-0.5"
+                    onClick={() => setTemplateDialogOpen(true)}
+                    title="Enviar Template"
+                  >
+                    <FileText className="h-5 w-5" />
+                  </Button>
+                )}
                 <Textarea
                   ref={textareaRef}
-                  placeholder="Digite sua mensagem..."
+                  placeholder={
+                    primaryProvider === 'official' && !isWindowOpen
+                      ? 'Janela de 24h fechada. Use um template.'
+                      : 'Digite sua mensagem...'
+                  }
                   value={newMessage}
                   onChange={(e) => {
                     setNewMessage(e.target.value)
@@ -1032,13 +1225,17 @@ export default function ChatPage() {
                       }
                     }
                   }}
-                  disabled={sending}
+                  disabled={sending || (primaryProvider === 'official' && !isWindowOpen)}
                   className="flex-1 min-h-[40px] max-h-[120px] rounded-2xl bg-muted/50 border-transparent focus-visible:ring-0 focus-visible:bg-background px-4 py-2 sm:py-2.5 resize-none overflow-y-auto"
                   rows={1}
                 />
                 <Button
                   type="submit"
-                  disabled={!newMessage.trim() || sending}
+                  disabled={
+                    !newMessage.trim() ||
+                    sending ||
+                    (primaryProvider === 'official' && !isWindowOpen)
+                  }
                   size="icon"
                   className="rounded-full shrink-0 h-10 w-10 shadow-sm mb-0.5"
                 >
@@ -1149,6 +1346,30 @@ export default function ChatPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Enviar Template</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <WhatsAppTemplateSelector
+              userId={user?.id}
+              enabled={true}
+              onTemplateChange={setSelectedTemplate}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTemplateDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSendTemplate} disabled={!selectedTemplate || sending}>
+              {sending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+              Enviar Template
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={manageTagsOpen} onOpenChange={setManageTagsOpen}>
         <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col">
