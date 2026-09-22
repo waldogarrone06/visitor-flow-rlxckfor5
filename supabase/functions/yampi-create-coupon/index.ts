@@ -73,7 +73,7 @@ Deno.serve(async (req: Request) => {
       return new Response(
         JSON.stringify({
           success: false,
-          error: 'Supabase configuration missing in environment.',
+          error: 'Configuração do Supabase ausente no ambiente.',
         }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       )
@@ -118,7 +118,7 @@ Deno.serve(async (req: Request) => {
 
     if (integrationError) {
       console.error(
-        '[yampi-create-coupon] Error querying user_integrations:',
+        '[yampi-create-coupon] Erro ao consultar user_integrations:',
         integrationError.message,
       )
     }
@@ -137,7 +137,7 @@ Deno.serve(async (req: Request) => {
           success: false,
           code: 'YAMPI_NOT_CONFIGURED',
           error:
-            'A integração com a Yampi não está configurada para este usuário. Configure o Token da Yampi nas Configurações.',
+            'A integração com a Yampi não está configurada para este usuário. Configure o User-Token da Yampi nas Configurações.',
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       )
@@ -171,35 +171,45 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // Build standard Yampi Coupon payload according to official Yampi (dooki) REST API documentation
-    // Fields sent include both primary schema names and aliases accepted across v2/promotions/coupons
+    // Build standard Yampi Coupon payload according to official Yampi (Dooki) REST API documentation
+    // In Yampi REST API (v2/{alias}/marketing/coupons and promotions/coupons):
+    // - code: string (código do cupom, ex: TEST-VIP-10)
+    // - type: 'percentage' | 'fixed'
+    // - value: number (valor do desconto)
+    // - active: boolean (se o cupom está ativo)
+    // - limit_usage: number (limite geral de usos)
+    // - limit_usage_per_customer: number (limite de uso por cliente)
+    // - min_purchase_value: number (valor mínimo do pedido)
+    // - max_discount_value: number (limite máximo de desconto em cupom percentual)
+    // - start_at: string (data/hora início ISO ou YYYY-MM-DD HH:mm:ss)
+    // - end_at: string (data/hora validade ISO ou YYYY-MM-DD HH:mm:ss)
+    // - description: string (descrição opcional interna)
+    // - free_shipping: boolean (frete grátis)
     const yampiPayload: Record<string, unknown> = {
       code: rawCode,
       type: yampiType, // 'percentage' | 'fixed'
-      discount_type: yampiType,
       value: discountValue,
-      discount_value: discountValue,
       active: body.active !== undefined ? body.active : true,
     }
 
+    // Also include discount_type & discount_value as compatible aliases
+    yampiPayload.discount_type = yampiType
+    yampiPayload.discount_value = discountValue
+
     if (body.usage_limit != null && body.usage_limit > 0) {
       yampiPayload.limit_usage = body.usage_limit
-      yampiPayload.usage_limit = body.usage_limit
     }
     if (body.usage_limit_per_user != null && body.usage_limit_per_user > 0) {
       yampiPayload.limit_usage_per_customer = body.usage_limit_per_user
-      yampiPayload.usage_limit_per_user = body.usage_limit_per_user
     }
     if (body.min_order_value != null && body.min_order_value > 0) {
       yampiPayload.min_purchase_value = body.min_order_value
-      yampiPayload.min_order_value = body.min_order_value
     }
     if (body.max_discount_value != null && body.max_discount_value > 0) {
       yampiPayload.max_discount_value = body.max_discount_value
     }
     if (body.expires_at) {
       yampiPayload.end_at = body.expires_at
-      yampiPayload.expires_at = body.expires_at
     }
     if (body.start_at) {
       yampiPayload.start_at = body.start_at
@@ -211,10 +221,9 @@ Deno.serve(async (req: Request) => {
       yampiPayload.free_shipping = true
     }
 
-    // Prepare Yampi API authentication and browser/client headers
+    // Prepare Yampi API authentication headers
     // Yampi v1/v2 accepts User-Token and User-Secret headers
-    // Official domain: api.dooki.com.br
-    // Cloudflare blocks requests with missing/bot User-Agent or absent Accept headers
+    // Cloudflare blocks requests with generic/empty User-Agent
     const yampiHeaders: Record<string, string> = {
       'User-Agent':
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 VisitorFlow/1.0',
@@ -227,26 +236,22 @@ Deno.serve(async (req: Request) => {
       yampiHeaders['User-Secret'] = yampiSecret
     }
 
-    // Official Yampi API domain is api.dooki.com.br
-    // Build resilient endpoint list prioritizing api.dooki.com.br, then fallback paths
+    // Official Yampi API endpoints:
+    // Domain: api.dooki.com.br
+    // 1. Primary: POST https://api.dooki.com.br/v2/{alias}/marketing/coupons (Recurso Marketing da v2)
+    // 2. Alternative 1: POST https://api.dooki.com.br/v2/{alias}/promotions/coupons (Recurso Promotions da v2)
+    // 3. Alternative 2: POST https://api.dooki.com.br/v2/{alias}/coupons (Raiz coupons da v2)
+    //
+    // REGRA DE OURO: NÃO fazer fallback para api.yampi.com.br! O domínio api.yampi.com.br
+    // é estritamente protegido por Cloudflare WAF/HTML contra chamadas de servidor (403 HTML)
+    // e apenas mascara o diagnóstico real da API.
+    // Todas as requisições devem ocorrer no gateway oficial de APIs: api.dooki.com.br.
     const targetAlias = storeAlias || 'store'
     const candidateUrls: string[] = [
-      // 1. Primary official Yampi (dooki) v2 promotions/coupons endpoint
+      `https://api.dooki.com.br/v2/${targetAlias}/marketing/coupons`,
       `https://api.dooki.com.br/v2/${targetAlias}/promotions/coupons`,
-      // 2. v2 direct coupons endpoint
       `https://api.dooki.com.br/v2/${targetAlias}/coupons`,
     ]
-
-    if (storeAlias) {
-      // 3. v1 alias endpoint on dooki
-      candidateUrls.push(`https://api.dooki.com.br/v1/${targetAlias}/coupons`)
-    }
-    // 4. Global v1 coupons on dooki
-    candidateUrls.push('https://api.dooki.com.br/v1/coupons')
-
-    // 5. Fallbacks to api.yampi.com.br in case legacy routing is specifically configured
-    candidateUrls.push(`https://api.yampi.com.br/v2/${targetAlias}/promotions/coupons`)
-    candidateUrls.push(`https://api.yampi.com.br/v1/coupons`)
 
     interface AttemptLog {
       endpoint: string
@@ -254,6 +259,7 @@ Deno.serve(async (req: Request) => {
       isHtml: boolean
       outcome: string
       message?: string
+      responseSnippet?: string
     }
 
     const attempts: AttemptLog[] = []
@@ -264,6 +270,8 @@ Deno.serve(async (req: Request) => {
     let lastStatus = 0
     let lastContentType = ''
     let sawHtmlBlock = false
+    let haltedOn404Json = false
+    let last404Message = ''
 
     for (let i = 0; i < candidateUrls.length; i++) {
       const url = candidateUrls[i]
@@ -299,6 +307,7 @@ Deno.serve(async (req: Request) => {
             status: res.status,
             isHtml: false,
             outcome: 'success',
+            message: 'Cupom criado com sucesso',
           })
           yampiResponse = res
           responseText = text
@@ -306,50 +315,77 @@ Deno.serve(async (req: Request) => {
           break
         }
 
-        // Case B: Non-OK with valid JSON body from Yampi API (NOT HTML)
+        // Case B: Non-OK with valid JSON body from Dooki/Yampi API (NOT HTML)
         if (parsed !== null && !isHtml) {
-          // If Yampi API returned 401 or 403 as JSON, this is an AUTH/PERMISSION error.
-          // NEVER proceed to next fallback routes (which leads to legacy/blocked routes).
-          // Stop immediately and report real Yampi credentials/permission issue.
+          const summaryMsg =
+            parsed.message ||
+            parsed.error ||
+            (parsed.errors
+              ? typeof parsed.errors === 'string'
+                ? parsed.errors
+                : JSON.stringify(parsed.errors)
+              : `HTTP ${res.status}`)
+
+          // B.1: Auth/Permission error (401 or 403 JSON) -> Stop immediately
           if (res.status === 401 || res.status === 403) {
             attempts.push({
               endpoint: url,
               status: res.status,
               isHtml: false,
               outcome: res.status === 401 ? 'unauthorized' : 'forbidden',
-              message: parsed.message || parsed.error || 'Credenciais inválidas ou sem permissão',
+              message: summaryMsg,
+              responseSnippet: text.substring(0, 200),
             })
             yampiResponse = res
             responseText = text
             jsonResponse = parsed
             console.warn(
-              `[yampi-create-coupon] Route ${url} responded with JSON HTTP ${res.status} (auth/permission). Halting chain immediately.`,
+              `[yampi-create-coupon] Rota ${url} retornou JSON HTTP ${res.status} (autenticação/permissão). Interrompendo tentativas.`,
             )
             break
           }
 
-          // If it was a 404 or 405 on this specific route and more fallbacks exist, continue trying
-          if ((res.status === 404 || res.status === 405) && !isLastUrl) {
+          // B.2: 404 Not Found on api.dooki.com.br
+          if (res.status === 404 || res.status === 405) {
             attempts.push({
               endpoint: url,
               status: res.status,
               isHtml: false,
               outcome: 'route_not_found',
-              message: parsed.message || parsed.error || `HTTP ${res.status}`,
+              message: summaryMsg,
+              responseSnippet: text.substring(0, 200),
             })
+
+            // If there are other dooki routes left, try them
+            if (!isLastUrl) {
+              console.warn(
+                `[yampi-create-coupon] Rota ${url} retornou 404 JSON ("${summaryMsg}"), testando próxima alternativa Dooki...`,
+              )
+              continue
+            }
+
+            // All candidate routes on api.dooki.com.br returned 404 JSON.
+            // Do NOT proceed to legacy api.yampi.com.br routes (they block with Cloudflare 403 HTML).
+            // Halt chain and provide clear guidance regarding store alias and endpoint.
+            haltedOn404Json = true
+            last404Message = summaryMsg
+            yampiResponse = res
+            responseText = text
+            jsonResponse = parsed
             console.warn(
-              `[yampi-create-coupon] Route ${url} returned JSON HTTP ${res.status}, trying next fallback...`,
+              `[yampi-create-coupon] Todas as rotas api.dooki.com.br retornaram 404 Not Found para o alias "${storeAlias}". Interrompendo cadeia sem chamar rotas legadas.`,
             )
-            continue
+            break
           }
 
-          // Case B2: Other JSON error (e.g. 422 validation, 409 duplicate) - Stop and return
+          // B.3: Validation error (e.g. 422 Unprocessable Entity, 409 Conflict)
           attempts.push({
             endpoint: url,
             status: res.status,
             isHtml: false,
-            outcome: 'validation_error',
-            message: parsed.message || parsed.error || `HTTP ${res.status}`,
+            outcome: res.status === 409 ? 'duplicate' : 'validation_error',
+            message: summaryMsg,
+            responseSnippet: text.substring(0, 200),
           })
           yampiResponse = res
           responseText = text
@@ -357,13 +393,14 @@ Deno.serve(async (req: Request) => {
           break
         }
 
-        // Case C: HTML or non-JSON response (Cloudflare 403 / 502 / 503)
+        // Case C: HTML or non-JSON response (Cloudflare WAF block or CDN page)
         attempts.push({
           endpoint: url,
           status: res.status,
           isHtml: true,
           outcome: 'html_blocked',
           message: isHtml ? 'Bloqueio Cloudflare/WAF (HTML)' : `HTTP ${res.status}`,
+          responseSnippet: text.substring(0, 150),
         })
         yampiResponse = res
         responseText = text
@@ -371,12 +408,11 @@ Deno.serve(async (req: Request) => {
 
         if (!isLastUrl) {
           console.warn(
-            `[yampi-create-coupon] Route ${url} returned HTML/non-JSON HTTP ${res.status}, trying fallback...`,
+            `[yampi-create-coupon] Rota ${url} retornou resposta HTML/não-JSON HTTP ${res.status}, tentando alternativa...`,
           )
           continue
         }
 
-        // If last url, break and let error handler report
         break
       } catch (fetchErr: any) {
         attempts.push({
@@ -386,7 +422,7 @@ Deno.serve(async (req: Request) => {
           outcome: 'network_error',
           message: fetchErr.message,
         })
-        console.error(`[yampi-create-coupon] Fetch error on ${url}:`, fetchErr.message)
+        console.error(`[yampi-create-coupon] Erro de rede em ${url}:`, fetchErr.message)
         if (isLastUrl) {
           return new Response(
             JSON.stringify({
@@ -418,14 +454,21 @@ Deno.serve(async (req: Request) => {
     // Handle non-OK responses
     if (!yampiResponse.ok) {
       const statusCode = yampiResponse.status
-      console.warn(`[yampi-create-coupon] Final Yampi status: ${statusCode} on ${lastUrl}`)
+      console.warn(
+        `[yampi-create-coupon] Resposta Yampi final: HTTP ${statusCode} na rota ${lastUrl}`,
+      )
 
       const isHtml = isHtmlResponse(lastContentType, responseText)
-
       let friendlyError = 'Erro ao criar cupom na Yampi'
       let isDuplicate = false
 
-      if (jsonResponse) {
+      if (haltedOn404Json) {
+        // Specific user-friendly diagnosis when api.dooki.com.br returns 404 JSON
+        friendlyError =
+          `A API da Yampi (api.dooki.com.br) respondeu 404 Not Found para a loja "${storeAlias || 'alias não definido'}". ` +
+          `Verifique se o alias da loja está exatamente igual ao indicado no painel da Yampi (o alias é o subdomínio que aparece na URL do painel administrativo, ex: https://admin.yampi.com.br/{alias}) ` +
+          `e se a sua conta Yampi possui o plano com módulo de cupons ativo.`
+      } else if (jsonResponse) {
         // Structured JSON from Yampi API
         if (typeof jsonResponse.message === 'string') {
           friendlyError = jsonResponse.message
@@ -457,22 +500,20 @@ Deno.serve(async (req: Request) => {
 
         if (statusCode === 401) {
           friendlyError =
-            'Credenciais da Yampi inválidas. Verifique o User-Token e User-Secret salvos nas Configurações da loja.'
+            'Credenciais da Yampi inválidas. Verifique se o User-Token e o User-Secret salvos nas Configurações da loja estão corretos.'
         } else if (statusCode === 403) {
-          friendlyError = `Acesso negado pela API da Yampi: o token configurado não tem permissão para criar cupons de desconto nesta loja (${storeAlias || 'alias'}). Verifique as permissões de API na sua conta Yampi.`
+          friendlyError = `Acesso negado pela API da Yampi: o token configurado não tem permissão para gerenciar cupons na loja (${storeAlias || 'alias'}). Verifique as permissões da chave de API no painel da Yampi.`
         }
       } else if (isHtml || (sawHtmlBlock && !jsonResponse)) {
-        // Explicit friendly message for Cloudflare or CDN HTML blocking
         if (statusCode === 403) {
           friendlyError =
-            'A Yampi bloqueou a requisição (Firewall/Cloudflare). Verifique se as credenciais (Token e Secret) estão corretas, se o alias da loja está exato ou contate o suporte da Yampi para autorização de IP da API.'
+            'A Yampi bloqueou a requisição via Firewall/Cloudflare. As rotas oficiais devem ser acessadas via api.dooki.com.br. Verifique o alias da loja e credenciais no painel.'
         } else if (statusCode === 502 || statusCode === 503 || statusCode === 504) {
-          friendlyError = `Servidor da Yampi temporariamente indisponível (HTTP ${statusCode}). Tente novamente em instantes.`
+          friendlyError = `Servidor da Yampi temporariamente indisponível (HTTP ${statusCode}). Tente novamente em alguns instantes.`
         } else {
           friendlyError = `A Yampi retornou uma página de erro (HTTP ${statusCode}) em vez de JSON. Verifique as credenciais e o alias da loja.`
         }
       } else {
-        // Plain text fallback (capped and cleaned)
         const cleanSnippet = responseText
           .replace(/<[^>]*>?/gm, '')
           .replace(/\s+/g, ' ')
@@ -565,7 +606,7 @@ Deno.serve(async (req: Request) => {
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     )
   } catch (error: any) {
-    console.error('[yampi-create-coupon] Uncaught error:', error.message)
+    console.error('[yampi-create-coupon] Erro não tratado:', error.message)
     return new Response(
       JSON.stringify({
         success: false,

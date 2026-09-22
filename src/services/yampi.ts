@@ -26,6 +26,7 @@ export interface YampiAttempt {
   isHtml: boolean
   outcome: string
   message?: string
+  responseSnippet?: string
 }
 
 export interface CreateYampiCouponResult {

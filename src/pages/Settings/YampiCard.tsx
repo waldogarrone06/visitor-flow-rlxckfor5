@@ -446,6 +446,11 @@ export function YampiCard({ targetUserId }: { targetUserId?: string }) {
                                 {att.message}
                               </div>
                             )}
+                            {att.responseSnippet && !isOk && (
+                              <div className="text-[9px] text-muted-foreground/80 font-mono bg-muted/40 p-1 rounded break-all">
+                                {att.responseSnippet}
+                              </div>
+                            )}
                           </div>
                         )
                       })}
