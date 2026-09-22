@@ -20,6 +20,14 @@ export interface CreateYampiCouponParams {
   context?: Record<string, unknown>
 }
 
+export interface YampiAttempt {
+  endpoint: string
+  status: number
+  isHtml: boolean
+  outcome: string
+  message?: string
+}
+
 export interface CreateYampiCouponResult {
   success: boolean
   id?: string | number
@@ -28,6 +36,8 @@ export interface CreateYampiCouponResult {
   discountType?: string
   value?: number
   endpoint?: string
+  attempts?: YampiAttempt[]
+  httpStatus?: number
   isExisting?: boolean
   isDuplicate?: boolean
   error?: string
@@ -70,6 +80,8 @@ export async function createYampiCouponDirect(
       isDuplicate: (payload as any)?.isDuplicate || false,
       code: (payload as any)?.code || params.code,
       endpoint: (payload as any)?.endpoint,
+      attempts: (payload as any)?.attempts,
+      httpStatus: (payload as any)?.httpStatus,
       error: errMessage,
       yampiResponse: payload,
     }

@@ -248,6 +248,15 @@ Deno.serve(async (req: Request) => {
     candidateUrls.push(`https://api.yampi.com.br/v2/${targetAlias}/promotions/coupons`)
     candidateUrls.push(`https://api.yampi.com.br/v1/coupons`)
 
+    interface AttemptLog {
+      endpoint: string
+      status: number
+      isHtml: boolean
+      outcome: string
+      message?: string
+    }
+
+    const attempts: AttemptLog[] = []
     let yampiResponse: Response | null = null
     let responseText = ''
     let jsonResponse: any = null
@@ -285,31 +294,77 @@ Deno.serve(async (req: Request) => {
 
         // Case A: 2xx success
         if (res.ok) {
+          attempts.push({
+            endpoint: url,
+            status: res.status,
+            isHtml: false,
+            outcome: 'success',
+          })
           yampiResponse = res
           responseText = text
           jsonResponse = parsed
           break
         }
 
-        // Case B: Non-OK but valid JSON from Yampi API (e.g. 422 validation, 409 duplicate, 401 unauth, 403 API permission)
+        // Case B: Non-OK with valid JSON body from Yampi API (NOT HTML)
         if (parsed !== null && !isHtml) {
-          yampiResponse = res
-          responseText = text
-          jsonResponse = parsed
+          // If Yampi API returned 401 or 403 as JSON, this is an AUTH/PERMISSION error.
+          // NEVER proceed to next fallback routes (which leads to legacy/blocked routes).
+          // Stop immediately and report real Yampi credentials/permission issue.
+          if (res.status === 401 || res.status === 403) {
+            attempts.push({
+              endpoint: url,
+              status: res.status,
+              isHtml: false,
+              outcome: res.status === 401 ? 'unauthorized' : 'forbidden',
+              message: parsed.message || parsed.error || 'Credenciais inválidas ou sem permissão',
+            })
+            yampiResponse = res
+            responseText = text
+            jsonResponse = parsed
+            console.warn(
+              `[yampi-create-coupon] Route ${url} responded with JSON HTTP ${res.status} (auth/permission). Halting chain immediately.`,
+            )
+            break
+          }
 
           // If it was a 404 or 405 on this specific route and more fallbacks exist, continue trying
           if ((res.status === 404 || res.status === 405) && !isLastUrl) {
+            attempts.push({
+              endpoint: url,
+              status: res.status,
+              isHtml: false,
+              outcome: 'route_not_found',
+              message: parsed.message || parsed.error || `HTTP ${res.status}`,
+            })
             console.warn(
               `[yampi-create-coupon] Route ${url} returned JSON HTTP ${res.status}, trying next fallback...`,
             )
             continue
           }
 
-          // Otherwise, this is the definitive Yampi API business/validation response
+          // Case B2: Other JSON error (e.g. 422 validation, 409 duplicate) - Stop and return
+          attempts.push({
+            endpoint: url,
+            status: res.status,
+            isHtml: false,
+            outcome: 'validation_error',
+            message: parsed.message || parsed.error || `HTTP ${res.status}`,
+          })
+          yampiResponse = res
+          responseText = text
+          jsonResponse = parsed
           break
         }
 
         // Case C: HTML or non-JSON response (Cloudflare 403 / 502 / 503)
+        attempts.push({
+          endpoint: url,
+          status: res.status,
+          isHtml: true,
+          outcome: 'html_blocked',
+          message: isHtml ? 'Bloqueio Cloudflare/WAF (HTML)' : `HTTP ${res.status}`,
+        })
         yampiResponse = res
         responseText = text
         jsonResponse = null
@@ -324,6 +379,13 @@ Deno.serve(async (req: Request) => {
         // If last url, break and let error handler report
         break
       } catch (fetchErr: any) {
+        attempts.push({
+          endpoint: url,
+          status: 0,
+          isHtml: false,
+          outcome: 'network_error',
+          message: fetchErr.message,
+        })
         console.error(`[yampi-create-coupon] Fetch error on ${url}:`, fetchErr.message)
         if (isLastUrl) {
           return new Response(
@@ -331,6 +393,8 @@ Deno.serve(async (req: Request) => {
               success: false,
               code: 'NETWORK_ERROR',
               error: `Falha de conexão com a API da Yampi: ${fetchErr.message}`,
+              attempts,
+              endpoint: lastUrl,
             }),
             { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
           )
@@ -344,6 +408,8 @@ Deno.serve(async (req: Request) => {
           success: false,
           code: 'NO_RESPONSE',
           error: 'Nenhuma resposta obtida da API da Yampi.',
+          attempts,
+          endpoint: lastUrl,
         }),
         { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       )
@@ -359,17 +425,7 @@ Deno.serve(async (req: Request) => {
       let friendlyError = 'Erro ao criar cupom na Yampi'
       let isDuplicate = false
 
-      if (isHtml || (sawHtmlBlock && !jsonResponse)) {
-        // Explicit friendly message for Cloudflare or CDN HTML blocking
-        if (statusCode === 403) {
-          friendlyError =
-            'A Yampi bloqueou a requisição (Firewall/Cloudflare). Verifique se as credenciais (Token e Secret) estão corretas, se o alias da loja está exato ou contate o suporte da Yampi para autorização de IP da API.'
-        } else if (statusCode === 502 || statusCode === 503 || statusCode === 504) {
-          friendlyError = `Servidor da Yampi temporariamente indisponível (HTTP ${statusCode}). Tente novamente em instantes.`
-        } else {
-          friendlyError = `A Yampi retornou uma página de erro (HTTP ${statusCode}) em vez de JSON. Verifique as credenciais e o alias da loja.`
-        }
-      } else if (jsonResponse) {
+      if (jsonResponse) {
         // Structured JSON from Yampi API
         if (typeof jsonResponse.message === 'string') {
           friendlyError = jsonResponse.message
@@ -401,9 +457,19 @@ Deno.serve(async (req: Request) => {
 
         if (statusCode === 401) {
           friendlyError =
-            'Credenciais da Yampi inválidas. Verifique o User-Token e User-Secret salvos nas Configurações.'
+            'Credenciais da Yampi inválidas. Verifique o User-Token e User-Secret salvos nas Configurações da loja.'
         } else if (statusCode === 403) {
-          friendlyError = `Acesso negado pela API da Yampi: o token configurado não tem permissão para criar cupons de desconto nesta loja (${storeAlias || 'alias'}).`
+          friendlyError = `Acesso negado pela API da Yampi: o token configurado não tem permissão para criar cupons de desconto nesta loja (${storeAlias || 'alias'}). Verifique as permissões de API na sua conta Yampi.`
+        }
+      } else if (isHtml || (sawHtmlBlock && !jsonResponse)) {
+        // Explicit friendly message for Cloudflare or CDN HTML blocking
+        if (statusCode === 403) {
+          friendlyError =
+            'A Yampi bloqueou a requisição (Firewall/Cloudflare). Verifique se as credenciais (Token e Secret) estão corretas, se o alias da loja está exato ou contate o suporte da Yampi para autorização de IP da API.'
+        } else if (statusCode === 502 || statusCode === 503 || statusCode === 504) {
+          friendlyError = `Servidor da Yampi temporariamente indisponível (HTTP ${statusCode}). Tente novamente em instantes.`
+        } else {
+          friendlyError = `A Yampi retornou uma página de erro (HTTP ${statusCode}) em vez de JSON. Verifique as credenciais e o alias da loja.`
         }
       } else {
         // Plain text fallback (capped and cleaned)
@@ -424,6 +490,7 @@ Deno.serve(async (req: Request) => {
           httpStatus: statusCode,
           endpoint: lastUrl,
           code: rawCode,
+          attempts,
           error: isDuplicate ? `O cupom ${rawCode} já existe na sua loja Yampi.` : friendlyError,
           yampiResponse: jsonResponse || undefined,
         }),
@@ -492,6 +559,7 @@ Deno.serve(async (req: Request) => {
         discountType: yampiType,
         value: discountValue,
         endpoint: lastUrl,
+        attempts,
         yampiResponse: yampiData,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },

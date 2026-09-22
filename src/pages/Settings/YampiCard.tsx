@@ -369,7 +369,7 @@ export function YampiCard({ targetUserId }: { targetUserId?: string }) {
 
             {testResult && (
               <div
-                className={`p-3 rounded-md text-xs space-y-1.5 ${
+                className={`p-3 rounded-md text-xs space-y-2 ${
                   testResult.success
                     ? 'bg-emerald-50 text-emerald-900 border border-emerald-200'
                     : 'bg-red-50 text-red-900 border border-red-200'
@@ -398,9 +398,61 @@ export function YampiCard({ targetUserId }: { targetUserId?: string }) {
                 )}
                 {testResult.endpoint && (
                   <div className="font-mono text-[10px] text-muted-foreground break-all">
-                    Rota: {testResult.endpoint}
+                    Rota final: {testResult.endpoint}
                   </div>
                 )}
+
+                {/* Mini-log of route attempts for fast diagnostics */}
+                {Array.isArray(testResult.attempts) && testResult.attempts.length > 0 && (
+                  <div className="mt-2 pt-2 border-t border-border/50 space-y-1">
+                    <div className="font-semibold text-[11px] text-muted-foreground">
+                      Histórico de rotas tentadas ({testResult.attempts.length}):
+                    </div>
+                    <div className="space-y-1 font-mono text-[10px] bg-background/70 p-2 rounded border border-border/50 max-h-36 overflow-y-auto">
+                      {testResult.attempts.map((att: any, idx: number) => {
+                        const isOk = att.status >= 200 && att.status < 300
+                        const isAuthFail = att.status === 401 || att.status === 403
+                        const isHtml = att.isHtml
+
+                        let badgeColor = 'bg-amber-100 text-amber-800'
+                        if (isOk) badgeColor = 'bg-emerald-100 text-emerald-800'
+                        else if (isAuthFail && !isHtml) badgeColor = 'bg-red-100 text-red-800'
+                        else if (isHtml) badgeColor = 'bg-rose-100 text-rose-800'
+
+                        // Shorten endpoint url for readability
+                        const shortUrl = att.endpoint.replace('https://', '')
+
+                        return (
+                          <div
+                            key={idx}
+                            className="flex flex-col gap-0.5 border-b border-border/30 pb-1 last:border-b-0 last:pb-0"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span
+                                className="truncate text-foreground font-medium"
+                                title={att.endpoint}
+                              >
+                                #{idx + 1} {shortUrl}
+                              </span>
+                              <span
+                                className={`px-1.5 py-0.2 rounded text-[9px] font-semibold whitespace-nowrap ${badgeColor}`}
+                              >
+                                {att.status > 0 ? `HTTP ${att.status}` : 'Rede'}
+                                {isHtml ? ' (HTML/Bloq)' : ''}
+                              </span>
+                            </div>
+                            {att.message && (
+                              <div className="text-[10px] text-muted-foreground break-words italic">
+                                {att.message}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {testResult.error && (
                   <div className="text-xs text-red-800 bg-red-100/70 p-2 rounded border border-red-200 break-words leading-relaxed">
                     {testResult.error}
