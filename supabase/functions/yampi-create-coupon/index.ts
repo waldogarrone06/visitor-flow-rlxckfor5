@@ -59,6 +59,17 @@ function isHtmlResponse(contentType: string, text: string): boolean {
   )
 }
 
+export interface AttemptLog {
+  step?: string
+  endpoint: string
+  method?: string
+  status: number
+  isHtml: boolean
+  outcome: string
+  message?: string
+  responseSnippet?: string
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -143,6 +154,18 @@ Deno.serve(async (req: Request) => {
       )
     }
 
+    if (!storeAlias) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          code: 'YAMPI_ALIAS_REQUIRED',
+          error:
+            'O alias da loja Yampi não foi preenchido. Salve o alias da sua loja nas Configurações (ex: o subdomínio em https://admin.yampi.com.br/{alias}).',
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
+
     // Target coupon code
     const rawCode = (body.code || generateCouponCode(body.name)).trim().toUpperCase()
     const { yampiType, isPercent } = normalizeDiscountType(body.type)
@@ -172,19 +195,6 @@ Deno.serve(async (req: Request) => {
     }
 
     // Build standard Yampi Coupon payload according to official Yampi (Dooki) REST API documentation
-    // In Yampi REST API (v2/{alias}/marketing/coupons and promotions/coupons):
-    // - code: string (código do cupom, ex: TEST-VIP-10)
-    // - type: 'percentage' | 'fixed'
-    // - value: number (valor do desconto)
-    // - active: boolean (se o cupom está ativo)
-    // - limit_usage: number (limite geral de usos)
-    // - limit_usage_per_customer: number (limite de uso por cliente)
-    // - min_purchase_value: number (valor mínimo do pedido)
-    // - max_discount_value: number (limite máximo de desconto em cupom percentual)
-    // - start_at: string (data/hora início ISO ou YYYY-MM-DD HH:mm:ss)
-    // - end_at: string (data/hora validade ISO ou YYYY-MM-DD HH:mm:ss)
-    // - description: string (descrição opcional interna)
-    // - free_shipping: boolean (frete grátis)
     const yampiPayload: Record<string, unknown> = {
       code: rawCode,
       type: yampiType, // 'percentage' | 'fixed'
@@ -223,7 +233,6 @@ Deno.serve(async (req: Request) => {
 
     // Prepare Yampi API authentication headers
     // Yampi v1/v2 accepts User-Token and User-Secret headers
-    // Cloudflare blocks requests with generic/empty User-Agent
     const yampiHeaders: Record<string, string> = {
       'User-Agent':
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 VisitorFlow/1.0',
@@ -236,33 +245,185 @@ Deno.serve(async (req: Request) => {
       yampiHeaders['User-Secret'] = yampiSecret
     }
 
-    // Official Yampi API endpoints:
-    // Domain: api.dooki.com.br
-    // 1. Primary: POST https://api.dooki.com.br/v2/{alias}/marketing/coupons (Recurso Marketing da v2)
-    // 2. Alternative 1: POST https://api.dooki.com.br/v2/{alias}/promotions/coupons (Recurso Promotions da v2)
-    // 3. Alternative 2: POST https://api.dooki.com.br/v2/{alias}/coupons (Raiz coupons da v2)
-    //
-    // REGRA DE OURO: NÃO fazer fallback para api.yampi.com.br! O domínio api.yampi.com.br
-    // é estritamente protegido por Cloudflare WAF/HTML contra chamadas de servidor (403 HTML)
-    // e apenas mascara o diagnóstico real da API.
-    // Todas as requisições devem ocorrer no gateway oficial de APIs: api.dooki.com.br.
-    const targetAlias = storeAlias || 'store'
-    const candidateUrls: string[] = [
-      `https://api.dooki.com.br/v2/${targetAlias}/marketing/coupons`,
-      `https://api.dooki.com.br/v2/${targetAlias}/promotions/coupons`,
-      `https://api.dooki.com.br/v2/${targetAlias}/coupons`,
-    ]
+    const attempts: AttemptLog[] = []
 
-    interface AttemptLog {
-      endpoint: string
-      status: number
-      isHtml: boolean
-      outcome: string
-      message?: string
-      responseSnippet?: string
+    // =========================================================================
+    // PASSO DE VALIDAÇÃO PRÉVIA (Pre-flight Check)
+    // =========================================================================
+    // Antes de tentar emitir cupons, testa um endpoint estável e padrão da loja
+    // (GET /v2/{alias}/orders?page=1 ou /v2/{alias}/catalog/products?page=1).
+    // Isso permite diagnosticar com 100% de precisão:
+    // 1) Se o alias existe e a loja responde;
+    // 2) Se o User-Token e User-Secret são autênticos (401 se errados);
+    // 3) Se o alias é inexistente (404 na rota de pedidos/produtos);
+    // 4) Se a loja e credenciais estão OK (200), permitindo isolar qualquer 404
+    //    posterior como falta de módulo/permissão de cupons ou endpoint específico.
+    // =========================================================================
+    const preflightUrl = `https://api.dooki.com.br/v2/${storeAlias}/orders?page=1`
+    let preflightSuccess = false
+    let preflightStatus = 0
+    let preflightMessage = ''
+
+    try {
+      const preflightRes = await fetch(preflightUrl, {
+        method: 'GET',
+        headers: yampiHeaders,
+      })
+
+      preflightStatus = preflightRes.status
+      const preflightContentType = preflightRes.headers.get('content-type') || ''
+      const preflightText = await preflightRes.text()
+
+      let preflightJson: any = null
+      try {
+        preflightJson = JSON.parse(preflightText)
+      } catch {
+        preflightJson = null
+      }
+
+      const preflightIsHtml = isHtmlResponse(preflightContentType, preflightText)
+      const snippet = preflightText.substring(0, 200)
+
+      if (preflightRes.ok) {
+        preflightSuccess = true
+        preflightMessage = 'Loja e credenciais autenticadas com sucesso na Yampi'
+        attempts.push({
+          step: 'preflight',
+          endpoint: preflightUrl,
+          method: 'GET',
+          status: preflightRes.status,
+          isHtml: false,
+          outcome: 'preflight_success',
+          message: 'Loja acessível e credenciais válidas (GET orders OK)',
+          responseSnippet: snippet,
+        })
+      } else if (preflightStatus === 401) {
+        // Credenciais inválidas confirmadas pelo endpoint de pedidos
+        const errMsg =
+          preflightJson?.message ||
+          'Credenciais da Yampi inválidas. O User-Token ou User-Secret informados estão incorretos.'
+        attempts.push({
+          step: 'preflight',
+          endpoint: preflightUrl,
+          method: 'GET',
+          status: 401,
+          isHtml: false,
+          outcome: 'unauthorized',
+          message: errMsg,
+          responseSnippet: snippet,
+        })
+
+        return new Response(
+          JSON.stringify({
+            success: false,
+            code: 'INVALID_CREDENTIALS',
+            httpStatus: 401,
+            endpoint: preflightUrl,
+            error:
+              'Credenciais da Yampi inválidas. Verifique se o User-Token e o User-Secret salvos nas Configurações estão exatamente iguais aos gerados no painel da Yampi (Configurações > Credenciais de API).',
+            attempts,
+            preflight: { ok: false, status: 401, message: errMsg },
+          }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        )
+      } else if (preflightStatus === 404) {
+        // Alias inexistente confirmado (nem orders responde para este alias)
+        const errMsg =
+          preflightJson?.message || `A loja '${storeAlias}' não foi encontrada na API da Yampi.`
+        attempts.push({
+          step: 'preflight',
+          endpoint: preflightUrl,
+          method: 'GET',
+          status: 404,
+          isHtml: false,
+          outcome: 'store_not_found',
+          message: errMsg,
+          responseSnippet: snippet,
+        })
+
+        return new Response(
+          JSON.stringify({
+            success: false,
+            code: 'STORE_ALIAS_NOT_FOUND',
+            httpStatus: 404,
+            endpoint: preflightUrl,
+            error:
+              `A loja com o alias '${storeAlias}' não foi encontrada na API da Yampi (HTTP 404 na validação prévia). ` +
+              `Confirme o alias exato da sua loja Yampi (é o subdomínio que aparece no painel administrativo, ex: https://admin.yampi.com.br/{alias}).`,
+            attempts,
+            preflight: { ok: false, status: 404, message: errMsg },
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        )
+      } else if (preflightStatus === 403) {
+        const errMsg =
+          preflightJson?.message ||
+          `Chave de API sem permissão para acessar os dados da loja '${storeAlias}'.`
+        attempts.push({
+          step: 'preflight',
+          endpoint: preflightUrl,
+          method: 'GET',
+          status: 403,
+          isHtml: preflightIsHtml,
+          outcome: 'forbidden',
+          message: errMsg,
+          responseSnippet: snippet,
+        })
+
+        return new Response(
+          JSON.stringify({
+            success: false,
+            code: 'FORBIDDEN',
+            httpStatus: 403,
+            endpoint: preflightUrl,
+            error:
+              `Acesso negado pela API da Yampi para a loja '${storeAlias}' (HTTP 403). ` +
+              `Verifique as permissões da sua chave de API no painel da Yampi (se possui permissão de leitura e escrita).`,
+            attempts,
+            preflight: { ok: false, status: 403, message: errMsg },
+          }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        )
+      } else {
+        // Outro status no preflight (ex: 429 rate limit, 500, etc.)
+        attempts.push({
+          step: 'preflight',
+          endpoint: preflightUrl,
+          method: 'GET',
+          status: preflightStatus,
+          isHtml: preflightIsHtml,
+          outcome: 'preflight_warning',
+          message: preflightJson?.message || `Pre-flight respondeu HTTP ${preflightStatus}`,
+          responseSnippet: snippet,
+        })
+      }
+    } catch (preflightErr: any) {
+      console.warn('[yampi-create-coupon] Falha no preflight:', preflightErr.message)
+      attempts.push({
+        step: 'preflight',
+        endpoint: preflightUrl,
+        method: 'GET',
+        status: 0,
+        isHtml: false,
+        outcome: 'preflight_network_error',
+        message: `Falha de conexão com api.dooki.com.br: ${preflightErr.message}`,
+      })
     }
 
-    const attempts: AttemptLog[] = []
+    // =========================================================================
+    // TENTATIVAS DE CRIAÇÃO DO CUPOM (POST)
+    // =========================================================================
+    // Endpoints candidatos no gateway oficial api.dooki.com.br:
+    // 1. POST https://api.dooki.com.br/v2/{alias}/marketing/coupons
+    // 2. POST https://api.dooki.com.br/v2/{alias}/promotions/coupons
+    // 3. POST https://api.dooki.com.br/v2/{alias}/coupons
+    // =========================================================================
+    const candidateUrls: string[] = [
+      `https://api.dooki.com.br/v2/${storeAlias}/marketing/coupons`,
+      `https://api.dooki.com.br/v2/${storeAlias}/promotions/coupons`,
+      `https://api.dooki.com.br/v2/${storeAlias}/coupons`,
+    ]
+
     let yampiResponse: Response | null = null
     let responseText = ''
     let jsonResponse: any = null
@@ -271,7 +432,6 @@ Deno.serve(async (req: Request) => {
     let lastContentType = ''
     let sawHtmlBlock = false
     let haltedOn404Json = false
-    let last404Message = ''
 
     for (let i = 0; i < candidateUrls.length; i++) {
       const url = candidateUrls[i]
@@ -303,7 +463,9 @@ Deno.serve(async (req: Request) => {
         // Case A: 2xx success
         if (res.ok) {
           attempts.push({
+            step: 'coupon_creation',
             endpoint: url,
+            method: 'POST',
             status: res.status,
             isHtml: false,
             outcome: 'success',
@@ -329,7 +491,9 @@ Deno.serve(async (req: Request) => {
           // B.1: Auth/Permission error (401 or 403 JSON) -> Stop immediately
           if (res.status === 401 || res.status === 403) {
             attempts.push({
+              step: 'coupon_creation',
               endpoint: url,
+              method: 'POST',
               status: res.status,
               isHtml: false,
               outcome: res.status === 401 ? 'unauthorized' : 'forbidden',
@@ -348,7 +512,9 @@ Deno.serve(async (req: Request) => {
           // B.2: 404 Not Found on api.dooki.com.br
           if (res.status === 404 || res.status === 405) {
             attempts.push({
+              step: 'coupon_creation',
               endpoint: url,
+              method: 'POST',
               status: res.status,
               isHtml: false,
               outcome: 'route_not_found',
@@ -365,22 +531,21 @@ Deno.serve(async (req: Request) => {
             }
 
             // All candidate routes on api.dooki.com.br returned 404 JSON.
-            // Do NOT proceed to legacy api.yampi.com.br routes (they block with Cloudflare 403 HTML).
-            // Halt chain and provide clear guidance regarding store alias and endpoint.
             haltedOn404Json = true
-            last404Message = summaryMsg
             yampiResponse = res
             responseText = text
             jsonResponse = parsed
             console.warn(
-              `[yampi-create-coupon] Todas as rotas api.dooki.com.br retornaram 404 Not Found para o alias "${storeAlias}". Interrompendo cadeia sem chamar rotas legadas.`,
+              `[yampi-create-coupon] Todas as rotas api.dooki.com.br retornaram 404 Not Found para o alias "${storeAlias}".`,
             )
             break
           }
 
           // B.3: Validation error (e.g. 422 Unprocessable Entity, 409 Conflict)
           attempts.push({
+            step: 'coupon_creation',
             endpoint: url,
+            method: 'POST',
             status: res.status,
             isHtml: false,
             outcome: res.status === 409 ? 'duplicate' : 'validation_error',
@@ -395,7 +560,9 @@ Deno.serve(async (req: Request) => {
 
         // Case C: HTML or non-JSON response (Cloudflare WAF block or CDN page)
         attempts.push({
+          step: 'coupon_creation',
           endpoint: url,
+          method: 'POST',
           status: res.status,
           isHtml: true,
           outcome: 'html_blocked',
@@ -416,7 +583,9 @@ Deno.serve(async (req: Request) => {
         break
       } catch (fetchErr: any) {
         attempts.push({
+          step: 'coupon_creation',
           endpoint: url,
+          method: 'POST',
           status: 0,
           isHtml: false,
           outcome: 'network_error',
@@ -463,11 +632,19 @@ Deno.serve(async (req: Request) => {
       let isDuplicate = false
 
       if (haltedOn404Json) {
-        // Specific user-friendly diagnosis when api.dooki.com.br returns 404 JSON
-        friendlyError =
-          `A API da Yampi (api.dooki.com.br) respondeu 404 Not Found para a loja "${storeAlias || 'alias não definido'}". ` +
-          `Verifique se o alias da loja está exatamente igual ao indicado no painel da Yampi (o alias é o subdomínio que aparece na URL do painel administrativo, ex: https://admin.yampi.com.br/{alias}) ` +
-          `e se a sua conta Yampi possui o plano com módulo de cupons ativo.`
+        // Distingue com base no pre-flight anterior:
+        if (preflightSuccess) {
+          friendlyError =
+            `A loja '${storeAlias}' e as credenciais foram validadas com sucesso na API da Yampi (GET /orders respondeu OK), ` +
+            `porém todas as rotas de criação de cupons retornaram 404 Not Found. ` +
+            `Isso indica que o plano atual da loja Yampi ou as permissões desta chave de API não incluem o módulo de cupons/marketing. ` +
+            `Verifique no painel da Yampi (Marketing > Cupons) se a criação manual de cupons está disponível para este plano e se a chave de API tem permissão de criação em Cupons.`
+        } else {
+          friendlyError =
+            `A API da Yampi respondeu 404 Not Found para a loja '${storeAlias}'. ` +
+            `Verifique se o alias da loja está exatamente igual ao indicado no painel da Yampi (o subdomínio que aparece na URL do painel administrativo, ex: https://admin.yampi.com.br/{alias}) ` +
+            `e se a sua conta Yampi possui o módulo de cupons habilitado.`
+        }
       } else if (jsonResponse) {
         // Structured JSON from Yampi API
         if (typeof jsonResponse.message === 'string') {
@@ -502,7 +679,7 @@ Deno.serve(async (req: Request) => {
           friendlyError =
             'Credenciais da Yampi inválidas. Verifique se o User-Token e o User-Secret salvos nas Configurações da loja estão corretos.'
         } else if (statusCode === 403) {
-          friendlyError = `Acesso negado pela API da Yampi: o token configurado não tem permissão para gerenciar cupons na loja (${storeAlias || 'alias'}). Verifique as permissões da chave de API no painel da Yampi.`
+          friendlyError = `Acesso negado pela API da Yampi: o token configurado não tem permissão para gerenciar cupons na loja (${storeAlias}). Verifique as permissões da chave de API no painel da Yampi.`
         }
       } else if (isHtml || (sawHtmlBlock && !jsonResponse)) {
         if (statusCode === 403) {
@@ -534,6 +711,11 @@ Deno.serve(async (req: Request) => {
           attempts,
           error: isDuplicate ? `O cupom ${rawCode} já existe na sua loja Yampi.` : friendlyError,
           yampiResponse: jsonResponse || undefined,
+          preflight: {
+            ok: preflightSuccess,
+            status: preflightStatus,
+            message: preflightMessage,
+          },
         }),
         {
           status: isDuplicate ? 409 : 400,
@@ -601,6 +783,11 @@ Deno.serve(async (req: Request) => {
         value: discountValue,
         endpoint: lastUrl,
         attempts,
+        preflight: {
+          ok: preflightSuccess,
+          status: preflightStatus,
+          message: preflightMessage,
+        },
         yampiResponse: yampiData,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },

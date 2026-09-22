@@ -21,7 +21,9 @@ export interface CreateYampiCouponParams {
 }
 
 export interface YampiAttempt {
+  step?: string
   endpoint: string
+  method?: string
   status: number
   isHtml: boolean
   outcome: string
@@ -38,6 +40,11 @@ export interface CreateYampiCouponResult {
   value?: number
   endpoint?: string
   attempts?: YampiAttempt[]
+  preflight?: {
+    ok: boolean
+    status: number
+    message?: string
+  }
   httpStatus?: number
   isExisting?: boolean
   isDuplicate?: boolean
@@ -82,6 +89,7 @@ export async function createYampiCouponDirect(
       code: (payload as any)?.code || params.code,
       endpoint: (payload as any)?.endpoint,
       attempts: (payload as any)?.attempts,
+      preflight: (payload as any)?.preflight,
       httpStatus: (payload as any)?.httpStatus,
       error: errMessage,
       yampiResponse: payload,

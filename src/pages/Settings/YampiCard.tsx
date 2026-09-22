@@ -421,18 +421,27 @@ export function YampiCard({ targetUserId }: { targetUserId?: string }) {
 
                         // Shorten endpoint url for readability
                         const shortUrl = att.endpoint.replace('https://', '')
+                        const stepLabel =
+                          att.step === 'preflight'
+                            ? 'Validação Prévia (Pre-flight)'
+                            : `Tentativa #${idx + 1}`
 
                         return (
                           <div
                             key={idx}
-                            className="flex flex-col gap-0.5 border-b border-border/30 pb-1 last:border-b-0 last:pb-0"
+                            className={`flex flex-col gap-0.5 border-b border-border/30 pb-1.5 last:border-b-0 last:pb-0 ${
+                              att.step === 'preflight' ? 'bg-primary/5 p-1.5 rounded' : ''
+                            }`}
                           >
                             <div className="flex items-center justify-between gap-2">
                               <span
-                                className="truncate text-foreground font-medium"
+                                className="truncate text-foreground font-medium text-[10px]"
                                 title={att.endpoint}
                               >
-                                #{idx + 1} {shortUrl}
+                                <span className="font-semibold text-primary/80 mr-1">
+                                  [{att.method || (att.step === 'preflight' ? 'GET' : 'POST')}]
+                                </span>
+                                {shortUrl}
                               </span>
                               <span
                                 className={`px-1.5 py-0.2 rounded text-[9px] font-semibold whitespace-nowrap ${badgeColor}`}
@@ -440,6 +449,10 @@ export function YampiCard({ targetUserId }: { targetUserId?: string }) {
                                 {att.status > 0 ? `HTTP ${att.status}` : 'Rede'}
                                 {isHtml ? ' (HTML/Bloq)' : ''}
                               </span>
+                            </div>
+                            <div className="flex items-center justify-between text-[9px] text-muted-foreground">
+                              <span>{stepLabel}</span>
+                              <span className="font-mono text-[9px]">{att.outcome}</span>
                             </div>
                             {att.message && (
                               <div className="text-[10px] text-muted-foreground break-words italic">
