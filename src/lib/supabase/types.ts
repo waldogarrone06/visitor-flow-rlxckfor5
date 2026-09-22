@@ -282,6 +282,7 @@ export type Database = {
           whatsapp_api_token: string | null
           whatsapp_app_secret: string | null
           whatsapp_official_access_token: string | null
+          yampi_secret: string | null
           yampi_token: string | null
         }
         Insert: {
@@ -295,6 +296,7 @@ export type Database = {
           whatsapp_api_token?: string | null
           whatsapp_app_secret?: string | null
           whatsapp_official_access_token?: string | null
+          yampi_secret?: string | null
           yampi_token?: string | null
         }
         Update: {
@@ -308,6 +310,7 @@ export type Database = {
           whatsapp_api_token?: string | null
           whatsapp_app_secret?: string | null
           whatsapp_official_access_token?: string | null
+          yampi_secret?: string | null
           yampi_token?: string | null
         }
         Relationships: []

@@ -45,13 +45,29 @@ export async function createYampiCouponDirect(
   })
 
   if (error) {
-    // If invoke errored (e.g. 400 or 409 from Edge Function), data may still hold details
-    const errMessage =
-      (data as any)?.error || error.message || 'Erro ao conectar à Edge Function da Yampi'
+    // Supabase client error object; inspect any response payload attached to error or data
+    let errMessage =
+      (data as any)?.error ||
+      (error as any)?.context?.error ||
+      error.message ||
+      'Erro ao conectar à Edge Function da Yampi'
+
+    // If supabase.functions.invoke error contains raw json inside message or context
+    if (typeof (error as any)?.context?.json === 'function') {
+      try {
+        const parsed = await (error as any).context.json()
+        if (parsed?.error) errMessage = parsed.error
+      } catch {
+        // ignore
+      }
+    }
+
     return {
       success: false,
       isDuplicate: (data as any)?.isDuplicate || false,
+      code: (data as any)?.code || params.code,
       error: errMessage,
+      yampiResponse: data,
     }
   }
 

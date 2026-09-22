@@ -369,23 +369,38 @@ export function YampiCard({ targetUserId }: { targetUserId?: string }) {
 
             {testResult && (
               <div
-                className={`p-3 rounded-md text-xs font-mono space-y-1 ${
+                className={`p-3 rounded-md text-xs space-y-1.5 ${
                   testResult.success
-                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                    : 'bg-red-50 text-red-800 border border-red-200'
+                    ? 'bg-emerald-50 text-emerald-900 border border-emerald-200'
+                    : 'bg-red-50 text-red-900 border border-red-200'
                 }`}
               >
                 <div className="font-semibold flex items-center gap-1.5">
                   {testResult.success ? (
-                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
                   ) : (
-                    <span>⚠️</span>
+                    <span className="shrink-0">⚠️</span>
                   )}
-                  {testResult.success ? 'Sucesso ao emitir cupom' : 'Resposta da Edge Function'}
+                  <span>
+                    {testResult.success
+                      ? 'Sucesso ao emitir cupom na Yampi'
+                      : 'Falha na emissão do cupom'}
+                  </span>
                 </div>
-                <div>Código: {testResult.code || testResult.couponCode}</div>
-                {testResult.id && <div>ID Yampi: {testResult.id}</div>}
-                {testResult.error && <div>Erro: {testResult.error}</div>}
+                <div className="font-mono text-[11px] text-muted-foreground">
+                  Código:{' '}
+                  <span className="font-semibold text-foreground">
+                    {testResult.code || testResult.couponCode}
+                  </span>
+                </div>
+                {testResult.id && (
+                  <div className="font-mono text-[11px]">ID Yampi: {testResult.id}</div>
+                )}
+                {testResult.error && (
+                  <div className="text-xs text-red-800 bg-red-100/70 p-2 rounded border border-red-200 break-words leading-relaxed">
+                    {testResult.error}
+                  </div>
+                )}
               </div>
             )}
           </div>
