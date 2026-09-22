@@ -57,10 +57,11 @@ export function YampiCard({ targetUserId }: { targetUserId?: string }) {
   }, [targetUserId])
 
   const handleSave = async () => {
-    if (!token && !configured) {
+    if (!configured && (!token.trim() || !secret.trim())) {
       toast({
         title: 'Aviso',
-        description: 'Preencha o User-Token da Yampi para conectar.',
+        description:
+          'A API da Yampi exige tanto o User-Token quanto o User-Secret-Key. Preencha ambos para conectar.',
         variant: 'destructive',
       })
       return
@@ -253,14 +254,18 @@ export function YampiCard({ targetUserId }: { targetUserId?: string }) {
                   htmlFor="yampi-secret"
                   className="flex items-center gap-1.5 text-xs font-medium"
                 >
-                  <Key className="h-3.5 w-3.5" /> User-Secret da Yampi (Opcional)
+                  <Key className="h-3.5 w-3.5" /> User-Secret-Key da Yampi (Obrigatório)
                 </Label>
                 <div className="relative">
                   <Input
                     id="yampi-secret"
                     value={secret}
                     onChange={(e) => setSecret(e.target.value)}
-                    placeholder="Chave secreta para endpoints restritos"
+                    placeholder={
+                      configured
+                        ? '•••••••••••• (Salvo no cofre)'
+                        : 'Chave secreta da API (User-Secret-Key)'
+                    }
                     type={showSecret ? 'text' : 'password'}
                     className="pr-9"
                   />

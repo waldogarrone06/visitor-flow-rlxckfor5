@@ -143,12 +143,30 @@ Deno.serve(async (req: Request) => {
     const yampiSecret = (await getSecret(supabaseAdmin, effectiveUserId, 'yampi_secret')).trim()
 
     if (!yampiToken) {
+      console.warn(
+        `[yampi-create-coupon] User-Token da Yampi não encontrado para o usuário ${effectiveUserId}`,
+      )
       return new Response(
         JSON.stringify({
           success: false,
-          code: 'YAMPI_NOT_CONFIGURED',
+          code: 'YAMPI_TOKEN_MISSING',
           error:
-            'A integração com a Yampi não está configurada para este usuário. Configure o User-Token da Yampi nas Configurações.',
+            'O User-Token da Yampi não está preenchido. Acesse Configurações > Integração Yampi e salve o User-Token gerado no painel da Yampi.',
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
+
+    if (!yampiSecret) {
+      console.warn(
+        `[yampi-create-coupon] User-Secret-Key da Yampi não encontrado ou vazio para o usuário ${effectiveUserId}`,
+      )
+      return new Response(
+        JSON.stringify({
+          success: false,
+          code: 'YAMPI_SECRET_MISSING',
+          error:
+            'A chave secreta da Yampi (User-Secret-Key) não está configurada ou está vazia. A API da Yampi exige obrigatoriamente os dois cabeçalhos juntos (User-Token e User-Secret-Key). Acesse Configurações > Integração Yampi e preencha o campo User-Secret-Key da Yampi.',
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       )
@@ -232,7 +250,11 @@ Deno.serve(async (req: Request) => {
     }
 
     // Prepare Yampi API authentication headers
-    // Yampi v1/v2 accepts User-Token and User-Secret headers
+    // Yampi v1/v2 (api.dooki.com.br) strictly requires BOTH User-Token AND User-Secret-Key headers together.
+    // NOTE: Header name must be "User-Secret-Key", NOT "User-Secret".
+    console.info(
+      `[yampi-create-coupon] Preparando cabeçalhos de autenticação para alias "${storeAlias}": User-Token presente (len=${yampiToken.length}), User-Secret-Key presente (len=${yampiSecret.length})`,
+    )
     const yampiHeaders: Record<string, string> = {
       'User-Agent':
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 VisitorFlow/1.0',
@@ -240,9 +262,7 @@ Deno.serve(async (req: Request) => {
       'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
       'Content-Type': 'application/json',
       'User-Token': yampiToken,
-    }
-    if (yampiSecret) {
-      yampiHeaders['User-Secret'] = yampiSecret
+      'User-Secret-Key': yampiSecret,
     }
 
     const attempts: AttemptLog[] = []
@@ -254,7 +274,7 @@ Deno.serve(async (req: Request) => {
     // (GET /v2/{alias}/orders?page=1 ou /v2/{alias}/catalog/products?page=1).
     // Isso permite diagnosticar com 100% de precisão:
     // 1) Se o alias existe e a loja responde;
-    // 2) Se o User-Token e User-Secret são autênticos (401 se errados);
+    // 2) Se o User-Token e User-Secret-Key são autênticos (401 se errados);
     // 3) Se o alias é inexistente (404 na rota de pedidos/produtos);
     // 4) Se a loja e credenciais estão OK (200), permitindo isolar qualquer 404
     //    posterior como falta de módulo/permissão de cupons ou endpoint específico.
@@ -298,10 +318,28 @@ Deno.serve(async (req: Request) => {
           responseSnippet: snippet,
         })
       } else if (preflightStatus === 401) {
-        // Credenciais inválidas confirmadas pelo endpoint de pedidos
-        const errMsg =
-          preflightJson?.message ||
-          'Credenciais da Yampi inválidas. O User-Token ou User-Secret informados estão incorretos.'
+        const rawPreflightMsg = String(preflightJson?.message || '').trim()
+        const lowerPreflightMsg = rawPreflightMsg.toLowerCase()
+
+        let specificCode = 'INVALID_CREDENTIALS'
+        let userOrientedError =
+          'Credenciais da Yampi inválidas. Verifique se o User-Token e o User-Secret-Key salvos nas Configurações estão exatamente iguais aos gerados no painel da Yampi (Configurações > Credenciais de API).'
+
+        if (
+          lowerPreflightMsg.includes('missing user-secret-key header') ||
+          lowerPreflightMsg.includes('missing user-secret') ||
+          lowerPreflightMsg.includes('secret-key header')
+        ) {
+          specificCode = 'MISSING_USER_SECRET_KEY'
+          userOrientedError =
+            'A API da Yampi reportou que a chave secreta (User-Secret-Key) não foi enviada ou está ausente. Acesse Configurações > Integração Yampi e preencha o campo User-Secret-Key da Yampi com a chave secreta gerada no painel da Yampi.'
+        } else if (lowerPreflightMsg.includes('missing user-token header')) {
+          specificCode = 'MISSING_USER_TOKEN'
+          userOrientedError =
+            'A API da Yampi reportou que o User-Token não foi enviado ou está ausente. Acesse Configurações > Integração Yampi e salve o User-Token.'
+        }
+
+        const errMsg = rawPreflightMsg || userOrientedError
         attempts.push({
           step: 'preflight',
           endpoint: preflightUrl,
@@ -316,11 +354,10 @@ Deno.serve(async (req: Request) => {
         return new Response(
           JSON.stringify({
             success: false,
-            code: 'INVALID_CREDENTIALS',
+            code: specificCode,
             httpStatus: 401,
             endpoint: preflightUrl,
-            error:
-              'Credenciais da Yampi inválidas. Verifique se o User-Token e o User-Secret salvos nas Configurações estão exatamente iguais aos gerados no painel da Yampi (Configurações > Credenciais de API).',
+            error: userOrientedError,
             attempts,
             preflight: { ok: false, status: 401, message: errMsg },
           }),
@@ -676,8 +713,19 @@ Deno.serve(async (req: Request) => {
               lowerErr.includes('code has already been taken')))
 
         if (statusCode === 401) {
-          friendlyError =
-            'Credenciais da Yampi inválidas. Verifique se o User-Token e o User-Secret salvos nas Configurações da loja estão corretos.'
+          if (
+            lowerErr.includes('missing user-secret-key header') ||
+            lowerErr.includes('missing user-secret')
+          ) {
+            friendlyError =
+              'A API da Yampi reportou que a chave secreta (User-Secret-Key) não foi enviada ou está ausente. Acesse Configurações > Integração Yampi e preencha o campo User-Secret-Key da Yampi.'
+          } else if (lowerErr.includes('missing user-token header')) {
+            friendlyError =
+              'A API da Yampi reportou que o User-Token não foi enviado. Acesse Configurações > Integração Yampi e preencha o User-Token.'
+          } else {
+            friendlyError =
+              'Credenciais da Yampi inválidas. Verifique se o User-Token e o User-Secret-Key salvos nas Configurações da loja estão corretos.'
+          }
         } else if (statusCode === 403) {
           friendlyError = `Acesso negado pela API da Yampi: o token configurado não tem permissão para gerenciar cupons na loja (${storeAlias}). Verifique as permissões da chave de API no painel da Yampi.`
         }
