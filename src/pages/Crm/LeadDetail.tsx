@@ -15,7 +15,9 @@ import {
   Phone,
   NotebookText,
   Save,
+  Sparkles,
 } from 'lucide-react'
+import { createYampiCouponDirect } from '@/services/yampi'
 import { Badge } from '@/components/ui/badge'
 import { ConversionEvolutionChart } from './ConversionEvolutionChart'
 import { format } from 'date-fns'
@@ -37,6 +39,7 @@ export default function LeadDetailPage() {
   const [nutritionistCoupon, setNutritionistCoupon] = useState('')
   const [patientCoupon, setPatientCoupon] = useState('')
   const [isSaving, setIsSaving] = useState(false)
+  const [isGeneratingYampi, setIsGeneratingYampi] = useState(false)
 
   useEffect(() => {
     if (lead) {
@@ -390,14 +393,81 @@ export default function LeadDetailPage() {
                 </p>
               </div>
 
-              <Button
-                onClick={handleSaveCoupons}
-                disabled={isSaving}
-                className="w-full sm:w-auto mt-4 gap-2"
-              >
-                <Save className="h-4 w-4" />
-                {isSaving ? 'Salvando...' : 'Salvar Cupons'}
-              </Button>
+              <div className="flex flex-wrap gap-3 pt-2">
+                <Button
+                  onClick={handleSaveCoupons}
+                  disabled={isSaving || isGeneratingYampi}
+                  className="w-full sm:w-auto gap-2"
+                >
+                  <Save className="h-4 w-4" />
+                  {isSaving ? 'Salvando...' : 'Salvar Cupons'}
+                </Button>
+
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    setIsGeneratingYampi(true)
+                    try {
+                      // Generate both coupons on Yampi if not present
+                      const baseName = lead.name || 'CLIENTE'
+                      const cleanBase = baseName
+                        .replace(/[^a-zA-Z0-9]/g, '')
+                        .substring(0, 4)
+                        .toUpperCase()
+                      const rand = Math.floor(1000 + Math.random() * 9000)
+
+                      const nutriCode = nutritionistCoupon || `NUTRI-${cleanBase}-${rand}`
+                      const patientCode = patientCoupon || `PACIENTE-${cleanBase}-${rand}`
+
+                      const [resNutri, resPatient] = await Promise.all([
+                        createYampiCouponDirect({
+                          userId: lead.userId || (lead as any).user_id,
+                          code: nutriCode,
+                          name: lead.name,
+                          lead_id: lead.id,
+                          type: 'fixed',
+                          value: 15,
+                          description: `Cupom Nutricionista - ${lead.name}`,
+                        }),
+                        createYampiCouponDirect({
+                          userId: lead.userId || (lead as any).user_id,
+                          code: patientCode,
+                          name: lead.name,
+                          lead_id: lead.id,
+                          type: 'percent',
+                          value: 10,
+                          description: `Cupom Pacientes - ${lead.name}`,
+                        }),
+                      ])
+
+                      const finalNutri = resNutri.code || nutriCode
+                      const finalPatient = resPatient.code || patientCode
+
+                      setNutritionistCoupon(finalNutri)
+                      setPatientCoupon(finalPatient)
+                      await updateContactCoupons(lead.id, finalNutri, finalPatient)
+
+                      toast({
+                        title: 'Cupons Emitidos na Yampi',
+                        description: `Nutricionista: ${finalNutri} | Paciente: ${finalPatient}`,
+                      })
+                    } catch (err: any) {
+                      toast({
+                        title: 'Erro ao emitir na Yampi',
+                        description: err.message || 'Falha na comunicação com a API Yampi.',
+                        variant: 'destructive',
+                      })
+                    } finally {
+                      setIsGeneratingYampi(false)
+                    }
+                  }}
+                  disabled={isSaving || isGeneratingYampi}
+                  className="w-full sm:w-auto gap-2 border-primary/30 text-primary hover:bg-primary/5"
+                >
+                  <Sparkles className="h-4 w-4 text-amber-500" />
+                  {isGeneratingYampi ? 'Emitindo na Yampi...' : 'Gerar Cupons Automáticos (Yampi)'}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

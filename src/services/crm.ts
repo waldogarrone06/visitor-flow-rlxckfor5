@@ -34,11 +34,49 @@ export async function createYampiCoupon(
   userId: string,
   name: string,
   email: string,
+  options?: {
+    code?: string
+    value?: number
+    type?: 'fixed' | 'percent' | 'percentage'
+    leadId?: string
+  },
 ) {
-  const { data, error } = await supabase.functions.invoke('yampi-service', {
-    body: { action: 'create-coupon', appointmentId, userId, name, email },
+  // First try the dedicated edge function yampi-create-coupon
+  const { data, error } = await supabase.functions.invoke('yampi-create-coupon', {
+    body: {
+      userId,
+      appointment_id: appointmentId,
+      name,
+      code: options?.code,
+      value: options?.value,
+      type: options?.type || 'fixed',
+      lead_id: options?.leadId,
+      context: { email },
+    },
   })
-  if (error) throw error
+
+  // If yampi-create-coupon worked or returned a handled response, return it
+  if (!error && data?.success) {
+    return data
+  }
+
+  // Fallback to legacy yampi-service if user hasn't configured full store credentials yet
+  if (
+    error &&
+    (data?.code === 'YAMPI_NOT_CONFIGURED' || error.message?.includes('YAMPI_NOT_CONFIGURED'))
+  ) {
+    const legacy = await supabase.functions.invoke('yampi-service', {
+      body: { action: 'create-coupon', appointmentId, userId, name, email },
+    })
+    if (legacy.error) throw legacy.error
+    return legacy.data
+  }
+
+  if (error) {
+    const errMsg = data?.error || error.message || 'Erro ao gerar cupom na Yampi'
+    throw new Error(errMsg)
+  }
+
   return data
 }
 

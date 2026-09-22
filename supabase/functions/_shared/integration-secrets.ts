@@ -6,6 +6,7 @@ const ALLOWED_KEYS = [
   'melhor_envio_token',
   'whatsapp_api_token',
   'yampi_token',
+  'yampi_secret',
 ] as const
 
 export type CredentialKey = (typeof ALLOWED_KEYS)[number]
@@ -80,6 +81,7 @@ const INDICATOR_MAP: Record<string, string> = {
   melhor_envio_token: 'melhor_envio_configured',
   whatsapp_api_token: 'whatsapp_api_configured',
   yampi_token: 'yampi_configured',
+  yampi_secret: 'yampi_configured',
 }
 
 export async function updateIndicator(

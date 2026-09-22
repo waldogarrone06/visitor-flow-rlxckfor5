@@ -12,6 +12,7 @@ import { PersonalScheduleCard } from './PersonalScheduleCard'
 import { MelhorEnvioCard } from './MelhorEnvioCard'
 import { ReminderSettingsCard } from './ReminderSettingsCard'
 import { CatalogSettingsCard } from './CatalogSettingsCard'
+import { YampiCard } from './YampiCard'
 import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -198,7 +199,8 @@ export default function SettingsPage() {
 
       <div className="space-y-4">
         <h2 className="text-lg font-semibold tracking-tight">Preferências e Integrações</h2>
-        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+          <YampiCard targetUserId={selectedUserId} />
           <GoogleCalendarCard targetUserId={selectedUserId} />
           <GoogleMeetCard targetUserId={selectedUserId} />
           <WhatsAppCard targetUserId={selectedUserId} />

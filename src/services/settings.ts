@@ -6,6 +6,7 @@ const SENSITIVE_FIELDS = [
   'melhor_envio_token',
   'whatsapp_api_token',
   'yampi_token',
+  'yampi_secret',
   'whatsapp_official_access_token',
 ]
 
