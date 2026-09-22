@@ -27,6 +27,7 @@ export interface CreateYampiCouponResult {
   couponCode?: string
   discountType?: string
   value?: number
+  endpoint?: string
   isExisting?: boolean
   isDuplicate?: boolean
   error?: string
@@ -53,21 +54,24 @@ export async function createYampiCouponDirect(
       'Erro ao conectar à Edge Function da Yampi'
 
     // If supabase.functions.invoke error contains raw json inside message or context
+    let parsedContext: any = null
     if (typeof (error as any)?.context?.json === 'function') {
       try {
-        const parsed = await (error as any).context.json()
-        if (parsed?.error) errMessage = parsed.error
+        parsedContext = await (error as any).context.json()
+        if (parsedContext?.error) errMessage = parsedContext.error
       } catch {
         // ignore
       }
     }
 
+    const payload = data || parsedContext
     return {
       success: false,
-      isDuplicate: (data as any)?.isDuplicate || false,
-      code: (data as any)?.code || params.code,
+      isDuplicate: (payload as any)?.isDuplicate || false,
+      code: (payload as any)?.code || params.code,
+      endpoint: (payload as any)?.endpoint,
       error: errMessage,
-      yampiResponse: data,
+      yampiResponse: payload,
     }
   }
 

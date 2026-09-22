@@ -396,6 +396,11 @@ export function YampiCard({ targetUserId }: { targetUserId?: string }) {
                 {testResult.id && (
                   <div className="font-mono text-[11px]">ID Yampi: {testResult.id}</div>
                 )}
+                {testResult.endpoint && (
+                  <div className="font-mono text-[10px] text-muted-foreground break-all">
+                    Rota: {testResult.endpoint}
+                  </div>
+                )}
                 {testResult.error && (
                   <div className="text-xs text-red-800 bg-red-100/70 p-2 rounded border border-red-200 break-words leading-relaxed">
                     {testResult.error}

@@ -36,7 +36,10 @@ function generateCouponCode(leadName?: string): string {
 }
 
 // Normalize discount type to Yampi format (percentage | fixed)
-function normalizeDiscountType(type?: string): { yampiType: string; isPercent: boolean } {
+function normalizeDiscountType(type?: string): {
+  yampiType: 'percentage' | 'fixed'
+  isPercent: boolean
+} {
   const clean = (type || '').toLowerCase()
   if (clean === 'percent' || clean === 'percentage' || clean === '%') {
     return { yampiType: 'percentage', isPercent: true }
@@ -168,11 +171,14 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // Build standard Yampi Coupon payload according to Yampi REST API documentation
+    // Build standard Yampi Coupon payload according to official Yampi (dooki) REST API documentation
+    // Fields sent include both primary schema names and aliases accepted across v2/promotions/coupons
     const yampiPayload: Record<string, unknown> = {
       code: rawCode,
-      type: yampiType,
+      type: yampiType, // 'percentage' | 'fixed'
+      discount_type: yampiType,
       value: discountValue,
+      discount_value: discountValue,
       active: body.active !== undefined ? body.active : true,
     }
 
@@ -207,6 +213,7 @@ Deno.serve(async (req: Request) => {
 
     // Prepare Yampi API authentication and browser/client headers
     // Yampi v1/v2 accepts User-Token and User-Secret headers
+    // Official domain: api.dooki.com.br
     // Cloudflare blocks requests with missing/bot User-Agent or absent Accept headers
     const yampiHeaders: Record<string, string> = {
       'User-Agent':
@@ -220,29 +227,40 @@ Deno.serve(async (req: Request) => {
       yampiHeaders['User-Secret'] = yampiSecret
     }
 
-    // List of candidate endpoints to attempt
-    // 1. Primary: v2 with alias /promotions/coupons (standard Yampi docs)
-    // 2. v1 with alias: /v1/{alias}/coupons
-    // 3. Global v1: /v1/coupons
+    // Official Yampi API domain is api.dooki.com.br
+    // Build resilient endpoint list prioritizing api.dooki.com.br, then fallback paths
     const targetAlias = storeAlias || 'store'
     const candidateUrls: string[] = [
-      `https://api.yampi.com.br/v2/${targetAlias}/promotions/coupons`,
+      // 1. Primary official Yampi (dooki) v2 promotions/coupons endpoint
+      `https://api.dooki.com.br/v2/${targetAlias}/promotions/coupons`,
+      // 2. v2 direct coupons endpoint
+      `https://api.dooki.com.br/v2/${targetAlias}/coupons`,
     ]
+
     if (storeAlias) {
-      candidateUrls.push(`https://api.yampi.com.br/v1/${targetAlias}/coupons`)
+      // 3. v1 alias endpoint on dooki
+      candidateUrls.push(`https://api.dooki.com.br/v1/${targetAlias}/coupons`)
     }
-    candidateUrls.push('https://api.yampi.com.br/v1/coupons')
+    // 4. Global v1 coupons on dooki
+    candidateUrls.push('https://api.dooki.com.br/v1/coupons')
+
+    // 5. Fallbacks to api.yampi.com.br in case legacy routing is specifically configured
+    candidateUrls.push(`https://api.yampi.com.br/v2/${targetAlias}/promotions/coupons`)
+    candidateUrls.push(`https://api.yampi.com.br/v1/coupons`)
 
     let yampiResponse: Response | null = null
     let responseText = ''
     let jsonResponse: any = null
-    let successfulOrParsed = false
     let lastUrl = candidateUrls[0]
     let lastStatus = 0
     let lastContentType = ''
+    let sawHtmlBlock = false
 
-    for (const url of candidateUrls) {
+    for (let i = 0; i < candidateUrls.length; i++) {
+      const url = candidateUrls[i]
+      const isLastUrl = i === candidateUrls.length - 1
       lastUrl = url
+
       try {
         const res = await fetch(url, {
           method: 'POST',
@@ -260,44 +278,54 @@ Deno.serve(async (req: Request) => {
           parsed = null
         }
 
-        // If request succeeded (2xx)
+        const isHtml = isHtmlResponse(lastContentType, text)
+        if (isHtml) {
+          sawHtmlBlock = true
+        }
+
+        // Case A: 2xx success
         if (res.ok) {
           yampiResponse = res
           responseText = text
           jsonResponse = parsed
-          successfulOrParsed = true
           break
         }
 
-        // If returned JSON with API error (e.g. 422 validation, 409 duplicate, 401 unauth, 403 API permission)
-        if (parsed !== null) {
+        // Case B: Non-OK but valid JSON from Yampi API (e.g. 422 validation, 409 duplicate, 401 unauth, 403 API permission)
+        if (parsed !== null && !isHtml) {
           yampiResponse = res
           responseText = text
           jsonResponse = parsed
-          successfulOrParsed = true
-          // If it was a 404 on the specific route and we have more fallbacks, continue loop
-          if (res.status === 404 && url !== candidateUrls[candidateUrls.length - 1]) {
+
+          // If it was a 404 or 405 on this specific route and more fallbacks exist, continue trying
+          if ((res.status === 404 || res.status === 405) && !isLastUrl) {
+            console.warn(
+              `[yampi-create-coupon] Route ${url} returned JSON HTTP ${res.status}, trying next fallback...`,
+            )
             continue
           }
+
+          // Otherwise, this is the definitive Yampi API business/validation response
           break
         }
 
-        // It returned non-JSON (like Cloudflare HTML 403 / 502 / 503)
+        // Case C: HTML or non-JSON response (Cloudflare 403 / 502 / 503)
         yampiResponse = res
         responseText = text
         jsonResponse = null
 
-        // If it's a 404 or 403 HTML on v2, try the next candidate endpoint
-        if (url !== candidateUrls[candidateUrls.length - 1]) {
+        if (!isLastUrl) {
           console.warn(
-            `[yampi-create-coupon] Route ${url} returned non-JSON HTTP ${res.status}, trying fallback...`,
+            `[yampi-create-coupon] Route ${url} returned HTML/non-JSON HTTP ${res.status}, trying fallback...`,
           )
           continue
         }
+
+        // If last url, break and let error handler report
         break
       } catch (fetchErr: any) {
         console.error(`[yampi-create-coupon] Fetch error on ${url}:`, fetchErr.message)
-        if (url === candidateUrls[candidateUrls.length - 1]) {
+        if (isLastUrl) {
           return new Response(
             JSON.stringify({
               success: false,
@@ -331,7 +359,7 @@ Deno.serve(async (req: Request) => {
       let friendlyError = 'Erro ao criar cupom na Yampi'
       let isDuplicate = false
 
-      if (isHtml) {
+      if (isHtml || (sawHtmlBlock && !jsonResponse)) {
         // Explicit friendly message for Cloudflare or CDN HTML blocking
         if (statusCode === 403) {
           friendlyError =
@@ -397,6 +425,7 @@ Deno.serve(async (req: Request) => {
           endpoint: lastUrl,
           code: rawCode,
           error: isDuplicate ? `O cupom ${rawCode} já existe na sua loja Yampi.` : friendlyError,
+          yampiResponse: jsonResponse || undefined,
         }),
         {
           status: isDuplicate ? 409 : 400,
