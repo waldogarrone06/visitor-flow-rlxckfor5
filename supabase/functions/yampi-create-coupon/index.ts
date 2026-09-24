@@ -3,6 +3,24 @@ import { corsHeaders } from '../_shared/cors.ts'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { getSecret } from '../_shared/integration-secrets.ts'
 
+// =========================================================================
+// REGRAS DE NEGÓCIO FIXAS (Centralizadas e não sobrescrevíveis)
+// =========================================================================
+/**
+ * 1. Quantidade de cupom: SEMPRE 50 unidades fixas.
+ */
+export const FIXED_COUPON_QUANTITY = 50
+
+/**
+ * 2. Desconto: SEMPRE em porcentagem ('p').
+ */
+export const FIXED_DISCOUNT_TYPE = 'p'
+
+/**
+ * 3. Exceção: Produtos que contêm "kit" ou "combo" no nome não entram no cupom.
+ */
+export const EXCLUDED_NAME_KEYWORDS = ['kit', 'combo']
+
 interface CreateCouponPayload {
   userId?: string
   code?: string
@@ -164,6 +182,88 @@ function isHtmlResponse(contentType: string, text: string): boolean {
 }
 
 /**
+ * Busca todos os produtos do catálogo da loja Yampi e retorna os IDs
+ * dos produtos cujo nome contenha "kit" ou "combo" (case-insensitive).
+ * Tenta GET /v2/{alias}/catalog/products e, se retornar vazio/erro, tenta /v2/{alias}/products.
+ */
+async function fetchExcludedKitComboProductIds(
+  storeAlias: string,
+  headers: Record<string, string>,
+): Promise<{ excludedIds: number[]; totalFound: number; matchedNames: string[]; attempts: any[] }> {
+  const excludedIds: number[] = []
+  const matchedNames: string[] = []
+  const attempts: any[] = []
+  let totalFound = 0
+  let page = 1
+  const maxPages = 20
+
+  // Tentamos primeiro /catalog/products (documentação oficial v2)
+  let endpointBase = `https://api.dooki.com.br/v2/${storeAlias}/catalog/products`
+
+  try {
+    let testRes = await fetch(`${endpointBase}?page=1&limit=50`, { method: 'GET', headers })
+    attempts.push({ endpoint: `${endpointBase}?page=1&limit=50`, status: testRes.status })
+
+    // Se /catalog/products falhar com 404, fallback para /products
+    if (testRes.status === 404) {
+      endpointBase = `https://api.dooki.com.br/v2/${storeAlias}/products`
+      testRes = await fetch(`${endpointBase}?page=1&limit=50`, { method: 'GET', headers })
+      attempts.push({ endpoint: `${endpointBase}?page=1&limit=50`, status: testRes.status })
+    }
+
+    if (testRes.ok) {
+      const firstJson = await testRes.json().catch(() => ({}))
+      const firstProducts: any[] = Array.isArray(firstJson?.data) ? firstJson.data : []
+      totalFound += firstProducts.length
+
+      for (const p of firstProducts) {
+        const pName = String(p.name || '').toLowerCase()
+        const isExcluded = EXCLUDED_NAME_KEYWORDS.some((kw) => pName.includes(kw))
+        if (isExcluded && p.id) {
+          const numId = Number(p.id)
+          if (!isNaN(numId) && !excludedIds.includes(numId)) {
+            excludedIds.push(numId)
+            matchedNames.push(`${p.name} (#${p.id})`)
+          }
+        }
+      }
+
+      const totalPages = firstJson?.meta?.pagination?.total_pages || 1
+      page = 2
+      while (page <= totalPages && page <= maxPages) {
+        const pageRes = await fetch(`${endpointBase}?page=${page}&limit=50`, {
+          method: 'GET',
+          headers,
+        })
+        if (!pageRes.ok) break
+        const pageJson = await pageRes.json().catch(() => ({}))
+        const products: any[] = Array.isArray(pageJson?.data) ? pageJson.data : []
+        if (products.length === 0) break
+        totalFound += products.length
+
+        for (const p of products) {
+          const pName = String(p.name || '').toLowerCase()
+          const isExcluded = EXCLUDED_NAME_KEYWORDS.some((kw) => pName.includes(kw))
+          if (isExcluded && p.id) {
+            const numId = Number(p.id)
+            if (!isNaN(numId) && !excludedIds.includes(numId)) {
+              excludedIds.push(numId)
+              matchedNames.push(`${p.name} (#${p.id})`)
+            }
+          }
+        }
+        page++
+      }
+    }
+  } catch (err: any) {
+    console.error('[yampi-create-coupon] Falha ao coletar produtos do catálogo:', err.message)
+    attempts.push({ error: err.message })
+  }
+
+  return { excludedIds, totalFound, matchedNames, attempts }
+}
+
+/**
  * Check if the 422 error is due to a duplicate coupon code
  */
 function isDuplicateCodeError(status: number, text: string, json: any): boolean {
@@ -197,9 +297,14 @@ Deno.serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         status: 'active',
-        version: 'v3-mandatory-end-at-pricing-promocodes',
+        version: 'v4-fixed-rules-kit-combo-exclusion',
         primaryRoute: 'POST https://api.dooki.com.br/v2/{alias}/pricing/promocodes',
-        note: 'end_at is mandatory in Yampi API. When no validity defined, a +10 years timestamp is sent.',
+        note: 'Fixed 50 units, percentage discount only, kit/combo exclusion.',
+        fixedRules: {
+          quantity: FIXED_COUPON_QUANTITY,
+          discount_type: FIXED_DISCOUNT_TYPE,
+          excluded_name_keywords: EXCLUDED_NAME_KEYWORDS,
+        },
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     )
@@ -238,6 +343,19 @@ Deno.serve(async (req: Request) => {
         data: { user },
       } = await supabaseClient.auth.getUser()
       if (user) effectiveUserId = user.id
+    }
+
+    // Fallback: if not provided, look for the first user with active yampi configuration
+    if (!effectiveUserId) {
+      const { data: firstIntegration } = await supabaseAdmin
+        .from('user_integrations')
+        .select('user_id')
+        .not('yampi_alias', 'is', null)
+        .limit(1)
+        .maybeSingle()
+      if (firstIntegration?.user_id) {
+        effectiveUserId = firstIntegration.user_id
+      }
     }
 
     if (!effectiveUserId) {
@@ -358,18 +476,12 @@ Deno.serve(async (req: Request) => {
       baseCode = `VIP${Math.floor(1000 + Math.random() * 9000)}`
     }
 
-    // Discount type: Yampi expects 'p' for percentage, or 'v'/'f' for fixed value.
-    // Default to 'p'
-    const rawType = (body.discount_type || body.type || 'p').toString().toLowerCase()
-    let discountType = 'p'
-    if (rawType === 'fixed' || rawType === 'v' || rawType === 'f' || rawType === 'value') {
-      discountType = 'v'
-    } else {
-      discountType = 'p'
-    }
-
+    // REGRA 1 & 2 FIXAS:
+    // - Desconto é SEMPRE porcentagem ('p')
+    // - Quantidade é SEMPRE 50 unidades fixas
+    const discountType = FIXED_DISCOUNT_TYPE
+    const quantity = FIXED_COUPON_QUANTITY
     const discountValue = Number(body.value ?? 10)
-    const quantity = Number(body.quantity ?? 100000)
     const minValue = Number(body.min_value ?? body.min_order_value ?? 0)
     const oncePerCustomer =
       body.once_per_customer !== undefined
@@ -577,6 +689,20 @@ Deno.serve(async (req: Request) => {
     }
 
     // =========================================================================
+    // REGRA 3: Coletar produtos que contenham "kit" ou "combo" para exclusão
+    // =========================================================================
+    const {
+      excludedIds,
+      totalFound,
+      matchedNames,
+      attempts: catalogAttempts,
+    } = await fetchExcludedKitComboProductIds(storeAlias, yampiHeaders)
+    console.log(
+      `[yampi-create-coupon] Catálogo analisado: ${totalFound} produtos. Excluídos (${excludedIds.length}):`,
+      matchedNames,
+    )
+
+    // =========================================================================
     // ROTA ÚNICA OFICIAL DA YAMPI (Descartados fallbacks errados 404)
     // POST https://api.dooki.com.br/v2/{alias}/pricing/promocodes
     // =========================================================================
@@ -602,6 +728,9 @@ Deno.serve(async (req: Request) => {
       // Payload oficial da Yampi:
       // - end_at é SEMPRE obrigatório na prática da API Yampi
       // - datas sempre no formato YYYY-MM-DD HH:MM:SS
+      // - quantity SEMPRE 50 unds
+      // - discount_type SEMPRE 'p'
+      // - exclude: produtos contendo "kit" ou "combo" no nome
       const payload: Record<string, unknown> = {
         code: currentCode,
         discount_type: discountType,
@@ -614,6 +743,12 @@ Deno.serve(async (req: Request) => {
         free_shipment: freeShipment,
         start_at: startAt,
         end_at: endAt,
+      }
+
+      if (excludedIds.length > 0) {
+        payload.exclude = {
+          products_ids: excludedIds,
+        }
       }
 
       try {
@@ -822,6 +957,120 @@ Deno.serve(async (req: Request) => {
     const createdId = yampiData.id || yampiData.promocode_id || yampiData.coupon_id || null
     const finalCode = yampiData.code || finalCodeUsed
 
+    // =========================================================================
+    // VERIFICAÇÃO E ENFORCEMENT DA EXCLUSÃO:
+    // Se a Yampi NÃO persistiu o exclude no CREATE, aplicamos via PUT /pricing/promocodes/{id}
+    // =========================================================================
+    let exclusionAppliedVia = 'none'
+    let exclusionPersisted = false
+    let verificationSnippet: any = null
+
+    if (createdId && excludedIds.length > 0) {
+      try {
+        // Consultar o cupom criado com include=products
+        const verifyUrl = `https://api.dooki.com.br/v2/${storeAlias}/pricing/promocodes/${createdId}?include=products`
+        const verifyRes = await fetch(verifyUrl, {
+          method: 'GET',
+          headers: yampiHeaders,
+        })
+
+        if (verifyRes.ok) {
+          const verifyJson = await verifyRes.json().catch(() => ({}))
+          const fetchedCoupon = verifyJson?.data || verifyJson || {}
+          verificationSnippet = {
+            exclude: fetchedCoupon?.exclude,
+            exclude_ids: fetchedCoupon?.exclude_ids,
+          }
+
+          // Verificar se os IDs foram salvos no exclude
+          const persistedExclude =
+            fetchedCoupon?.exclude?.products_ids || fetchedCoupon?.exclude_ids
+          let hasIds = false
+          if (Array.isArray(persistedExclude) && persistedExclude.length > 0) {
+            hasIds = true
+          } else if (
+            typeof persistedExclude === 'string' &&
+            persistedExclude.length > 2 &&
+            persistedExclude !== '[]'
+          ) {
+            hasIds = true
+          }
+
+          if (hasIds) {
+            exclusionAppliedVia = 'create'
+            exclusionPersisted = true
+          } else {
+            console.warn(
+              `[yampi-create-coupon] Exclude não persistido no POST CREATE do cupom ${createdId}. Aplicando via PUT...`,
+            )
+            // Tentativa via PUT /v2/{alias}/pricing/promocodes/{id}
+            const updateUrl = `https://api.dooki.com.br/v2/${storeAlias}/pricing/promocodes/${createdId}`
+            const updatePayload = {
+              code: finalCode,
+              discount_type: discountType,
+              value: discountValue,
+              quantity: quantity,
+              min_value: minValue,
+              active: active,
+              once_per_customer: oncePerCustomer,
+              accumulate: accumulate,
+              free_shipment: freeShipment,
+              start_at: startAt,
+              end_at: endAt,
+              exclude: {
+                products_ids: excludedIds,
+              },
+            }
+
+            const putRes = await fetch(updateUrl, {
+              method: 'PUT',
+              headers: yampiHeaders,
+              body: JSON.stringify(updatePayload),
+            })
+
+            const putStatus = putRes.status
+            const putText = await putRes.text()
+            let putJson: any = null
+            try {
+              putJson = JSON.parse(putText)
+            } catch {}
+
+            if (putRes.ok) {
+              exclusionAppliedVia = 'put'
+              exclusionPersisted = true
+              attempts.push({
+                step: 'exclusion_enforcement',
+                endpoint: updateUrl,
+                method: 'PUT',
+                status: putStatus,
+                isHtml: false,
+                outcome: 'put_success',
+                message: `Exclusão aplicada via PUT pós-criação para ${excludedIds.length} produtos kit/combo`,
+              })
+            } else {
+              exclusionAppliedVia = 'put_failed'
+              exclusionPersisted = false
+              attempts.push({
+                step: 'exclusion_enforcement',
+                endpoint: updateUrl,
+                method: 'PUT',
+                status: putStatus,
+                isHtml: isHtmlResponse(putRes.headers.get('content-type') || '', putText),
+                outcome: 'put_failed',
+                message: putJson?.message || `HTTP ${putStatus} ao atualizar exclusão via PUT`,
+                responseSnippet: putText.substring(0, 200),
+              })
+            }
+          }
+        }
+      } catch (verifyErr: any) {
+        console.error(
+          '[yampi-create-coupon] Erro ao verificar/atualizar exclusão:',
+          verifyErr.message,
+        )
+      }
+    }
+
     // Update appointment if appointment_id was provided
     if (body.appointment_id) {
       await supabaseAdmin
@@ -858,6 +1107,11 @@ Deno.serve(async (req: Request) => {
         coupon_code: finalCode,
         value: discountValue,
         discount_type: discountType,
+        quantity: quantity,
+        excluded_products_count: excludedIds.length,
+        excluded_products_names: matchedNames,
+        exclusion_applied_via: exclusionAppliedVia,
+        exclusion_persisted: exclusionPersisted,
         source: 'yampi-create-coupon',
         endpoint,
         appointment_id: body.appointment_id || null,
@@ -874,6 +1128,16 @@ Deno.serve(async (req: Request) => {
         couponCode: finalCode,
         discountType,
         value: discountValue,
+        quantity,
+        fixedRulesApplied: {
+          quantity: FIXED_COUPON_QUANTITY,
+          discount_type: FIXED_DISCOUNT_TYPE,
+          excluded_keywords: EXCLUDED_NAME_KEYWORDS,
+          excluded_products_count: excludedIds.length,
+          excluded_products_sample: matchedNames.slice(0, 10),
+          exclusion_applied_via: exclusionAppliedVia,
+          exclusion_persisted: exclusionPersisted,
+        },
         endpoint,
         attempts,
         preflight: {
@@ -881,6 +1145,7 @@ Deno.serve(async (req: Request) => {
           status: preflightStatus,
           message: preflightMessage,
         },
+        verification: verificationSnippet,
         yampiResponse: yampiData,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
