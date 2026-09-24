@@ -21,6 +21,7 @@ export interface CreateYampiCouponParams {
   expires_at?: string | null
   end_at?: string | null
   start_at?: string | null
+  validity_days?: number | null
   active?: boolean
   description?: string
   lead_id?: string

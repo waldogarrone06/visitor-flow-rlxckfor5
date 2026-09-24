@@ -22,6 +22,7 @@ interface CreateCouponPayload {
   expires_at?: string | null
   end_at?: string | null
   start_at?: string | null
+  validity_days?: number | null
   active?: boolean
   description?: string
   name?: string
@@ -58,6 +59,17 @@ function formatYampiDate(date: Date = new Date()): string {
 }
 
 /**
+ * Format a Date to end of day: YYYY-MM-DD 23:59:59
+ */
+function formatYampiEndOfDay(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const yyyy = date.getFullYear()
+  const mm = pad(date.getMonth() + 1)
+  const dd = pad(date.getDate())
+  return `${yyyy}-${mm}-${dd} 23:59:59`
+}
+
+/**
  * Parse any date string / ISO into YYYY-MM-DD HH:MM:SS
  */
 function toYampiDateString(val?: string | null): string | null {
@@ -70,11 +82,48 @@ function toYampiDateString(val?: string | null): string | null {
     return trimmed
   }
 
+  // If only YYYY-MM-DD, set end-of-day
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return `${trimmed} 23:59:59`
+  }
+
   const parsed = new Date(trimmed)
   if (isNaN(parsed.getTime())) {
     return null
   }
   return formatYampiDate(parsed)
+}
+
+/**
+ * Compute the mandatory end_at for Yampi:
+ * - If explicit end_at or expires_at is provided, parse into YYYY-MM-DD HH:MM:SS
+ * - If validity_days > 0, set date to today + validity_days at 23:59:59
+ * - If validity_days === 0 or no validity specified: set date ~10 years in the future (acts as "sem expiração")
+ */
+function resolveMandatoryEndAt(options: {
+  explicitEndAt?: string | null
+  explicitExpiresAt?: string | null
+  validityDays?: number | null
+}): string {
+  const fromExplicit = toYampiDateString(options.explicitEndAt || options.explicitExpiresAt)
+  if (fromExplicit) {
+    return fromExplicit
+  }
+
+  const now = new Date()
+  const days =
+    options.validityDays !== undefined && options.validityDays !== null
+      ? Number(options.validityDays)
+      : 0
+
+  if (days > 0) {
+    const futureDate = new Date(now.getTime() + days * 24 * 60 * 60 * 1000)
+    return formatYampiEndOfDay(futureDate)
+  }
+
+  // Sem validade definida (ou validity_days = 0): data ~10 anos à frente às 23:59:59
+  const tenYearsAhead = new Date(now.getFullYear() + 10, now.getMonth(), now.getDate(), 23, 59, 59)
+  return formatYampiEndOfDay(tenYearsAhead)
 }
 
 /**
@@ -148,8 +197,9 @@ Deno.serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         status: 'active',
-        version: 'v2-pricing-promocodes',
+        version: 'v3-mandatory-end-at-pricing-promocodes',
         primaryRoute: 'POST https://api.dooki.com.br/v2/{alias}/pricing/promocodes',
+        note: 'end_at is mandatory in Yampi API. When no validity defined, a +10 years timestamp is sent.',
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     )
@@ -331,9 +381,16 @@ Deno.serve(async (req: Request) => {
     const freeShipment = Boolean(body.free_shipment ?? body.free_shipping ?? false)
     const active = body.active !== undefined ? Boolean(body.active) : true
 
-    // Dates formatted as YYYY-MM-DD HH:MM:SS
+    // Dates formatted as YYYY-MM-DD HH:MM:SS (strictly required by Yampi API)
     const startAt = toYampiDateString(body.start_at) || formatYampiDate(new Date())
-    const endAt = toYampiDateString(body.end_at || body.expires_at)
+
+    // MANDATÓRIO: Yampi sempre exige end_at. Quando não houver validade definida (validity_days = 0 ou nulo),
+    // usamos uma data 10 anos à frente (equivale a "sem expiração").
+    const endAt = resolveMandatoryEndAt({
+      explicitEndAt: body.end_at,
+      explicitExpiresAt: body.expires_at,
+      validityDays: body.validity_days,
+    })
 
     // Prepare Yampi API authentication headers
     const yampiHeaders: Record<string, string> = {
@@ -520,204 +577,176 @@ Deno.serve(async (req: Request) => {
     }
 
     // =========================================================================
-    // ENDPOINTS CANDIDATOS
-    // 1. ROTA PRINCIPAL (Correta Yampi): POST https://api.dooki.com.br/v2/{alias}/pricing/promocodes
-    // 2. Fallbacks secundários: /marketing/coupons, /coupons
+    // ROTA ÚNICA OFICIAL DA YAMPI (Descartados fallbacks errados 404)
+    // POST https://api.dooki.com.br/v2/{alias}/pricing/promocodes
     // =========================================================================
-    const candidateUrls: string[] = [
-      `https://api.dooki.com.br/v2/${storeAlias}/pricing/promocodes`,
-      `https://api.dooki.com.br/v2/${storeAlias}/marketing/coupons`,
-      `https://api.dooki.com.br/v2/${storeAlias}/coupons`,
-    ]
+    const endpoint = `https://api.dooki.com.br/v2/${storeAlias}/pricing/promocodes`
 
     let finalSuccessData: any = null
     let finalCodeUsed = baseCode
-    let finalUrlUsed = candidateUrls[0]
     let lastStatus = 0
     let lastErrorText = ''
     let lastParsedJson: any = null
     let lastIsHtml = false
     let exhaustedDuplicates = false
 
-    // We will test the routes. For the primary route (and fallbacks),
-    // if duplicate code error occurs (422 code taken), we retry with suffixes 2, 3, 4... up to 20!
-    // (Edge function version: v2-promocodes-verified)
-    routeLoop: for (let r = 0; r < candidateUrls.length; r++) {
-      const endpoint = candidateUrls[r]
-      finalUrlUsed = endpoint
-      const isPrimaryRoute = r === 0
-      const maxCodeAttempts = 20
+    const maxCodeAttempts = 20
 
-      for (let attemptIdx = 0; attemptIdx < maxCodeAttempts; attemptIdx++) {
-        // Compute code to try: baseCode on first attempt, then baseCode + suffix
-        const currentCode =
-          attemptIdx === 0 ? baseCode : `${baseCode.substring(0, 36)}${attemptIdx + 1}`
+    for (let attemptIdx = 0; attemptIdx < maxCodeAttempts; attemptIdx++) {
+      // Compute code to try: baseCode on first attempt, then baseCode + suffix
+      const currentCode =
+        attemptIdx === 0 ? baseCode : `${baseCode.substring(0, 36)}${attemptIdx + 1}`
 
-        finalCodeUsed = currentCode
+      finalCodeUsed = currentCode
 
-        // Build exact Yampi payload according to reference:
-        // {
-        //   "code": "<codigo>",
-        //   "discount_type": "p",
-        //   "value": 10,
-        //   "quantity": 100000,
-        //   "min_value": 0,
-        //   "active": true,
-        //   "once_per_customer": true,
-        //   "accumulate": false,
-        //   "free_shipment": false,
-        //   "start_at": "YYYY-MM-DD HH:MM:SS"
-        // }
-        const payload: Record<string, unknown> = {
-          code: currentCode,
-          discount_type: discountType,
-          value: discountValue,
-          quantity: quantity,
-          min_value: minValue,
-          active: active,
-          once_per_customer: oncePerCustomer,
-          accumulate: accumulate,
-          free_shipment: freeShipment,
-          start_at: startAt,
-        }
+      // Payload oficial da Yampi:
+      // - end_at é SEMPRE obrigatório na prática da API Yampi
+      // - datas sempre no formato YYYY-MM-DD HH:MM:SS
+      const payload: Record<string, unknown> = {
+        code: currentCode,
+        discount_type: discountType,
+        value: discountValue,
+        quantity: quantity,
+        min_value: minValue,
+        active: active,
+        once_per_customer: oncePerCustomer,
+        accumulate: accumulate,
+        free_shipment: freeShipment,
+        start_at: startAt,
+        end_at: endAt,
+      }
 
-        if (endAt) {
-          payload.end_at = endAt
-        }
+      try {
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: yampiHeaders,
+          body: JSON.stringify(payload),
+        })
 
+        lastStatus = res.status
+        const cType = res.headers.get('content-type') || ''
+        const text = await res.text()
+        lastErrorText = text
+        lastIsHtml = isHtmlResponse(cType, text)
+
+        let parsed: any = null
         try {
-          const res = await fetch(endpoint, {
+          parsed = JSON.parse(text)
+        } catch {
+          parsed = null
+        }
+        lastParsedJson = parsed
+
+        // SUCCESS
+        if (res.ok) {
+          attempts.push({
+            step: 'coupon_creation',
+            endpoint,
             method: 'POST',
-            headers: yampiHeaders,
-            body: JSON.stringify(payload),
+            status: res.status,
+            isHtml: false,
+            outcome: 'success',
+            message: `Cupom criado com sucesso (${currentCode})`,
+            codeTried: currentCode,
+          })
+          finalSuccessData = parsed
+          break
+        }
+
+        // AUTH ERROR (401 / 403 JSON) -> Stop immediately
+        if ((res.status === 401 || res.status === 403) && !lastIsHtml) {
+          const summary = parsed?.message || parsed?.error || `HTTP ${res.status}`
+          attempts.push({
+            step: 'coupon_creation',
+            endpoint,
+            method: 'POST',
+            status: res.status,
+            isHtml: false,
+            outcome: res.status === 401 ? 'unauthorized' : 'forbidden',
+            message: summary,
+            codeTried: currentCode,
+            responseSnippet: text.substring(0, 200),
+          })
+          break
+        }
+
+        // DUPLICATE CODE CHECK
+        if (isDuplicateCodeError(res.status, text, parsed)) {
+          attempts.push({
+            step: 'coupon_creation',
+            endpoint,
+            method: 'POST',
+            status: res.status,
+            isHtml: false,
+            outcome: 'duplicate_retry',
+            message: `Código '${currentCode}' já existe. Tentando próximo sufixo...`,
+            codeTried: currentCode,
+            responseSnippet: text.substring(0, 200),
           })
 
-          lastStatus = res.status
-          const cType = res.headers.get('content-type') || ''
-          const text = await res.text()
-          lastErrorText = text
-          lastIsHtml = isHtmlResponse(cType, text)
-
-          let parsed: any = null
-          try {
-            parsed = JSON.parse(text)
-          } catch {
-            parsed = null
+          if (attemptIdx === maxCodeAttempts - 1) {
+            exhaustedDuplicates = true
+            console.warn(
+              `[yampi-create-coupon] Esgotadas ${maxCodeAttempts} tentativas de sufixo para ${baseCode}`,
+            )
           }
-          lastParsedJson = parsed
+          // Loop continues to attemptIdx + 1
+          continue
+        }
 
-          // SUCCESS
-          if (res.ok) {
-            attempts.push({
-              step: 'coupon_creation',
-              endpoint,
-              method: 'POST',
-              status: res.status,
-              isHtml: false,
-              outcome: 'success',
-              message: `Cupom criado com sucesso (${currentCode})`,
-              codeTried: currentCode,
-            })
-            finalSuccessData = parsed
-            break routeLoop
-          }
-
-          // AUTH ERROR (401 / 403 JSON) -> Stop immediately
-          if ((res.status === 401 || res.status === 403) && !lastIsHtml) {
-            const summary = parsed?.message || parsed?.error || `HTTP ${res.status}`
-            attempts.push({
-              step: 'coupon_creation',
-              endpoint,
-              method: 'POST',
-              status: res.status,
-              isHtml: false,
-              outcome: res.status === 401 ? 'unauthorized' : 'forbidden',
-              message: summary,
-              codeTried: currentCode,
-              responseSnippet: text.substring(0, 200),
-            })
-            break routeLoop
-          }
-
-          // DUPLICATE CODE CHECK
-          if (isDuplicateCodeError(res.status, text, parsed)) {
-            attempts.push({
-              step: 'coupon_creation',
-              endpoint,
-              method: 'POST',
-              status: res.status,
-              isHtml: false,
-              outcome: 'duplicate_retry',
-              message: `Código '${currentCode}' já existe. Tentando próximo sufixo...`,
-              codeTried: currentCode,
-              responseSnippet: text.substring(0, 200),
-            })
-
-            if (attemptIdx === maxCodeAttempts - 1) {
-              exhaustedDuplicates = true
-              console.warn(
-                `[yampi-create-coupon] Esgotadas ${maxCodeAttempts} tentativas de sufixo para ${baseCode}`,
-              )
-            }
-            // Loop continues to attemptIdx + 1
-            continue
-          }
-
-          // 404 / 405 ROUTE NOT FOUND
-          if (res.status === 404 || res.status === 405) {
-            attempts.push({
-              step: 'coupon_creation',
-              endpoint,
-              method: 'POST',
-              status: res.status,
-              isHtml: lastIsHtml,
-              outcome: 'route_not_found',
-              message: parsed?.message || `HTTP ${res.status} Rota não encontrada`,
-              codeTried: currentCode,
-              responseSnippet: text.substring(0, 200),
-            })
-            // If route not found, no need to retry suffixes on this route — go to next candidate route!
-            break
-          }
-
-          // OTHER 4xx / 5xx VALIDATION OR SERVER ERROR
+        // 404 / 405 ROUTE NOT FOUND
+        if (res.status === 404 || res.status === 405) {
           attempts.push({
             step: 'coupon_creation',
             endpoint,
             method: 'POST',
             status: res.status,
             isHtml: lastIsHtml,
-            outcome: lastIsHtml ? 'html_blocked' : 'validation_error',
-            message:
-              parsed?.message ||
-              (parsed?.errors ? JSON.stringify(parsed.errors) : `HTTP ${res.status}`),
+            outcome: 'route_not_found',
+            message: parsed?.message || `HTTP ${res.status} Rota de cupons não encontrada`,
             codeTried: currentCode,
             responseSnippet: text.substring(0, 200),
           })
-
-          // Do not retry suffixes on non-duplicate errors
-          break
-        } catch (fetchErr: any) {
-          attempts.push({
-            step: 'coupon_creation',
-            endpoint,
-            method: 'POST',
-            status: 0,
-            isHtml: false,
-            outcome: 'network_error',
-            message: fetchErr.message,
-            codeTried: currentCode,
-          })
-          console.error(`[yampi-create-coupon] Erro de rede em ${endpoint}:`, fetchErr.message)
           break
         }
+
+        // OTHER 4xx / 5xx VALIDATION OR SERVER ERROR
+        attempts.push({
+          step: 'coupon_creation',
+          endpoint,
+          method: 'POST',
+          status: res.status,
+          isHtml: lastIsHtml,
+          outcome: lastIsHtml ? 'html_blocked' : 'validation_error',
+          message:
+            parsed?.message ||
+            (parsed?.errors ? JSON.stringify(parsed.errors) : `HTTP ${res.status}`),
+          codeTried: currentCode,
+          responseSnippet: text.substring(0, 200),
+        })
+
+        // Do not retry suffixes on non-duplicate errors (e.g. invalid fields)
+        break
+      } catch (fetchErr: any) {
+        attempts.push({
+          step: 'coupon_creation',
+          endpoint,
+          method: 'POST',
+          status: 0,
+          isHtml: false,
+          outcome: 'network_error',
+          message: fetchErr.message,
+          codeTried: currentCode,
+        })
+        console.error(`[yampi-create-coupon] Erro de rede em ${endpoint}:`, fetchErr.message)
+        break
       }
     }
 
     // Check if we failed
     if (!finalSuccessData) {
       console.warn(
-        `[yampi-create-coupon] Falha ao criar cupom. Último status: ${lastStatus} na rota ${finalUrlUsed}`,
+        `[yampi-create-coupon] Falha ao criar cupom. Último status: ${lastStatus} na rota ${endpoint}`,
       )
 
       let friendlyError = 'Erro ao criar cupom na Yampi'
@@ -725,7 +754,7 @@ Deno.serve(async (req: Request) => {
 
       if (exhaustedDuplicates) {
         isDuplicate = true
-        friendlyError = `O código base '${baseCode}' e todos os sufixos incrementais (até +${20}) já foram utilizados na sua loja Yampi. Escolha outro código base.`
+        friendlyError = `O código base '${baseCode}' e todos os sufixos incrementais (até +${maxCodeAttempts}) já foram utilizados na sua loja Yampi. Escolha outro código base.`
       } else if (lastStatus === 401) {
         friendlyError =
           'Credenciais da Yampi inválidas ou ausentes (HTTP 401). Verifique se o User-Token e o User-Secret-Key salvos nas Configurações estão preenchidos e válidos.'
@@ -740,7 +769,7 @@ Deno.serve(async (req: Request) => {
         }
       } else if (lastStatus === 404) {
         if (preflightSuccess) {
-          friendlyError = `A loja '${storeAlias}' foi validada com sucesso na API da Yampi (GET /orders respondeu 200 OK), porém a rota de cupons (${finalUrlUsed}) retornou 404 Not Found. Verifique se o módulo de cupons/pricing está ativo no seu plano da Yampi.`
+          friendlyError = `A loja '${storeAlias}' foi validada com sucesso na API da Yampi (GET /orders respondeu 200 OK), porém a rota de cupons (${endpoint}) retornou 404 Not Found. Verifique se o módulo de cupons/pricing está ativo no seu plano da Yampi.`
         } else {
           friendlyError = `A loja com o alias '${storeAlias}' não foi encontrada na API da Yampi (HTTP 404). Verifique o alias salvo nas Configurações.`
         }
@@ -770,7 +799,7 @@ Deno.serve(async (req: Request) => {
           success: false,
           isDuplicate,
           httpStatus: lastStatus,
-          endpoint: finalUrlUsed,
+          endpoint,
           code: finalCodeUsed,
           attempts,
           error: friendlyError,
@@ -830,7 +859,7 @@ Deno.serve(async (req: Request) => {
         value: discountValue,
         discount_type: discountType,
         source: 'yampi-create-coupon',
-        endpoint: finalUrlUsed,
+        endpoint,
         appointment_id: body.appointment_id || null,
         lead_id: body.lead_id || null,
         created_at: new Date().toISOString(),
@@ -845,7 +874,7 @@ Deno.serve(async (req: Request) => {
         couponCode: finalCode,
         discountType,
         value: discountValue,
-        endpoint: finalUrlUsed,
+        endpoint,
         attempts,
         preflight: {
           ok: preflightSuccess,
