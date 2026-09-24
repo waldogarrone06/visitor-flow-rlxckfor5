@@ -143,6 +143,18 @@ Deno.serve(async (req: Request) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
+  // Quick healthcheck / version check via GET
+  if (req.method === 'GET') {
+    return new Response(
+      JSON.stringify({
+        status: 'active',
+        version: 'v2-pricing-promocodes',
+        primaryRoute: 'POST https://api.dooki.com.br/v2/{alias}/pricing/promocodes',
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    )
+  }
+
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || ''
@@ -529,6 +541,7 @@ Deno.serve(async (req: Request) => {
 
     // We will test the routes. For the primary route (and fallbacks),
     // if duplicate code error occurs (422 code taken), we retry with suffixes 2, 3, 4... up to 20!
+    // (Edge function version: v2-promocodes-verified)
     routeLoop: for (let r = 0; r < candidateUrls.length; r++) {
       const endpoint = candidateUrls[r]
       finalUrlUsed = endpoint
