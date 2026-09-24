@@ -423,6 +423,7 @@ export default function LeadDetailPage() {
                         createYampiCouponDirect({
                           userId: lead.userId || (lead as any).user_id,
                           code: nutriCode,
+                          prescritor: lead.name,
                           name: lead.name,
                           lead_id: lead.id,
                           type: 'fixed',
@@ -432,6 +433,7 @@ export default function LeadDetailPage() {
                         createYampiCouponDirect({
                           userId: lead.userId || (lead as any).user_id,
                           code: patientCode,
+                          prescritor: lead.name,
                           name: lead.name,
                           lead_id: lead.id,
                           type: 'percent',
@@ -439,6 +441,12 @@ export default function LeadDetailPage() {
                           description: `Cupom Pacientes - ${lead.name}`,
                         }),
                       ])
+
+                      if (!resNutri.success && !resPatient.success) {
+                        throw new Error(
+                          resNutri.error || resPatient.error || 'Falha ao emitir cupons na Yampi.',
+                        )
+                      }
 
                       const finalNutri = resNutri.code || nutriCode
                       const finalPatient = resPatient.code || patientCode

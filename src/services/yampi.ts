@@ -3,18 +3,26 @@ import { supabase } from '@/lib/supabase/client'
 export interface CreateYampiCouponParams {
   userId?: string
   code?: string
-  type?: 'fixed' | 'percent' | 'percentage' | 'value'
+  prescritor?: string
+  name?: string
+  type?: 'fixed' | 'percent' | 'percentage' | 'value' | 'p' | 'v' | 'f' | string
+  discount_type?: 'p' | 'v' | 'f' | 'percentage' | 'fixed' | string
   value?: number
+  quantity?: number
+  min_value?: number
   min_order_value?: number | null
   max_discount_value?: number | null
   usage_limit?: number | null
   usage_limit_per_user?: number | null
+  once_per_customer?: boolean
+  accumulate?: boolean
+  free_shipment?: boolean
+  free_shipping?: boolean
   expires_at?: string | null
+  end_at?: string | null
   start_at?: string | null
   active?: boolean
-  free_shipping?: boolean
   description?: string
-  name?: string
   lead_id?: string
   appointment_id?: string
   context?: Record<string, unknown>
@@ -28,6 +36,7 @@ export interface YampiAttempt {
   isHtml: boolean
   outcome: string
   message?: string
+  codeTried?: string
   responseSnippet?: string
 }
 
@@ -54,7 +63,8 @@ export interface CreateYampiCouponResult {
 }
 
 /**
- * Invokes the dedicated yampi-create-coupon Edge Function to create or register coupons on Yampi.
+ * Invokes the dedicated yampi-create-coupon Edge Function to create or register promocodes on Yampi.
+ * Uses POST /v2/{alias}/pricing/promocodes and handles duplicate retry automatically.
  */
 export async function createYampiCouponDirect(
   params: CreateYampiCouponParams,
@@ -64,14 +74,12 @@ export async function createYampiCouponDirect(
   })
 
   if (error) {
-    // Supabase client error object; inspect any response payload attached to error or data
     let errMessage =
       (data as any)?.error ||
       (error as any)?.context?.error ||
       error.message ||
       'Erro ao conectar à Edge Function da Yampi'
 
-    // If supabase.functions.invoke error contains raw json inside message or context
     let parsedContext: any = null
     if (typeof (error as any)?.context?.json === 'function') {
       try {

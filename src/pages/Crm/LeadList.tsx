@@ -183,12 +183,19 @@ export function LeadList() {
         toast({ title: 'Uso sincronizado.' })
       } else if (action === 'create' && p) {
         setActionLoading(p.id)
-        await createYampiCoupon(p.id, user.id, p.client_name, p.client_email)
-        toast({ title: 'Cupom Gerado' })
+        const created = await createYampiCoupon(p.id, user.id, p.client_name, p.client_email)
+        toast({
+          title: 'Cupom Gerado na Yampi',
+          description: `Cupom ${created.code || created.couponCode} criado com sucesso.`,
+        })
       }
       loadData()
-    } catch {
-      toast({ title: 'Erro na ação Yampi.', variant: 'destructive' })
+    } catch (err: any) {
+      toast({
+        title: 'Erro na ação Yampi',
+        description: err.message || 'Falha ao processar ação Yampi.',
+        variant: 'destructive',
+      })
     } finally {
       setSyncing(false)
       setActionLoading(null)

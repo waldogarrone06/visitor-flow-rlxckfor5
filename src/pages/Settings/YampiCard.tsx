@@ -417,10 +417,12 @@ export function YampiCard({ targetUserId }: { targetUserId?: string }) {
                       {testResult.attempts.map((att: any, idx: number) => {
                         const isOk = att.status >= 200 && att.status < 300
                         const isAuthFail = att.status === 401 || att.status === 403
+                        const isDuplicateRetry = att.outcome === 'duplicate_retry'
                         const isHtml = att.isHtml
 
                         let badgeColor = 'bg-amber-100 text-amber-800'
                         if (isOk) badgeColor = 'bg-emerald-100 text-emerald-800'
+                        else if (isDuplicateRetry) badgeColor = 'bg-blue-100 text-blue-800'
                         else if (isAuthFail && !isHtml) badgeColor = 'bg-red-100 text-red-800'
                         else if (isHtml) badgeColor = 'bg-rose-100 text-rose-800'
 
@@ -429,7 +431,9 @@ export function YampiCard({ targetUserId }: { targetUserId?: string }) {
                         const stepLabel =
                           att.step === 'preflight'
                             ? 'Validação Prévia (Pre-flight)'
-                            : `Tentativa #${idx + 1}`
+                            : att.codeTried
+                              ? `Tentativa (${att.codeTried})`
+                              : `Tentativa #${idx + 1}`
 
                         return (
                           <div
@@ -452,7 +456,7 @@ export function YampiCard({ targetUserId }: { targetUserId?: string }) {
                                 className={`px-1.5 py-0.2 rounded text-[9px] font-semibold whitespace-nowrap ${badgeColor}`}
                               >
                                 {att.status > 0 ? `HTTP ${att.status}` : 'Rede'}
-                                {isHtml ? ' (HTML/Bloq)' : ''}
+                                {isDuplicateRetry ? ' (Duplicado)' : isHtml ? ' (HTML/Bloq)' : ''}
                               </span>
                             </div>
                             <div className="flex items-center justify-between text-[9px] text-muted-foreground">

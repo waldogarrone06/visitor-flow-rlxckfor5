@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase/client'
+import { createYampiCouponDirect } from '@/services/yampi'
 
 export async function getPrescribers(userId: string) {
   const { data, error } = await supabase
@@ -37,47 +38,27 @@ export async function createYampiCoupon(
   options?: {
     code?: string
     value?: number
-    type?: 'fixed' | 'percent' | 'percentage'
+    type?: 'fixed' | 'percent' | 'percentage' | 'p' | 'v'
     leadId?: string
   },
 ) {
-  // First try the dedicated edge function yampi-create-coupon
-  const { data, error } = await supabase.functions.invoke('yampi-create-coupon', {
-    body: {
-      userId,
-      appointment_id: appointmentId,
-      name,
-      code: options?.code,
-      value: options?.value,
-      type: options?.type || 'fixed',
-      lead_id: options?.leadId,
-      context: { email },
-    },
+  const res = await createYampiCouponDirect({
+    userId,
+    appointment_id: appointmentId,
+    prescritor: name,
+    name,
+    code: options?.code,
+    value: options?.value ?? 10,
+    type: options?.type || 'percent',
+    lead_id: options?.leadId,
+    context: { email },
   })
 
-  // If yampi-create-coupon worked or returned a handled response, return it
-  if (!error && data?.success) {
-    return data
+  if (!res.success) {
+    throw new Error(res.error || 'Erro ao gerar cupom na Yampi')
   }
 
-  // Fallback to legacy yampi-service if user hasn't configured full store credentials yet
-  if (
-    error &&
-    (data?.code === 'YAMPI_NOT_CONFIGURED' || error.message?.includes('YAMPI_NOT_CONFIGURED'))
-  ) {
-    const legacy = await supabase.functions.invoke('yampi-service', {
-      body: { action: 'create-coupon', appointmentId, userId, name, email },
-    })
-    if (legacy.error) throw legacy.error
-    return legacy.data
-  }
-
-  if (error) {
-    const errMsg = data?.error || error.message || 'Erro ao gerar cupom na Yampi'
-    throw new Error(errMsg)
-  }
-
-  return data
+  return res
 }
 
 export async function syncYampiUsage(userId: string) {
