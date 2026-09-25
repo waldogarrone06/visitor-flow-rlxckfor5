@@ -37,7 +37,7 @@ export function YampiCard({ targetUserId }: { targetUserId?: string }) {
 
   // Test modal state
   const [testModalOpen, setTestModalOpen] = useState(false)
-  const [testCode, setTestCode] = useState('TEST-VIP-10')
+  const [testCode, setTestCode] = useState('TEST-VIP-12')
   const [testValue, setTestValue] = useState('10')
   const [testValidityDays, setTestValidityDays] = useState('0')
   const [testing, setTesting] = useState(false)

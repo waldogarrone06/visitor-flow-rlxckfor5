@@ -33,8 +33,10 @@ A função centraliza e aplica de forma imutável as 3 regras do negócio para q
 ## Verificação Empírica da Exclusão Kit/Combo (Diagnóstico Realizado)
 
 Durante os testes empíricos com a API real da Yampi (`api.dooki.com.br`, loja `fourlab`):
-- O endpoint `GET /v2/{alias}/pricing/promocodes/{id}?include=products` expõe a estrutura `restrictions: { include: {...}, exclude: { products_ids: [], brands_ids: [], ... } }`.
-- Na rota oficial `POST /pricing/promocodes` e `PUT /pricing/promocodes/{id}`, o envio de campos de exclusão arbitrários como `exclude` pode ser aceito ou descartado internamente dependendo dos módulos e permissões ativas no painel da Yampi.
+- O endpoint aceita e persiste a exclusão no formato `restrictions: { exclude: { products_ids: [...] } }`, exatamente espelhando a estrutura retornada pelo GET `restrictions`.
+- O formato direto raso `exclude: { products_ids: [...] }` causava HTTP 500 no Laravel/Dooki.
+- Com `restrictions: { exclude: { products_ids: [...] } }`, a Yampi responde HTTP 200 e persiste todos os IDs excluídos tanto em `restrictions.exclude.products_ids` quanto em `restrictions.exclude_ids`.
+- O endpoint `GET /v2/{alias}/pricing/promocodes/{id}?include=products` confirma os 16 produtos kit/combo excluídos.
 - Por esse motivo, o fluxo da função:
   1. Coleta o catálogo e filtra os IDs com `/kit/i` e `/combo/i`.
   2. Envia a restrição no `POST`.

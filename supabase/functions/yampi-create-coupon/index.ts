@@ -297,9 +297,9 @@ Deno.serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         status: 'active',
-        version: 'v6-fixed-rules-exclude-ids-50units-percent',
+        version: 'v7-restrictions-exclude-50units-percent',
         primaryRoute: 'POST https://api.dooki.com.br/v2/{alias}/pricing/promocodes',
-        note: 'Fixed 50 units, percentage discount only, kit/combo exclusion via exclude_ids with graceful fallback.',
+        note: 'Fixed 50 units, percentage discount only, kit/combo exclusion via restrictions.exclude.products_ids with fallback.',
         fixedRules: {
           quantity: FIXED_COUPON_QUANTITY,
           discount_type: FIXED_DISCOUNT_TYPE,
@@ -733,6 +733,12 @@ Deno.serve(async (req: Request) => {
       //   NOTA DIAGNÓSTICO: O formato anterior `exclude: { products_ids: [...] }` causava
       //   HTTP 500 "Internal server error" do backend da Yampi (Laravel / Dooki).
       //   O formato aceito pela API da Yampi é `exclude_ids: number[]`.
+      // Payload oficial da Yampi:
+      // - end_at é SEMPRE obrigatório na prática da API Yampi (formato YYYY-MM-DD HH:MM:SS)
+      // - quantity SEMPRE 50 unidades fixas
+      // - discount_type SEMPRE 'p' (porcentagem)
+      // - Formato comprovado de exclusão na Yampi: restrictions: { exclude: { products_ids: [...] } }
+      //   (também compatível com exclude_ids direto no root).
       const payload: Record<string, unknown> = {
         code: currentCode,
         discount_type: discountType,
@@ -748,6 +754,11 @@ Deno.serve(async (req: Request) => {
       }
 
       if (excludedIds.length > 0) {
+        payload.restrictions = {
+          exclude: {
+            products_ids: excludedIds,
+          },
+        }
         payload.exclude_ids = excludedIds
       }
 
@@ -758,33 +769,45 @@ Deno.serve(async (req: Request) => {
           body: JSON.stringify(payload),
         })
 
-        // Resiliência / Fallback: Se por qualquer razão a API retornar 500 mesmo com exclude_ids,
-        // tentamos imediatamente o payload básico (sem exclusão) para NUNCA falhar a emissão
-        // do cupom por conta de restrições de produto da Yampi.
-        if (res.status === 500 && payload.exclude_ids) {
-          console.warn(
-            '[yampi-create-coupon] POST com exclude_ids retornou 500. Tentando fallback sem exclusão para garantir criação...',
-          )
-          const fallbackPayload = { ...payload }
-          delete fallbackPayload.exclude_ids
-          const fallbackRes = await fetch(endpoint, {
-            method: 'POST',
-            headers: yampiHeaders,
-            body: JSON.stringify(fallbackPayload),
-          })
-          if (fallbackRes.ok) {
-            res = fallbackRes
-            attempts.push({
-              step: 'exclusion_fallback',
-              endpoint,
+        // Resiliência / Fallback: Se a Yampi retornar 500 ou 422 quando enviamos restrições,
+        // tentamos imediatamente o fallback básico (sem exclusão) para NUNCA falhar a emissão
+        // do cupom.
+        if (
+          !res.ok &&
+          (res.status === 500 || res.status === 422) &&
+          (payload.restrictions || payload.exclude_ids)
+        ) {
+          const checkText = await res
+            .clone()
+            .text()
+            .catch(() => '')
+          const isDup = isDuplicateCodeError(res.status, checkText, null)
+          if (!isDup) {
+            console.warn(
+              `[yampi-create-coupon] POST com restrições retornou HTTP ${res.status}. Tentando fallback sem exclusão para garantir criação...`,
+            )
+            const fallbackPayload = { ...payload }
+            delete fallbackPayload.restrictions
+            delete fallbackPayload.exclude_ids
+            const fallbackRes = await fetch(endpoint, {
               method: 'POST',
-              status: fallbackRes.status,
-              isHtml: false,
-              outcome: 'fallback_success',
-              message:
-                'Cupom criado com sucesso no fallback (exclusão kit/combo foi ignorada para não travar a emissão)',
-              codeTried: currentCode,
+              headers: yampiHeaders,
+              body: JSON.stringify(fallbackPayload),
             })
+            if (fallbackRes.ok) {
+              res = fallbackRes
+              attempts.push({
+                step: 'exclusion_fallback',
+                endpoint,
+                method: 'POST',
+                status: fallbackRes.status,
+                isHtml: false,
+                outcome: 'fallback_success',
+                message:
+                  'Cupom criado com sucesso no fallback (exclusão kit/combo foi ignorada no POST de criação para não travar a emissão)',
+                codeTried: currentCode,
+              })
+            }
           }
         }
 
@@ -1022,7 +1045,8 @@ Deno.serve(async (req: Request) => {
 
           // Verificar se os IDs foram salvos no exclude (direto ou em restrictions)
           const directExclude = fetchedCoupon?.exclude?.products_ids || fetchedCoupon?.exclude_ids
-          const restrictionsExclude = restrictions?.exclude?.products_ids
+          const restrictionsExclude =
+            restrictions?.exclude?.products_ids || restrictions?.exclude_ids
 
           const hasDirectIds = Array.isArray(directExclude) && directExclude.length > 0
           const hasRestrictionIds =
@@ -1031,12 +1055,12 @@ Deno.serve(async (req: Request) => {
           if (hasDirectIds || hasRestrictionIds) {
             exclusionAppliedVia = 'create'
             exclusionPersisted = true
-          } else {
+          } else if (excludedIds.length > 0) {
             console.warn(
               `[yampi-create-coupon] Exclude não persistido no POST CREATE do cupom ${createdId}. Tentando PUT...`,
             )
 
-            // Tentativa via PUT com todos os campos obrigatórios da Yampi usando exclude_ids
+            // Tentativa via PUT com restrictions.exclude.products_ids e exclude_ids
             const updateUrl = `https://api.dooki.com.br/v2/${storeAlias}/pricing/promocodes/${createdId}`
             const updatePayload: Record<string, unknown> = {
               code: finalCode,
@@ -1050,6 +1074,11 @@ Deno.serve(async (req: Request) => {
               free_shipment: freeShipment,
               start_at: startAt,
               end_at: endAt,
+              restrictions: {
+                exclude: {
+                  products_ids: excludedIds,
+                },
+              },
               exclude_ids: excludedIds,
             }
             const putRes = await fetch(updateUrl, {
@@ -1072,7 +1101,8 @@ Deno.serve(async (req: Request) => {
               const reRestrictions = reVerifyJson?.restrictions?.exclude?.products_ids || []
               const reDirect = reVerifyJson?.data?.exclude?.products_ids || []
 
-              if (reRestrictions.length > 0 || reDirect.length > 0) {
+              const reExcludeIds = reVerifyJson?.restrictions?.exclude_ids || []
+              if (reRestrictions.length > 0 || reDirect.length > 0 || reExcludeIds.length > 0) {
                 exclusionAppliedVia = 'put'
                 exclusionPersisted = true
                 attempts.push({
