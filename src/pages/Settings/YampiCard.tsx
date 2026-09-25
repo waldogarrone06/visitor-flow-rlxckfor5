@@ -39,7 +39,7 @@ export function YampiCard({ targetUserId }: { targetUserId?: string }) {
   const [testModalOpen, setTestModalOpen] = useState(false)
   const [testCode, setTestCode] = useState('TEST-VIP-10')
   const [testValue, setTestValue] = useState('10')
-  const [testType, setTestType] = useState<'fixed' | 'percent'>('percent')
+  const [testValidityDays, setTestValidityDays] = useState('0')
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState<any>(null)
 
@@ -144,11 +144,13 @@ export function YampiCard({ targetUserId }: { targetUserId?: string }) {
     setTesting(true)
     setTestResult(null)
     try {
+      const parsedDays = Number(testValidityDays)
       const res = await createYampiCouponDirect({
         userId: targetUserId,
         code: testCode.trim().toUpperCase(),
         value: Number(testValue) || 10,
-        type: testType,
+        discount_type: 'p',
+        validity_days: parsedDays > 0 ? parsedDays : null,
         description: 'Cupom de teste gerado pelo Visitor Flow',
       })
 
@@ -156,7 +158,7 @@ export function YampiCard({ targetUserId }: { targetUserId?: string }) {
       if (res.success) {
         toast({
           title: 'Cupom Criado!',
-          description: `Cupom ${res.code} gerado com sucesso na Yampi.`,
+          description: `Cupom ${res.code} gerado na Yampi (50 unidades fixas, ${res.value || 10}% de desconto).`,
         })
       } else {
         toast({
@@ -339,6 +341,22 @@ export function YampiCard({ targetUserId }: { targetUserId?: string }) {
           </DialogHeader>
 
           <div className="space-y-4 py-2">
+            <div className="p-2.5 rounded-md bg-slate-50 border border-slate-200 text-xs space-y-1">
+              <div className="font-semibold text-slate-800">Regras de Negócio Fixas:</div>
+              <ul className="list-disc list-inside text-muted-foreground space-y-0.5">
+                <li>
+                  Total de cupons: <strong className="text-foreground">50 unidades</strong> (fixo)
+                </li>
+                <li>
+                  Desconto: <strong className="text-foreground">Sempre em porcentagem (%)</strong>
+                </li>
+                <li>
+                  Exceção: Produtos com <strong className="text-foreground">kit</strong> ou{' '}
+                  <strong className="text-foreground">combo</strong> não entram
+                </li>
+              </ul>
+            </div>
+
             <div className="space-y-1.5">
               <Label>Código do Cupom</Label>
               <Input
@@ -348,28 +366,52 @@ export function YampiCard({ targetUserId }: { targetUserId?: string }) {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <div className="space-y-1.5">
-                <Label>Tipo de Desconto</Label>
-                <select
-                  value={testType}
-                  onChange={(e) => setTestType(e.target.value as any)}
-                  className="w-full border rounded-md h-9 px-3 text-sm bg-background"
-                >
-                  <option value="percent">Porcentagem (%)</option>
-                  <option value="fixed">Valor Fixo (R$)</option>
-                </select>
+                <Label>Tipo</Label>
+                <Input
+                  value="Porcentagem (%)"
+                  disabled
+                  className="bg-muted text-muted-foreground text-xs font-medium cursor-not-allowed"
+                />
               </div>
 
               <div className="space-y-1.5">
-                <Label>Valor</Label>
+                <Label>Desconto (%)</Label>
                 <Input
                   type="number"
+                  min="1"
+                  max="100"
                   value={testValue}
                   onChange={(e) => setTestValue(e.target.value)}
                   placeholder="10"
                 />
               </div>
+
+              <div className="space-y-1.5">
+                <Label>Quantidade</Label>
+                <Input
+                  value="50 un"
+                  disabled
+                  className="bg-muted text-muted-foreground text-xs font-medium cursor-not-allowed"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="flex items-center justify-between">
+                <span>Validade (dias)</span>
+                <span className="text-[11px] text-muted-foreground font-normal">
+                  0 = Sem expiração (~10 anos)
+                </span>
+              </Label>
+              <Input
+                type="number"
+                min="0"
+                value={testValidityDays}
+                onChange={(e) => setTestValidityDays(e.target.value)}
+                placeholder="0"
+              />
             </div>
 
             {testResult && (
@@ -404,6 +446,23 @@ export function YampiCard({ targetUserId }: { targetUserId?: string }) {
                 {testResult.endpoint && (
                   <div className="font-mono text-[10px] text-muted-foreground break-all">
                     Rota final: {testResult.endpoint}
+                  </div>
+                )}
+
+                {testResult.warning && (
+                  <div className="text-xs text-amber-900 bg-amber-50 p-2 rounded border border-amber-200 leading-relaxed">
+                    ⚠️ {testResult.warning}
+                  </div>
+                )}
+
+                {testResult.fixedRulesApplied && (
+                  <div className="text-[10px] text-muted-foreground border-t border-border/40 pt-1.5">
+                    Regras: {testResult.fixedRulesApplied.quantity} un |{' '}
+                    {testResult.fixedRulesApplied.discount_type === 'p'
+                      ? 'Porcentagem (%)'
+                      : 'Fixo'}{' '}
+                    | {testResult.fixedRulesApplied.excluded_products_count} produtos kit/combo
+                    filtrados
                   </div>
                 )}
 

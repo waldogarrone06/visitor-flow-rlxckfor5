@@ -184,9 +184,12 @@ export function LeadList() {
       } else if (action === 'create' && p) {
         setActionLoading(p.id)
         const created = await createYampiCoupon(p.id, user.id, p.client_name, p.client_email)
+        const warnText = created.warning || created.exclusionWarning
         toast({
-          title: 'Cupom Gerado na Yampi',
-          description: `Cupom ${created.code || created.couponCode} criado com sucesso.`,
+          title: 'Cupom Gerado na Yampi (50 un, %)',
+          description: `Cupom ${created.code || created.couponCode} criado com sucesso${
+            warnText ? ` (${warnText})` : '.'
+          }`,
         })
       }
       loadData()

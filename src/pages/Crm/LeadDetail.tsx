@@ -426,9 +426,10 @@ export default function LeadDetailPage() {
                           prescritor: lead.name,
                           name: lead.name,
                           lead_id: lead.id,
-                          type: 'fixed',
+                          discount_type: 'p',
+                          type: 'percent',
                           value: 15,
-                          description: `Cupom Nutricionista - ${lead.name}`,
+                          description: `Cupom Nutricionista (15%, 50 un) - ${lead.name}`,
                         }),
                         createYampiCouponDirect({
                           userId: lead.userId || (lead as any).user_id,
@@ -436,9 +437,10 @@ export default function LeadDetailPage() {
                           prescritor: lead.name,
                           name: lead.name,
                           lead_id: lead.id,
+                          discount_type: 'p',
                           type: 'percent',
                           value: 10,
-                          description: `Cupom Pacientes - ${lead.name}`,
+                          description: `Cupom Pacientes (10%, 50 un) - ${lead.name}`,
                         }),
                       ])
 
@@ -455,9 +457,15 @@ export default function LeadDetailPage() {
                       setPatientCoupon(finalPatient)
                       await updateContactCoupons(lead.id, finalNutri, finalPatient)
 
+                      const warnings: string[] = []
+                      if (resNutri.warning) warnings.push(resNutri.warning)
+                      if (resPatient.warning) warnings.push(resPatient.warning)
+
                       toast({
-                        title: 'Cupons Emitidos na Yampi',
-                        description: `Nutricionista: ${finalNutri} | Paciente: ${finalPatient}`,
+                        title: 'Cupons Emitidos na Yampi (50 un, %)',
+                        description: `Nutri (15%): ${finalNutri} | Paciente (10%): ${finalPatient}${
+                          warnings.length > 0 ? ` (${warnings[0]})` : ''
+                        }`,
                       })
                     } catch (err: any) {
                       toast({

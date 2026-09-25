@@ -297,9 +297,9 @@ Deno.serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         status: 'active',
-        version: 'v4-fixed-rules-kit-combo-exclusion',
+        version: 'v5-fixed-rules-kit-combo-exclusion',
         primaryRoute: 'POST https://api.dooki.com.br/v2/{alias}/pricing/promocodes',
-        note: 'Fixed 50 units, percentage discount only, kit/combo exclusion.',
+        note: 'Fixed 50 units, percentage discount only, kit/combo exclusion enforcement.',
         fixedRules: {
           quantity: FIXED_COUPON_QUANTITY,
           discount_type: FIXED_DISCOUNT_TYPE,
@@ -959,10 +959,15 @@ Deno.serve(async (req: Request) => {
 
     // =========================================================================
     // VERIFICAÇÃO E ENFORCEMENT DA EXCLUSÃO:
-    // Se a Yampi NÃO persistiu o exclude no CREATE, aplicamos via PUT /pricing/promocodes/{id}
+    // (a) Busca produtos de catálogo contendo kit/combo
+    // (b) Envia IDs no POST de criação
+    // (c) Consulta cupom criado com include=products e restrictions
+    // (d) Se não persistido, tenta aplicar via PUT
+    // (e) Se a exclusão não puder ser aplicada de forma alguma, retorna aviso claro na resposta
     // =========================================================================
     let exclusionAppliedVia = 'none'
     let exclusionPersisted = false
+    let exclusionWarning: string | null = null
     let verificationSnippet: any = null
 
     if (createdId && excludedIds.length > 0) {
@@ -977,35 +982,33 @@ Deno.serve(async (req: Request) => {
         if (verifyRes.ok) {
           const verifyJson = await verifyRes.json().catch(() => ({}))
           const fetchedCoupon = verifyJson?.data || verifyJson || {}
+          const restrictions = verifyJson?.restrictions || fetchedCoupon?.restrictions || {}
+
           verificationSnippet = {
             exclude: fetchedCoupon?.exclude,
             exclude_ids: fetchedCoupon?.exclude_ids,
+            restrictions_exclude: restrictions?.exclude,
           }
 
-          // Verificar se os IDs foram salvos no exclude
-          const persistedExclude =
-            fetchedCoupon?.exclude?.products_ids || fetchedCoupon?.exclude_ids
-          let hasIds = false
-          if (Array.isArray(persistedExclude) && persistedExclude.length > 0) {
-            hasIds = true
-          } else if (
-            typeof persistedExclude === 'string' &&
-            persistedExclude.length > 2 &&
-            persistedExclude !== '[]'
-          ) {
-            hasIds = true
-          }
+          // Verificar se os IDs foram salvos no exclude (direto ou em restrictions)
+          const directExclude = fetchedCoupon?.exclude?.products_ids || fetchedCoupon?.exclude_ids
+          const restrictionsExclude = restrictions?.exclude?.products_ids
 
-          if (hasIds) {
+          const hasDirectIds = Array.isArray(directExclude) && directExclude.length > 0
+          const hasRestrictionIds =
+            Array.isArray(restrictionsExclude) && restrictionsExclude.length > 0
+
+          if (hasDirectIds || hasRestrictionIds) {
             exclusionAppliedVia = 'create'
             exclusionPersisted = true
           } else {
             console.warn(
-              `[yampi-create-coupon] Exclude não persistido no POST CREATE do cupom ${createdId}. Aplicando via PUT...`,
+              `[yampi-create-coupon] Exclude não persistido no POST CREATE do cupom ${createdId}. Tentando PUT...`,
             )
-            // Tentativa via PUT /v2/{alias}/pricing/promocodes/{id}
+
+            // Tentativa via PUT com todos os campos obrigatórios da Yampi
             const updateUrl = `https://api.dooki.com.br/v2/${storeAlias}/pricing/promocodes/${createdId}`
-            const updatePayload = {
+            const updatePayload: Record<string, unknown> = {
               code: finalCode,
               discount_type: discountType,
               value: discountValue,
@@ -1036,20 +1039,42 @@ Deno.serve(async (req: Request) => {
             } catch {}
 
             if (putRes.ok) {
-              exclusionAppliedVia = 'put'
-              exclusionPersisted = true
-              attempts.push({
-                step: 'exclusion_enforcement',
-                endpoint: updateUrl,
-                method: 'PUT',
-                status: putStatus,
-                isHtml: false,
-                outcome: 'put_success',
-                message: `Exclusão aplicada via PUT pós-criação para ${excludedIds.length} produtos kit/combo`,
-              })
+              // Re-verificar se persistiu após PUT
+              const reVerifyRes = await fetch(verifyUrl, { method: 'GET', headers: yampiHeaders })
+              const reVerifyJson = await reVerifyRes.json().catch(() => ({}))
+              const reRestrictions = reVerifyJson?.restrictions?.exclude?.products_ids || []
+              const reDirect = reVerifyJson?.data?.exclude?.products_ids || []
+
+              if (reRestrictions.length > 0 || reDirect.length > 0) {
+                exclusionAppliedVia = 'put'
+                exclusionPersisted = true
+                attempts.push({
+                  step: 'exclusion_enforcement',
+                  endpoint: updateUrl,
+                  method: 'PUT',
+                  status: putStatus,
+                  isHtml: false,
+                  outcome: 'put_success',
+                  message: `Exclusão aplicada via PUT pós-criação para ${excludedIds.length} produtos kit/combo`,
+                })
+              } else {
+                exclusionAppliedVia = 'not_supported_by_api'
+                exclusionPersisted = false
+                exclusionWarning = `Aviso: A API da Yampi aceitou a requisição do cupom ${finalCode}, mas não persistiu o vínculo de exclusão de produtos (campo exclude.products_ids descartado pela API da Yampi). Os ${excludedIds.length} produtos identificados como 'kit' ou 'combo' podem precisar de restrição manual no painel da Yampi.`
+                attempts.push({
+                  step: 'exclusion_enforcement',
+                  endpoint: updateUrl,
+                  method: 'PUT',
+                  status: putStatus,
+                  isHtml: false,
+                  outcome: 'exclusion_unsupported',
+                  message: exclusionWarning,
+                })
+              }
             } else {
               exclusionAppliedVia = 'put_failed'
               exclusionPersisted = false
+              exclusionWarning = `Aviso: A exceção kit/combo NÃO foi aplicada ao cupom ${finalCode} na Yampi. O endpoint PUT retornou HTTP ${putStatus}: ${putJson?.message || putText.substring(0, 150)}. Os ${excludedIds.length} produtos 'kit' ou 'combo' não puderam ser excluídos automaticamente.`
               attempts.push({
                 step: 'exclusion_enforcement',
                 endpoint: updateUrl,
@@ -1068,7 +1093,16 @@ Deno.serve(async (req: Request) => {
           '[yampi-create-coupon] Erro ao verificar/atualizar exclusão:',
           verifyErr.message,
         )
+        exclusionWarning = `Aviso: Falha ao verificar/aplicar exclusão kit/combo na Yampi: ${verifyErr.message}`
       }
+    } else if (excludedIds.length === 0) {
+      exclusionAppliedVia = 'none_found'
+      exclusionPersisted = true
+    }
+
+    // Se a exclusão kit/combo não foi persistida e havia itens a excluir, garantir aviso explícito
+    if (!exclusionPersisted && excludedIds.length > 0 && !exclusionWarning) {
+      exclusionWarning = `Aviso: A exceção kit/combo NÃO foi aplicada ao cupom ${finalCode} na Yampi. Os ${excludedIds.length} produtos detectados como kit/combo continuam elegíveis caso não sejam restritos manualmente no painel da Yampi.`
     }
 
     // Update appointment if appointment_id was provided
@@ -1129,6 +1163,8 @@ Deno.serve(async (req: Request) => {
         discountType,
         value: discountValue,
         quantity,
+        warning: exclusionWarning || undefined,
+        exclusionWarning: exclusionWarning || undefined,
         fixedRulesApplied: {
           quantity: FIXED_COUPON_QUANTITY,
           discount_type: FIXED_DISCOUNT_TYPE,
@@ -1137,6 +1173,7 @@ Deno.serve(async (req: Request) => {
           excluded_products_sample: matchedNames.slice(0, 10),
           exclusion_applied_via: exclusionAppliedVia,
           exclusion_persisted: exclusionPersisted,
+          exclusion_warning: exclusionWarning || null,
         },
         endpoint,
         attempts,

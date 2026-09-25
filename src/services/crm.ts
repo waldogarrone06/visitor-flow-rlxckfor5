@@ -38,7 +38,7 @@ export async function createYampiCoupon(
   options?: {
     code?: string
     value?: number
-    type?: 'fixed' | 'percent' | 'percentage' | 'p' | 'v'
+    validityDays?: number
     leadId?: string
   },
 ) {
@@ -49,7 +49,9 @@ export async function createYampiCoupon(
     name,
     code: options?.code,
     value: options?.value ?? 10,
-    type: options?.type || 'percent',
+    discount_type: 'p',
+    type: 'percent',
+    validity_days: options?.validityDays ?? null,
     lead_id: options?.leadId,
     context: { email },
   })

@@ -48,6 +48,19 @@ export interface CreateYampiCouponResult {
   couponCode?: string
   discountType?: string
   value?: number
+  quantity?: number
+  warning?: string
+  exclusionWarning?: string
+  fixedRulesApplied?: {
+    quantity: number
+    discount_type: string
+    excluded_keywords: string[]
+    excluded_products_count: number
+    excluded_products_sample?: string[]
+    exclusion_applied_via?: string
+    exclusion_persisted?: boolean
+    exclusion_warning?: string | null
+  }
   endpoint?: string
   attempts?: YampiAttempt[]
   preflight?: {
