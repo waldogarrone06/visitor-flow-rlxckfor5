@@ -18,6 +18,7 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { createYampiCouponDirect } from '@/services/yampi'
+import { triggerDualCouponsFlow } from '@/services/coupons-flow'
 import { Badge } from '@/components/ui/badge'
 import { ConversionEvolutionChart } from './ConversionEvolutionChart'
 import { format } from 'date-fns'
@@ -408,69 +409,41 @@ export default function LeadDetailPage() {
                   onClick={async () => {
                     setIsGeneratingYampi(true)
                     try {
-                      // Generate both coupons on Yampi if not present
-                      const baseName = lead.name || 'CLIENTE'
-                      const cleanBase = baseName
-                        .replace(/[^a-zA-Z0-9]/g, '')
-                        .substring(0, 4)
-                        .toUpperCase()
-                      const rand = Math.floor(1000 + Math.random() * 9000)
+                      // Dispara o fluxo padrão de cupons duplos (10% paciente, 30% pessoal) e envio no WhatsApp
+                      const dualRes = await triggerDualCouponsFlow({
+                        contactId: lead.id,
+                        userId: lead.userId || (lead as any).user_id,
+                        force: !!(nutritionistCoupon && patientCoupon),
+                      })
 
-                      const nutriCode = nutritionistCoupon || `NUTRI-${cleanBase}-${rand}`
-                      const patientCode = patientCoupon || `PACIENTE-${cleanBase}-${rand}`
-
-                      const [resNutri, resPatient] = await Promise.all([
-                        createYampiCouponDirect({
-                          userId: lead.userId || (lead as any).user_id,
-                          code: nutriCode,
-                          prescritor: lead.name,
-                          name: lead.name,
-                          lead_id: lead.id,
-                          discount_type: 'p',
-                          type: 'percent',
-                          value: 15,
-                          description: `Cupom Nutricionista (15%, 50 un) - ${lead.name}`,
-                        }),
-                        createYampiCouponDirect({
-                          userId: lead.userId || (lead as any).user_id,
-                          code: patientCode,
-                          prescritor: lead.name,
-                          name: lead.name,
-                          lead_id: lead.id,
-                          discount_type: 'p',
-                          type: 'percent',
-                          value: 10,
-                          description: `Cupom Pacientes (10%, 50 un) - ${lead.name}`,
-                        }),
-                      ])
-
-                      if (!resNutri.success && !resPatient.success) {
-                        throw new Error(
-                          resNutri.error || resPatient.error || 'Falha ao emitir cupons na Yampi.',
-                        )
+                      if (!dualRes.success) {
+                        throw new Error(dualRes.error || 'Falha ao processar cupons duplos.')
                       }
 
-                      const finalNutri = resNutri.code || nutriCode
-                      const finalPatient = resPatient.code || patientCode
+                      const pat = dualRes.coupons?.patient?.code
+                      const pers = dualRes.coupons?.personal?.code
 
-                      setNutritionistCoupon(finalNutri)
-                      setPatientCoupon(finalPatient)
-                      await updateContactCoupons(lead.id, finalNutri, finalPatient)
+                      if (pat) setPatientCoupon(pat)
+                      if (pers) setNutritionistCoupon(pers)
 
-                      const warnings: string[] = []
-                      if (resNutri.warning) warnings.push(resNutri.warning)
-                      if (resPatient.warning) warnings.push(resPatient.warning)
+                      const comm = dualRes.communication
+                      let desc = `Paciente (10%): ${pat} | Nutri (30%): ${pers}.`
+                      if (comm?.channel === 'whatsapp' && comm.status === 'sent') {
+                        desc += ' Enviados com sucesso no WhatsApp!'
+                      } else if (comm?.channel === 'email' && comm.status === 'sent') {
+                        desc += ` Enviados por e-mail para ${comm.recipient}.`
+                      }
 
                       toast({
-                        title: 'Cupons Emitidos na Yampi (50 un, %)',
-                        description: `Nutri (15%): ${finalNutri} | Paciente (10%): ${finalPatient}${
-                          warnings.length > 0 ? ` (${warnings[0]})` : ''
-                        }`,
+                        title: dualRes.isExisting
+                          ? 'Cupons Identificados'
+                          : 'Cupons Criados e Enviados!',
+                        description: desc,
                       })
                     } catch (err: any) {
                       toast({
-                        title: 'Erro ao emitir na Yampi',
-                        description: err.message || 'Falha na comunicação com a API Yampi.',
+                        title: 'Erro no Fluxo de Cupons',
+                        description: err.message || 'Falha na comunicação com a API.',
                         variant: 'destructive',
                       })
                     } finally {
@@ -481,7 +454,9 @@ export default function LeadDetailPage() {
                   className="w-full sm:w-auto gap-2 border-primary/30 text-primary hover:bg-primary/5"
                 >
                   <Sparkles className="h-4 w-4 text-amber-500" />
-                  {isGeneratingYampi ? 'Emitindo na Yampi...' : 'Gerar Cupons Automáticos (Yampi)'}
+                  {isGeneratingYampi
+                    ? 'Emitindo e Enviando...'
+                    : 'Gerar e Enviar Cupons (10% e 30%)'}
                 </Button>
               </div>
             </CardContent>

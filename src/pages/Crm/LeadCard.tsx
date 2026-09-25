@@ -58,7 +58,7 @@ export function LeadCard({
       const { data } = await supabase
         .from('appointments')
         .select(
-          'id, google_meet_link, status, client_name, client_phone, client_email, appointment_date, start_time, kit_name',
+          'id, google_meet_link, status, client_name, client_phone, client_email, appointment_date, start_time, kit_name, patient_coupon, nutritionist_coupon',
         )
         .eq('client_name', lead.name)
         .order('created_at', { ascending: false })
@@ -420,7 +420,31 @@ Até logo! 😊
               </Button>
             ) : null}
 
-            {lead.couponCode && (
+            {dbApp?.patient_coupon ||
+            dbApp?.nutritionist_coupon ||
+            lead.patientCoupon ||
+            lead.nutritionistCoupon ? (
+              <div className="flex flex-col gap-1">
+                {(dbApp?.patient_coupon || lead.patientCoupon) && (
+                  <Badge
+                    variant="outline"
+                    className="w-fit text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200 pointer-events-none gap-1"
+                  >
+                    <Ticket className="h-3 w-3" />
+                    Paciente (10%): {dbApp?.patient_coupon || lead.patientCoupon}
+                  </Badge>
+                )}
+                {(dbApp?.nutritionist_coupon || lead.nutritionistCoupon) && (
+                  <Badge
+                    variant="outline"
+                    className="w-fit text-[10px] bg-purple-50 text-purple-700 border-purple-200 pointer-events-none gap-1"
+                  >
+                    <Ticket className="h-3 w-3" />
+                    Pessoal (30%): {dbApp?.nutritionist_coupon || lead.nutritionistCoupon}
+                  </Badge>
+                )}
+              </div>
+            ) : lead.couponCode ? (
               <Badge
                 variant="outline"
                 className="w-fit text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200 pointer-events-none gap-1"
@@ -428,7 +452,7 @@ Até logo! 😊
                 <Ticket className="h-3 w-3" />
                 Cupom: {lead.couponCode} ({lead.couponUsage || 0})
               </Badge>
-            )}
+            ) : null}
 
             {(kit || dbApp?.kit_name) && (
               <Badge

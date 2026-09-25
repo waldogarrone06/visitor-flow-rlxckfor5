@@ -24,6 +24,8 @@ import {
 } from '@/components/ui/select'
 import { Calendar as CalendarIcon, Filter, X } from 'lucide-react'
 import { DateRange } from 'react-day-picker'
+import { toast } from '@/hooks/use-toast'
+import { triggerDualCouponsFlow } from '@/services/coupons-flow'
 import { LeadCard } from './LeadCard'
 
 const STAGES: { id: LeadStage; label: string; color: string }[] = [
@@ -170,6 +172,59 @@ export function KanbanBoard() {
 
         await supabase.from('appointments').update({ status: newStatus }).eq('id', leadId)
         setDbLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, stage } : l)))
+
+        // Se o estágio foi alterado para 'Visitado', disparar automaticamente os cupons duplos
+        if (stage === 'Visitado') {
+          toast({
+            title: 'Visita Concluída!',
+            description:
+              'Gerando cupons Yampi (10% paciente e 30% pessoal) e enviando no WhatsApp...',
+          })
+
+          triggerDualCouponsFlow({
+            appointmentId: leadId,
+            userId: user?.id,
+          }).then((dualResult) => {
+            if (dualResult.success) {
+              if (dualResult.isExisting) {
+                const pat = dualResult.coupons?.patient?.code
+                const pers = dualResult.coupons?.personal?.code
+                toast({
+                  title: 'Cupons Já Existentes',
+                  description: `A nutricionista já possui cupons: Paciente (${pat}) | Pessoal (${pers}).`,
+                })
+              } else {
+                const pat = dualResult.coupons?.patient?.code
+                const pers = dualResult.coupons?.personal?.code
+                const comm = dualResult.communication
+
+                if (comm?.channel === 'whatsapp' && comm.status === 'sent') {
+                  toast({
+                    title: '2 Cupons Criados e Enviados!',
+                    description: `Cupons (${pat} e ${pers}) enviados no WhatsApp da nutricionista.`,
+                  })
+                } else if (comm?.channel === 'email' && comm.status === 'sent') {
+                  toast({
+                    title: '2 Cupons Criados (Enviados por E-mail)',
+                    description: `WhatsApp indisponível. Cupons (${pat} e ${pers}) enviados para ${comm.recipient}.`,
+                  })
+                } else {
+                  toast({
+                    title: '2 Cupons Criados na Yampi!',
+                    description: `Paciente (10%): ${pat} | Pessoal (30%): ${pers}. Aviso: envio automático pendente (${comm?.error || 'verificar contato'}).`,
+                  })
+                }
+              }
+            } else {
+              toast({
+                title: 'Aviso na Emissão de Cupons',
+                description:
+                  dualResult.error || 'Não foi possível emitir os cupons automaticamente.',
+                variant: 'destructive',
+              })
+            }
+          })
+        }
       }
     }
   }

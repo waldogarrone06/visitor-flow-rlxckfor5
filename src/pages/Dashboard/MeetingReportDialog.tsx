@@ -16,6 +16,7 @@ import { useMainStore } from '@/stores/main'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { triggerDualCouponsFlow } from '@/services/coupons-flow'
 
 interface MeetingSlot {
   date: string
@@ -115,6 +116,18 @@ export function MeetingReportDialog({ slot, open, onOpenChange }: Props) {
         ? 'Participação registrada e prontuários atualizados com sucesso.'
         : 'Relatório de participação gerado com sucesso.',
     })
+
+    // Disparar emissão dos cupons duplos para os presentes
+    attendedIds.forEach((contactId) => {
+      triggerDualCouponsFlow({ contactId }).then((res) => {
+        if (res.success && !res.isExisting) {
+          toast.success('Cupons Gerados e Enviados', {
+            description: `Nutricionista recebeu os cupons (${res.coupons?.patient?.code} e ${res.coupons?.personal?.code}).`,
+          })
+        }
+      })
+    })
+
     onOpenChange(false)
   }
 

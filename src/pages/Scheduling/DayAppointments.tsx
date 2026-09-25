@@ -3,9 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { supabase } from '@/lib/supabase/client'
 import { format } from 'date-fns'
 import { useAuth } from '@/hooks/use-auth'
-import { Loader2, Clock, User, Trash2, Copy } from 'lucide-react'
+import { Loader2, Clock, User, Trash2, Copy, CheckCircle2, Sparkles } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { triggerDualCouponsFlow } from '@/services/coupons-flow'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,6 +32,7 @@ export function DayAppointments({ date, onUpdate, onDuplicate }: DayAppointments
   const [loading, setLoading] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [processingId, setProcessingId] = useState<string | null>(null)
 
   const fetchAppointments = useCallback(async () => {
     if (!date || !user) return
@@ -100,6 +102,77 @@ export function DayAppointments({ date, onUpdate, onDuplicate }: DayAppointments
     onDuplicate(app)
   }
 
+  const handleMarkVisited = async (app: any) => {
+    setProcessingId(app.id)
+    try {
+      const { error } = await supabase
+        .from('appointments')
+        .update({ status: 'Visited' })
+        .eq('id', app.id)
+
+      if (error) throw error
+
+      toast({
+        title: 'Visita Concluída!',
+        description: 'Gerando cupons Yampi (10% paciente e 30% pessoal) e enviando no WhatsApp...',
+      })
+
+      const dualResult = await triggerDualCouponsFlow({
+        appointmentId: app.id,
+        userId: user?.id,
+      })
+
+      if (dualResult.success) {
+        if (dualResult.isExisting) {
+          const pat = dualResult.coupons?.patient?.code
+          const pers = dualResult.coupons?.personal?.code
+          toast({
+            title: 'Cupons Já Existentes',
+            description: `A nutricionista já possui cupons: Paciente (${pat}) | Pessoal (${pers}).`,
+          })
+        } else {
+          const pat = dualResult.coupons?.patient?.code
+          const pers = dualResult.coupons?.personal?.code
+          const comm = dualResult.communication
+
+          if (comm?.channel === 'whatsapp' && comm.status === 'sent') {
+            toast({
+              title: '2 Cupons Criados e Enviados!',
+              description: `Cupons (${pat} e ${pers}) enviados no WhatsApp da nutricionista.`,
+            })
+          } else if (comm?.channel === 'email' && comm.status === 'sent') {
+            toast({
+              title: '2 Cupons Criados (Enviados por E-mail)',
+              description: `WhatsApp indisponível. Cupons (${pat} e ${pers}) enviados para ${comm.recipient}.`,
+            })
+          } else {
+            toast({
+              title: '2 Cupons Criados na Yampi!',
+              description: `Paciente (10%): ${pat} | Pessoal (30%): ${pers}. Aviso: envio automático pendente (${comm?.error || 'verificar contato'}).`,
+            })
+          }
+        }
+      } else {
+        toast({
+          title: 'Visita Concluída com Aviso',
+          description: `Visita registrada, mas houve falha ao emitir cupons: ${dualResult.error}`,
+          variant: 'destructive',
+        })
+      }
+
+      await fetchAppointments()
+      onUpdate()
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao concluir visita',
+        description: err.message || 'Falha na operação.',
+        variant: 'destructive',
+      })
+    } finally {
+      setProcessingId(null)
+    }
+  }
+
   if (!date) return null
 
   return (
@@ -162,6 +235,28 @@ export function DayAppointments({ date, onUpdate, onDuplicate }: DayAppointments
                   </Badge>
                 </div>
                 <div className="flex items-center gap-2 pt-1 border-t">
+                  {app.status !== 'Visited' && app.status !== 'Cancelled' && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={processingId === app.id}
+                      className="gap-1 h-8 px-2.5 text-success border-success/30 hover:bg-success/10 hover:text-success"
+                      onClick={() => handleMarkVisited(app)}
+                    >
+                      {processingId === app.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                      )}
+                      <span>{processingId === app.id ? 'Emitindo...' : 'Concluir Visita'}</span>
+                    </Button>
+                  )}
+                  {app.status === 'Visited' && (app.patient_coupon || app.nutritionist_coupon) && (
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/40 px-2 py-1 rounded">
+                      <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                      <span>Cupons: {app.patient_coupon || app.nutritionist_coupon}</span>
+                    </div>
+                  )}
                   <Button
                     size="sm"
                     variant="ghost"

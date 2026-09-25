@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { CheckCircle2, Clock, Trash2 } from 'lucide-react'
+import { CheckCircle2, Clock, Trash2, Loader2 } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { format, isToday, isTomorrow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -23,6 +23,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { syncCalendarService } from '@/features/syncCalendarService'
+import { triggerDualCouponsFlow } from '@/services/coupons-flow'
 import { RescheduleDialog } from './RescheduleDialog'
 
 interface DbAppointment {
@@ -32,6 +33,8 @@ interface DbAppointment {
   start_time: string
   end_time: string
   status: string | null
+  nutritionist_coupon?: string | null
+  patient_coupon?: string | null
 }
 
 export function DashboardAgenda({ dateRange }: { dateRange?: DateRange }) {
@@ -41,6 +44,7 @@ export function DashboardAgenda({ dateRange }: { dateRange?: DateRange }) {
   const [loading, setLoading] = useState(true)
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [processingId, setProcessingId] = useState<string | null>(null)
 
   const fetchAppointments = useCallback(async () => {
     if (!user) return
@@ -48,7 +52,9 @@ export function DashboardAgenda({ dateRange }: { dateRange?: DateRange }) {
     try {
       let query = supabase
         .from('appointments')
-        .select('id, client_name, appointment_date, start_time, end_time, status')
+        .select(
+          'id, client_name, appointment_date, start_time, end_time, status, nutritionist_coupon, patient_coupon',
+        )
         .eq('user_id', user.id)
         .neq('status', 'Cancelled')
         .order('appointment_date', { ascending: true })
@@ -100,18 +106,72 @@ export function DashboardAgenda({ dateRange }: { dateRange?: DateRange }) {
     }
   }
 
-  const handleMarkVisited = async (id: string) => {
+  const handleMarkVisited = async (id: string, aptName?: string) => {
+    setProcessingId(id)
     try {
+      // 1. Atualizar status da visita no Supabase
       const { error } = await supabase
         .from('appointments')
         .update({ status: 'Visited' })
         .eq('id', id)
       if (error) throw error
+
       dispatch({ type: 'MARK_VISITED', payload: { appointmentId: id } })
       setAppointments((prev) => prev.filter((a) => a.id !== id))
-      toast({ title: 'Visita Realizada', description: 'Status atualizado com sucesso.' })
+
+      // 2. Disparar automaticamente o fluxo de cupons duplos (10% paciente, 30% pessoal) e envio no WhatsApp
+      toast({
+        title: 'Visita Realizada!',
+        description: 'Gerando cupons Yampi (10% paciente e 30% pessoal) e enviando no WhatsApp...',
+      })
+
+      const dualResult = await triggerDualCouponsFlow({
+        appointmentId: id,
+        userId: user?.id,
+      })
+
+      if (dualResult.success) {
+        if (dualResult.isExisting) {
+          const pat = dualResult.coupons?.patient?.code
+          const pers = dualResult.coupons?.personal?.code
+          toast({
+            title: 'Cupons Já Existentes',
+            description: `A nutricionista já possui cupons: Paciente (${pat}) | Pessoal (${pers}).`,
+          })
+        } else {
+          const pat = dualResult.coupons?.patient?.code
+          const pers = dualResult.coupons?.personal?.code
+          const comm = dualResult.communication
+
+          if (comm?.channel === 'whatsapp' && comm.status === 'sent') {
+            toast({
+              title: '2 Cupons Criados e Enviados!',
+              description: `Cupons (${pat} e ${pers}) enviados com sucesso no WhatsApp da nutricionista.`,
+            })
+          } else if (comm?.channel === 'email' && comm.status === 'sent') {
+            toast({
+              title: '2 Cupons Criados (Enviados por E-mail)',
+              description: `WhatsApp indisponível. Cupons (${pat} e ${pers}) enviados por e-mail para ${comm.recipient}.`,
+            })
+          } else {
+            toast({
+              title: '2 Cupons Criados na Yampi!',
+              description: `Paciente (10%): ${pat} | Pessoal (30%): ${pers}. Aviso: envio automático pendente (${comm?.error || 'verificar contato'}).`,
+              variant: 'default',
+            })
+          }
+        }
+      } else {
+        toast({
+          title: 'Visita Concluída com Aviso',
+          description: `Visita registrada, mas houve falha ao emitir cupons: ${dualResult.error}`,
+          variant: 'destructive',
+        })
+      }
     } catch (err: any) {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' })
+    } finally {
+      setProcessingId(null)
     }
   }
 
@@ -180,11 +240,18 @@ export function DashboardAgenda({ dateRange }: { dateRange?: DateRange }) {
                   <Button
                     size="sm"
                     variant="outline"
+                    disabled={processingId === apt.id}
                     className="gap-1 h-8 px-2 sm:px-3"
-                    onClick={() => handleMarkVisited(apt.id)}
+                    onClick={() => handleMarkVisited(apt.id, apt.client_name)}
                   >
-                    <CheckCircle2 className="h-4 w-4 text-success" />
-                    <span className="hidden sm:inline">Realizada</span>
+                    {processingId === apt.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                    ) : (
+                      <CheckCircle2 className="h-4 w-4 text-success" />
+                    )}
+                    <span className="hidden sm:inline">
+                      {processingId === apt.id ? 'Emitindo Cupons...' : 'Realizada'}
+                    </span>
                   </Button>
                 </div>
               </div>
