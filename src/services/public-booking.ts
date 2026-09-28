@@ -98,8 +98,7 @@ export async function createPublicAppointment(data: any) {
   // Upsert Contact/Lead
   if (data.user_id && data.client_phone) {
     const phoneNum = data.client_phone.replace(/\D/g, '')
-    const { data: existingContacts } = await supabase
-      .from('contacts' as any)
+    const { data: existingContacts } = await (supabase.from('contacts' as any) as any)
       .select('id')
       .eq('user_id', data.user_id)
       .eq('phone', phoneNum)
@@ -118,8 +117,7 @@ export async function createPublicAppointment(data: any) {
     }
 
     if (existingContacts && existingContacts.length > 0) {
-      await supabase
-        .from('contacts' as any)
+      await (supabase.from('contacts' as any) as any)
         .update(contactPayload)
         .eq('id', existingContacts[0].id)
     } else {

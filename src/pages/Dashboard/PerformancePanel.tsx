@@ -89,7 +89,7 @@ export function PerformancePanel({ dateRange }: { dateRange?: DateRange }) {
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
-                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <ChartTooltip content={(<ChartTooltipContent />) as any} />
                   </PieChart>
                 </ResponsiveContainer>
               </ChartContainer>

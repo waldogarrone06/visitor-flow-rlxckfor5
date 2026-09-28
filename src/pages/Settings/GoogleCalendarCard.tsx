@@ -93,6 +93,7 @@ export function GoogleCalendarCard({ targetUserId }: { targetUserId: string }) {
       window.location.href = data.url
     } catch (err: any) {
       console.warn('Catch error on Google OAuth, using fallback:', err)
+      const redirectUri = window.location.origin + '/auth/callback/google'
       toast({
         title: 'Modo de Simulação Ativado',
         description: 'Falha de conexão. Redirecionando com credenciais de teste...',

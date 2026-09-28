@@ -412,7 +412,7 @@ export default function LeadDetailPage() {
                       // Dispara o fluxo padrão de cupons duplos (10% paciente, 30% pessoal) e envio no WhatsApp
                       const dualRes = await triggerDualCouponsFlow({
                         contactId: lead.id,
-                        userId: lead.userId || (lead as any).user_id,
+                        userId: (lead as any).userId || (lead as any).user_id,
                         force: !!(nutritionistCoupon && patientCoupon),
                       })
 

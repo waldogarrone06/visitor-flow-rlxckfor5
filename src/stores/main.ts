@@ -15,6 +15,7 @@ import { initialData } from '@/lib/mock-data'
 
 type Action =
   | { type: 'ADD_LEAD'; payload: Lead }
+  | { type: 'REMOVE_LEAD'; payload: string }
   | { type: 'UPDATE_LEAD_STAGE'; payload: { id: string; stage: LeadStage } }
   | { type: 'SCHEDULE_APPOINTMENT'; payload: { lead: Lead; appointment: Appointment } }
   | { type: 'MARK_VISITED'; payload: { appointmentId: string } }
@@ -136,6 +137,16 @@ function appReducer(state: AppState, action: Action): AppState {
           }
           return l
         }),
+      }
+    }
+
+    case 'REMOVE_LEAD': {
+      return {
+        ...state,
+        leads: state.leads.filter((l) => l.id !== action.payload),
+        appointments: state.appointments.filter(
+          (a) => a.leadId !== action.payload && a.id !== action.payload,
+        ),
       }
     }
 

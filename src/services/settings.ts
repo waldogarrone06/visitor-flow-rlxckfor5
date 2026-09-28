@@ -15,8 +15,7 @@ export async function getIntegrations(targetUserId?: string) {
     const userId = targetUserId || (await supabase.auth.getUser()).data.user?.id
     if (!userId) return null
 
-    const { data, error } = await supabase
-      .from('user_integrations' as any)
+    const { data, error } = await (supabase.from('user_integrations' as any) as any)
       .select('*')
       .eq('user_id', userId)
       .maybeSingle()
@@ -171,13 +170,12 @@ export async function getAllSpecificSchedules() {
   } = await supabase.auth.getUser()
   if (!user) return []
 
-  const { data, error } = await supabase
-    .from('date_specific_schedules' as any)
+  const { data, error } = await (supabase.from('date_specific_schedules' as any) as any)
     .select('specific_date')
     .eq('user_id', user.id)
 
   if (error) console.error('Error fetching all specific schedules:', error)
-  return data || []
+  return (data || []) as { specific_date: string }[]
 }
 
 export async function getProfiles() {

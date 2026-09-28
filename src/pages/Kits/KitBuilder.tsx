@@ -5,13 +5,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
   Trash2,
   Plus,
   Package,
@@ -100,6 +93,8 @@ export function KitBuilder() {
   const [kitName, setKitName] = useState('')
   const [kitComboOpen, setKitComboOpen] = useState(false)
   const [selectedLeadId, setSelectedLeadId] = useState('')
+  const [leadComboOpen, setLeadComboOpen] = useState(false)
+  const [leadSearch, setLeadSearch] = useState('')
   const [nutriCoupon, setNutriCoupon] = useState('')
   const [patientCoupon, setPatientCoupon] = useState('')
   const [items, setItems] = useState<{ product_name: string; quantity: number }[]>([])
@@ -241,6 +236,34 @@ export function KitBuilder() {
   const handleRemoveItem = (i: number) => setItems(items.filter((_, idx) => idx !== i))
   const handleItemChange = (i: number, field: string, value: string | number) =>
     setItems(items.map((item, idx) => (idx === i ? { ...item, [field]: value } : item)))
+
+  const selectedLead = leads.find((l) => l.id === selectedLeadId)
+
+  // Filtragem dos leads por nome/telefone/email a partir de 3 caracteres
+  const filteredLeads = (() => {
+    const term = leadSearch.trim().toLowerCase()
+    if (term.length < 3) {
+      return leads
+    }
+    const cleanSearch = term.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    const digitsOnly = term.replace(/\D/g, '')
+
+    return leads.filter((lead) => {
+      const name = (lead.client_name || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+      const email = (lead.client_email || '').toLowerCase()
+      const phone = lead.client_phone || ''
+      const phoneDigits = phone.replace(/\D/g, '')
+
+      if (name.includes(cleanSearch)) return true
+      if (email.includes(cleanSearch)) return true
+      if (digitsOnly.length >= 3 && phoneDigits.includes(digitsOnly)) return true
+      if (phone.toLowerCase().includes(term)) return true
+      return false
+    })
+  })()
 
   // Regenerar sugestão de códigos baseada no nome
   const handleRegenerateCodes = () => {
@@ -513,20 +536,97 @@ export function KitBuilder() {
               <Label className="text-xs font-semibold uppercase text-muted-foreground">
                 Lead / Prescritor
               </Label>
-              <Select value={selectedLeadId} onValueChange={setSelectedLeadId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um prescritor..." />
-                </SelectTrigger>
-                <SelectContent className="max-h-72">
-                  {leads.map((lead) => (
-                    <SelectItem key={lead.id} value={lead.id}>
-                      <span className="font-medium">{lead.client_name}</span>
-                      {lead.client_phone ? ` • ${lead.client_phone}` : ''}
-                      {lead.client_email ? ` (${lead.client_email})` : ''}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={leadComboOpen} onOpenChange={setLeadComboOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={leadComboOpen}
+                    className="w-full justify-between font-normal text-left h-auto min-h-10 py-2"
+                  >
+                    {selectedLead ? (
+                      <div className="flex flex-col text-left truncate leading-tight">
+                        <span className="font-medium text-slate-900 truncate">
+                          {selectedLead.client_name}
+                        </span>
+                        {(selectedLead.client_phone || selectedLead.client_email) && (
+                          <span className="text-xs text-muted-foreground truncate">
+                            {selectedLead.client_phone}
+                            {selectedLead.client_phone && selectedLead.client_email ? ' • ' : ''}
+                            {selectedLead.client_email}
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground truncate">
+                        Selecione ou busque um prescritor...
+                      </span>
+                    )}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="w-[--radix-popover-trigger-width] min-w-[320px] max-w-[500px] p-0"
+                  align="start"
+                >
+                  <Command shouldFilter={false}>
+                    <CommandInput
+                      placeholder="Digite 3 ou mais letras para buscar..."
+                      value={leadSearch}
+                      onValueChange={setLeadSearch}
+                    />
+                    <CommandList className="max-h-72">
+                      {leadSearch.trim().length > 0 && leadSearch.trim().length < 3 && (
+                        <div className="py-2.5 px-3 text-center text-xs text-muted-foreground">
+                          Digite mais {3 - leadSearch.trim().length}{' '}
+                          {3 - leadSearch.trim().length === 1 ? 'caractere' : 'caracteres'} para
+                          filtrar...
+                        </div>
+                      )}
+                      {filteredLeads.length === 0 ? (
+                        <CommandEmpty>Nenhum lead ou prescritor encontrado.</CommandEmpty>
+                      ) : (
+                        <CommandGroup
+                          heading={
+                            leadSearch.trim().length >= 3
+                              ? `${filteredLeads.length} prescritor(es) encontrado(s)`
+                              : `Todos os prescritores (${leads.length})`
+                          }
+                        >
+                          {filteredLeads.map((lead) => (
+                            <CommandItem
+                              key={lead.id}
+                              value={lead.id}
+                              onSelect={() => {
+                                setSelectedLeadId(lead.id)
+                                setLeadComboOpen(false)
+                              }}
+                              className="cursor-pointer py-2"
+                            >
+                              <Check
+                                className={cn(
+                                  'mr-2 h-4 w-4 shrink-0',
+                                  selectedLeadId === lead.id ? 'opacity-100' : 'opacity-0',
+                                )}
+                              />
+                              <div className="flex flex-col min-w-0">
+                                <span className="font-medium truncate">{lead.client_name}</span>
+                                {(lead.client_phone || lead.client_email) && (
+                                  <span className="text-xs text-muted-foreground truncate">
+                                    {lead.client_phone}
+                                    {lead.client_phone && lead.client_email ? ' • ' : ''}
+                                    {lead.client_email}
+                                  </span>
+                                )}
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      )}
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
 

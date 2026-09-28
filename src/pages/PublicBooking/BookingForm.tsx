@@ -140,11 +140,11 @@ export function BookingForm({ userId, date, slot, onSuccess }: BookingFormProps)
         address: formData.clinic_address || 'Endereço não informado',
         profession: 'médico',
         specialty: formData.specialty,
-        contact: { email: formData.email, phone: formData.phone },
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        phone: formData.phone,
+        email: formData.email,
+        lastInteraction: new Date().toISOString(),
         userId: userId,
-      }
+      } as any
 
       dispatch({ type: 'ADD_LEAD', payload: newLead })
 

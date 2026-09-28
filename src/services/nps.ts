@@ -13,12 +13,11 @@ export async function submitNps(appointmentId: string, score: number, feedback: 
 }
 
 export async function getAppointmentDetails(appointmentId: string) {
-  const { data, error } = await supabase
-    .from('appointments' as any)
+  const { data, error } = await (supabase.from('appointments' as any) as any)
     .select('client_name')
     .eq('id', appointmentId)
     .single()
 
   if (error) throw error
-  return data
+  return data as { client_name: string }
 }

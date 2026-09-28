@@ -298,10 +298,10 @@ export default function ChatPage() {
             return updated.sort((a, b) => {
               const timeA = a.updatedAt
                 ? new Date(a.updatedAt).getTime()
-                : new Date(a.created_at || 0).getTime()
+                : new Date((a as any).created_at || 0).getTime()
               const timeB = b.updatedAt
                 ? new Date(b.updatedAt).getTime()
-                : new Date(b.created_at || 0).getTime()
+                : new Date((b as any).created_at || 0).getTime()
               return timeB - timeA
             })
           })

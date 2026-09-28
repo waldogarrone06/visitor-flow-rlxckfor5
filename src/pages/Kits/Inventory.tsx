@@ -34,14 +34,13 @@ export function KitInventory() {
   const loadInventory = async () => {
     if (!user) return
     setLoading(true)
-    const { data, error } = await supabase
-      .from('inventory_items' as any)
+    const { data, error } = await (supabase.from('inventory_items' as any) as any)
       .select('*')
       .eq('user_id', user.id)
       .order('product_name')
 
     if (!error && data) {
-      setItems(data)
+      setItems(data as InventoryItem[])
     }
     setLoading(false)
   }

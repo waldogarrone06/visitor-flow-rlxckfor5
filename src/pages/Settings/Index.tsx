@@ -65,7 +65,7 @@ export default function SettingsPage() {
             const safeProfiles = Array.isArray(allProfiles) ? allProfiles : []
             setProfiles(safeProfiles)
             setSelectedUserId((prev) => {
-              if (prev && safeProfiles.find((p) => p.id === prev)) return prev
+              if (prev && safeProfiles.find((p: any) => p.id === prev)) return prev
               return user.id
             })
           } catch (profileErr) {

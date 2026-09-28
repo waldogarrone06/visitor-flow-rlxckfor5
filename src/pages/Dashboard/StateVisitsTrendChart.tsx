@@ -54,7 +54,7 @@ export function StateVisitsTrendChart({ dateRange }: { dateRange?: DateRange }) 
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis dataKey="uf" tickLine={false} axisLine={false} tickMargin={8} />
                 <YAxis tickLine={false} axisLine={false} tickMargin={8} allowDecimals={false} />
-                <ChartTooltip content={<ChartTooltipContent />} />
+                <ChartTooltip content={(<ChartTooltipContent />) as any} />
                 <Bar
                   dataKey="total"
                   fill="var(--color-total)"

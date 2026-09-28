@@ -85,7 +85,7 @@ export function ConversionEvolutionChart({ data }: Props) {
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} />
               <YAxis tickLine={false} axisLine={false} tickMargin={8} allowDecimals={false} />
-              <ChartTooltip content={<ChartTooltipContent indicator="dot" />} />
+              <ChartTooltip content={(<ChartTooltipContent indicator="dot" />) as any} />
               <Line
                 type="monotone"
                 dataKey="conversões"

@@ -384,7 +384,7 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
         text: messageText,
         sender: 'me',
         timestamp: new Date().toISOString(),
-        status: 'sending',
+        status: 'sending' as any,
       },
     })
 
@@ -553,15 +553,15 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
                   : 'bg-white border text-foreground rounded-bl-sm',
               )}
             >
-              {msg.type === 'image' && msg.mediaUrl && (
+              {msg.type === 'image' && (msg as any).mediaUrl && (
                 <a
-                  href={msg.mediaUrl}
+                  href={(msg as any).mediaUrl}
                   target="_blank"
                   rel="noreferrer"
                   className="block w-full mb-2"
                 >
                   <img
-                    src={msg.mediaUrl}
+                    src={(msg as any).mediaUrl}
                     alt="attachment"
                     className="rounded-lg w-full max-w-[240px] object-cover border border-white/20"
                   />
@@ -569,7 +569,7 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
               )}
               {msg.type === 'pdf' && (
                 <a
-                  href={msg.mediaUrl}
+                  href={(msg as any).mediaUrl}
                   target="_blank"
                   rel="noreferrer"
                   className={cn(
@@ -581,7 +581,7 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
                 >
                   <FileText className="h-5 w-5 shrink-0" />
                   <span className="text-sm truncate max-w-[160px] font-medium">
-                    {msg.mediaName || 'Documento.pdf'}
+                    {(msg as any).mediaName || 'Documento.pdf'}
                   </span>
                 </a>
               )}
@@ -612,7 +612,7 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
                 {(msg.status === 'error' || msg.status === 'edit_error') && (
                   <AlertCircle className="h-3 w-3 mr-0.5" />
                 )}
-                {msg.isEdited && msg.status !== 'error' && msg.status !== 'edit_error' && (
+                {(msg as any).isEdited && msg.status !== 'error' && msg.status !== 'edit_error' && (
                   <span className="mr-1 italic opacity-70">(editado)</span>
                 )}
                 {msg.status === 'error'

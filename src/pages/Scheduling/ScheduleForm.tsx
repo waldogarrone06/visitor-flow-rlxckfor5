@@ -72,7 +72,7 @@ const formSchema = z.object({
   phone: z.string().min(14, 'Telefone inválido'),
   email: z.string().email('E-mail inválido'),
   profession: z.enum(['médico', 'nutricionista', 'treinador'], {
-    required_error: 'Selecione uma profissão',
+    message: 'Selecione uma profissão',
   }),
   specialty: z.string().max(20, 'Máximo 20 caracteres').optional(),
   registrationNumber: z.string().min(2, 'Registro inválido'),
@@ -325,8 +325,7 @@ export function ScheduleForm({
         const fullAddressDB = `${values.street}, ${values.number}${values.complement ? ` - ${values.complement}` : ''}, ${values.neighborhood}`
 
         // Upsert Contact/Lead in DB
-        const { data: existingContacts } = await supabase
-          .from('contacts' as any)
+        const { data: existingContacts } = await (supabase.from('contacts' as any) as any)
           .select('id')
           .eq('user_id', userId)
           .eq('phone', phoneNum)
@@ -356,8 +355,7 @@ export function ScheduleForm({
           })
         }
 
-        const { data: dbApp, error: dbErr } = await supabase
-          .from('appointments')
+        const { data: dbApp, error: dbErr } = await (supabase.from('appointments') as any)
           .insert({
             user_id: userId,
             client_name: values.name,

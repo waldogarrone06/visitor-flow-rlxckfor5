@@ -17,15 +17,14 @@ export async function getKits(userId?: string, onlyStandard = false) {
 }
 
 export async function createKit(userId: string, kitData: any, items: any[]) {
-  const { data: kit, error: kitError } = await supabase
-    .from('kits' as any)
+  const { data: kit, error: kitError } = await (supabase.from('kits' as any) as any)
     .insert([{ user_id: userId, ...kitData }])
     .select()
     .single()
 
   if (kitError) throw kitError
 
-  if (items.length > 0) {
+  if (items.length > 0 && kit?.id) {
     const itemsToInsert = items.map((i) => ({
       kit_id: kit.id,
       product_name: i.product_name,
@@ -84,8 +83,7 @@ export async function deleteKit(kitId: string) {
 }
 
 export async function assignKitToPrescriber(userId: string, email: string, kitName: string) {
-  const { data: latest } = await supabase
-    .from('appointments' as any)
+  const { data: latest } = await (supabase.from('appointments' as any) as any)
     .select('id')
     .eq('user_id', userId)
     .eq('client_email', email)
@@ -93,9 +91,8 @@ export async function assignKitToPrescriber(userId: string, email: string, kitNa
     .limit(1)
     .single()
 
-  if (latest) {
-    const { error } = await supabase
-      .from('appointments' as any)
+  if (latest?.id) {
+    const { error } = await (supabase.from('appointments' as any) as any)
       .update({ kit_name: kitName })
       .eq('id', latest.id)
 
