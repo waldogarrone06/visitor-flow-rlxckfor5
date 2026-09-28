@@ -192,7 +192,6 @@ export function KitBuilder() {
         // Se já existiam cupons salvos, preencher; se não, sugerir com a base do nome
         const existingNutri = contactMatch?.nutritionist_coupon || lead.nutritionist_coupon || ''
         const existingPat = contactMatch?.patient_coupon || lead.patient_coupon || ''
-
         if (existingNutri) {
           setNutriCoupon(existingNutri)
         } else {
