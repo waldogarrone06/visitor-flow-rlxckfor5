@@ -50,6 +50,8 @@ import {
   X,
   Save,
   Mail,
+  RefreshCw,
+  Loader2,
 } from 'lucide-react'
 import { KitSelect } from '@/components/kit-select'
 import { KitItemsDialog } from '@/components/kit-items-dialog'
@@ -139,6 +141,7 @@ export function KitShipments({ consolidated = false }: { consolidated?: boolean 
     clinic_city: '',
   })
   const [loading, setLoading] = useState(true)
+  const [syncingTracking, setSyncingTracking] = useState(false)
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set())
   const [searchQuery, setSearchQuery] = useState('')
   const [cepLoading, setCepLoading] = useState(false)
@@ -313,21 +316,69 @@ export function KitShipments({ consolidated = false }: { consolidated?: boolean 
   const updateTracking = async (id: string, tracking: string) => {
     const { error } = await supabase
       .from('appointments')
-      .update({ tracking_number: tracking })
+      .update({ tracking_number: tracking.trim() })
       .eq('id', id)
     if (error)
       toast({ title: 'Erro', description: 'Falha ao atualizar rastreio.', variant: 'destructive' })
     else {
       toast({ title: 'Sucesso', description: 'Rastreio atualizado.' })
       fetchShipments()
+      if (tracking.trim()) {
+        // Automatically check tracking for this appointment
+        syncTrackingForAppointment(id)
+      }
+    }
+  }
+
+  const syncTrackingForAppointment = async (appointmentId?: string) => {
+    setSyncingTracking(true)
+    try {
+      const { data, error } = await supabase.functions.invoke('track-shipping', {
+        body: appointmentId ? { appointmentId } : {},
+      })
+      if (error) throw error
+
+      if (data?.updatedCount && data.updatedCount > 0) {
+        toast({
+          title: 'Status atualizados!',
+          description: `${data.updatedCount} envio(s) marcado(s) como Entregue via transportadora.`,
+        })
+        fetchShipments()
+      } else {
+        if (appointmentId) {
+          toast({
+            title: 'Rastreio verificado',
+            description: 'Envio ainda em trânsito ou aguardando atualização da transportadora.',
+          })
+        } else {
+          toast({
+            title: 'Sincronização concluída',
+            description: 'Nenhum novo pacote marcado como entregue no momento.',
+          })
+        }
+      }
+    } catch (err: any) {
+      console.error('Failed to sync shipping status:', err)
+      toast({
+        title: 'Aviso de rastreio',
+        description: 'Não foi possível verificar status com o Melhor Envio no momento.',
+        variant: 'destructive',
+      })
+    } finally {
+      setSyncingTracking(false)
     }
   }
 
   const updateKitStatus = async (id: string, status: string) => {
-    const { error } = await supabase
-      .from('appointments')
-      .update({ kit_status: status })
-      .eq('id', id)
+    const updatePayload: any = { kit_status: status }
+    if (status === 'Entregue' || status === 'Delivered') {
+      const current = shipments.find((s) => s.id === id)
+      if (!current?.delivered_at) {
+        updatePayload.delivered_at = new Date().toISOString()
+      }
+    }
+
+    const { error } = await supabase.from('appointments').update(updatePayload).eq('id', id)
     if (error)
       toast({ title: 'Erro', description: 'Falha ao atualizar status.', variant: 'destructive' })
     else {
@@ -590,6 +641,20 @@ Obrigado por confiar em nosso trabalho!`
               className="w-full sm:w-[250px] pl-9"
             />
           </div>
+          <Button
+            onClick={() => syncTrackingForAppointment()}
+            disabled={syncingTracking || loading}
+            variant="default"
+            className="shrink-0 bg-primary gap-1.5"
+            title="Consultar Melhor Envio e atualizar status de entrega de todos os envios"
+          >
+            {syncingTracking ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
+            {syncingTracking ? 'Sincronizando...' : 'Sincronizar Entregas'}
+          </Button>
           <Button
             onClick={fetchShipments}
             disabled={loading}
@@ -1060,10 +1125,26 @@ Obrigado por confiar em nosso trabalho!`
                                       >
                                         Salvar
                                       </Button>
+                                      {s.tracking_number && (
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => syncTrackingForAppointment(s.id)}
+                                          disabled={syncingTracking}
+                                          title="Verificar entrega na transportadora"
+                                        >
+                                          {syncingTracking ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                          ) : (
+                                            <RefreshCw className="h-4 w-4" />
+                                          )}
+                                        </Button>
+                                      )}
                                     </div>
                                     <p className="text-xs text-muted-foreground">
                                       Dica: Ao salvar o código, o status do kit é atualizado para
-                                      "Enviado" automaticamente.
+                                      "Enviado" automaticamente. A entrega é sincronizada
+                                      periodicamente ou pelo botão "Sincronizar Entregas".
                                     </p>
                                     {s.tracking_number && (
                                       <Button

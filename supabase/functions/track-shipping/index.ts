@@ -60,10 +60,14 @@ const findOrderByTracking = async (
       for (const order of purchase.orders || []) {
         const selfTracking = String(order.self_tracking || '').toLowerCase()
         const fullTracking = String(order.tracking || '').toLowerCase()
+        const protocol = String(order.protocol || '').toLowerCase()
 
         if (
           selfTracking === normalizedCode.toLowerCase() ||
-          fullTracking === originalTracking.toLowerCase()
+          fullTracking === originalTracking.toLowerCase() ||
+          fullTracking === normalizedCode.toLowerCase() ||
+          selfTracking === originalTracking.toLowerCase() ||
+          protocol === normalizedCode.toLowerCase()
         ) {
           if (isDebug)
             debugLog.push({
@@ -95,7 +99,8 @@ Deno.serve(async (req: Request) => {
 
   try {
     let appointmentIdToRefresh: string | null = null
-    const isDebug = new URL(req.url).searchParams.get('debug') === 'true'
+    const urlObj = new URL(req.url)
+    const isDebug = urlObj.searchParams.get('debug') === 'true'
 
     if (req.method === 'POST') {
       try {
@@ -122,9 +127,12 @@ Deno.serve(async (req: Request) => {
     if (appErr) throw appErr
 
     if (!appointments || appointments.length === 0) {
-      return new Response(JSON.stringify({ success: true, message: 'No shipments to track' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
+      return new Response(
+        JSON.stringify({ success: true, message: 'No shipments to track', updatedCount: 0 }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      )
     }
 
     const userIds = [...new Set(appointments.map((a) => a.user_id))]
@@ -133,11 +141,27 @@ Deno.serve(async (req: Request) => {
       .select('user_id, melhor_envio_token')
       .in('user_id', userIds)
 
+    // Fallback: If some user doesn't have a token, look for any token configured in integration_secrets (e.g. admin or logistics user)
     const tokens = new Map<string, string>()
+    let fallbackToken: string | null = null
+
     if (secrets) {
       secrets.forEach((s) => {
-        if (s.melhor_envio_token) tokens.set(String(s.user_id), s.melhor_envio_token)
+        if (s.melhor_envio_token) {
+          tokens.set(String(s.user_id), s.melhor_envio_token)
+          if (!fallbackToken) fallbackToken = s.melhor_envio_token
+        }
       })
+    }
+
+    if (!fallbackToken) {
+      const { data: anySecret } = await supabase
+        .from('integration_secrets')
+        .select('melhor_envio_token')
+        .not('melhor_envio_token', 'is', null)
+        .limit(1)
+        .maybeSingle()
+      if (anySecret?.melhor_envio_token) fallbackToken = anySecret.melhor_envio_token
     }
 
     const updates: string[] = []
@@ -145,7 +169,7 @@ Deno.serve(async (req: Request) => {
     const debugLog: any[] = []
 
     for (const app of appointments) {
-      const token = tokens.get(String(app.user_id))
+      const token = tokens.get(String(app.user_id)) || fallbackToken
 
       if (!token) {
         console.warn(`[track-shipping] No token for user ${app.user_id}`)

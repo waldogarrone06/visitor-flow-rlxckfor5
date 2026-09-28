@@ -165,8 +165,13 @@ export function LeadList() {
   const handleUpdate = async (email: string, updates: any) => {
     if (!user) return
     try {
-      await updatePrescriberData(user.id, email, updates)
-      if (updates.kit_status === 'Delivered') toast({ title: 'NPS Programado' })
+      const payload = { ...updates }
+      if (payload.kit_status === 'Delivered' || payload.kit_status === 'Entregue') {
+        payload.delivered_at = new Date().toISOString()
+      }
+      await updatePrescriberData(user.id, email, payload)
+      if (updates.kit_status === 'Delivered' || updates.kit_status === 'Entregue')
+        toast({ title: 'NPS Programado (24h após entrega)' })
       else toast({ title: 'Atualizado', description: 'Informações salvas.' })
       loadData()
     } catch {
