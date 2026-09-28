@@ -8,6 +8,8 @@ export interface DualCouponsParams {
   contactId?: string
   userId?: string
   force?: boolean
+  customPatientCoupon?: string
+  customPersonalCoupon?: string
 }
 
 export interface DualCouponsResult {

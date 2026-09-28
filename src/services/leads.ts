@@ -9,6 +9,7 @@ export interface LeadOption {
   nutritionist_coupon: string | null
   patient_coupon: string | null
   status: string | null
+  contact_id?: string | null
 }
 
 export async function getLeads(userId: string): Promise<LeadOption[]> {

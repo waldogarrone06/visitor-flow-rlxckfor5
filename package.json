@@ -7,7 +7,7 @@
   "scripts": {
     "start": "vite dev",
     "dev": "vite",
-    "prebuild": "node -e 'const fs=require(\"fs\");if(!fs.existsSync(\"tsconfig.app.json\"))fs.copyFileSync(\"tsconfig.json\",\"tsconfig.app.json\")'",
+    "prebuild": "node -e 'const fs=require(\"fs\");const cfg={compilerOptions:{target:\"ES2022\",useDefineForClassFields:true,lib:[\"ES2023\",\"DOM\",\"DOM.Iterable\"],module:\"ESNext\",skipLibCheck:true,moduleResolution:\"bundler\",allowImportingTsExtensions:true,isolatedModules:true,moduleDetection:\"force\",noEmit:true,jsx:\"react-jsx\",strict:false,noUnusedLocals:false,noUnusedParameters:false,noFallthroughCasesInSwitch:true,baseUrl:\".\",paths:{\"@/*\":[\"./src/*\"]}},include:[\"src\"]};fs.writeFileSync(\"tsconfig.app.json\",JSON.stringify(cfg,null,2))'",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "oxlint src",

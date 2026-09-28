@@ -21,6 +21,8 @@ interface DualCouponsPayload {
   contactId?: string
   userId?: string
   force?: boolean // se true, ignora cupons existentes e reemite
+  customPatientCoupon?: string // Código customizado de cupom do paciente (opcional, sobrescreve derivação do nome)
+  customPersonalCoupon?: string // Código customizado de cupom pessoal da nutri (opcional, sobrescreve derivação do nome)
 }
 
 /**
@@ -343,16 +345,30 @@ Deno.serve(async (req: Request) => {
       )
     }
 
-    // 3. Gerar códigos legíveis baseados no nome da nutricionista
+    // 3. Gerar códigos legíveis baseados no nome da nutricionista ou usar códigos customizados fornecidos
     const baseClean = cleanPrescriberName(prescriberName)
-    // Padrão solicitado:
+    // Padrão solicitado (se não informado manualmente):
     // Paciente: DRAJULIAMENEZES10 (ou NUTRI...10)
     // Pessoal: DRAJULIAMENEZES30 (ou NUTRI...30)
-    const suggestedPatientCode = `${baseClean}10`
-    const suggestedPersonalCode = `${baseClean}30`
+    const cleanCustomCode = (val?: string) => {
+      if (!val) return ''
+      return val
+        .trim()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toUpperCase()
+        .replace(/[^A-Z0-9_-]/g, '')
+        .substring(0, 40)
+    }
+
+    const customPatient = cleanCustomCode(body.customPatientCoupon)
+    const customPersonal = cleanCustomCode(body.customPersonalCoupon)
+
+    const suggestedPatientCode = customPatient || `${baseClean}10`
+    const suggestedPersonalCode = customPersonal || `${baseClean}30`
 
     console.log(
-      `[yampi-dual-coupons] Iniciando criação dos cupons para '${prescriberName}' (Base: ${baseClean})`,
+      `[yampi-dual-coupons] Iniciando criação dos cupons para '${prescriberName}' (Paciente: ${suggestedPatientCode}, Pessoal: ${suggestedPersonalCode})`,
     )
 
     // 4. Invocar a função oficial existente yampi-create-coupon para cada cupom
