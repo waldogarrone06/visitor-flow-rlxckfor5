@@ -270,9 +270,17 @@ export function KitShipments({ consolidated = false }: { consolidated?: boolean 
       .from('contacts')
       .select('name, email, phone, document, cep, address, nutritionist_coupon, patient_coupon')
 
+    // Para usuários com perfil de logística ou gestão de kits (logistics/kit_manager),
+    // a RLS do Supabase já governa o escopo de leitura sobre todos os envios.
+    // Portanto, não filtramos por user_id, permitindo ver os envios de toda a operação.
+    // Para usuários comuns (ex: visitor), mantemos o filtro estrito pelo próprio user_id.
+    const isLogisticsOrManager = profile?.role === 'logistics' || profile?.role === 'kit_manager'
+
     if (!consolidated) {
-      appQuery = appQuery.eq('user_id', session.user.id)
-      contQuery = contQuery.eq('user_id', session.user.id)
+      if (!isLogisticsOrManager) {
+        appQuery = appQuery.eq('user_id', session.user.id)
+        contQuery = contQuery.eq('user_id', session.user.id)
+      }
     } else {
       if (!isManager) {
         // Fallback for security if a regular user forces the prop

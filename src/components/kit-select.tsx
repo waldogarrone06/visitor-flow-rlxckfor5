@@ -36,13 +36,29 @@ export function KitSelect({ appointmentId, value, onUpdated }: KitSelectProps) {
     } = await supabase.auth.getSession()
     if (!session?.user) return
 
-    const { data } = await supabase
-      .from('kits')
-      .select('id, name')
-      .eq('user_id', session.user.id)
-      .order('name', { ascending: true })
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', session.user.id)
+      .single()
 
-    if (data) setKits(data)
+    const isLogisticsOrManager = profile?.role === 'logistics' || profile?.role === 'kit_manager'
+
+    let query = supabase.from('kits').select('id, name').order('name', { ascending: true })
+
+    if (!isLogisticsOrManager) {
+      query = query.eq('user_id', session.user.id)
+    }
+
+    const { data } = await query
+
+    if (data) {
+      // Deduplicar kits por nome caso haja kits com o mesmo nome entre usuários
+      const uniqueByName = data.filter(
+        (kit, index, self) => index === self.findIndex((k) => k.name === kit.name),
+      )
+      setKits(uniqueByName)
+    }
   }
 
   const handleSelect = async (kitName: string) => {
