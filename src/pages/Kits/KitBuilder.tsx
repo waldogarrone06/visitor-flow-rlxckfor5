@@ -299,16 +299,101 @@ export function KitBuilder() {
       )
 
       // Se temos o lead selecionado, vincular kit_name e atualizar status para 'Requested' / pendente
+      // Se não havia appointment mas temos linkedContact ou prescriber selecionado, garantir registro em appointments para que a expedição veja em Meus Envios
       if (lead?.id) {
-        await supabase
+        // Obter dados de endereço do contato se appointment não tiver
+        const updatePayload: any = {
+          kit_name: kitName,
+          kit_status: 'Requested',
+          nutritionist_coupon: nutriCoupon.trim() || undefined,
+          patient_coupon: patientCoupon.trim() || undefined,
+        }
+
+        // Se o lead ainda não tem endereço mas o contato vinculado tem, enriquecer o appointment
+        if (linkedContact?.id) {
+          const { data: contactDetails } = await supabase
+            .from('contacts')
+            .select('address, cep, document')
+            .eq('id', linkedContact.id)
+            .maybeSingle()
+          if (contactDetails?.address) {
+            updatePayload.clinic_address = contactDetails.address
+          }
+          if (contactDetails?.cep) {
+            updatePayload.clinic_cep = contactDetails.cep
+          }
+          if (contactDetails?.document) {
+            updatePayload.client_document = contactDetails.document
+          }
+        }
+
+        await supabase.from('appointments').update(updatePayload).eq('id', lead.id)
+      } else if (linkedContact || lead?.client_email) {
+        // Criar ou atualizar agendamento/registro de envio para o prescritor
+        const email = linkedContact?.email || lead?.client_email || ''
+        const name = linkedContact?.name || lead?.client_name || 'Prescritor'
+        const phone = linkedContact?.phone || lead?.client_phone || ''
+
+        // Verificar se já existe appointment recente para este prescritor
+        let existingAptQuery = supabase
           .from('appointments')
-          .update({
+          .select('id')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+
+        if (email) {
+          existingAptQuery = existingAptQuery.eq('client_email', email)
+        } else if (phone) {
+          existingAptQuery = existingAptQuery.eq('client_phone', phone)
+        }
+
+        const { data: existingApt } = await existingAptQuery.maybeSingle()
+
+        if (existingApt?.id) {
+          await supabase
+            .from('appointments')
+            .update({
+              kit_name: kitName,
+              kit_status: 'Requested',
+              nutritionist_coupon: nutriCoupon.trim() || undefined,
+              patient_coupon: patientCoupon.trim() || undefined,
+            })
+            .eq('id', existingApt.id)
+        } else {
+          // Criar novo registro de envio em appointments
+          let contactAddress = ''
+          let contactCep = ''
+          let contactDoc = ''
+          if (linkedContact?.id) {
+            const { data: cd } = await supabase
+              .from('contacts')
+              .select('address, cep, document')
+              .eq('id', linkedContact.id)
+              .maybeSingle()
+            contactAddress = cd?.address || ''
+            contactCep = cd?.cep || ''
+            contactDoc = cd?.document || ''
+          }
+
+          await supabase.from('appointments').insert({
+            user_id: user.id,
+            client_name: name,
+            client_email: email,
+            client_phone: phone,
+            appointment_date: new Date().toISOString().split('T')[0],
+            start_time: '00:00',
+            end_time: '00:00',
             kit_name: kitName,
             kit_status: 'Requested',
+            status: 'lead',
+            clinic_address: contactAddress,
+            clinic_cep: contactCep,
+            client_document: contactDoc,
+            nutritionist_coupon: nutriCoupon.trim() || undefined,
+            patient_coupon: patientCoupon.trim() || undefined,
           })
-          .eq('id', lead.id)
-      } else if (lead?.client_email) {
-        await assignKitToPrescriber(user.id, lead.client_email, kitName)
+        }
       }
 
       // 2. Disparar a criação dos 2 cupons na Yampi via edge function yampi-dual-coupons

@@ -52,6 +52,9 @@ import {
   Mail,
   RefreshCw,
   Loader2,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react'
 import { KitSelect } from '@/components/kit-select'
 import { KitItemsDialog } from '@/components/kit-items-dialog'
@@ -145,8 +148,21 @@ export function KitShipments({ consolidated = false }: { consolidated?: boolean 
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set())
   const [searchQuery, setSearchQuery] = useState('')
   const [cepLoading, setCepLoading] = useState(false)
+  const [sortColumn, setSortColumn] = useState<
+    'date' | 'client' | 'kit' | 'tracking' | 'delivery' | 'status' | null
+  >('date')
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
   const clinicNumberRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
+
+  const handleSort = (column: 'date' | 'client' | 'kit' | 'tracking' | 'delivery' | 'status') => {
+    if (sortColumn === column) {
+      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortColumn(column)
+      setSortDirection('asc')
+    }
+  }
 
   useEffect(() => {
     fetchShipments()
@@ -248,7 +264,6 @@ export function KitShipments({ consolidated = false }: { consolidated?: boolean 
       .not('kit_status', 'is', null)
       .not('kit_name', 'is', null)
       .neq('kit_name', '')
-      .neq('status', 'Lead')
       .order('created_at', { ascending: false })
 
     let contQuery = supabase
@@ -429,12 +444,11 @@ export function KitShipments({ consolidated = false }: { consolidated?: boolean 
       if (
         currentApp?.kit_status === 'Enviado' ||
         currentApp?.kit_status === 'Entregue' ||
-        currentApp?.kit_status === 'Delivered' ||
-        currentApp?.kit_status === 'Requested'
+        currentApp?.kit_status === 'Delivered'
       ) {
         toast({
           title: 'Atenção',
-          description: 'Este kit já foi solicitado ou enviado anteriormente.',
+          description: 'Este kit já foi enviado anteriormente.',
           variant: 'destructive',
         })
         fetchShipments()
@@ -604,6 +618,7 @@ Obrigado por confiar em nosso trabalho!`
     if (status === 'Entregue' || status === 'Delivered' || status === 'NF Emitida') return 'default'
     if (status === 'Enviado') return 'secondary'
     if (status === 'Aguardando NF') return 'destructive'
+    if (status === 'Requested' || status === 'Solicitado') return 'secondary'
     return 'outline'
   }
 
@@ -616,6 +631,40 @@ Obrigado por confiar em nosso trabalho!`
       s.tracking_number?.toLowerCase().includes(q) ||
       s.kit_name?.toLowerCase().includes(q)
     )
+  })
+
+  const sortedShipments = [...filteredShipments].sort((a, b) => {
+    if (!sortColumn) return 0
+    let valA = ''
+    let valB = ''
+
+    if (sortColumn === 'date') {
+      const dateA = new Date(a.appointment_date || a.created_at).getTime()
+      const dateB = new Date(b.appointment_date || b.created_at).getTime()
+      return sortDirection === 'asc' ? dateA - dateB : dateB - dateA
+    }
+
+    if (sortColumn === 'client') {
+      valA = (a.client_name || '').toLowerCase()
+      valB = (b.client_name || '').toLowerCase()
+    } else if (sortColumn === 'kit') {
+      valA = (a.kit_name || '').toLowerCase()
+      valB = (b.kit_name || '').toLowerCase()
+    } else if (sortColumn === 'tracking') {
+      valA = (a.tracking_number || '').toLowerCase()
+      valB = (b.tracking_number || '').toLowerCase()
+    } else if (sortColumn === 'delivery') {
+      const timeA = a.delivered_at ? new Date(a.delivered_at).getTime() : 0
+      const timeB = b.delivered_at ? new Date(b.delivered_at).getTime() : 0
+      return sortDirection === 'asc' ? timeA - timeB : timeB - timeA
+    } else if (sortColumn === 'status') {
+      valA = (a.kit_status || a.status || '').toLowerCase()
+      valB = (b.kit_status || b.status || '').toLowerCase()
+    }
+
+    return sortDirection === 'asc'
+      ? valA.localeCompare(valB, 'pt-BR')
+      : valB.localeCompare(valA, 'pt-BR')
   })
 
   return (
@@ -671,12 +720,114 @@ Obrigado por confiar em nosso trabalho!`
           <Table className="w-full min-w-[800px] relative">
             <TableHeader className="sticky top-0 bg-background z-10 shadow-sm">
               <TableRow>
-                <TableHead className="whitespace-nowrap">Data</TableHead>
-                <TableHead className="whitespace-nowrap">Cliente</TableHead>
-                <TableHead className="whitespace-nowrap">Kit Solicitado</TableHead>
-                <TableHead className="whitespace-nowrap">Rastreio</TableHead>
-                <TableHead className="whitespace-nowrap">Data de Entrega</TableHead>
-                <TableHead className="whitespace-nowrap">Status</TableHead>
+                <TableHead className="whitespace-nowrap">
+                  <button
+                    type="button"
+                    onClick={() => handleSort('date')}
+                    className="flex items-center gap-1.5 font-medium hover:text-foreground transition-colors cursor-pointer select-none"
+                  >
+                    <span>Data</span>
+                    {sortColumn === 'date' ? (
+                      sortDirection === 'asc' ? (
+                        <ArrowUp className="h-3.5 w-3.5 text-primary" />
+                      ) : (
+                        <ArrowDown className="h-3.5 w-3.5 text-primary" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground/60" />
+                    )}
+                  </button>
+                </TableHead>
+                <TableHead className="whitespace-nowrap">
+                  <button
+                    type="button"
+                    onClick={() => handleSort('client')}
+                    className="flex items-center gap-1.5 font-medium hover:text-foreground transition-colors cursor-pointer select-none"
+                  >
+                    <span>Cliente</span>
+                    {sortColumn === 'client' ? (
+                      sortDirection === 'asc' ? (
+                        <ArrowUp className="h-3.5 w-3.5 text-primary" />
+                      ) : (
+                        <ArrowDown className="h-3.5 w-3.5 text-primary" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground/60" />
+                    )}
+                  </button>
+                </TableHead>
+                <TableHead className="whitespace-nowrap">
+                  <button
+                    type="button"
+                    onClick={() => handleSort('kit')}
+                    className="flex items-center gap-1.5 font-medium hover:text-foreground transition-colors cursor-pointer select-none"
+                  >
+                    <span>Kit Solicitado</span>
+                    {sortColumn === 'kit' ? (
+                      sortDirection === 'asc' ? (
+                        <ArrowUp className="h-3.5 w-3.5 text-primary" />
+                      ) : (
+                        <ArrowDown className="h-3.5 w-3.5 text-primary" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground/60" />
+                    )}
+                  </button>
+                </TableHead>
+                <TableHead className="whitespace-nowrap">
+                  <button
+                    type="button"
+                    onClick={() => handleSort('tracking')}
+                    className="flex items-center gap-1.5 font-medium hover:text-foreground transition-colors cursor-pointer select-none"
+                  >
+                    <span>Rastreio</span>
+                    {sortColumn === 'tracking' ? (
+                      sortDirection === 'asc' ? (
+                        <ArrowUp className="h-3.5 w-3.5 text-primary" />
+                      ) : (
+                        <ArrowDown className="h-3.5 w-3.5 text-primary" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground/60" />
+                    )}
+                  </button>
+                </TableHead>
+                <TableHead className="whitespace-nowrap">
+                  <button
+                    type="button"
+                    onClick={() => handleSort('delivery')}
+                    className="flex items-center gap-1.5 font-medium hover:text-foreground transition-colors cursor-pointer select-none"
+                  >
+                    <span>Data de Entrega</span>
+                    {sortColumn === 'delivery' ? (
+                      sortDirection === 'asc' ? (
+                        <ArrowUp className="h-3.5 w-3.5 text-primary" />
+                      ) : (
+                        <ArrowDown className="h-3.5 w-3.5 text-primary" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground/60" />
+                    )}
+                  </button>
+                </TableHead>
+                <TableHead className="whitespace-nowrap">
+                  <button
+                    type="button"
+                    onClick={() => handleSort('status')}
+                    className="flex items-center gap-1.5 font-medium hover:text-foreground transition-colors cursor-pointer select-none"
+                  >
+                    <span>Status</span>
+                    {sortColumn === 'status' ? (
+                      sortDirection === 'asc' ? (
+                        <ArrowUp className="h-3.5 w-3.5 text-primary" />
+                      ) : (
+                        <ArrowDown className="h-3.5 w-3.5 text-primary" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground/60" />
+                    )}
+                  </button>
+                </TableHead>
                 <TableHead className="text-right whitespace-nowrap">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -687,7 +838,7 @@ Obrigado por confiar em nosso trabalho!`
                     Carregando...
                   </TableCell>
                 </TableRow>
-              ) : filteredShipments.length === 0 ? (
+              ) : sortedShipments.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                     {searchQuery
@@ -696,7 +847,7 @@ Obrigado por confiar em nosso trabalho!`
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredShipments.map((s) => (
+                sortedShipments.map((s) => (
                   <TableRow key={s.id}>
                     <TableCell className="whitespace-nowrap">
                       {format(new Date(s.appointment_date || s.created_at), 'dd/MM/yyyy', {
@@ -739,7 +890,8 @@ Obrigado por confiar em nosso trabalho!`
                       <div className="flex justify-end gap-2 items-center">
                         {(!s.kit_status ||
                           s.kit_status === 'Pending' ||
-                          s.kit_status === 'Pendente') && (
+                          s.kit_status === 'Pendente' ||
+                          s.kit_status === 'Requested') && (
                           <Button
                             size="sm"
                             onClick={() => sendKit(s)}
@@ -885,12 +1037,15 @@ Obrigado por confiar em nosso trabalho!`
                                         value={
                                           [
                                             'Pendente',
+                                            'Requested',
                                             'Aguardando NF',
                                             'NF Emitida',
                                             'Enviado',
                                             'Entregue',
                                           ].includes(s.kit_status || '')
-                                            ? s.kit_status || ''
+                                            ? s.kit_status === 'Requested'
+                                              ? 'Pendente'
+                                              : s.kit_status || ''
                                             : 'Pendente'
                                         }
                                         onValueChange={(val) => {
@@ -916,7 +1071,8 @@ Obrigado por confiar em nosso trabalho!`
                                       </Select>
                                       {(!s.kit_status ||
                                         s.kit_status === 'Pending' ||
-                                        s.kit_status === 'Pendente') && (
+                                        s.kit_status === 'Pendente' ||
+                                        s.kit_status === 'Requested') && (
                                         <Button
                                           size="sm"
                                           onClick={() => sendKit(s)}
