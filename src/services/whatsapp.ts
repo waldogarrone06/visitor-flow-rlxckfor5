@@ -14,6 +14,8 @@ export async function sendWhatsAppMessage(
     parameterFormat?: string
     contactId?: string
     dbMessageId?: string
+    provider?: 'official' | 'evolution'
+    providerType?: 'official' | 'evolution'
   },
 ) {
   const { data, error } = await supabase.functions.invoke('whatsapp-send', {

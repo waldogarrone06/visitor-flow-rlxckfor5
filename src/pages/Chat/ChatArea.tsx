@@ -409,6 +409,7 @@ export function ChatArea({ leadId, onBack }: { leadId: string; onBack: () => voi
         const response: any = await sendWhatsAppMessage(lead.phone, messageText, newMessageId, {
           contactId: contactId || undefined,
           dbMessageId: newMessageId,
+          provider: 'evolution',
         })
         const ev = response?.evolutionResponse
 

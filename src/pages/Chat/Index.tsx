@@ -144,6 +144,7 @@ export default function ChatPage() {
   const [isWindowOpen, setIsWindowOpen] = useState(true)
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false)
   const [selectedTemplate, setSelectedTemplate] = useState<SelectedTemplate | null>(null)
+  const [hasOfficialConfigured, setHasOfficialConfigured] = useState(false)
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const selectedContactRef = useRef<Contact | null>(null)
@@ -162,12 +163,15 @@ export default function ChatPage() {
     const checkConnection = async () => {
       const { data: integration } = await supabase
         .from('user_integrations')
-        .select('whatsapp_connected, whatsapp_instance_id, primary_provider')
+        .select(
+          'whatsapp_connected, whatsapp_instance_id, primary_provider, whatsapp_official_configured',
+        )
         .eq('user_id', user.id)
         .maybeSingle()
 
       if (integration) {
         setInstanceStatus(integration.whatsapp_connected ? 'online' : 'offline')
+        setHasOfficialConfigured(!!integration.whatsapp_official_configured)
         if (integration.primary_provider) {
           setPrimaryProvider(integration.primary_provider as 'official' | 'evolution')
         }
@@ -588,7 +592,6 @@ export default function ChatPage() {
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newMessage.trim() || !selectedContact || !user) return
-    if (primaryProvider === 'official' && !isWindowOpen) return
 
     const content = newMessage.trim()
     setNewMessage('')
@@ -636,7 +639,10 @@ export default function ChatPage() {
         selectedContact.phone,
         content,
         actualMessageId,
-        { contactId: selectedContact.id },
+        {
+          contactId: selectedContact.id,
+          provider: 'evolution',
+        },
       )
 
       let clientId = null
@@ -1164,53 +1170,45 @@ export default function ChatPage() {
             </div>
 
             <div className="p-3 bg-card border-t space-y-2">
-              {primaryProvider === 'official' && (
-                <div className="flex items-center gap-2">
-                  {isWindowOpen ? (
-                    <Badge className="bg-green-500 hover:bg-green-600 text-white text-xs">
-                      <Clock className="w-3 h-3 mr-1" /> Janela ativa
-                    </Badge>
-                  ) : (
-                    <Badge variant="destructive" className="text-xs">
-                      <AlertCircle className="w-3 h-3 mr-1" /> Janela de 24h fechada
-                    </Badge>
-                  )}
+              <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
+                <div className="flex items-center gap-1.5">
+                  <Badge
+                    variant="outline"
+                    className="text-[11px] font-normal border-blue-500/40 text-blue-600 bg-blue-50/50"
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block mr-1" />
+                    Envio via Evolution API (Texto Livre)
+                  </Badge>
+                </div>
+                {hasOfficialConfigured && (
                   <Button
                     type="button"
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
                     onClick={() => setTemplateDialogOpen(true)}
-                    className="ml-auto h-7 text-xs"
+                    className="h-6 text-[11px] text-muted-foreground hover:text-foreground px-2"
+                    title="Enviar template aprovado da Meta"
                   >
-                    <FileText className="w-3 h-3 mr-1" /> Enviar Template
+                    <FileText className="w-3 h-3 mr-1" /> Enviar Template Meta
                   </Button>
-                </div>
-              )}
-              {primaryProvider === 'official' && !isWindowOpen && (
-                <p className="text-xs text-destructive text-center">
-                  A janela de 24h está fechada. Envie um template para iniciar a conversa.
-                </p>
-              )}
+                )}
+              </div>
               <form onSubmit={handleSendMessage} className="flex items-end gap-2">
-                {primaryProvider === 'official' && (
+                {hasOfficialConfigured && (
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon"
                     className="rounded-full shrink-0 h-10 w-10 text-muted-foreground hover:text-foreground mb-0.5"
                     onClick={() => setTemplateDialogOpen(true)}
-                    title="Enviar Template"
+                    title="Enviar Template Meta"
                   >
                     <FileText className="h-5 w-5" />
                   </Button>
                 )}
                 <Textarea
                   ref={textareaRef}
-                  placeholder={
-                    primaryProvider === 'official' && !isWindowOpen
-                      ? 'Janela de 24h fechada. Use um template.'
-                      : 'Digite sua mensagem...'
-                  }
+                  placeholder="Digite sua mensagem via Evolution API..."
                   value={newMessage}
                   onChange={(e) => {
                     setNewMessage(e.target.value)
@@ -1225,17 +1223,13 @@ export default function ChatPage() {
                       }
                     }
                   }}
-                  disabled={sending || (primaryProvider === 'official' && !isWindowOpen)}
+                  disabled={sending}
                   className="flex-1 min-h-[40px] max-h-[120px] rounded-2xl bg-muted/50 border-transparent focus-visible:ring-0 focus-visible:bg-background px-4 py-2 sm:py-2.5 resize-none overflow-y-auto"
                   rows={1}
                 />
                 <Button
                   type="submit"
-                  disabled={
-                    !newMessage.trim() ||
-                    sending ||
-                    (primaryProvider === 'official' && !isWindowOpen)
-                  }
+                  disabled={!newMessage.trim() || sending}
                   size="icon"
                   className="rounded-full shrink-0 h-10 w-10 shadow-sm mb-0.5"
                 >

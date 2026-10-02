@@ -105,7 +105,11 @@ Deno.serve(async (req: Request) => {
       const officialToken = await getOfficialAccessToken(supabaseAdmin, userId)
       const apiTokenSecret = await getSecret(supabaseAdmin, userId, 'whatsapp_api_token')
       const primaryProvider =
-        integration.primary_provider || integration.whatsapp_provider_type || 'evolution'
+        body.provider ||
+        body.providerType ||
+        integration.primary_provider ||
+        integration.whatsapp_provider_type ||
+        'evolution'
 
       providerType = primaryProvider
       cfg = {
