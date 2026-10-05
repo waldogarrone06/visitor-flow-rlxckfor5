@@ -24,6 +24,7 @@ export const EXCLUDED_NAME_KEYWORDS = ['kit', 'combo']
 interface CreateCouponPayload {
   userId?: string
   code?: string
+  force?: boolean
   type?: 'fixed' | 'percent' | 'percentage' | 'value' | 'p' | 'v' | 'f' | string
   discount_type?: 'p' | 'v' | 'f' | 'percentage' | 'fixed' | string
   value?: number
@@ -382,23 +383,138 @@ Deno.serve(async (req: Request) => {
       )
     }
 
-    const rawAlias = (userIntegration?.yampi_alias || '').trim()
-    const storeAlias = rawAlias.toLowerCase().replace(/[^a-z0-9_-]/g, '')
+    let rawAlias = (userIntegration?.yampi_alias || '').trim()
 
     // Read secrets EXCLUSIVELY from integration_secrets via service_role admin client
-    const yampiToken = (await getSecret(supabaseAdmin, effectiveUserId, 'yampi_token')).trim()
-    const yampiSecret = (await getSecret(supabaseAdmin, effectiveUserId, 'yampi_secret')).trim()
+    let yampiToken = (await getSecret(supabaseAdmin, effectiveUserId, 'yampi_token')).trim()
+    let yampiSecret = (await getSecret(supabaseAdmin, effectiveUserId, 'yampi_secret')).trim()
+    let usedFallbackCredentials = false
+    let fallbackOwnerUserId: string | null = null
+
+    // Fallback de operação: se o chamador não tiver credenciais próprias completas (token, secret e alias),
+    // busca qualquer registro configurado na operação (prioridade: usuário admin, depois mais recente)
+    if (!yampiToken || !yampiSecret || !rawAlias) {
+      console.log(
+        `[yampi-create-coupon] Chamador (${effectiveUserId}) não possui credenciais Yampi completas. Buscando credenciais da operação...`,
+      )
+
+      // 1. Buscar em user_integrations com yampi_configured = true e alias preenchido
+      const { data: configuredCandidates } = await supabaseAdmin
+        .from('user_integrations')
+        .select('user_id, yampi_alias, yampi_configured, updated_at')
+        .eq('yampi_configured', true)
+        .not('yampi_alias', 'is', null)
+        .order('updated_at', { ascending: false })
+
+      let candidates = configuredCandidates || []
+      if (candidates.length === 0) {
+        // Fallback secundário: qualquer alias preenchido
+        const { data: anyAliasCandidates } = await supabaseAdmin
+          .from('user_integrations')
+          .select('user_id, yampi_alias, yampi_configured, updated_at')
+          .not('yampi_alias', 'is', null)
+          .order('updated_at', { ascending: false })
+        candidates = anyAliasCandidates || []
+      }
+
+      if (candidates.length > 0) {
+        // Priorizar administradores
+        const candUserIds = candidates.map((c) => c.user_id)
+        const { data: adminProfiles } = await supabaseAdmin
+          .from('profiles')
+          .select('id, is_admin')
+          .in('id', candUserIds)
+
+        const adminMap = new Map<string, boolean>()
+        adminProfiles?.forEach((p: any) => adminMap.set(p.id, Boolean(p.is_admin)))
+
+        candidates.sort((a, b) => {
+          const aAdmin = adminMap.get(a.user_id) ? 1 : 0
+          const bAdmin = adminMap.get(b.user_id) ? 1 : 0
+          if (aAdmin !== bAdmin) return bAdmin - aAdmin
+          return new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime()
+        })
+
+        for (const cand of candidates) {
+          const t = (await getSecret(supabaseAdmin, cand.user_id, 'yampi_token')).trim()
+          const s = (await getSecret(supabaseAdmin, cand.user_id, 'yampi_secret')).trim()
+          const a = (cand.yampi_alias || '').trim()
+
+          if (t && s && a) {
+            yampiToken = t
+            yampiSecret = s
+            rawAlias = a
+            usedFallbackCredentials = true
+            fallbackOwnerUserId = cand.user_id
+            console.log(
+              `[yampi-create-coupon] Usando credenciais Yampi da operação do usuário ${cand.user_id} (alias: ${a})`,
+            )
+            break
+          }
+        }
+      }
+
+      // Se ainda faltar, verificar integration_secrets com token e secret preenchidos
+      if (!yampiToken || !yampiSecret || !rawAlias) {
+        const { data: allSecrets } = await supabaseAdmin
+          .from('integration_secrets')
+          .select('user_id, yampi_token, yampi_secret')
+          .not('yampi_token', 'is', null)
+          .not('yampi_secret', 'is', null)
+
+        if (allSecrets) {
+          for (const row of allSecrets) {
+            const t = String(row.yampi_token || '').trim()
+            const s = String(row.yampi_secret || '').trim()
+            if (t && s) {
+              const { data: integ } = await supabaseAdmin
+                .from('user_integrations')
+                .select('yampi_alias')
+                .eq('user_id', row.user_id)
+                .maybeSingle()
+              const a = (integ?.yampi_alias || rawAlias || '').trim()
+              if (a) {
+                yampiToken = t
+                yampiSecret = s
+                rawAlias = a
+                usedFallbackCredentials = true
+                fallbackOwnerUserId = row.user_id
+                console.log(
+                  `[yampi-create-coupon] Credenciais da operação recuperadas de integration_secrets do usuário ${row.user_id}`,
+                )
+                break
+              }
+            }
+          }
+        }
+      }
+    }
+
+    const storeAlias = rawAlias.toLowerCase().replace(/[^a-z0-9_-]/g, '')
+
+    // Se nenhuma credencial estiver configurada na operação inteira:
+    if (!yampiToken && !yampiSecret && !storeAlias) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          code: 'NO_YAMPI_CREDENTIALS_CONFIGURED',
+          error:
+            'Nenhuma credencial Yampi configurada na operação — configure o Alias da loja, User-Token e User-Secret-Key em Configurações > Integração Yampi.',
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
 
     if (!yampiToken) {
       console.warn(
-        `[yampi-create-coupon] User-Token da Yampi não encontrado para o usuário ${effectiveUserId}`,
+        `[yampi-create-coupon] User-Token da Yampi não encontrado para o usuário ${effectiveUserId} nem na operação`,
       )
       return new Response(
         JSON.stringify({
           success: false,
           code: 'YAMPI_TOKEN_MISSING',
           error:
-            'O User-Token da Yampi não está preenchido. Acesse Configurações > Integração Yampi e salve o User-Token gerado no painel da Yampi.',
+            'O User-Token da Yampi não está configurado na operação. Acesse Configurações > Integração Yampi e salve o User-Token gerado no painel da Yampi.',
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       )
@@ -406,14 +522,14 @@ Deno.serve(async (req: Request) => {
 
     if (!yampiSecret) {
       console.warn(
-        `[yampi-create-coupon] User-Secret-Key da Yampi não encontrado ou vazio para o usuário ${effectiveUserId}`,
+        `[yampi-create-coupon] User-Secret-Key da Yampi não encontrado para o usuário ${effectiveUserId} nem na operação`,
       )
       return new Response(
         JSON.stringify({
           success: false,
           code: 'YAMPI_SECRET_MISSING',
           error:
-            'A chave secreta da Yampi (User-Secret-Key) não está configurada ou está vazia. A API da Yampi exige obrigatoriamente os dois cabeçalhos juntos (User-Token e User-Secret-Key). Acesse Configurações > Integração Yampi e preencha o campo User-Secret-Key da Yampi.',
+            'A chave secreta da Yampi (User-Secret-Key) não está configurada na operação. Acesse Configurações > Integração Yampi e preencha o campo User-Secret-Key.',
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       )
@@ -425,19 +541,18 @@ Deno.serve(async (req: Request) => {
           success: false,
           code: 'YAMPI_ALIAS_REQUIRED',
           error:
-            'O alias da loja Yampi não foi preenchido. Salve o alias da sua loja nas Configurações (ex: o subdomínio em https://admin.yampi.com.br/{alias}).',
+            'O alias da loja Yampi não está configurado na operação. Salve o alias da sua loja em Configurações > Integração Yampi (ex: subdomínio em https://admin.yampi.com.br/{alias}).',
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       )
     }
 
-    // Check if an appointment was specified and already has verified coupon
-    if (body.appointment_id) {
+    // Check if an appointment was specified and already has verified coupon (apenas se não houver flag force)
+    if (body.appointment_id && !body.force) {
       const { data: existingApp } = await supabaseAdmin
         .from('appointments')
         .select('coupon_code, coupon_verified')
         .eq('id', body.appointment_id)
-        .eq('user_id', effectiveUserId)
         .maybeSingle()
 
       if (existingApp?.coupon_verified && existingApp.coupon_code) {
@@ -1162,7 +1277,7 @@ Deno.serve(async (req: Request) => {
       exclusionWarning = `Aviso: A exceção kit/combo NÃO foi aplicada ao cupom ${finalCode} na Yampi. Os ${excludedIds.length} produtos detectados como kit/combo continuam elegíveis caso não sejam restritos manualmente no painel da Yampi.`
     }
 
-    // Update appointment if appointment_id was provided
+    // Update appointment if appointment_id was provided (sem filtrar user_id, pois pode ter sido criado por outro operador)
     if (body.appointment_id) {
       await supabaseAdmin
         .from('appointments')
@@ -1171,10 +1286,9 @@ Deno.serve(async (req: Request) => {
           coupon_verified: true,
         })
         .eq('id', body.appointment_id)
-        .eq('user_id', effectiveUserId)
     }
 
-    // Update contacts if lead_id was provided
+    // Update contacts if lead_id was provided (sem filtrar user_id)
     if (body.lead_id) {
       const updateData: Record<string, any> = {}
       if (discountType === 'p') {
@@ -1182,11 +1296,7 @@ Deno.serve(async (req: Request) => {
       } else {
         updateData.nutritionist_coupon = finalCode
       }
-      await supabaseAdmin
-        .from('contacts')
-        .update(updateData)
-        .eq('id', body.lead_id)
-        .eq('user_id', effectiveUserId)
+      await supabaseAdmin.from('contacts').update(updateData).eq('id', body.lead_id)
     }
 
     // Log interaction in interaction_log table

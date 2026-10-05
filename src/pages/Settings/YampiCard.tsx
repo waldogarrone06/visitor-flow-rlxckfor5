@@ -37,7 +37,7 @@ export function YampiCard({ targetUserId }: { targetUserId?: string }) {
 
   // Test modal state
   const [testModalOpen, setTestModalOpen] = useState(false)
-  const [testCode, setTestCode] = useState('TEST-VIP-12')
+  const [testCode, setTestCode] = useState('TEST-VIP-13')
   const [testValue, setTestValue] = useState('10')
   const [testValidityDays, setTestValidityDays] = useState('0')
   const [testing, setTesting] = useState(false)
@@ -168,9 +168,18 @@ export function YampiCard({ targetUserId }: { targetUserId?: string }) {
         })
       }
     } catch (err: any) {
+      let msg = err.message || 'Falha ao testar cupom.'
+      if (
+        typeof msg === 'string' &&
+        (msg.toLowerCase().includes('edge function returned') ||
+          msg.toLowerCase().includes('failed to fetch'))
+      ) {
+        msg =
+          'Falha na comunicação com a Yampi. Verifique se as credenciais da loja (Alias, User-Token e User-Secret-Key) estão configuradas corretamente.'
+      }
       toast({
         title: 'Erro',
-        description: err.message || 'Falha ao testar cupom.',
+        description: msg,
         variant: 'destructive',
       })
     } finally {

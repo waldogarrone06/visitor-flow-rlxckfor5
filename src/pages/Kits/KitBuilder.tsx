@@ -448,7 +448,15 @@ export function KitBuilder() {
             })
           }
         } else {
-          const errDetail = dualResult?.error || 'Erro ao processar cupons na Yampi.'
+          let errDetail = dualResult?.error || 'Erro ao processar cupons na Yampi.'
+          if (
+            errDetail.toLowerCase().includes('edge function returned') ||
+            errDetail.toLowerCase().includes('failed to fetch')
+          ) {
+            errDetail =
+              'Não foi possível emitir os cupons na Yampi. Verifique se as credenciais da loja (Alias, User-Token e User-Secret-Key) estão configuradas em Configurações > Integração Yampi.'
+          }
+
           setCouponsFeedback({
             type: 'error',
             patientCode: patientCoupon,

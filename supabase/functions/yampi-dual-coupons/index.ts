@@ -199,29 +199,40 @@ Deno.serve(async (req: Request) => {
       if (user) effectiveUserId = user.id
     }
 
-    // Fallback: se não identificado, buscar o primeiro usuário com integração configurada
+    // Fallback: se não identificado, buscar o usuário com integração Yampi configurada ou qualquer integração
     if (!effectiveUserId) {
-      const { data: firstIntegration } = await supabaseAdmin
-        .from('user_integrations')
-        .select('user_id')
-        .eq('whatsapp_official_configured', true)
-        .limit(1)
-        .maybeSingle()
-      if (firstIntegration?.user_id) {
-        effectiveUserId = firstIntegration.user_id
-      }
-    }
-
-    if (!effectiveUserId) {
-      // Outro fallback: qualquer user_integrations com yampi_alias
       const { data: firstYampi } = await supabaseAdmin
         .from('user_integrations')
         .select('user_id')
+        .eq('yampi_configured', true)
         .not('yampi_alias', 'is', null)
         .limit(1)
         .maybeSingle()
       if (firstYampi?.user_id) {
         effectiveUserId = firstYampi.user_id
+      }
+    }
+
+    if (!effectiveUserId) {
+      const { data: firstAlias } = await supabaseAdmin
+        .from('user_integrations')
+        .select('user_id')
+        .not('yampi_alias', 'is', null)
+        .limit(1)
+        .maybeSingle()
+      if (firstAlias?.user_id) {
+        effectiveUserId = firstAlias.user_id
+      }
+    }
+
+    if (!effectiveUserId) {
+      const { data: firstIntegration } = await supabaseAdmin
+        .from('user_integrations')
+        .select('user_id')
+        .limit(1)
+        .maybeSingle()
+      if (firstIntegration?.user_id) {
+        effectiveUserId = firstIntegration.user_id
       }
     }
 
@@ -364,6 +375,8 @@ Deno.serve(async (req: Request) => {
     const customPatient = cleanCustomCode(body.customPatientCoupon)
     const customPersonal = cleanCustomCode(body.customPersonalCoupon)
 
+    // Se ambos vierem vazios, derivar com baseClean + sufixos 10 e 30
+    // Se vierem com o mesmo código por engano do chamador, apenas mantemos se explicitamente fornecidos
     const suggestedPatientCode = customPatient || `${baseClean}10`
     const suggestedPersonalCode = customPersonal || `${baseClean}30`
 
@@ -380,6 +393,7 @@ Deno.serve(async (req: Request) => {
       name: prescriberName,
       lead_id: contact?.id || undefined,
       appointment_id: appointment?.id || undefined,
+      force: Boolean(body.force),
       discount_type: FIXED_DISCOUNT_TYPE,
       type: 'percent',
       value: PATIENT_COUPON_DISCOUNT_PERCENT,
@@ -394,7 +408,9 @@ Deno.serve(async (req: Request) => {
       prescritor: prescriberName,
       name: prescriberName,
       lead_id: contact?.id || undefined,
-      appointment_id: appointment?.id || undefined,
+      // NOTA: Não passar appointment_id no cupom pessoal para evitar que yampi-create-coupon
+      // retorne coupon_code já existente do agendamento (que é o cupom do paciente).
+      force: Boolean(body.force),
       discount_type: FIXED_DISCOUNT_TYPE,
       type: 'percent',
       value: PERSONAL_COUPON_DISCOUNT_PERCENT,

@@ -74,9 +74,17 @@ export async function triggerDualCouponsFlow(
       }
     }
 
+    const resolvedError = (data as any)?.error || parsedContext?.error || errMessage
+    const isGenericEdgeError =
+      typeof resolvedError === 'string' &&
+      (resolvedError.toLowerCase().includes('edge function returned a 4') ||
+        resolvedError.toLowerCase().includes('edge function returned a 5'))
+
     return {
       success: false,
-      error: (data as any)?.error || parsedContext?.error || errMessage,
+      error: isGenericEdgeError
+        ? 'Erro na integração com a Yampi: verifique se as credenciais (Alias, User-Token e User-Secret-Key) estão configuradas em Configurações > Integração Yampi.'
+        : resolvedError,
       details: data || parsedContext,
     }
   }
