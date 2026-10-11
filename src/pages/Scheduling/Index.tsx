@@ -36,6 +36,15 @@ export default function SchedulingPage() {
   const { user } = useAuth()
   const { state } = useMainStore()
 
+  const handleScheduleFromLead = (lead: any) => {
+    setDuplicateData(lead)
+    setViewMode('appointments')
+    toast({
+      title: 'Agendar Visita',
+      description: `Dados de ${lead.client_name || 'contato'} carregados no formulário. Selecione a data e horário.`,
+    })
+  }
+
   useEffect(() => {
     if (user?.id) {
       getIntegrations(user.id).then((res) => setCatalogLink(res?.catalog_link || null))
@@ -240,7 +249,10 @@ export default function SchedulingPage() {
         </TabsContent>
 
         <TabsContent value="leads" className="mt-0">
-          <LeadsTab onRefresh={() => setRefreshTrigger((prev) => prev + 1)} />
+          <LeadsTab
+            onRefresh={() => setRefreshTrigger((prev) => prev + 1)}
+            onScheduleLead={handleScheduleFromLead}
+          />
         </TabsContent>
       </Tabs>
     </div>

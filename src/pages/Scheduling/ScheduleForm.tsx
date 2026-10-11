@@ -239,15 +239,11 @@ export function ScheduleForm({
         number: duplicateData.clinic_number || '',
         complement: duplicateData.clinic_complement || '',
         neighborhood: duplicateData.clinic_neighborhood || '',
-        city: '',
+        city: duplicateData.clinic_city || '',
         state: '',
         time: '',
         endTime: '',
         authorizeInfo: false,
-      })
-      toast({
-        title: 'Agendamento Duplicado',
-        description: 'Dados preenchidos. Selecione uma nova data e horário.',
       })
     }
   }, [duplicateData, form])
