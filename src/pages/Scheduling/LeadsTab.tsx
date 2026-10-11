@@ -68,6 +68,38 @@ function normalizeStr(val?: string | null): string {
   return val ? val.trim().toLowerCase() : ''
 }
 
+/**
+ * Compara dois telefones considerando apenas os dígitos.
+ * Considera match se:
+ * - Ambos têm ao menos 8 dígitos e são idênticos;
+ * - Ou os últimos 10 ou 11 dígitos coincidirem (absorvendo prefixos como +55 / 55 / 0 / variações de DDD).
+ */
+export function phonesMatch(phoneA?: string | null, phoneB?: string | null): boolean {
+  const a = cleanDigits(phoneA)
+  const b = cleanDigits(phoneB)
+  if (!a || !b) return false
+
+  // Se forem exatamente iguais e tiverem tamanho mínimo
+  if (a === b && a.length >= 8) return true
+
+  // Comparar últimos 10 ou 11 dígitos quando disponíveis
+  const a11 = a.length >= 11 ? a.slice(-11) : null
+  const b11 = b.length >= 11 ? b.slice(-11) : null
+  if (a11 && b11 && a11 === b11) return true
+
+  const a10 = a.length >= 10 ? a.slice(-10) : null
+  const b10 = b.length >= 10 ? b.slice(-10) : null
+  if (a10 && b10 && a10 === b10) return true
+
+  // Se um tiver 10 dígitos (ex: DDD + 8 dígitos antigo) e o outro 11 dígitos (DDD + 9 + 8 dígitos)
+  // ou se um for sufixo exato do outro com ao menos 10 dígitos
+  if (a.length >= 10 && b.length >= 10) {
+    if (a.endsWith(b) || b.endsWith(a)) return true
+  }
+
+  return false
+}
+
 export function LeadsTab({ onRefresh, onScheduleLead }: LeadsTabProps) {
   const { user } = useAuth()
   const [leads, setLeads] = useState<any[]>([])
@@ -158,8 +190,13 @@ export function LeadsTab({ onRefresh, onScheduleLead }: LeadsTabProps) {
         const appPhone = cleanDigits(app.client_phone)
         const appName = normalizeStr(app.client_name)
 
+        // 1. Telefone: dígitos normalizados e tolerância de 10-11 dígitos (+55/DDD)
+        if (leadPhone && appPhone && phonesMatch(leadPhone, appPhone)) return true
+
+        // 2. E-mail: lowercase e trimmed
         if (leadEmail && appEmail && leadEmail === appEmail) return true
-        if (leadPhone && appPhone && leadPhone.length >= 8 && leadPhone === appPhone) return true
+
+        // 3. Nome: lowercase e trimmed (fallback)
         if (leadName && appName && leadName === appName) return true
 
         return false
