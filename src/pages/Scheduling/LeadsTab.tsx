@@ -65,7 +65,12 @@ function cleanDigits(val?: string | null): string {
 }
 
 function normalizeStr(val?: string | null): string {
-  return val ? val.trim().toLowerCase() : ''
+  if (!val) return ''
+  return val
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
 }
 
 /**
@@ -119,13 +124,12 @@ export function LeadsTab({ onRefresh, onScheduleLead }: LeadsTabProps) {
     if (!user) return
     try {
       setLoading(true)
-      // Carregar leads e todos os appointments em paralelo
-      const [leadsRes, appsRes] = await Promise.all([
+      // Carregar contatos (leads) e todos os appointments em paralelo
+      const [contactsRes, appsRes] = await Promise.all([
         supabase
-          .from('appointments')
+          .from('contacts')
           .select('*')
           .eq('user_id', user.id)
-          .eq('status', 'lead')
           .order('created_at', { ascending: false }),
         supabase
           .from('appointments')
@@ -136,14 +140,14 @@ export function LeadsTab({ onRefresh, onScheduleLead }: LeadsTabProps) {
           .neq('status', 'Cancelled'),
       ])
 
-      if (leadsRes.data) {
-        setLeads(leadsRes.data)
+      if (contactsRes.data) {
+        setLeads(contactsRes.data)
       }
       if (appsRes.data) {
         setAllAppointments(appsRes.data)
       }
     } catch (err) {
-      console.error('Error loading leads and appointments', err)
+      console.error('Error loading contacts and appointments', err)
     } finally {
       setLoading(false)
     }
@@ -157,7 +161,11 @@ export function LeadsTab({ onRefresh, onScheduleLead }: LeadsTabProps) {
     if (!deleteId) return
     setDeleting(true)
     try {
-      await deleteLead(deleteId)
+      const { error } = await supabase.from('contacts').delete().eq('id', deleteId)
+      if (error) {
+        // Fallback para deleteLead se for appointment antigo
+        await deleteLead(deleteId)
+      }
       toast({ title: 'Lead excluído', description: 'O registro foi removido com sucesso.' })
       setLeads((prev) => prev.filter((l) => l.id !== deleteId))
       onRefresh?.()
@@ -176,14 +184,14 @@ export function LeadsTab({ onRefresh, onScheduleLead }: LeadsTabProps) {
   // Mapa ou função de lookup para obter o estado de agendamento de cada lead
   const getLeadAppointmentInfo = useCallback(
     (lead: any) => {
-      const leadEmail = normalizeStr(lead.client_email)
-      const leadPhone = cleanDigits(lead.client_phone)
-      const leadName = normalizeStr(lead.client_name)
+      const leadEmail = normalizeStr(lead.email || lead.client_email)
+      const leadPhone = cleanDigits(lead.phone || lead.client_phone)
+      const leadName = normalizeStr(lead.name || lead.client_name)
 
-      // Procurar appointments que NÃO sejam o próprio registro de lead
+      // Procurar appointments que NÃO sejam status 'lead'
       const matched = allAppointments.filter((app) => {
         if (app.id === lead.id) return false
-        // Se for status 'lead', desconsiderar (já é o lead de captura)
+        // Se for status 'lead', desconsiderar (já é lead de captura)
         if (app.status === 'lead') return false
 
         const appEmail = normalizeStr(app.client_email)
@@ -196,7 +204,7 @@ export function LeadsTab({ onRefresh, onScheduleLead }: LeadsTabProps) {
         // 2. E-mail: lowercase e trimmed
         if (leadEmail && appEmail && leadEmail === appEmail) return true
 
-        // 3. Nome: lowercase e trimmed (fallback)
+        // 3. Nome: lowercase, trimmed e sem acento (fallback)
         if (leadName && appName && leadName === appName) return true
 
         return false
@@ -232,10 +240,28 @@ export function LeadsTab({ onRefresh, onScheduleLead }: LeadsTabProps) {
   )
 
   const handleOpenSchedule = (lead: any) => {
+    // Monta o payload adaptando campos de contacts para o formato esperado por ScheduleForm
+    const schedulePayload = {
+      ...lead,
+      client_name: lead.name || lead.client_name || '',
+      client_phone: lead.phone || lead.client_phone || '',
+      client_email: lead.email || lead.client_email || '',
+      client_document: lead.document || lead.client_document || '',
+      clinic_cep: lead.cep || lead.clinic_cep || '',
+      clinic_address: lead.address || lead.clinic_address || '',
+      clinic_number: lead.clinic_number || '',
+      clinic_neighborhood: lead.clinic_neighborhood || '',
+      clinic_complement: lead.clinic_complement || '',
+      specialty: lead.specialty || '',
+      professional_id: lead.registration_number || lead.professional_id || '',
+      instagram: lead.instagram || '',
+      patients_per_month: lead.patients_per_month || '',
+    }
+
     if (onScheduleLead) {
-      onScheduleLead(lead)
+      onScheduleLead(schedulePayload)
     } else {
-      setSelectedLeadForSchedule(lead)
+      setSelectedLeadForSchedule(schedulePayload)
       setModalSelectedDate(new Date())
       setScheduleModalOpen(true)
     }
@@ -268,19 +294,19 @@ export function LeadsTab({ onRefresh, onScheduleLead }: LeadsTabProps) {
   }, [enrichedLeads])
 
   const filteredLeads = useMemo(() => {
+    const q = search.trim().toLowerCase()
     return enrichedLeads.filter((l) => {
+      const leadName = (l.name || l.client_name || '').toLowerCase()
+      const leadEmail = (l.email || l.client_email || '').toLowerCase()
+      const leadPhone = l.phone || l.client_phone || ''
       const matchesSearch =
-        !search ||
-        (l.client_name && l.client_name.toLowerCase().includes(search.toLowerCase())) ||
-        (l.client_email && l.client_email.toLowerCase().includes(search.toLowerCase())) ||
-        (l.client_phone && l.client_phone.includes(search))
+        !q || leadName.includes(q) || leadEmail.includes(q) || leadPhone.includes(q)
 
       const matchesStatus = statusFilter === 'all' || l._appointmentStatus === statusFilter
 
       return matchesSearch && matchesStatus
     })
   }, [enrichedLeads, search, statusFilter])
-
   if (loading)
     return <div className="p-8 text-center text-muted-foreground">Carregando leads...</div>
 
@@ -395,12 +421,16 @@ export function LeadsTab({ onRefresh, onScheduleLead }: LeadsTabProps) {
               filteredLeads.map((lead) => {
                 const status = lead._appointmentStatus as AppointmentStatusType
                 const appData = lead._appointmentData
+                const displayName = lead.name || lead.client_name || '-'
+                const displayEmail = lead.email || lead.client_email || '-'
+                const displayPhone = lead.phone || lead.client_phone || '-'
+                const displayDoc = lead.document || lead.client_document || '-'
+                const displayCep = lead.cep || lead.clinic_cep || '-'
+                const displayAddress = lead.address || lead.clinic_address || '-'
 
                 return (
                   <TableRow key={lead.id} className="hover:bg-slate-50/50">
-                    <TableCell className="font-medium whitespace-nowrap">
-                      {lead.client_name}
-                    </TableCell>
+                    <TableCell className="font-medium whitespace-nowrap">{displayName}</TableCell>
 
                     {/* Coluna Agendamento com Badge e Ação */}
                     <TableCell className="whitespace-nowrap">
@@ -474,14 +504,12 @@ export function LeadsTab({ onRefresh, onScheduleLead }: LeadsTabProps) {
                       )}
                     </TableCell>
 
-                    <TableCell className="whitespace-nowrap">{lead.client_email || '-'}</TableCell>
-                    <TableCell className="whitespace-nowrap">{lead.client_phone || '-'}</TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      {lead.client_document || '-'}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap">{lead.clinic_cep || '-'}</TableCell>
-                    <TableCell className="max-w-[200px] truncate" title={lead.clinic_address}>
-                      {lead.clinic_address || '-'}
+                    <TableCell className="whitespace-nowrap">{displayEmail}</TableCell>
+                    <TableCell className="whitespace-nowrap">{displayPhone}</TableCell>
+                    <TableCell className="whitespace-nowrap">{displayDoc}</TableCell>
+                    <TableCell className="whitespace-nowrap">{displayCep}</TableCell>
+                    <TableCell className="max-w-[200px] truncate" title={displayAddress}>
+                      {displayAddress}
                     </TableCell>
                     <TableCell className="whitespace-nowrap">{lead.clinic_number || '-'}</TableCell>
                     <TableCell className="whitespace-nowrap">
@@ -555,7 +583,8 @@ export function LeadsTab({ onRefresh, onScheduleLead }: LeadsTabProps) {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <CalendarIcon className="h-5 w-5 text-primary" />
-              Novo Agendamento para {selectedLeadForSchedule?.client_name || 'Lead'}
+              Novo Agendamento para{' '}
+              {selectedLeadForSchedule?.name || selectedLeadForSchedule?.client_name || 'Lead'}
             </DialogTitle>
             <DialogDescription>
               Preencha a data e o horário para confirmar o agendamento da visita.
