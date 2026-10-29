@@ -12,7 +12,7 @@ Deno.serve(async (req: Request) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
     const supabase = createClient(supabaseUrl, supabaseKey)
 
-    // Option to target a specific appointment for testing/manual trigger
+    // Option to target a specific appointment for manual trigger only
     let specificAppointmentId: string | null = null
     let forceSend = false
     if (req.method === 'POST') {
@@ -21,6 +21,27 @@ Deno.serve(async (req: Request) => {
         if (body?.appointmentId) specificAppointmentId = body.appointmentId
         if (body?.force) forceSend = !!body.force
       } catch (_) {}
+    }
+
+    // DESATIVAÇÃO DO DISPARO AUTOMÁTICO:
+    // O envio automático de NPS pós-entrega foi desativado.
+    // A pesquisa foi incorporada à mensagem com cupons duplos (Google Form).
+    // Apenas disparos explicitamente manuais com appointmentId e force=true são processados,
+    // garantindo que nenhum cron ou chamada automática envie mensagens.
+    if (!specificAppointmentId || !forceSend) {
+      console.log(
+        '[trigger-nps] Envio automático de NPS pós-entrega está desativado. Pesquisa de satisfação migrada para o envio dos cupons.',
+      )
+      return new Response(
+        JSON.stringify({
+          success: true,
+          disabled: true,
+          message:
+            'Envio automático de NPS desativado. A pesquisa agora é enviada junto aos cupons duplos.',
+          npsTriggeredCount: 0,
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
     }
 
     const now = Date.now()

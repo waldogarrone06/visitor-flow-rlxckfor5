@@ -3,7 +3,7 @@
     "sync-calendar": 141,
     "yampi-service": 135,
     "track-shipping": 150,
-    "trigger-nps": 37,
+    "trigger-nps": 38,
     "check-availability": 125,
     "create-user": 138,
     "google-oauth-exchange": 130,
@@ -23,6 +23,6 @@
     "save-integration-secret": 110,
     "whatsapp-redeploy": 106,
     "yampi-create-coupon": 98,
-    "yampi-dual-coupons": 28
+    "yampi-dual-coupons": 29
   }
 }

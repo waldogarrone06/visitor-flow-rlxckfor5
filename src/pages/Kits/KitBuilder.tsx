@@ -557,7 +557,7 @@ export function KitBuilder() {
               <CardDescription className="text-xs sm:text-sm mt-1">
                 Selecione o prescritor para vincular o WhatsApp, customize os cupons e clique em{' '}
                 <strong>Solicitar Kit</strong> para criar os cupons na Yampi e disparar a mensagem
-                oficial.
+                com os cupons (10% paciente e 30% pessoal) e o link da pesquisa de feedback.
               </CardDescription>
             </div>
             <Badge
@@ -858,7 +858,8 @@ export function KitBuilder() {
             <p className="text-xs text-muted-foreground">
               Você pode alterar livremente os nomes abaixo. Ao clicar em{' '}
               <strong>Solicitar Kit</strong>, a Yampi cria esses cupons com as regras fixas (50
-              unidades, % off e exclusão de combos) e notifica via WhatsApp oficial.
+              unidades, % off e exclusão de combos) e notifica via WhatsApp (com os dois cupons e o
+              link da pesquisa de feedback).
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">

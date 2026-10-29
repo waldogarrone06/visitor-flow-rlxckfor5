@@ -81,8 +81,9 @@ export default function KitsPage() {
               <p className="text-sm">
                 A sincronização com a transportadora ocorre automaticamente em background. O sistema
                 atualiza os kits para "Enviado" assim que um código de rastreio válido é salvo e
-                para "Entregue" quando a transportadora confirma a entrega. O NPS é acionado
-                automaticamente 24h após a marcação de "Entregue".
+                para "Entregue" quando a transportadora confirma a entrega. A pesquisa de feedback
+                agora é enviada diretamente junto aos cupons (pessoal da nutricionista e dos
+                pacientes) no WhatsApp.
               </p>
             </div>
           </TabsContent>

@@ -16,6 +16,10 @@ export const PERSONAL_COUPON_DISCOUNT_PERCENT = 30
 export const FIXED_COUPON_QUANTITY = 50
 export const FIXED_DISCOUNT_TYPE = 'p' // porcentagem
 
+// Link oficial da pesquisa de feedback no Google Forms (rápida e fácil)
+export const FEEDBACK_FORM_URL =
+  'https://docs.google.com/forms/d/e/1FAIpQLScTqmS-MDABMs7Z6l4gQOI3WgVRc8DRmqJ_xnLp5W_rdEK2DA/viewform'
+
 interface DualCouponsPayload {
   appointmentId?: string
   contactId?: string
@@ -58,6 +62,7 @@ function cleanPrescriberName(rawName: string): string {
 
 /**
  * Monta o texto cordial e formatado para WhatsApp com os 2 cupons
+ * e o link da pesquisa de feedback (rápida e fácil).
  */
 function buildWhatsAppMessage(params: {
   prescriberName: string
@@ -69,17 +74,16 @@ function buildWhatsAppMessage(params: {
   const firstName = params.prescriberName.split(' ')[0] || 'Doutor(a)'
 
   return (
-    `Olá, ${firstName}! Tudo bem? 🌿\n\n` +
-    `Foi um enorme prazer realizar nossa visita! Conforme combinamos, seus cupons exclusivos da FourLab já estão ativos:\n\n` +
-    `🏷️ *CUPOM PARA SEUS PACIENTES:*\n` +
-    `👉 *${params.patientCoupon}* — *${params.patientDiscount}% OFF*\n` +
-    `_(Divulgue este código para seus pacientes utilizarem em qualquer pedido no nosso site)_\n\n` +
-    `⭐ *SEU CUPOM DE USO PESSOAL:*\n` +
-    `👉 *${params.personalCoupon}* — *${params.personalDiscount}% OFF*\n` +
-    `_(Exclusivo para suas compras pessoais de suplementos e novidades)_\n\n` +
-    `Ambos os cupons já estão prontos para uso em nossa loja oficial.\n` +
-    `Se precisar de qualquer suporte, materiais ou tirar dúvidas, estamos sempre à disposição!\n\n` +
-    `Equipe *FourLab Nutrition* 💚`
+    `Olá, ${firstName}! 😊 Sua visita foi concluída e seus cupons já estão prontos! 🎉\n\n` +
+    `🎟️ *Cupom para seus pacientes (${params.patientDiscount}%)*: ${params.patientCoupon}\n` +
+    `Divulgue aos seus pacientes no consultório e nas redes!\n\n` +
+    `🎟️ *Cupom pessoal (${params.personalDiscount}%)*: ${params.personalCoupon}\n` +
+    `Para o seu uso pessoal nas compras na loja FourLab.\n\n` +
+    `📝 E ficou faltando só uma coisinha: reserve *1 minutinho* para responder nossa pesquisa — *é rápida e fácil*! ` +
+    `Queremos entender nossos pontos fortes, o que podemos desenvolver e como fortalecer nosso relacionamento, ` +
+    `além de saber quais produtos você mais prescreve:\n` +
+    `${FEEDBACK_FORM_URL}\n\n` +
+    `Sua opinião vale muito para nós! 💙 Equipe FourLab`
   )
 }
 
@@ -93,44 +97,61 @@ function buildEmailHtml(params: {
   patientDiscount: number
   personalDiscount: number
 }): string {
+  const firstName = params.prescriberName.split(' ')[0] || 'Doutor(a)'
+
   return `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; color: #1e293b; background-color: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0;">
       <div style="text-align: center; margin-bottom: 24px;">
         <h1 style="color: #0f172a; font-size: 24px; margin: 0;">FourLab Nutrition</h1>
-        <p style="color: #64748b; font-size: 14px; margin-top: 4px;">Seus Cupons de Parceria Exclusivos</p>
+        <p style="color: #64748b; font-size: 14px; margin-top: 4px;">Sua visita foi concluída e seus cupons já estão prontos! 🎉</p>
       </div>
 
-      <p style="font-size: 16px; line-height: 1.6;">Olá, <strong>${params.prescriberName}</strong>!</p>
+      <p style="font-size: 16px; line-height: 1.6;">Olá, <strong>${firstName}</strong>! 😊</p>
       <p style="font-size: 15px; line-height: 1.6; color: #475569;">
-        Foi um grande prazer realizar nossa visita! Conforme alinhado, geramos seus cupons oficiais de parceria com a FourLab:
+        Sua visita foi concluída com sucesso e seus cupons já estão prontos para uso:
       </p>
 
       <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px; margin: 20px 0;">
         <p style="margin: 0 0 6px 0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; color: #166534; font-weight: bold;">
-          🏷️ Cupom para seus Pacientes (${params.patientDiscount}% OFF)
+          🎟️ Cupom para seus pacientes (${params.patientDiscount}%)
         </p>
         <div style="font-size: 22px; font-weight: bold; letter-spacing: 1px; color: #15803d; font-family: monospace;">
           ${params.patientCoupon}
         </div>
-        <p style="margin: 6px 0 0 0; font-size: 12px; color: #166534;">
-          Compartilhe com seus pacientes para utilizarem nas compras da linha FourLab.
+        <p style="margin: 6px 0 0 0; font-size: 13px; color: #166534;">
+          Divulgue aos seus pacientes no consultório e nas redes!
         </p>
       </div>
 
       <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 20px 0;">
         <p style="margin: 0 0 6px 0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; color: #0f172a; font-weight: bold;">
-          ⭐ Seu Cupom Pessoal (${params.personalDiscount}% OFF)
+          🎟️ Cupom pessoal (${params.personalDiscount}%)
         </p>
         <div style="font-size: 22px; font-weight: bold; letter-spacing: 1px; color: #0f172a; font-family: monospace;">
           ${params.personalCoupon}
         </div>
-        <p style="margin: 6px 0 0 0; font-size: 12px; color: #64748b;">
-          Uso exclusivo para suas compras pessoais.
+        <p style="margin: 6px 0 0 0; font-size: 13px; color: #64748b;">
+          Para o seu uso pessoal nas compras na loja FourLab.
+        </p>
+      </div>
+
+      <div style="background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 16px; margin: 20px 0;">
+        <p style="margin: 0 0 8px 0; font-size: 14px; color: #1e40af; font-weight: bold;">
+          📝 E ficou faltando só uma coisinha: reserve 1 minutinho para responder nossa pesquisa — é rápida e fácil!
+        </p>
+        <p style="margin: 0 0 12px 0; font-size: 13px; line-height: 1.5; color: #1e3a8a;">
+          Queremos entender nossos pontos fortes, o que podemos desenvolver e como fortalecer nosso relacionamento, além de saber quais produtos você mais prescreve:
+        </p>
+        <p style="margin: 0;">
+          <a href="${FEEDBACK_FORM_URL}" target="_blank" rel="noopener noreferrer" style="display: inline-block; background-color: #2563eb; color: #ffffff; text-decoration: none; font-weight: 600; font-size: 14px; padding: 10px 18px; border-radius: 6px;">
+            Responder Pesquisa de Feedback
+          </a>
         </p>
       </div>
 
       <p style="font-size: 14px; line-height: 1.6; color: #475569; margin-top: 24px;">
-        Estamos à sua disposição sempre que precisar. Conte conosco na evolução nutricional de seus pacientes!
+        Sua opinião vale muito para nós! 💙<br/>
+        <strong>Equipe FourLab</strong>
       </p>
 
       <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
