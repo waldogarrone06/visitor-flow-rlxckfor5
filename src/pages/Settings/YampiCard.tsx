@@ -354,7 +354,12 @@ export function YampiCard({ targetUserId }: { targetUserId?: string }) {
               <div className="font-semibold text-slate-800">Regras de Negócio Fixas:</div>
               <ul className="list-disc list-inside text-muted-foreground space-y-0.5">
                 <li>
-                  Total de cupons: <strong className="text-foreground">50 unidades</strong> (fixo)
+                  Uso do cupom: <strong className="text-foreground">Aberto / Multiuso</strong>{' '}
+                  (múltiplos clientes podem usar até o teto total de 50 utilizações)
+                </li>
+                <li>
+                  Limite total: <strong className="text-foreground">50 utilizações</strong> por
+                  cupom
                 </li>
                 <li>
                   Desconto: <strong className="text-foreground">Sempre em porcentagem (%)</strong>

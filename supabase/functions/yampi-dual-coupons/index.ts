@@ -153,12 +153,14 @@ Deno.serve(async (req: Request) => {
         status: 'active',
         service: 'yampi-dual-coupons',
         description:
-          'Orquestrador de cupons duplos (Paciente 10% e Pessoal 30%) com envio automático via WhatsApp Oficial / Email.',
+          'Orquestrador de cupons duplos (Paciente 10% e Pessoal 30%) com envio automático via WhatsApp Oficial / Email. Cupons multiuso com limite total de 50 utilizações.',
         fixedDiscounts: {
           patient: PATIENT_COUPON_DISCOUNT_PERCENT,
           personal: PERSONAL_COUPON_DISCOUNT_PERCENT,
           quantity: FIXED_COUPON_QUANTITY,
           discount_type: FIXED_DISCOUNT_TYPE,
+          once_per_customer: false,
+          single_use: false,
         },
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
@@ -385,7 +387,7 @@ Deno.serve(async (req: Request) => {
     )
 
     // 4. Invocar a função oficial existente yampi-create-coupon para cada cupom
-    // Cupom de Paciente (10%)
+    // Cupom de Paciente (10%) - MULTIUSO para múltiplos pacientes usarem até 50 utilizações no total
     const patientReqBody = {
       userId: effectiveUserId,
       code: suggestedPatientCode,
@@ -398,10 +400,12 @@ Deno.serve(async (req: Request) => {
       type: 'percent',
       value: PATIENT_COUPON_DISCOUNT_PERCENT,
       quantity: FIXED_COUPON_QUANTITY,
-      description: `Cupom Pacientes (10%, 50 un) - ${prescriberName}`,
+      once_per_customer: false,
+      single_use: false,
+      description: `Cupom Pacientes (10%, 50 un multiuso) - ${prescriberName}`,
     }
 
-    // Cupom Pessoal (30%)
+    // Cupom Pessoal (30%) - MULTIUSO até 50 utilizações no total
     const personalReqBody = {
       userId: effectiveUserId,
       code: suggestedPersonalCode,
@@ -415,7 +419,9 @@ Deno.serve(async (req: Request) => {
       type: 'percent',
       value: PERSONAL_COUPON_DISCOUNT_PERCENT,
       quantity: FIXED_COUPON_QUANTITY,
-      description: `Cupom Pessoal Nutricionista (30%, 50 un) - ${prescriberName}`,
+      once_per_customer: false,
+      single_use: false,
+      description: `Cupom Pessoal Nutricionista (30%, 50 un multiuso) - ${prescriberName}`,
     }
 
     // Chamar yampi-create-coupon internamente

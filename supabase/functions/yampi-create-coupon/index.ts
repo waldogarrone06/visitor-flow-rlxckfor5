@@ -298,13 +298,15 @@ Deno.serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         status: 'active',
-        version: 'v7-restrictions-exclude-50units-percent',
+        version: 'v8-multiuse-50limit-restrictions-exclude-percent',
         primaryRoute: 'POST https://api.dooki.com.br/v2/{alias}/pricing/promocodes',
-        note: 'Fixed 50 units, percentage discount only, kit/combo exclusion via restrictions.exclude.products_ids with fallback.',
+        note: 'Multiuse (non-single-use, once_per_customer: false), max 50 uses total, percentage discount only, kit/combo exclusion via restrictions.exclude.products_ids with fallback.',
         fixedRules: {
           quantity: FIXED_COUPON_QUANTITY,
           discount_type: FIXED_DISCOUNT_TYPE,
           excluded_name_keywords: EXCLUDED_NAME_KEYWORDS,
+          single_use: false,
+          once_per_customer: false,
         },
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
@@ -593,17 +595,17 @@ Deno.serve(async (req: Request) => {
 
     // REGRA 1 & 2 FIXAS:
     // - Desconto é SEMPRE porcentagem ('p')
-    // - Quantidade é SEMPRE 50 unidades fixas
+    // - Quantidade é SEMPRE 50 unidades fixas (limite total de 50 utilizações)
+    // - NUNCA USO ÚNICO: o cupom deve ser multiuso (aberto para múltiplos clientes / pedidos)
     const discountType = FIXED_DISCOUNT_TYPE
     const quantity = FIXED_COUPON_QUANTITY
     const discountValue = Number(body.value ?? 10)
     const minValue = Number(body.min_value ?? body.min_order_value ?? 0)
+    // Multiuso: NUNCA uso único.
+    // once_per_customer false garante que o cupom não é restrito a um único uso de cliente.
+    // Se o chamador explicitamente enviar false, respeitamos false. O default é SEMPRE false (multiuso aberto).
     const oncePerCustomer =
-      body.once_per_customer !== undefined
-        ? Boolean(body.once_per_customer)
-        : body.usage_limit_per_user === 1
-          ? true
-          : true
+      body.once_per_customer !== undefined ? Boolean(body.once_per_customer) : false
     const accumulate = Boolean(body.accumulate ?? false)
     const freeShipment = Boolean(body.free_shipment ?? body.free_shipping ?? false)
     const active = body.active !== undefined ? Boolean(body.active) : true
@@ -1309,6 +1311,9 @@ Deno.serve(async (req: Request) => {
         value: discountValue,
         discount_type: discountType,
         quantity: quantity,
+        single_use: false,
+        once_per_customer: oncePerCustomer,
+        multiuse: true,
         excluded_products_count: excludedIds.length,
         excluded_products_names: matchedNames,
         exclusion_applied_via: exclusionAppliedVia,
@@ -1318,6 +1323,10 @@ Deno.serve(async (req: Request) => {
         appointment_id: body.appointment_id || null,
         lead_id: body.lead_id || null,
         created_at: new Date().toISOString(),
+        yampi_raw_keys: Object.keys(yampiData),
+        yampi_usage_limit: yampiData.usage_limit,
+        yampi_quantity: yampiData.quantity,
+        yampi_once_per_customer: yampiData.once_per_customer,
       },
     })
 
