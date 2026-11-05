@@ -55,9 +55,17 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { UF_OPTIONS, validateContactFields, maskCPF, maskPhone, maskCep } from '@/lib/validation'
 import { MessageMenu } from './MessageMenu'
 
 interface ContactTag {
@@ -126,6 +134,21 @@ export default function ChatPage() {
   const [newContactOpen, setNewContactOpen] = useState(false)
   const [newContactName, setNewContactName] = useState('')
   const [newContactPhone, setNewContactPhone] = useState('')
+  const [newContactErrors, setNewContactErrors] = useState<Record<string, string>>({})
+  const [newContactDocument, setNewContactDocument] = useState('')
+  const [newContactCep, setNewContactCep] = useState('')
+  const [newContactStreet, setNewContactStreet] = useState('')
+  const [newContactNumber, setNewContactNumber] = useState('')
+  const [newContactComplement, setNewContactComplement] = useState('')
+  const [newContactNeighborhood, setNewContactNeighborhood] = useState('')
+  const [newContactCity, setNewContactCity] = useState('')
+  const [newContactState, setNewContactState] = useState('')
+  const [newContactProfession, setNewContactProfession] = useState('')
+  const [newContactSpecialty, setNewContactSpecialty] = useState('')
+  const [newContactRegistrationNumber, setNewContactRegistrationNumber] = useState('')
+  const [newContactInstagram, setNewContactInstagram] = useState('')
+  const [newContactPatientsPerMonth, setNewContactPatientsPerMonth] = useState('')
+  const [newContactEmail, setNewContactEmail] = useState('')
   const [creatingContact, setCreatingContact] = useState(false)
 
   const [manageTagsOpen, setManageTagsOpen] = useState(false)
@@ -471,7 +494,21 @@ export default function ChatPage() {
 
   const handleCreateContact = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newContactName.trim() || !newContactPhone.trim() || !user) return
+    if (!user) return
+
+    const fieldErrors = validateContactFields({
+      name: newContactName,
+      phone: newContactPhone,
+      document: newContactDocument,
+      street: newContactStreet,
+      number: newContactNumber,
+      neighborhood: newContactNeighborhood,
+      city: newContactCity,
+      state: newContactState,
+      cep: newContactCep,
+    })
+    setNewContactErrors(fieldErrors)
+    if (Object.keys(fieldErrors).length > 0) return
 
     setCreatingContact(true)
     try {
@@ -494,14 +531,49 @@ export default function ChatPage() {
           .from('contacts')
           .insert({
             user_id: user.id,
-            name: newContactName,
+            name: newContactName.trim(),
             phone,
+            email: newContactEmail.trim() || null,
+            document: newContactDocument.trim() || null,
+            profession: newContactProfession || null,
+            specialty: newContactSpecialty.trim() || null,
+            registration_number: newContactRegistrationNumber.trim() || null,
+            instagram: newContactInstagram.trim() || null,
+            patients_per_month: newContactPatientsPerMonth.trim() || null,
+            cep: newContactCep.trim() || null,
+            address: newContactStreet.trim() || null,
+            number: newContactNumber.trim() || null,
+            complement: newContactComplement.trim() || null,
+            neighborhood: newContactNeighborhood.trim() || null,
+            city: newContactCity.trim() || null,
+            state: newContactState || null,
           })
           .select()
           .single()
 
         if (error) throw error
         finalContact = newContact
+      } else if (
+        finalContact &&
+        (!finalContact.document || !finalContact.cep || !finalContact.city)
+      ) {
+        // Contato já existia sem dados completos: atualiza com o que foi informado
+        const { error: updErr } = await supabase
+          .from('contacts')
+          .update({
+            name: newContactName.trim(),
+            document: newContactDocument.trim() || finalContact.document || null,
+            email: newContactEmail.trim() || finalContact.email || null,
+            cep: newContactCep.trim() || finalContact.cep || null,
+            address: newContactStreet.trim() || finalContact.address || null,
+            number: newContactNumber.trim() || finalContact.number || null,
+            complement: newContactComplement.trim() || finalContact.complement || null,
+            neighborhood: newContactNeighborhood.trim() || finalContact.neighborhood || null,
+            city: newContactCity.trim() || finalContact.city || null,
+            state: newContactState || finalContact.state || null,
+          })
+          .eq('id', finalContact.id)
+        if (updErr) throw updErr
       }
 
       if (finalContact) {
@@ -525,6 +597,21 @@ export default function ChatPage() {
         setNewContactOpen(false)
         setNewContactName('')
         setNewContactPhone('')
+        setNewContactDocument('')
+        setNewContactEmail('')
+        setNewContactCep('')
+        setNewContactStreet('')
+        setNewContactNumber('')
+        setNewContactComplement('')
+        setNewContactNeighborhood('')
+        setNewContactCity('')
+        setNewContactState('')
+        setNewContactProfession('')
+        setNewContactSpecialty('')
+        setNewContactRegistrationNumber('')
+        setNewContactInstagram('')
+        setNewContactPatientsPerMonth('')
+        setNewContactErrors({})
         toast.success('Contato pronto para conversar!')
       }
     } catch (error: any) {
@@ -1281,27 +1368,188 @@ export default function ChatPage() {
       </Dialog>
 
       <Dialog open={newContactOpen} onOpenChange={setNewContactOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Nova Conversa</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleCreateContact} className="space-y-4 mt-4">
-            <div className="space-y-2">
-              <Label>Nome do Contato</Label>
-              <Input
-                value={newContactName}
-                onChange={(e) => setNewContactName(e.target.value)}
-                placeholder="Ex: João Silva"
-                required
-              />
+          <form onSubmit={handleCreateContact} className="space-y-4 mt-4" noValidate>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Nome do Contato *</Label>
+                <Input
+                  value={newContactName}
+                  onChange={(e) => setNewContactName(e.target.value)}
+                  placeholder="Ex: João Silva"
+                  className={newContactErrors.name ? 'border-red-500' : ''}
+                />
+                {newContactErrors.name && (
+                  <p className="text-xs text-red-600">{newContactErrors.name}</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label>Telefone (WhatsApp) *</Label>
+                <Input
+                  value={newContactPhone}
+                  onChange={(e) => setNewContactPhone(maskPhone(e.target.value))}
+                  placeholder="(11) 99999-9999"
+                  maxLength={15}
+                  className={newContactErrors.phone ? 'border-red-500' : ''}
+                />
+                {newContactErrors.phone && (
+                  <p className="text-xs text-red-600">{newContactErrors.phone}</p>
+                )}
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>E-mail</Label>
+                <Input
+                  value={newContactEmail}
+                  onChange={(e) => setNewContactEmail(e.target.value)}
+                  placeholder="joao@exemplo.com"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>CPF *</Label>
+                <Input
+                  value={newContactDocument}
+                  onChange={(e) => setNewContactDocument(maskCPF(e.target.value))}
+                  placeholder="000.000.000-00"
+                  maxLength={14}
+                  className={newContactErrors.document ? 'border-red-500' : ''}
+                />
+                {newContactErrors.document && (
+                  <p className="text-xs text-red-600">{newContactErrors.document}</p>
+                )}
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Profissão</Label>
+                <Input
+                  value={newContactProfession}
+                  onChange={(e) => setNewContactProfession(e.target.value)}
+                  placeholder="Ex: Nutricionista"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Registro Profissional</Label>
+                <Input
+                  value={newContactRegistrationNumber}
+                  onChange={(e) => setNewContactRegistrationNumber(e.target.value)}
+                  placeholder="CRM, CRN, CREF..."
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Instagram</Label>
+                <Input
+                  value={newContactInstagram}
+                  onChange={(e) => setNewContactInstagram(e.target.value)}
+                  placeholder="@seu_perfil"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Nº de Pacientes / Mês</Label>
+                <Input
+                  value={newContactPatientsPerMonth}
+                  onChange={(e) => setNewContactPatientsPerMonth(e.target.value)}
+                  placeholder="Ex: 50"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>CEP *</Label>
+                <Input
+                  value={newContactCep}
+                  onChange={(e) => setNewContactCep(maskCep(e.target.value))}
+                  placeholder="00000-000"
+                  maxLength={9}
+                  className={newContactErrors.cep ? 'border-red-500' : ''}
+                />
+                {newContactErrors.cep && (
+                  <p className="text-xs text-red-600">{newContactErrors.cep}</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label>Endereço (Rua/Avenida) *</Label>
+                <Input
+                  value={newContactStreet}
+                  onChange={(e) => setNewContactStreet(e.target.value)}
+                  placeholder="Ex: Av. Paulista"
+                  className={newContactErrors.street ? 'border-red-500' : ''}
+                />
+                {newContactErrors.street && (
+                  <p className="text-xs text-red-600">{newContactErrors.street}</p>
+                )}
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Número *</Label>
+                <Input
+                  value={newContactNumber}
+                  onChange={(e) => setNewContactNumber(e.target.value)}
+                  placeholder="123"
+                  className={newContactErrors.number ? 'border-red-500' : ''}
+                />
+                {newContactErrors.number && (
+                  <p className="text-xs text-red-600">{newContactErrors.number}</p>
+                )}
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label>Bairro *</Label>
+                <Input
+                  value={newContactNeighborhood}
+                  onChange={(e) => setNewContactNeighborhood(e.target.value)}
+                  placeholder="Centro"
+                  className={newContactErrors.neighborhood ? 'border-red-500' : ''}
+                />
+                {newContactErrors.neighborhood && (
+                  <p className="text-xs text-red-600">{newContactErrors.neighborhood}</p>
+                )}
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Cidade *</Label>
+                <Input
+                  value={newContactCity}
+                  onChange={(e) => setNewContactCity(e.target.value)}
+                  placeholder="São Paulo"
+                  className={newContactErrors.city ? 'border-red-500' : ''}
+                />
+                {newContactErrors.city && (
+                  <p className="text-xs text-red-600">{newContactErrors.city}</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label>Estado (UF) *</Label>
+                <Select value={newContactState} onValueChange={setNewContactState}>
+                  <SelectTrigger className={newContactErrors.state ? 'border-red-500' : ''}>
+                    <SelectValue placeholder="Selecione a UF" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {UF_OPTIONS.map((uf) => (
+                      <SelectItem key={uf} value={uf}>
+                        {uf}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {newContactErrors.state && (
+                  <p className="text-xs text-red-600">{newContactErrors.state}</p>
+                )}
+              </div>
             </div>
             <div className="space-y-2">
-              <Label>Telefone (WhatsApp)</Label>
+              <Label>Complemento</Label>
               <Input
-                value={newContactPhone}
-                onChange={(e) => setNewContactPhone(e.target.value)}
-                placeholder="Ex: 11999999999"
-                required
+                value={newContactComplement}
+                onChange={(e) => setNewContactComplement(e.target.value)}
+                placeholder="Sala 101, Andar 2"
               />
             </div>
             <DialogFooter>

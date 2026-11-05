@@ -5,29 +5,47 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { CheckCircle2, Loader2 } from 'lucide-react'
 import { FourLabLogo } from '@/components/FourLabLogo'
+import { UF_OPTIONS, maskCPF, maskCep, maskPhone, validateContactFields } from '@/lib/validation'
+
+const emptyForm = {
+  client_name: '',
+  client_email: '',
+  client_phone: '',
+  client_document: '',
+  instagram: '',
+  specialty: '',
+  patients_per_month: '',
+  clinic_cep: '',
+  clinic_address: '',
+  clinic_number: '',
+  clinic_neighborhood: '',
+  clinic_complement: '',
+  clinic_city: '',
+  clinic_state: '',
+}
 
 export default function LeadCapturePage() {
   const { userId } = useParams()
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [professionalName, setProfessionalName] = useState('')
+  const [errors, setErrors] = useState<Record<string, string>>({})
 
-  const [formData, setFormData] = useState({
-    client_name: '',
-    client_email: '',
-    client_phone: '',
-    client_document: '',
-    instagram: '',
-    specialty: '',
-    patients_per_month: '',
-    clinic_cep: '',
-    clinic_address: '',
-    clinic_number: '',
-    clinic_neighborhood: '',
-    clinic_complement: '',
-  })
+  const [formData, setFormData] = useState(emptyForm)
+
+  const setField = (field: string, value: string) => {
+    setFormData((f) => ({ ...f, [field]: value }))
+    if (errors[field]) setErrors((e) => ({ ...e, [field]: '' }))
+  }
 
   useEffect(() => {
     if (userId) {
@@ -46,11 +64,35 @@ export default function LeadCapturePage() {
     e.preventDefault()
     if (!userId) return
 
+    // Validação completa (NF): nome, telefone, CPF e endereço completo obrigatórios
+    const fieldErrors = validateContactFields({
+      name: formData.client_name,
+      phone: formData.client_phone,
+      document: formData.client_document,
+      street: formData.clinic_address,
+      number: formData.clinic_number,
+      neighborhood: formData.clinic_neighborhood,
+      city: formData.clinic_city,
+      state: formData.clinic_state,
+      cep: formData.clinic_cep,
+    })
+    if (!formData.client_email || !formData.client_email.trim()) {
+      fieldErrors.client_email = 'E-mail obrigatório'
+    }
+    setErrors(fieldErrors)
+    if (Object.keys(fieldErrors).length > 0) {
+      const first = document.querySelector('[data-error="true"]')
+      first?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      return
+    }
+
     setLoading(true)
     try {
       const payload = {
         user_id: userId,
         ...formData,
+        clinic_state: formData.clinic_state,
+        clinic_city: formData.clinic_city,
         status: 'lead',
         appointment_date: '1970-01-01',
         start_time: '00:00',
@@ -78,6 +120,11 @@ export default function LeadCapturePage() {
           patients_per_month: formData.patients_per_month,
           cep: formData.clinic_cep,
           address: formData.clinic_address,
+          number: formData.clinic_number,
+          neighborhood: formData.clinic_neighborhood,
+          complement: formData.clinic_complement,
+          city: formData.clinic_city,
+          state: formData.clinic_state,
         }
 
         if (existingContacts && existingContacts.length > 0) {
@@ -99,6 +146,10 @@ export default function LeadCapturePage() {
       setLoading(false)
     }
   }
+
+  const fieldError = (key: string) => <p className="text-xs text-red-600 mt-1">{errors[key]}</p>
+  const invalidClass = (key: string) =>
+    errors[key] ? 'border-red-500 focus-visible:ring-red-300' : ''
 
   if (success) {
     return (
@@ -133,54 +184,62 @@ export default function LeadCapturePage() {
           <CardTitle className="text-2xl">Contato Profissional</CardTitle>
           <CardDescription>
             Deixe suas informações para que {professionalName || 'nossa equipe'} entre em contato.
+            Os campos marcados com * são obrigatórios para emissão da nota fiscal.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
+          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+            <div className="space-y-2" data-error={!!errors.name}>
               <Label htmlFor="client_name">Nome Completo *</Label>
               <Input
                 id="client_name"
-                required
                 placeholder="Dr. João Silva"
+                className={invalidClass('name')}
                 value={formData.client_name}
-                onChange={(e) => setFormData((f) => ({ ...f, client_name: e.target.value }))}
+                onChange={(e) => setField('client_name', e.target.value)}
               />
+              {fieldError('name')}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
+              <div className="space-y-2" data-error={!!errors.client_email}>
                 <Label htmlFor="client_email">E-mail *</Label>
                 <Input
                   id="client_email"
                   type="email"
-                  required
                   placeholder="joao@exemplo.com"
+                  className={invalidClass('client_email')}
                   value={formData.client_email}
-                  onChange={(e) => setFormData((f) => ({ ...f, client_email: e.target.value }))}
+                  onChange={(e) => setField('client_email', e.target.value)}
                 />
+                {fieldError('client_email')}
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2" data-error={!!errors.phone}>
                 <Label htmlFor="client_phone">WhatsApp *</Label>
                 <Input
                   id="client_phone"
-                  required
                   placeholder="(11) 99999-9999"
+                  className={invalidClass('phone')}
                   value={formData.client_phone}
-                  onChange={(e) => setFormData((f) => ({ ...f, client_phone: e.target.value }))}
+                  onChange={(e) => setField('client_phone', maskPhone(e.target.value))}
+                  maxLength={15}
                 />
+                {fieldError('phone')}
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="client_document">CPF</Label>
+              <div className="space-y-2" data-error={!!errors.document}>
+                <Label htmlFor="client_document">CPF *</Label>
                 <Input
                   id="client_document"
                   placeholder="000.000.000-00"
+                  className={invalidClass('document')}
                   value={formData.client_document}
-                  onChange={(e) => setFormData((f) => ({ ...f, client_document: e.target.value }))}
+                  onChange={(e) => setField('client_document', maskCPF(e.target.value))}
+                  maxLength={14}
                 />
+                {fieldError('document')}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="specialty">Especialidade</Label>
@@ -188,52 +247,92 @@ export default function LeadCapturePage() {
                   id="specialty"
                   placeholder="Ex: Nutricionista"
                   value={formData.specialty}
-                  onChange={(e) => setFormData((f) => ({ ...f, specialty: e.target.value }))}
+                  onChange={(e) => setField('specialty', e.target.value)}
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="clinic_cep">CEP</Label>
+              <div className="space-y-2" data-error={!!errors.cep}>
+                <Label htmlFor="clinic_cep">CEP *</Label>
                 <Input
                   id="clinic_cep"
                   placeholder="00000-000"
+                  className={invalidClass('cep')}
                   value={formData.clinic_cep}
-                  onChange={(e) => setFormData((f) => ({ ...f, clinic_cep: e.target.value }))}
+                  onChange={(e) => setField('clinic_cep', maskCep(e.target.value))}
+                  maxLength={9}
                 />
+                {fieldError('cep')}
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="clinic_address">Endereço (Rua/Avenida)</Label>
+              <div className="space-y-2" data-error={!!errors.street}>
+                <Label htmlFor="clinic_address">Endereço (Rua/Avenida) *</Label>
                 <Input
                   id="clinic_address"
                   placeholder="Ex: Av. Paulista"
+                  className={invalidClass('street')}
                   value={formData.clinic_address}
-                  onChange={(e) => setFormData((f) => ({ ...f, clinic_address: e.target.value }))}
+                  onChange={(e) => setField('clinic_address', e.target.value)}
                 />
+                {fieldError('street')}
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="clinic_number">Número</Label>
+              <div className="space-y-2" data-error={!!errors.number}>
+                <Label htmlFor="clinic_number">Número *</Label>
                 <Input
                   id="clinic_number"
                   placeholder="123"
+                  className={invalidClass('number')}
                   value={formData.clinic_number}
-                  onChange={(e) => setFormData((f) => ({ ...f, clinic_number: e.target.value }))}
+                  onChange={(e) => setField('clinic_number', e.target.value)}
                 />
+                {fieldError('number')}
               </div>
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="clinic_neighborhood">Bairro</Label>
+              <div className="space-y-2 md:col-span-2" data-error={!!errors.neighborhood}>
+                <Label htmlFor="clinic_neighborhood">Bairro *</Label>
                 <Input
                   id="clinic_neighborhood"
                   placeholder="Bela Vista"
+                  className={invalidClass('neighborhood')}
                   value={formData.clinic_neighborhood}
-                  onChange={(e) =>
-                    setFormData((f) => ({ ...f, clinic_neighborhood: e.target.value }))
-                  }
+                  onChange={(e) => setField('clinic_neighborhood', e.target.value)}
                 />
+                {fieldError('neighborhood')}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2" data-error={!!errors.city}>
+                <Label htmlFor="clinic_city">Cidade *</Label>
+                <Input
+                  id="clinic_city"
+                  placeholder="São Paulo"
+                  className={invalidClass('city')}
+                  value={formData.clinic_city}
+                  onChange={(e) => setField('clinic_city', e.target.value)}
+                />
+                {fieldError('city')}
+              </div>
+              <div className="space-y-2" data-error={!!errors.state}>
+                <Label htmlFor="clinic_state">Estado (UF) *</Label>
+                <Select
+                  value={formData.clinic_state}
+                  onValueChange={(v) => setField('clinic_state', v)}
+                >
+                  <SelectTrigger id="clinic_state" className={invalidClass('state')}>
+                    <SelectValue placeholder="Selecione a UF" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {UF_OPTIONS.map((uf) => (
+                      <SelectItem key={uf} value={uf}>
+                        {uf}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {fieldError('state')}
               </div>
             </div>
 
@@ -243,7 +342,7 @@ export default function LeadCapturePage() {
                 id="clinic_complement"
                 placeholder="Sala 101, Andar 2"
                 value={formData.clinic_complement}
-                onChange={(e) => setFormData((f) => ({ ...f, clinic_complement: e.target.value }))}
+                onChange={(e) => setField('clinic_complement', e.target.value)}
               />
             </div>
 
@@ -254,7 +353,7 @@ export default function LeadCapturePage() {
                   id="instagram"
                   placeholder="@seu_perfil"
                   value={formData.instagram}
-                  onChange={(e) => setFormData((f) => ({ ...f, instagram: e.target.value }))}
+                  onChange={(e) => setField('instagram', e.target.value)}
                 />
               </div>
               <div className="space-y-2">
@@ -263,9 +362,7 @@ export default function LeadCapturePage() {
                   id="patients_per_month"
                   placeholder="Ex: 50"
                   value={formData.patients_per_month}
-                  onChange={(e) =>
-                    setFormData((f) => ({ ...f, patients_per_month: e.target.value }))
-                  }
+                  onChange={(e) => setField('patients_per_month', e.target.value)}
                 />
               </div>
             </div>

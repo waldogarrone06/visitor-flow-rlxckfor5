@@ -29,6 +29,7 @@ import { Lead } from '@/lib/types'
 import { Separator } from '@/components/ui/separator'
 import { supabase } from '@/lib/supabase/client'
 import { syncCalendarService } from '@/features/syncCalendarService'
+import { isValidCPF, isValidPhone, maskCPF, maskPhone, maskCep } from '@/lib/validation'
 
 const UF_OPTIONS = [
   'AC',
@@ -68,8 +69,14 @@ const timeOptions = Array.from({ length: 41 }, (_, i) => {
 
 const formSchema = z.object({
   name: z.string().min(2, 'Nome muito curto'),
-  cpf: z.string().min(14, 'CPF inválido'),
-  phone: z.string().min(14, 'Telefone inválido'),
+  cpf: z
+    .string()
+    .min(1, 'CPF obrigatório')
+    .refine((val) => isValidCPF(val), 'CPF inválido — informe os 11 dígitos'),
+  phone: z
+    .string()
+    .min(1, 'Telefone obrigatório')
+    .refine((val) => isValidPhone(val), 'Telefone inválido — informe DDD (10 ou 11 dígitos)'),
   email: z.string().email('E-mail inválido'),
   profession: z.enum(['médico', 'nutricionista', 'treinador'], {
     message: 'Selecione uma profissão',
@@ -78,7 +85,10 @@ const formSchema = z.object({
   registrationNumber: z.string().min(2, 'Registro inválido'),
   time: z.string().min(4, 'Selecione um horário'),
   endTime: z.string().min(4, 'Selecione o horário de término'),
-  cep: z.string().min(9, 'CEP inválido'),
+  cep: z
+    .string()
+    .min(1, 'CEP obrigatório')
+    .refine((val) => val.replace(/\D/g, '').length === 8, 'CEP inválido — informe 8 dígitos'),
   street: z.string().min(2, 'Rua obrigatória'),
   number: z.string().min(1, 'Número obrigatório'),
   complement: z.string().optional(),
@@ -240,7 +250,7 @@ export function ScheduleForm({
         complement: duplicateData.clinic_complement || '',
         neighborhood: duplicateData.clinic_neighborhood || '',
         city: duplicateData.clinic_city || '',
-        state: '',
+        state: duplicateData.clinic_state || duplicateData.state || '',
         time: '',
         endTime: '',
         authorizeInfo: false,
@@ -484,24 +494,10 @@ export function ScheduleForm({
   }
 
   const applyMask = (v: string, type: 'cpf' | 'phone' | 'cep') => {
-    let val = v.replace(/\D/g, '')
-    if (type === 'cpf') {
-      val = val.slice(0, 11)
-      return val
-        .replace(/(\d{3})(\d)/, '$1.$2')
-        .replace(/(\d{3})(\d)/, '$1.$2')
-        .replace(/(\d{3})(\d{1,2})$/, '$1-$2')
-    }
-    if (type === 'phone') {
-      val = val.slice(0, 11)
-      val = val.replace(/^(\d{2})(\d)/g, '($1) $2')
-      return val.replace(/(\d)(\d{4})$/, '$1-$2')
-    }
-    if (type === 'cep') {
-      val = val.slice(0, 8)
-      return val.replace(/(\d{5})(\d)/, '$1-$2')
-    }
-    return val
+    if (type === 'cpf') return maskCPF(v)
+    if (type === 'phone') return maskPhone(v)
+    if (type === 'cep') return maskCep(v)
+    return v
   }
 
   const handleSelectLead = (contact: any) => {

@@ -22,6 +22,7 @@ export type Database = {
           clinic_complement: string | null
           clinic_neighborhood: string | null
           clinic_number: string | null
+          clinic_state: string | null
           coupon_code: string | null
           coupon_usage_count: number
           coupon_verified: boolean | null
@@ -59,6 +60,7 @@ export type Database = {
           clinic_complement?: string | null
           clinic_neighborhood?: string | null
           clinic_number?: string | null
+          clinic_state?: string | null
           coupon_code?: string | null
           coupon_usage_count?: number
           coupon_verified?: boolean | null
@@ -96,6 +98,7 @@ export type Database = {
           clinic_complement?: string | null
           clinic_neighborhood?: string | null
           clinic_number?: string | null
+          clinic_state?: string | null
           coupon_code?: string | null
           coupon_usage_count?: number
           coupon_verified?: boolean | null
@@ -184,6 +187,8 @@ export type Database = {
         Row: {
           address: string | null
           cep: string | null
+          city: string | null
+          complement: string | null
           created_at: string
           document: string | null
           email: string | null
@@ -191,6 +196,8 @@ export type Database = {
           instagram: string | null
           last_inbound_at: string | null
           name: string
+          neighborhood: string | null
+          number: string | null
           nutritionist_coupon: string | null
           patient_coupon: string | null
           patients_per_month: string | null
@@ -198,11 +205,14 @@ export type Database = {
           profession: string | null
           registration_number: string | null
           specialty: string | null
+          state: string | null
           user_id: string
         }
         Insert: {
           address?: string | null
           cep?: string | null
+          city?: string | null
+          complement?: string | null
           created_at?: string
           document?: string | null
           email?: string | null
@@ -210,6 +220,8 @@ export type Database = {
           instagram?: string | null
           last_inbound_at?: string | null
           name: string
+          neighborhood?: string | null
+          number?: string | null
           nutritionist_coupon?: string | null
           patient_coupon?: string | null
           patients_per_month?: string | null
@@ -217,11 +229,14 @@ export type Database = {
           profession?: string | null
           registration_number?: string | null
           specialty?: string | null
+          state?: string | null
           user_id: string
         }
         Update: {
           address?: string | null
           cep?: string | null
+          city?: string | null
+          complement?: string | null
           created_at?: string
           document?: string | null
           email?: string | null
@@ -229,6 +244,8 @@ export type Database = {
           instagram?: string | null
           last_inbound_at?: string | null
           name?: string
+          neighborhood?: string | null
+          number?: string | null
           nutritionist_coupon?: string | null
           patient_coupon?: string | null
           patients_per_month?: string | null
@@ -236,6 +253,7 @@ export type Database = {
           profession?: string | null
           registration_number?: string | null
           specialty?: string | null
+          state?: string | null
           user_id?: string
         }
         Relationships: []
