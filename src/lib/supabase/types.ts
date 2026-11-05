@@ -35,6 +35,7 @@ export type Database = {
           instagram: string | null
           is_address_edited: boolean | null
           kit_name: string | null
+          kit_requested_at: string | null
           kit_status: string | null
           nutritionist_coupon: string | null
           patient_coupon: string | null
@@ -73,6 +74,7 @@ export type Database = {
           instagram?: string | null
           is_address_edited?: boolean | null
           kit_name?: string | null
+          kit_requested_at?: string | null
           kit_status?: string | null
           nutritionist_coupon?: string | null
           patient_coupon?: string | null
@@ -107,6 +109,7 @@ export type Database = {
           end_time?: string
           google_event_id?: string | null
           google_meet_link?: string | null
+          kit_requested_at?: string | null
           id?: string
           instagram?: string | null
           is_address_edited?: boolean | null

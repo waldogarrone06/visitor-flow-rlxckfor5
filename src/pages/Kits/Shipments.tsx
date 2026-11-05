@@ -102,6 +102,7 @@ type Shipment = {
   id: string
   created_at: string
   appointment_date: string | null
+  kit_requested_at: string | null
   client_name: string
   client_email: string
   client_phone: string | null
@@ -647,8 +648,8 @@ Obrigado por confiar em nosso trabalho!`
     let valB = ''
 
     if (sortColumn === 'date') {
-      const dateA = new Date(a.appointment_date || a.created_at).getTime()
-      const dateB = new Date(b.appointment_date || b.created_at).getTime()
+      const dateA = a.kit_requested_at ? new Date(a.kit_requested_at).getTime() : 0
+      const dateB = b.kit_requested_at ? new Date(b.kit_requested_at).getTime() : 0
       return sortDirection === 'asc' ? dateA - dateB : dateB - dateA
     }
 
@@ -734,7 +735,7 @@ Obrigado por confiar em nosso trabalho!`
                     onClick={() => handleSort('date')}
                     className="flex items-center gap-1.5 font-medium hover:text-foreground transition-colors cursor-pointer select-none"
                   >
-                    <span>Data</span>
+                    <span>Data da Solicitação</span>
                     {sortColumn === 'date' ? (
                       sortDirection === 'asc' ? (
                         <ArrowUp className="h-3.5 w-3.5 text-primary" />
@@ -858,9 +859,11 @@ Obrigado por confiar em nosso trabalho!`
                 sortedShipments.map((s) => (
                   <TableRow key={s.id}>
                     <TableCell className="whitespace-nowrap">
-                      {format(new Date(s.appointment_date || s.created_at), 'dd/MM/yyyy', {
-                        locale: ptBR,
-                      })}
+                      {s.kit_requested_at ? (
+                        format(new Date(s.kit_requested_at), 'dd/MM/yyyy', { locale: ptBR })
+                      ) : (
+                        <span className="text-muted-foreground text-sm">—</span>
+                      )}
                     </TableCell>
                     <TableCell className="font-medium max-w-[200px] truncate" title={s.client_name}>
                       {s.client_name}

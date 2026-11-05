@@ -4,7 +4,7 @@ import { corsHeaders } from '../_shared/cors.ts'
 
 const normalizeTracking = (code: string) => code.replace(/^[A-Z]+-/i, '').trim()
 
-const MELHOR_ENVIO_DELIVERED_STATUSES = new Set(['delivered'])
+const MELHOR_ENVIO_DELIVERED_STATUSES = new Set(['delivered', 'entregue'])
 
 const isOrderDelivered = (order: any): boolean => {
   if (order.delivered_at) return true
@@ -12,7 +12,10 @@ const isOrderDelivered = (order: any): boolean => {
   return false
 }
 
-const fetchJson = async (url: string, token: string): Promise<any | null> => {
+const fetchJson = async (
+  url: string,
+  token: string,
+): Promise<{ data: any | null; httpStatus: number }> => {
   const res = await fetch(url, {
     headers: {
       Authorization: `Bearer ${token}`,
@@ -21,11 +24,11 @@ const fetchJson = async (url: string, token: string): Promise<any | null> => {
     },
   })
   const text = await res.text()
-  if (text.trimStart().startsWith('<')) return null
+  if (text.trimStart().startsWith('<')) return { data: null, httpStatus: res.status }
   try {
-    return JSON.parse(text)
+    return { data: JSON.parse(text), httpStatus: res.status }
   } catch (_) {
-    return null
+    return { data: null, httpStatus: res.status }
   }
 }
 
@@ -35,17 +38,27 @@ const findOrderByTracking = async (
   token: string,
   debugLog: any[],
   isDebug: boolean,
-): Promise<any | null> => {
+): Promise<{ order: any | null; httpStatus: number; lastError?: string }> => {
   const maxPages = 15
+  let httpStatus = 0
+  let lastError: string | undefined
 
   for (let page = 1; page <= maxPages; page++) {
-    const data = await fetchJson(
+    const { data, httpStatus: status } = await fetchJson(
       `https://www.melhorenvio.com.br/api/v2/me/purchases?per_page=50&page=${page}`,
       token,
     )
+    httpStatus = status
 
     if (!data) {
-      if (isDebug) debugLog.push({ step: 'fetch_failed', page })
+      lastError = `HTTP ${status} ou resposta inválida do Melhor Envio (página ${page})`
+      if (isDebug) debugLog.push({ step: 'fetch_failed', page, httpStatus: status })
+      break
+    }
+
+    if (data.error || data.message) {
+      lastError = `Melhor Envio respondeu erro: ${typeof data.message === 'string' ? data.message : JSON.stringify(data.error || data.message).slice(0, 300)}`
+      if (isDebug) debugLog.push({ step: 'api_error', page, body: data })
       break
     }
 
@@ -80,7 +93,7 @@ const findOrderByTracking = async (
               delivered_at: order.delivered_at,
               posted_at: order.posted_at,
             })
-          return order
+          return { order, httpStatus }
         }
       }
     }
@@ -89,7 +102,24 @@ const findOrderByTracking = async (
     await new Promise((r) => setTimeout(r, 200))
   }
 
-  return null
+  return { order: null, httpStatus, lastError }
+}
+
+const logTrackingError = async (
+  supabase: any,
+  appointmentId: string,
+  userId: string | null,
+  message: string,
+): Promise<void> => {
+  await supabase.from('interaction_log').insert({
+    user_id: userId,
+    type: 'tracking_error',
+    details: {
+      appointment_id: appointmentId,
+      error: String(message).slice(0, 500),
+      source: 'track-shipping',
+    },
+  })
 }
 
 Deno.serve(async (req: Request) => {
@@ -113,13 +143,18 @@ Deno.serve(async (req: Request) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
     const supabase = createClient(supabaseUrl, supabaseKey)
 
+    // Itera TODOS os envios com rastreio que ainda não foram entregues,
+    // independentemente do user_id (logística vê a operação inteira).
+    // Importante: NÃO filtrar por status='scheduled' — a maioria dos envios
+    // é de registros de lead e precisam ser rastreados igualmente.
     let query = supabase
       .from('appointments')
       .select('id, user_id, tracking_number, kit_status')
       .not('tracking_number', 'is', null)
+      .neq('tracking_number', '')
+      .not('kit_status', 'is', null)
       .neq('kit_status', 'Entregue')
       .neq('kit_status', 'Delivered')
-      .neq('status', 'Lead')
 
     if (appointmentIdToRefresh) query = query.eq('id', appointmentIdToRefresh)
 
@@ -141,7 +176,8 @@ Deno.serve(async (req: Request) => {
       .select('user_id, melhor_envio_token')
       .in('user_id', userIds)
 
-    // Fallback: If some user doesn't have a token, look for any token configured in integration_secrets (e.g. admin or logistics user)
+    // Token do dono do envio; sem token próprio, cai para um token
+    // compartilhado/reserva configurado por qualquer usuário.
     const tokens = new Map<string, string>()
     let fallbackToken: string | null = null
 
@@ -166,6 +202,7 @@ Deno.serve(async (req: Request) => {
 
     const updates: string[] = []
     const skipped: string[] = []
+    const errors: Array<{ id: string; error: string }> = []
     const debugLog: any[] = []
 
     for (const app of appointments) {
@@ -173,6 +210,13 @@ Deno.serve(async (req: Request) => {
 
       if (!token) {
         console.warn(`[track-shipping] No token for user ${app.user_id}`)
+        await logTrackingError(
+          supabase,
+          app.id,
+          app.user_id,
+          'Nenhum token do Melhor Envio configurado',
+        )
+        errors.push({ id: app.id, error: 'sem token do Melhor Envio' })
         skipped.push(app.id)
         continue
       }
@@ -180,7 +224,7 @@ Deno.serve(async (req: Request) => {
       const normalizedCode = normalizeTracking(app.tracking_number)
 
       try {
-        const order = await findOrderByTracking(
+        const { order, lastError } = await findOrderByTracking(
           normalizedCode,
           app.tracking_number,
           token,
@@ -189,8 +233,11 @@ Deno.serve(async (req: Request) => {
         )
 
         if (!order) {
-          console.warn(`[track-shipping] Order not found: ${normalizedCode}`)
-          if (isDebug) debugLog.push({ step: 'not_found', tracking: normalizedCode })
+          const msg =
+            lastError || `Pedido não encontrado no Melhor Envio para o rastreio ${normalizedCode}`
+          console.warn(`[track-shipping] ${msg}`)
+          await logTrackingError(supabase, app.id, app.user_id, msg)
+          errors.push({ id: app.id, error: msg })
           skipped.push(app.id)
           continue
         }
@@ -216,6 +263,14 @@ Deno.serve(async (req: Request) => {
 
         if (updateErr) {
           console.error(`[track-shipping] Failed to update ${app.id}:`, updateErr.message)
+          await logTrackingError(
+            supabase,
+            app.id,
+            app.user_id,
+            `Falha ao atualizar status: ${updateErr.message}`,
+          )
+          errors.push({ id: app.id, error: updateErr.message })
+          skipped.push(app.id)
         } else {
           updates.push(app.id)
           console.log(
@@ -224,8 +279,8 @@ Deno.serve(async (req: Request) => {
         }
       } catch (e: any) {
         console.error(`[track-shipping] Exception for ${normalizedCode}:`, e.message)
-        if (isDebug)
-          debugLog.push({ step: 'exception', tracking: normalizedCode, error: e.message })
+        await logTrackingError(supabase, app.id, app.user_id, e.message)
+        errors.push({ id: app.id, error: e.message })
         skipped.push(app.id)
       }
 
@@ -235,10 +290,13 @@ Deno.serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         success: true,
+        checkedCount: appointments.length,
         updatedCount: updates.length,
         updatedIds: updates,
         skippedCount: skipped.length,
         skippedIds: skipped,
+        errorCount: errors.length,
+        errors,
         ...(isDebug && { debug: debugLog }),
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
