@@ -2,13 +2,19 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 import { getGoogleTokens } from '../_shared/integration-secrets.ts'
+import { requireInternalOrUserAuth, escapeHtml } from '../_shared/internal-auth.ts'
 
+// Chamada pelo FRONT autenticado (syncCalendarService: Dashboard, Scheduling,
+// CRM). Requer service role (chamadas internas) ou JWT de usuário — anônimo 401.
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
+    const auth = await requireInternalOrUserAuth(req)
+    if (!auth.ok) return auth.response
+
     const { appointmentId } = await req.json()
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
@@ -219,15 +225,22 @@ Deno.serve(async (req: Request) => {
             const formattedDate = currentApp.appointment_date
               ? currentApp.appointment_date.split('-').reverse().join('/')
               : ''
-            let msg = `Olá!\n\nUm novo agendamento foi confirmado e o link da reunião foi gerado com sucesso.\n\nPaciente: ${currentApp.client_name}\nData: ${formattedDate}\nHorário: ${currentApp.start_time}\n\nLink da Reunião: ${meetLink}\n\nAcesse o link no horário marcado para iniciar a consulta.\n\nAtenciosamente,\nSistema de Agendamento`
+            // Dados do usuário são escapados antes de virar HTML (S7).
+            const safeClientName = escapeHtml(currentApp.client_name)
+            const safeDate = escapeHtml(formattedDate)
+            const safeTime = escapeHtml(currentApp.start_time)
+            const safeMeetLink = escapeHtml(meetLink)
+            const safeProfessionalName = escapeHtml(profile?.name || 'Equipe')
+
+            let msg = `Olá!\n\nUm novo agendamento foi confirmado e o link da reunião foi gerado com sucesso.\n\nPaciente: ${safeClientName}\nData: ${safeDate}\nHorário: ${safeTime}\n\nLink da Reunião: ${safeMeetLink}\n\nAcesse o link no horário marcado para iniciar a consulta.\n\nAtenciosamente,\nSistema de Agendamento`
 
             if (integ?.reminder_email_template) {
               const replacements: Record<string, string> = {
-                '\\{\\{nome_cliente\\}\\}': currentApp.client_name || '',
-                '\\{\\{data\\}\\}': formattedDate,
-                '\\{\\{hora\\}\\}': currentApp.start_time || '',
-                '\\{\\{meet_link\\}\\}': meetLink,
-                '\\{\\{professional_name\\}\\}': profile?.name || 'Equipe',
+                '\\{\\{nome_cliente\\}\\}': safeClientName,
+                '\\{\\{data\\}\\}': safeDate,
+                '\\{\\{hora\\}\\}': safeTime,
+                '\\{\\{meet_link\\}\\}': safeMeetLink,
+                '\\{\\{professional_name\\}\\}': safeProfessionalName,
               }
               msg = integ.reminder_email_template
               for (const [k, v] of Object.entries(replacements)) {

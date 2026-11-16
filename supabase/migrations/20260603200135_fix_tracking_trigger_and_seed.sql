@@ -16,7 +16,9 @@ BEGIN
       new_user_id,
       '00000000-0000-0000-0000-000000000000',
       'wal@fourlabnutri.com.br',
-      crypt('Skip@Pass', gen_salt('bf')),
+      -- Auditoria S3: sem senha pré-fixada. O usuário criado aqui recebe
+      -- convite de redefinição pelo painel/PasswordResetCard antes de logar.
+      crypt(gen_random_uuid()::text, gen_salt('bf')),
       NOW(), NOW(), NOW(),
       '{"provider": "email", "providers": ["email"]}',
       '{"name": "Wal"}',

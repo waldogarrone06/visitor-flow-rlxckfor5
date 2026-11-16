@@ -1,5 +1,6 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
+import { escapeHtml } from '../_shared/internal-auth.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -70,11 +71,14 @@ Deno.serve(async (req: Request) => {
       const integration = integrationsMap.get(app.user_id)
       if (!integration) continue
 
+      // Dados do usuário são escapados antes de virar HTML do e-mail (S7).
+      // (No WhatsApp a substituição também usa os valores escapados — sem
+      // efeito colateral real, pois o WhatsApp não interpreta HTML.)
       const replacements = {
-        '\\{\\{nome_cliente\\}\\}': app.client_name,
-        '\\{\\{data\\}\\}': app.appointment_date.split('-').reverse().join('/'),
-        '\\{\\{hora\\}\\}': app.start_time,
-        '\\{\\{meet_link\\}\\}': app.google_meet_link || 'Link não gerado',
+        '\\{\\{nome_cliente\\}\\}': escapeHtml(app.client_name),
+        '\\{\\{data\\}\\}': escapeHtml(app.appointment_date.split('-').reverse().join('/')),
+        '\\{\\{hora\\}\\}': escapeHtml(app.start_time),
+        '\\{\\{meet_link\\}\\}': escapeHtml(app.google_meet_link || 'Link não gerado'),
       }
 
       let sentAny = false

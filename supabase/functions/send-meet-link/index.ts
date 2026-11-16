@@ -1,19 +1,19 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
+import { corsHeaders } from '../_shared/cors.ts'
+import { requireInternalOrUserAuth, escapeHtml } from '../_shared/internal-auth.ts'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers':
-    'authorization, x-client-info, x-supabase-client-platform, apikey, content-type',
-}
-
+// Chamada pelo FRONT autenticado (UpcomingOnlineMeetings — botão "Enviar Link").
+// Requer service role (chamadas internas) ou JWT de usuário — anônimo 401.
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
+    const auth = await requireInternalOrUserAuth(req)
+    if (!auth.ok) return auth.response
+
     const { appointmentId } = await req.json()
     if (!appointmentId) {
       throw new Error('ID do agendamento não fornecido.')
@@ -68,16 +68,6 @@ Deno.serve(async (req: Request) => {
       .eq('id', appointment.user_id)
       .single()
 
-    const replacements: Record<string, string> = {
-      '\\{\\{nome_cliente\\}\\}': appointment.client_name || '',
-      '\\{\\{data\\}\\}': appointment.appointment_date
-        ? appointment.appointment_date.split('-').reverse().join('/')
-        : '',
-      '\\{\\{hora\\}\\}': appointment.start_time || '',
-      '\\{\\{meet_link\\}\\}': effectiveMeetLink,
-      '\\{\\{professional_name\\}\\}': profile?.name || 'Nossa equipe',
-    }
-
     let sentAny = false
 
     const messageTemplate = `Olá, {{nome_cliente}}! 👋
@@ -98,6 +88,19 @@ Até logo! 😊
     let msg = messageTemplate
     for (const [k, v] of Object.entries(replacements)) {
       msg = msg.replace(new RegExp(k, 'g'), v)
+    }
+
+    // Escapa dados do usuário antes de interpolar no HTML do e-mail (S7).
+    const replacements: Record<string, string> = {
+      '\\{\\{nome_cliente\\}\\}': escapeHtml(appointment.client_name),
+      '\\{\\{data\\}\\}': escapeHtml(
+        appointment.appointment_date
+          ? appointment.appointment_date.split('-').reverse().join('/')
+          : '',
+      ),
+      '\\{\\{hora\\}\\}': escapeHtml(appointment.start_time),
+      '\\{\\{meet_link\\}\\}': escapeHtml(effectiveMeetLink),
+      '\\{\\{professional_name\\}\\}': escapeHtml(profile?.name || 'Nossa equipe'),
     }
 
     // WhatsApp Delivery

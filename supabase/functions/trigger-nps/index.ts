@@ -1,6 +1,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
+import { escapeHtml } from '../_shared/internal-auth.ts'
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -113,7 +114,9 @@ Deno.serve(async (req: Request) => {
 
         const publicUrl = Deno.env.get('FRONTEND_URL') || 'https://4labnutricom.goskip.app'
         const npsUrl = `${publicUrl}/nps/${app.id}`
-        const message = `Olá, ${app.client_name}! Esperamos que tenha recebido seu kit com sucesso. Poderia nos avaliar rapidamente? ${npsUrl}`
+        const safeClientName = escapeHtml(app.client_name)
+        const safeNpsUrl = escapeHtml(npsUrl)
+        const message = `Olá, ${safeClientName}! Esperamos que tenha recebido seu kit com sucesso. Poderia nos avaliar rapidamente? ${safeNpsUrl}`
 
         let channelSent = false
 
@@ -150,7 +153,7 @@ Deno.serve(async (req: Request) => {
               body: JSON.stringify({
                 to: app.client_email,
                 subject: 'Pesquisa de Satisfação - Fourlab',
-                html: `<p>Olá, ${app.client_name}!</p><p>Esperamos que tenha recebido seu kit com sucesso.</p><p>Poderia nos avaliar rapidamente clicando <a href="${npsUrl}">neste link</a>?</p>`,
+                html: `<p>Olá, ${safeClientName}!</p><p>Esperamos que tenha recebido seu kit com sucesso.</p><p>Poderia nos avaliar rapidamente clicando <a href="${safeNpsUrl}">neste link</a>?</p>`,
                 senderName: 'Fourlab',
               }),
             })
