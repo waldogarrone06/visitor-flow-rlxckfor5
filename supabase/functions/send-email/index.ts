@@ -2,24 +2,61 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 
+// Envio de e-mail autenticado (Resend).
+// - Exige um usuário AUTENTICADO do Supabase no header Authorization (anon key => 401).
+// - Chamadas servidor-a-servidor (outras edge functions) usam a service role key, que
+//   também resolve para um papel autenticado e é aceita.
+// - A chave da Resend vem EXCLUSIVAMENTE do secret RESEND_API_KEY (nunca hardcoded).
+//   (O corpo da requisição NÃO é mais aceito como fonte de chave.)
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
+    // --- Autenticação obrigatória -------------------------------------------
+    const authHeader = req.headers.get('Authorization') || ''
+    const token = authHeader.replace(/^Bearer\s+/i, '').trim()
+
+    if (!token) {
+      return new Response(JSON.stringify({ error: 'Não autenticado: token ausente.' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || ''
+
+    // Cria um client atuando COMO o chamador, para validar o token real.
+    const supabaseAsUser = createClient(supabaseUrl, supabaseAnonKey || token, {
+      global: { headers: { Authorization: authHeader } },
+    })
+    const { data: userData, error: userError } = await supabaseAsUser.auth.getUser(token)
+
+    if (userError || !userData?.user || userData.user.role !== 'authenticated') {
+      return new Response(JSON.stringify({ error: 'Não autenticado ou token inválido.' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    // --- Payload ------------------------------------------------------------
     const body = await req.json().catch(() => ({}))
-    const { to, subject, html, text, senderName, resendApiKey, from, userId, meetLink } = body
+    const { to, subject, html, text, senderName, from, userId, meetLink } = body
 
     if (!to || !subject || (!html && !text)) {
       throw new Error('Parâmetros obrigatórios ausentes: to, subject e html (ou text).')
     }
 
-    const RESEND_API_KEY =
-      resendApiKey || Deno.env.get('RESEND_API_KEY') || 're_WRBu3Lbz_EikoqsHQ6Kqpv3prxL1Qdgf6'
+    // --- Chave da Resend: apenas do ambiente/secrets -------------------------
+    const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') || ''
 
     if (!RESEND_API_KEY) {
-      throw new Error('Chave de API do Resend não configurada. Adicione no Cofre de Segredos.')
+      throw new Error(
+        'Chave de API do Resend não configurada. Defina o secret RESEND_API_KEY (Configurações > Cofre de Segredos).',
+      )
     }
 
     const safeSenderName = (senderName || 'FourLab Nutrition').replace(/[<>]/g, '').trim()
@@ -29,11 +66,9 @@ Deno.serve(async (req: Request) => {
     let finalMeetLink = meetLink || null
 
     if (!finalMeetLink && userId) {
-      const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
-      const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
-
-      if (supabaseUrl && supabaseKey) {
-        const supabase = createClient(supabaseUrl, supabaseKey)
+      const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
+      if (supabaseUrl && serviceKey) {
+        const supabase = createClient(supabaseUrl, serviceKey)
         const { data: fixedLink, error: rpcError } = await supabase.rpc('get_fixed_meet_link', {
           p_user_id: userId,
         })

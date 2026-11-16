@@ -8,7 +8,7 @@
     "create-user": 138,
     "google-oauth-exchange": 130,
     "google-oauth-url": 15,
-    "send-email": 137,
+    "send-email": 138,
     "whatsapp-send": 170,
     "whatsapp-webhook": 165,
     "trigger-reminders": 15,
@@ -23,6 +23,7 @@
     "save-integration-secret": 110,
     "whatsapp-redeploy": 106,
     "yampi-create-coupon": 98,
-    "yampi-dual-coupons": 29
+    "yampi-dual-coupons": 29,
+    "nps-appointment-name": 1
   }
 }

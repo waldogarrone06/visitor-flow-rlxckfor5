@@ -99,7 +99,10 @@ export default function LeadCapturePage() {
         end_time: '00:00',
       }
 
-      const { error } = await supabase.from('appointments').insert([payload]).select().single()
+      // Sem .select(): a leitura anônima de appointments foi fechada por segurança
+      // (PII exposta). O insert anônimo continua funcionando; nada aqui consome a
+      // linha retornada.
+      const { error } = await supabase.from('appointments').insert([payload])
 
       if (error) throw error
 

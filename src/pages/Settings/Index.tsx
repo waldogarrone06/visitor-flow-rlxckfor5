@@ -13,6 +13,7 @@ import { MelhorEnvioCard } from './MelhorEnvioCard'
 import { ReminderSettingsCard } from './ReminderSettingsCard'
 import { CatalogSettingsCard } from './CatalogSettingsCard'
 import { YampiCard } from './YampiCard'
+import { PasswordResetCard } from './PasswordResetCard'
 import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -225,6 +226,7 @@ export default function SettingsPage() {
           <ReportsSettingsCard />
           <EmailSettingsCard />
           <TeamRegistrationCard />
+          <PasswordResetCard />
         </div>
       </div>
     </div>
