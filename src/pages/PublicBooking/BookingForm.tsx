@@ -136,9 +136,7 @@ export function BookingForm({ userId, date, slot, onSuccess }: BookingFormProps)
         appointment_date: format(date, 'yyyy-MM-dd'),
         start_time: slot.start_time,
         end_time: slot.end_time,
-        status: 'lead',
         lgpd_consent_at: consentAt,
-        require_consent: true,
       })
 
       const newLeadId = `l-${Date.now()}`

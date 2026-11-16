@@ -23,10 +23,27 @@ Deno.serve(async (req: Request) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '',
     )
 
-    // Data/hora atual em BRT
-    const nowBrt = new Date().toLocaleString('en-CA', { timeZone: 'America/Sao_Paulo' })
-    const todayBrt = nowBrt.slice(0, 10) // YYYY-MM-DD
-    const nowBrtMinutes = nowBrt.slice(11, 16) // HH:MM
+    // Data/hora atual em BRT — via formatToParts com hourCycle h23, porque
+    // toLocaleString('en-CA') pode devolver 12h ("2:59:00 p.m.") e quebrar a
+    // comparação de horários passados.
+    const nowInBrt = (type: Intl.DateTimeFormatPartTypes) =>
+      new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Sao_Paulo',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hourCycle: 'h23',
+        hour12: false,
+      })
+        .formatToParts(new Date())
+        .find((p) => p.type === type)?.value || ''
+
+    const todayBrt = `${nowInBrt('year')}-${nowInBrt('month')}-${nowInBrt('day')}` // YYYY-MM-DD
+    const nowBrtHour = Number(nowInBrt('hour'))
+    const nowBrtMinute = Number(nowInBrt('minute'))
+    const nowBrtMinutes = nowBrtHour * 60 + nowBrtMinute // minutos desde a meia-noite (BRT)
 
     // --- Agenda (específica do dia, senão recorrente) -------------------------
     const dayOfWeek = new Date(`${date}T12:00:00-03:00`).getDay()
@@ -139,9 +156,13 @@ Deno.serve(async (req: Request) => {
     }
 
     // --- Filtra horários que já passaram HOJE (BRT) ---------------------------
+    const slotToMinutes = (hhmm: string): number => {
+      const [h, m] = String(hhmm).split(':')
+      return Number(h) * 60 + Number(m || 0)
+    }
     const filteredSchedule = schedule.filter((s: any) => {
       if (date === todayBrt && s.start_time) {
-        return s.start_time > nowBrtMinutes
+        return slotToMinutes(s.start_time) > nowBrtMinutes
       }
       return true
     })

@@ -1,7 +1,14 @@
 import { supabase } from '@/lib/supabase/client'
 import { format } from 'date-fns'
 
+// A trava real de capacidade é do SERVIDOR (RPC book_appointment, constante 10).
+// Aqui é só dica de UI para esmaecer slots cheios.
 export const MAX_CAPACITY_PER_SLOT = 10
+
+// LeadCapture grava agendamentos sentinela em 1970-01-01 00:00 (só captura de
+// contato, sem slot real). A edge function é quem reconhece essa data — o
+// cliente não envia capacidade, consentimento-forçado nem flags de permissão.
+export const CAPTURE_SENTINEL_DATE = '1970-01-01'
 
 // Disponibilidade do dia vem da edge function get-availability (service role):
 // devolve agenda do dia, slots bloqueados, ocupação por slot e busySlots do
@@ -27,14 +34,17 @@ export async function getDayScheduleData(userId: string, date: Date) {
 // Agendamento público passa pela edge function create-booking (servidor):
 // RPC atômica com lock de capacidade, contato sem duplicar, evento real no
 // Google Calendar/Meet e e-mail de confirmação — nada roda no navegador.
+// SEGURANÇA: userId, capacidade, status e exigência de consentimento são
+// decididos NO SERVIDOR — o cliente não os controla e não os envia.
 export async function createPublicAppointment(data: any) {
+  const isCapture = data.appointment_date === CAPTURE_SENTINEL_DATE
+
   const { data: result, error } = await supabase.functions.invoke('create-booking', {
     body: {
       userId: data.user_id,
       appointmentDate: data.appointment_date,
       startTime: data.start_time,
       endTime: data.end_time,
-      status: data.status || 'lead',
       clientName: data.client_name,
       clientEmail: data.client_email,
       clientPhone: data.client_phone,
@@ -51,13 +61,10 @@ export async function createPublicAppointment(data: any) {
       instagram: data.instagram,
       patientsPerMonth: data.patients_per_month,
       lgpdConsentAt: data.lgpd_consent_at,
-      // Formulário público: o servidor recusa o agendamento sem consentimento
-      requireConsent: data.require_consent === true,
-      // LeadCapture (só captura) não cria evento nem envia e-mail
-      createCalendar: data.createCalendar !== false,
-      sendConfirmationEmail: data.sendConfirmationEmail !== false,
-      // LeadCapture grava em 1970-01-01: fora da checagem de capacidade
-      maxCapacity: data.ignoreCapacity === true ? 2147483647 : MAX_CAPACITY_PER_SLOT,
+      // Comportamento do fluxo (não é permissão): captura de contato não cria
+      // evento no Calendar nem envia e-mail de confirmação.
+      createCalendar: !isCapture,
+      sendConfirmationEmail: !isCapture,
     },
   })
 

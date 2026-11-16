@@ -102,17 +102,10 @@ export default function LeadCapturePage() {
       await createPublicAppointment({
         user_id: userId,
         ...formData,
-        status: 'lead',
         appointment_date: '1970-01-01',
         start_time: '00:00',
         end_time: '00:00',
         lgpd_consent_at: new Date().toISOString(),
-        require_consent: true,
-        // Captura de contato: sem evento no Calendar e sem e-mail de confirmação
-        createCalendar: false,
-        sendConfirmationEmail: false,
-        // Captura grava em data passada (1970-01-01): não deve contar como slot ocupado
-        ignoreCapacity: true,
       })
 
       setSuccess(true)

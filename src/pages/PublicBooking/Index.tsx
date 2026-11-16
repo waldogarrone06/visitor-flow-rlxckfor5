@@ -8,6 +8,17 @@ import { ptBR } from 'date-fns/locale'
 import { FourLabLogo } from '@/components/FourLabLogo'
 import { getDayScheduleData, MAX_CAPACITY_PER_SLOT } from '@/services/public-booking'
 import { BookingForm } from './BookingForm'
+
+// Slots ocupados no Google Calendar chegam em busySlots (edge get-availability).
+// Formato: { start: 'HH:MM', end: 'HH:MM' } — são indisponíveis como os locked.
+const isSlotBusy = (busySlots: any[], slot: { start_time: string; end_time: string }) =>
+  busySlots.some((b) => {
+    if (!b?.start || !b?.end) return true // evento sem hora legível: bloqueia por segurança
+    const sStart = slot.start_time
+    const sEnd = slot.end_time || slot.start_time
+    // sobrepõe se começa antes do fim do busy e termina depois do início dele
+    return sStart < b.end && sEnd > b.start
+  })
 import { supabase } from '@/lib/supabase/client'
 import {
   CheckCircle2,
@@ -31,7 +42,8 @@ export default function PublicBookingPage() {
     schedule: any[]
     appointments: any[]
     lockedSlots: any[]
-  }>({ schedule: [], appointments: [], lockedSlots: [] })
+    busySlots: any[]
+  }>({ schedule: [], appointments: [], lockedSlots: [], busySlots: [] })
   const [weeklySchedule, setWeeklySchedule] = useState<number[]>([])
   const [specificDates, setSpecificDates] = useState<string[]>([])
 
@@ -110,6 +122,9 @@ export default function PublicBookingPage() {
       })
 
       if (isLocked) return false
+
+      // Ocupado no Google Calendar (busySlots) = indisponível, como locked
+      if (isSlotBusy(dayData.busySlots, slot)) return false
 
       // Ocupação por slot vem da edge get-availability (anônimo não lê appointments)
       const slotCount = dayData.appointments[slot.start_time] || 0

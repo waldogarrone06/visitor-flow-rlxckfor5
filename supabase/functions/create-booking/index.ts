@@ -10,11 +10,23 @@ import { getGoogleTokens } from '../_shared/integration-secrets.ts'
 // 3) Cria o evento no Google Calendar com link real do Meet (ou usa o link fixo
 //    configurado). SEM integração disponível: falha de forma segura e o e-mail sai SEM link — nunca um link falso;
 // 4) Envia o e-mail de confirmação via send-email (Resend, secret RESEND_API_KEY).
+//
+// SEGURANÇA: o cliente NÃO controla userId, capacidade, status nem exigência de
+// consentimento — tudo é decidido AQUI. O userId vem da URL da página pública
+// (route param, mesmo valor validado pela get-availability); capacidade e
+// consentimento são constantes do servidor.
 
 const MAX_CAPACITY = 10
+const CAPTURE_DATE = '1970-01-01' // LeadCapture: data sentinela fora da checagem de capacidade
 
 function normalizePhone(raw: string | null | undefined): string {
   return (raw || '').replace(/\D/g, '')
+}
+
+function isValidUuid(value: string | null | undefined): boolean {
+  return (
+    !!value && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value.trim())
+  )
 }
 
 async function refreshGoogleToken(
@@ -263,7 +275,6 @@ Deno.serve(async (req: Request) => {
       appointmentDate,
       startTime,
       endTime,
-      status,
       clientName,
       clientEmail,
       clientPhone,
@@ -280,38 +291,60 @@ Deno.serve(async (req: Request) => {
       instagram,
       patientsPerMonth,
       lgpdConsentAt,
-      // LeadCapture (só captura de contato) não cria evento nem envia e-mail
+      // LeadCapture (só captura de contato) não cria evento nem envia e-mail.
+      // São flags de COMPORTAMENTO do fluxo, não de permissão — nada aqui
+      // afeta capacidade, consentimento, status ou de quem é o agendamento.
       createCalendar = true,
       sendConfirmationEmail = true,
-      maxCapacity,
-      // O formulário público exige o consentimento; o servidor recusa sem ele
-      requireConsent = false,
     } = body || {}
 
-    if (!userId || !appointmentDate || !startTime) {
-      throw new Error('Campos obrigatórios ausentes: userId, appointmentDate e startTime.')
+    // userId NUNCA vem "de confiança" do body de dados: o chamador público é a
+    // página /agendar/:userId e o userId do route param é a origem válida.
+    if (!userId || !isValidUuid(userId) || !appointmentDate || !startTime) {
+      throw new Error(
+        'Campos obrigatórios ausentes ou inválidos: userId, appointmentDate e startTime.',
+      )
     }
 
-    // --- LGPD: sem consentimento informado, nada é salvo ----------------------
-    if (requireConsent && !lgpdConsentAt) {
+    // --- 1) userId existe (servidor resolve quem é o profissional) -----------
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') || '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '',
+    )
+
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', userId)
+      .maybeSingle()
+
+    if (profileError || !profile) {
+      return new Response(JSON.stringify({ error: 'Profissional não encontrado.' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    // --- 2) LGPD: consentimento é SEMPRE exigido pelo servidor ----------------
+    if (!lgpdConsentAt) {
       return new Response(
         JSON.stringify({ error: 'Consentimento LGPD obrigatório para concluir o agendamento.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       )
     }
 
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') || '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '',
-    )
+    // --- 3) Capacidade: constante do SERVIDOR. LeadCapture grava em data
+    // sentinela (1970-01-01), fora da checagem de capacidade por slot.
+    const isCaptureLead = String(appointmentDate) === CAPTURE_DATE
+    const pMaxCapacity = isCaptureLead ? 2147483647 : MAX_CAPACITY
 
-    // --- 1) Inserção atômica (RPC com lock de capacidade) ---------------------
+    // --- 4) Inserção atômica (RPC com lock de capacidade) ---------------------
     const { data: appointment, error: rpcError } = await supabase.rpc('book_appointment', {
       p_user_id: userId,
       p_appointment_date: appointmentDate,
       p_start_time: startTime,
       p_end_time: endTime || startTime,
-      p_status: status || 'lead',
+      p_status: 'lead', // status canônico decidido no servidor
       p_client_name: clientName || null,
       p_client_email: clientEmail || null,
       p_client_phone: clientPhone || null,
@@ -327,7 +360,7 @@ Deno.serve(async (req: Request) => {
       p_clinic_state: clinicState || null,
       p_instagram: instagram || null,
       p_patients_per_month: patientsPerMonth || null,
-      p_max_capacity: maxCapacity || MAX_CAPACITY,
+      p_max_capacity: pMaxCapacity,
       p_lgpd_consent_at: lgpdConsentAt || null,
     })
 
@@ -348,7 +381,7 @@ Deno.serve(async (req: Request) => {
       )
     }
 
-    // --- 2) Contato sem duplicar ---------------------------------------------
+    // --- 5) Contato sem duplicar ---------------------------------------------
     let contactId: string | null = null
     try {
       contactId = await upsertContact(supabase, appointment)
@@ -356,7 +389,7 @@ Deno.serve(async (req: Request) => {
       console.error('[create-booking] upsertContact falhou:', e?.message || e)
     }
 
-    // --- 3) Google Calendar / Meet (real, sem mock) ---------------------------
+    // --- 6) Google Calendar / Meet (real, sem mock) ---------------------------
     let calendarWarning: string | null = null
     let eventId: string | null = null
     let meetLink: string | null = null
@@ -389,7 +422,7 @@ Deno.serve(async (req: Request) => {
       if (updErr) console.error('[create-booking] update meet_link:', updErr.message)
     }
 
-    // --- 4) E-mail de confirmação (Resend, server-side) ------------------------
+    // --- 7) E-mail de confirmação (Resend, server-side) -----------------------
     let emailSent = false
     if (clientEmail && sendConfirmationEmail) {
       try {
