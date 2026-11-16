@@ -344,7 +344,9 @@ Deno.serve(async (req: Request) => {
       p_appointment_date: appointmentDate,
       p_start_time: startTime,
       p_end_time: endTime || startTime,
-      p_status: 'lead', // status canônico decidido no servidor
+      // Captura de contato (LeadCapture, data sentinela) continua 'lead';
+      // agendamento real pela página pública é confirmado => 'scheduled'.
+      p_status: isCaptureLead ? 'lead' : 'scheduled',
       p_client_name: clientName || null,
       p_client_email: clientEmail || null,
       p_client_phone: clientPhone || null,

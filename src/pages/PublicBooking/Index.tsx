@@ -29,6 +29,8 @@ import {
   Sun,
   Sunset,
   CalendarPlus,
+  AlertCircle,
+  RefreshCw,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -36,6 +38,7 @@ export default function PublicBookingPage() {
   const { userId } = useParams()
   const [date, setDate] = useState<Date | undefined>(new Date())
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [selectedSlot, setSelectedSlot] = useState<any>(null)
   const [successApp, setSuccessApp] = useState<any>(null)
   const [dayData, setDayData] = useState<{
@@ -78,9 +81,20 @@ export default function PublicBookingPage() {
     async function loadData() {
       if (!userId || !date) return
       setLoading(true)
-      const data = await getDayScheduleData(userId, date)
-      setDayData(data)
-      setLoading(false)
+      setLoadError(null)
+      try {
+        const data = await getDayScheduleData(userId, date)
+        setDayData(data)
+      } catch (e: any) {
+        console.error('Falha ao carregar horários:', e?.message || e)
+        setDayData({ schedule: [], appointments: [], lockedSlots: [], busySlots: [] })
+        setLoadError(
+          'Não foi possível carregar os horários agora. Verifique sua conexão e tente novamente.',
+        )
+      } finally {
+        // O loading termina em QUALQUER caminho — a tela nunca fica travada.
+        setLoading(false)
+      }
     }
     loadData()
   }, [userId, date])
@@ -345,6 +359,39 @@ export default function PublicBookingPage() {
               <CardContent>
                 {loading ? (
                   <p className="text-sm text-muted-foreground text-center py-4">Carregando...</p>
+                ) : loadError ? (
+                  <div className="flex flex-col items-center gap-3 py-6 text-center">
+                    <AlertCircle className="w-8 h-8 text-destructive" />
+                    <p className="text-sm text-muted-foreground max-w-xs">{loadError}</p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setLoadError(null)
+                        setLoading(true)
+                        getDayScheduleData(userId!, date!)
+                          .then((data) => {
+                            setDayData(data)
+                            setLoading(false)
+                          })
+                          .catch((e: any) => {
+                            console.error('Falha ao carregar horários:', e?.message || e)
+                            setDayData({
+                              schedule: [],
+                              appointments: [],
+                              lockedSlots: [],
+                              busySlots: [],
+                            })
+                            setLoadError(
+                              'Não foi possível carregar os horários agora. Verifique sua conexão e tente novamente.',
+                            )
+                            setLoading(false)
+                          })
+                      }}
+                    >
+                      <RefreshCw className="w-4 h-4 mr-1" /> Tentar novamente
+                    </Button>
+                  </div>
                 ) : availableSlots.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-4">
                     Nenhum horário disponível para esta data.

@@ -3,11 +3,18 @@ import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 
 // Envio de e-mail autenticado (Resend).
-// - Exige um usuário AUTENTICADO do Supabase no header Authorization (anon key => 401).
-// - Chamadas servidor-a-servidor (outras edge functions) usam a service role key, que
-//   também resolve para um papel autenticado e é aceita.
-// - A chave da Resend vem EXCLUSIVAMENTE do secret RESEND_API_KEY (nunca hardcoded).
-//   (O corpo da requisição NÃO é mais aceito como fonte de chave.)
+//
+// Autenticação com DOIS caminhos:
+// 1. Chamadores INTERNOS (outras edge functions: create-booking, sync-calendar,
+//    send-meet-link, trigger-reminders, trigger-nps): header Authorization
+//    `Bearer <SUPABASE_SERVICE_ROLE_KEY>`, comparado com o secret do ambiente.
+//    A service role key NÃO é um token de usuário — auth.getUser() falha para
+//    ela, por isso a comparação direta vem PRIMEIRO.
+// 2. Usuários autenticados do front: JWT no Authorization, validado via
+//    auth.getUser(). Anon key => 401.
+//
+// A chave da Resend vem EXCLUSIVAMENTE do secret RESEND_API_KEY (nunca
+// hardcoded, nunca do corpo da requisição).
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -27,19 +34,27 @@ Deno.serve(async (req: Request) => {
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || ''
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
 
-    // Cria um client atuando COMO o chamador, para validar o token real.
-    const supabaseAsUser = createClient(supabaseUrl, supabaseAnonKey || token, {
-      global: { headers: { Authorization: authHeader } },
-    })
-    const { data: userData, error: userError } = await supabaseAsUser.auth.getUser(token)
+    // 1) Caminho INTERNO: service role key do ambiente (comparação exata).
+    //    Deve vir antes do auth.getUser — a service role key não é um JWT de
+    //    usuário e auth.getUser(token) retorna erro para ela.
+    const isInternalCaller = !!serviceKey && token === serviceKey
 
-    if (userError || !userData?.user || userData.user.role !== 'authenticated') {
-      return new Response(JSON.stringify({ error: 'Não autenticado ou token inválido.' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    if (!isInternalCaller) {
+      // 2) Caminho FRONT: valida JWT real de usuário autenticado.
+      const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || ''
+      const supabaseAsUser = createClient(supabaseUrl, supabaseAnonKey || token, {
+        global: { headers: { Authorization: authHeader } },
       })
+      const { data: userData, error: userError } = await supabaseAsUser.auth.getUser(token)
+
+      if (userError || !userData?.user || userData.user.role !== 'authenticated') {
+        return new Response(JSON.stringify({ error: 'Não autenticado ou token inválido.' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
     }
 
     // --- Payload ------------------------------------------------------------
@@ -66,7 +81,6 @@ Deno.serve(async (req: Request) => {
     let finalMeetLink = meetLink || null
 
     if (!finalMeetLink && userId) {
-      const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
       if (supabaseUrl && serviceKey) {
         const supabase = createClient(supabaseUrl, serviceKey)
         const { data: fixedLink, error: rpcError } = await supabase.rpc('get_fixed_meet_link', {
@@ -98,7 +112,9 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    console.log(`Attempting to send email to ${to} via Resend from ${fromEmail}...`)
+    console.log(
+      `Attempting to send email to ${to} via Resend from ${fromEmail} (internal caller: ${isInternalCaller})...`,
+    )
 
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',

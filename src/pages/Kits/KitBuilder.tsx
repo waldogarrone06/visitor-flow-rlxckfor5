@@ -386,7 +386,9 @@ export function KitBuilder() {
             end_time: '00:00',
             kit_name: kitName,
             kit_status: 'Requested',
-            status: 'lead',
+            // Solicitação de kit é um agendamento/envio real (não captura de
+            // contato): status 'scheduled', não 'lead'.
+            status: 'scheduled',
             clinic_address: contactAddress,
             clinic_cep: contactCep,
             client_document: contactDoc,
