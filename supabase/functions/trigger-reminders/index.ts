@@ -18,10 +18,13 @@ Deno.serve(async (req: Request) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
     const supabase = createClient(supabaseUrl, supabaseKey)
 
-    // Calculate tomorrow's date
-    const tomorrow = new Date()
-    tomorrow.setDate(tomorrow.getDate() + 1)
-    const tomorrowStr = tomorrow.toISOString().split('T')[0]
+    // "Amanhã" no fuso de Brasília (America/Sao_Paulo), não em UTC:
+    // depois das 21h BRT a data UTC já é o dia seguinte.
+    const todayBrt = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(
+      new Date(),
+    )
+    const [yBrt, mBrt, dBrt] = todayBrt.split('-').map(Number)
+    const tomorrowStr = new Date(Date.UTC(yBrt, mBrt - 1, dBrt + 1)).toISOString().split('T')[0]
 
     // Find appointments for tomorrow where reminder_sent is false or null
     const { data: appointments, error: appErr } = await supabase
