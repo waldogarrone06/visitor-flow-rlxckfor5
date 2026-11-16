@@ -30,11 +30,9 @@ Deno.serve(async (req: Request) => {
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || ''
 
     // Cria um client atuando COMO o chamador, para validar o token real.
-    const supabaseAsUser = createClient(
-      supabaseUrl,
-      supabaseAnonKey || token,
-      { global: { headers: { Authorization: authHeader } } },
-    )
+    const supabaseAsUser = createClient(supabaseUrl, supabaseAnonKey || token, {
+      global: { headers: { Authorization: authHeader } },
+    })
     const { data: userData, error: userError } = await supabaseAsUser.auth.getUser(token)
 
     if (userError || !userData?.user || userData.user.role !== 'authenticated') {

@@ -12,7 +12,10 @@ const isOrderDelivered = (order: any): boolean => {
   return false
 }
 
-const fetchJson = async (url: string, token: string): Promise<{ data: any | null; httpStatus: number }> => {
+const fetchJson = async (
+  url: string,
+  token: string,
+): Promise<{ data: any | null; httpStatus: number }> => {
   const res = await fetch(url, {
     headers: {
       Authorization: `Bearer ${token}`,
@@ -207,7 +210,12 @@ Deno.serve(async (req: Request) => {
 
       if (!token) {
         console.warn(`[track-shipping] No token for user ${app.user_id}`)
-        await logTrackingError(supabase, app.id, app.user_id, 'Nenhum token do Melhor Envio configurado')
+        await logTrackingError(
+          supabase,
+          app.id,
+          app.user_id,
+          'Nenhum token do Melhor Envio configurado',
+        )
         errors.push({ id: app.id, error: 'sem token do Melhor Envio' })
         skipped.push(app.id)
         continue
@@ -225,7 +233,8 @@ Deno.serve(async (req: Request) => {
         )
 
         if (!order) {
-          const msg = lastError || `Pedido não encontrado no Melhor Envio para o rastreio ${normalizedCode}`
+          const msg =
+            lastError || `Pedido não encontrado no Melhor Envio para o rastreio ${normalizedCode}`
           console.warn(`[track-shipping] ${msg}`)
           await logTrackingError(supabase, app.id, app.user_id, msg)
           errors.push({ id: app.id, error: msg })
@@ -254,7 +263,12 @@ Deno.serve(async (req: Request) => {
 
         if (updateErr) {
           console.error(`[track-shipping] Failed to update ${app.id}:`, updateErr.message)
-          await logTrackingError(supabase, app.id, app.user_id, `Falha ao atualizar status: ${updateErr.message}`)
+          await logTrackingError(
+            supabase,
+            app.id,
+            app.user_id,
+            `Falha ao atualizar status: ${updateErr.message}`,
+          )
           errors.push({ id: app.id, error: updateErr.message })
           skipped.push(app.id)
         } else {

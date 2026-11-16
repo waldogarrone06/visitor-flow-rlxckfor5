@@ -15,14 +15,12 @@ import { Badge } from '@/components/ui/badge'
 import { toast } from '@/hooks/use-toast'
 import { Mail, Loader2, Send } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
-import { useMainStore } from '@/stores/main'
 
 export function EmailSettingsCard() {
   const [active, setActive] = useState(true)
   const [senderName, setSenderName] = useState('FourLab Nutrition')
   const [testEmail, setTestEmail] = useState('waldogarrone@yahoo.com.br')
   const [loading, setLoading] = useState(false)
-  const { state } = useMainStore()
 
   const testConnection = async () => {
     if (!testEmail) {
@@ -35,11 +33,6 @@ export function EmailSettingsCard() {
     }
 
     setLoading(true)
-
-    // Safely extract the Resend API Key from the Secrets Vault
-    const rawSecrets = state.settings?.secrets
-    const secrets = Array.isArray(rawSecrets) ? rawSecrets : []
-    const userResendKey = secrets.find((s: any) => s.key === 'RESEND_API_KEY')?.value
 
     try {
       const { data, error } = await supabase.functions.invoke('send-email', {
@@ -62,7 +55,6 @@ export function EmailSettingsCard() {
             </div>
           `,
           senderName: senderName,
-          resendApiKey: userResendKey,
         },
       })
 

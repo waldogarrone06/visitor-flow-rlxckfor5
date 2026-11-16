@@ -444,11 +444,6 @@ export function ScheduleForm({
         })
       }
 
-      // Fetch secrets for dynamic API key if configured
-      const rawSecrets = state.settings?.secrets
-      const secrets = Array.isArray(rawSecrets) ? rawSecrets : []
-      const userResendKey = secrets.find((s: any) => s.key === 'RESEND_API_KEY')?.value
-
       // Trigger automated email on scheduling
       if (values.email) {
         supabase.functions
@@ -472,7 +467,6 @@ export function ScheduleForm({
               </div>
             `,
               senderName: 'FourLab Nutrition',
-              resendApiKey: userResendKey,
             },
           })
           .catch(console.error)
