@@ -25,7 +25,7 @@ Deno.serve(async (req: Request) => {
       throw new Error('Appointment not found')
     }
 
-    if (appointment.status === 'Lead') {
+    if ((appointment.status || '').toLowerCase() === 'lead') {
       return new Response(JSON.stringify({ success: true, message: 'Ignored lead capture.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
@@ -82,9 +82,9 @@ Deno.serve(async (req: Request) => {
       )
     }
 
-    let eventId = appointment.google_event_id || `mock-event-${Date.now()}`
-    let meetLink =
-      appointment.google_meet_link || fixedMeetLink || `https://meet.google.com/mock-abc-xyz`
+    // Sem mocks: se não houver integração real, eventId/meetLink permanecem null
+    let eventId: string | null = appointment.google_event_id || null
+    let meetLink: string | null = appointment.google_meet_link || fixedMeetLink || null
 
     if (token && !token.includes('mock_access_token') && clientId && clientSecret) {
       const makeRequest = async (accessToken: string) => {
@@ -168,9 +168,9 @@ Deno.serve(async (req: Request) => {
         eventId = data.id || eventId
         meetLink =
           appointment.google_meet_link ||
-          fixedMeetLink ||
           data.hangoutLink ||
           data.conferenceData?.entryPoints?.find((e: any) => e.entryPointType === 'video')?.uri ||
+          fixedMeetLink ||
           meetLink
       } else {
         const errorText = await response.text()

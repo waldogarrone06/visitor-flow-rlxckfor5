@@ -1,0 +1,441 @@
+import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
+import { createClient } from 'npm:@supabase/supabase-js@2'
+import { corsHeaders } from '../_shared/cors.ts'
+import { getGoogleTokens } from '../_shared/integration-secrets.ts'
+
+// create-booking — pós-agendamento 100% no servidor.
+// O front (formulário público) chama ESTA função em vez de gravar direto no banco:
+// 1) Insere o agendamento via RPC book_appointment (atômica, lock de capacidade — rejeita acima de 10 por slot);
+// 2) Cria/encontra o contato SEM duplicar (busca por telefone normalizado, depois e-mail, via service role);
+// 3) Cria o evento no Google Calendar com link real do Meet (ou usa o link fixo
+//    configurado). SEM integração disponível: falha de forma segura e o e-mail sai SEM link — nunca um link falso;
+// 4) Envia o e-mail de confirmação via send-email (Resend, secret RESEND_API_KEY).
+
+const MAX_CAPACITY = 10
+
+function normalizePhone(raw: string | null | undefined): string {
+  return (raw || '').replace(/\D/g, '')
+}
+
+async function refreshGoogleToken(
+  supabase: any,
+  userId: string,
+  refreshToken: string,
+): Promise<string | null> {
+  const clientId = Deno.env.get('GOOGLE_CLIENT_ID') || Deno.env.get('VITE_GOOGLE_CLIENT_ID') || ''
+  const clientSecret =
+    Deno.env.get('GOOGLE_CLIENT_SECRET') || Deno.env.get('VITE_GOOGLE_CLIENT_SECRET') || ''
+  if (!refreshToken || !clientId || !clientSecret) return null
+
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      refresh_token: refreshToken,
+      grant_type: 'refresh_token',
+    }),
+  })
+  if (!res.ok) return null
+  const data = await res.json()
+  if (!data.access_token) return null
+
+  await supabase
+    .from('integration_secrets')
+    .update({ google_access_token: data.access_token, updated_at: new Date().toISOString() })
+    .eq('user_id', userId)
+
+  return data.access_token as string
+}
+
+async function createCalendarEvent(
+  supabase: any,
+  appointment: any,
+  fixedMeetLink: string | null,
+): Promise<{ eventId: string | null; meetLink: string | null; error: string | null }> {
+  const googleTokens = await getGoogleTokens(supabase, appointment.user_id)
+  const clientId = Deno.env.get('GOOGLE_CLIENT_ID') || Deno.env.get('VITE_GOOGLE_CLIENT_ID') || ''
+  const clientSecret =
+    Deno.env.get('GOOGLE_CLIENT_SECRET') || Deno.env.get('VITE_GOOGLE_CLIENT_SECRET') || ''
+
+  let token = googleTokens.accessToken
+
+  if (!token || !clientId || !clientSecret) {
+    // Sem integração Google disponível: falha segura — sem link falso.
+    if (fixedMeetLink) return { eventId: null, meetLink: fixedMeetLink, error: null }
+    return {
+      eventId: null,
+      meetLink: null,
+      error: 'Integração Google Calendar não configurada para este profissional.',
+    }
+  }
+
+  const payload: any = {
+    summary: `Reunião: ${appointment.client_name}`,
+    description: `Agendamento confirmado.\n\nPaciente: ${appointment.client_name}\nEspecialidade: ${appointment.specialty || 'Não informada'}\nEndereço da Clínica: ${appointment.clinic_address || 'Não informado'}`,
+    start: {
+      dateTime: `${appointment.appointment_date}T${appointment.start_time}:00-03:00`,
+      timeZone: 'America/Sao_Paulo',
+    },
+    end: {
+      dateTime: `${appointment.appointment_date}T${appointment.end_time}:00-03:00`,
+      timeZone: 'America/Sao_Paulo',
+    },
+    conferenceData: {
+      createRequest: {
+        requestId: `meet-${appointment.id}-${Date.now()}`,
+        conferenceSolutionKey: { type: 'hangoutsMeet' },
+      },
+    },
+  }
+  if (fixedMeetLink) {
+    payload.location = fixedMeetLink
+    delete payload.conferenceData
+  }
+
+  let response = await fetch(
+    'https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1',
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    },
+  )
+
+  if (response.status === 401) {
+    token =
+      (await refreshGoogleToken(supabase, appointment.user_id, googleTokens.refreshToken)) || ''
+    if (token) {
+      response = await fetch(
+        'https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1',
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        },
+      )
+    }
+  }
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => '')
+    console.error('[create-booking] Google Calendar error:', errorText)
+    return {
+      eventId: null,
+      meetLink: null,
+      error: `Falha ao criar evento no Google Calendar (${response.status}).`,
+    }
+  }
+
+  let data = await response.json()
+  // Aguardar o Meet link ficar pronto (createRequest pode vir "pending")
+  let attempts = 0
+  while (data.conferenceData?.createRequest?.status?.statusCode === 'pending' && attempts < 3) {
+    await new Promise((r) => setTimeout(r, 1000))
+    const getRes = await fetch(
+      `https://www.googleapis.com/calendar/v3/calendars/primary/events/${data.id}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    )
+    if (getRes.ok) data = await getRes.json()
+    attempts++
+  }
+
+  const meetLink =
+    data.hangoutLink ||
+    data.conferenceData?.entryPoints?.find((e: any) => e.entryPointType === 'video')?.uri ||
+    null
+
+  return { eventId: data.id || null, meetLink, error: null }
+}
+
+async function upsertContact(supabase: any, a: any): Promise<string | null> {
+  const phone = normalizePhone(a.client_phone)
+  const email = (a.client_email || '').trim().toLowerCase()
+
+  // 1) Match por telefone normalizado
+  if (phone) {
+    const { data: byPhone } = await supabase
+      .from('contacts')
+      .select('id')
+      .eq('user_id', a.user_id)
+      .eq('phone', phone)
+      .limit(1)
+    if (byPhone && byPhone.length > 0) {
+      await supabase
+        .from('contacts')
+        .update({
+          name: a.client_name,
+          email: a.client_email || undefined,
+          document: a.client_document || undefined,
+          address: a.clinic_address || undefined,
+          cep: a.clinic_cep || undefined,
+          number: a.clinic_number || undefined,
+          neighborhood: a.clinic_neighborhood || undefined,
+          complement: a.clinic_complement || undefined,
+          city: a.clinic_city || undefined,
+          state: a.clinic_state || undefined,
+          specialty: a.specialty || undefined,
+          registration_number: a.professional_id || undefined,
+          instagram: a.instagram || undefined,
+          patients_per_month: a.patients_per_month || undefined,
+          lgpd_consent_at: a.lgpd_consent_at || undefined,
+        })
+        .eq('id', byPhone[0].id)
+      return byPhone[0].id
+    }
+  }
+
+  // 2) Match por e-mail
+  if (email) {
+    const { data: byEmail } = await supabase
+      .from('contacts')
+      .select('id')
+      .eq('user_id', a.user_id)
+      .ilike('email', email)
+      .limit(1)
+    if (byEmail && byEmail.length > 0) {
+      await supabase
+        .from('contacts')
+        .update({
+          name: a.client_name,
+          document: a.client_document || undefined,
+          address: a.clinic_address || undefined,
+          cep: a.clinic_cep || undefined,
+          number: a.clinic_number || undefined,
+          neighborhood: a.clinic_neighborhood || undefined,
+          complement: a.clinic_complement || undefined,
+          city: a.clinic_city || undefined,
+          state: a.clinic_state || undefined,
+          specialty: a.specialty || undefined,
+          registration_number: a.professional_id || undefined,
+          instagram: a.instagram || undefined,
+          patients_per_month: a.patients_per_month || undefined,
+          lgpd_consent_at: a.lgpd_consent_at || undefined,
+          ...(phone ? { phone } : {}),
+        })
+        .eq('id', byEmail[0].id)
+      return byEmail[0].id
+    }
+  }
+
+  // 3) Criar novo contato
+  const { data: created, error } = await supabase
+    .from('contacts')
+    .insert({
+      user_id: a.user_id,
+      name: a.client_name,
+      phone: phone || null,
+      email: a.client_email || null,
+      document: a.client_document || null,
+      address: a.clinic_address || null,
+      cep: a.clinic_cep || null,
+      number: a.clinic_number || null,
+      neighborhood: a.clinic_neighborhood || null,
+      complement: a.clinic_complement || null,
+      city: a.clinic_city || null,
+      state: a.clinic_state || null,
+      specialty: a.specialty || null,
+      registration_number: a.professional_id || null,
+      instagram: a.instagram || null,
+      patients_per_month: a.patients_per_month || null,
+      lgpd_consent_at: a.lgpd_consent_at || null,
+    })
+    .select('id')
+    .single()
+
+  if (error) {
+    console.error('[create-booking] Erro ao criar contato:', error.message)
+    return null
+  }
+  return created?.id || null
+}
+
+Deno.serve(async (req: Request) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
+
+  try {
+    const body = await req.json().catch(() => ({}))
+    const {
+      userId,
+      appointmentDate,
+      startTime,
+      endTime,
+      status,
+      clientName,
+      clientEmail,
+      clientPhone,
+      clientDocument,
+      specialty,
+      professionalId,
+      clinicCep,
+      clinicAddress,
+      clinicNumber,
+      clinicNeighborhood,
+      clinicComplement,
+      clinicCity,
+      clinicState,
+      instagram,
+      patientsPerMonth,
+      lgpdConsentAt,
+      // LeadCapture (só captura de contato) não cria evento nem envia e-mail
+      createCalendar = true,
+      sendConfirmationEmail = true,
+      maxCapacity,
+      // O formulário público exige o consentimento; o servidor recusa sem ele
+      requireConsent = false,
+    } = body || {}
+
+    if (!userId || !appointmentDate || !startTime) {
+      throw new Error('Campos obrigatórios ausentes: userId, appointmentDate e startTime.')
+    }
+
+    // --- LGPD: sem consentimento informado, nada é salvo ----------------------
+    if (requireConsent && !lgpdConsentAt) {
+      return new Response(
+        JSON.stringify({ error: 'Consentimento LGPD obrigatório para concluir o agendamento.' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
+
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') || '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '',
+    )
+
+    // --- 1) Inserção atômica (RPC com lock de capacidade) ---------------------
+    const { data: appointment, error: rpcError } = await supabase.rpc('book_appointment', {
+      p_user_id: userId,
+      p_appointment_date: appointmentDate,
+      p_start_time: startTime,
+      p_end_time: endTime || startTime,
+      p_status: status || 'lead',
+      p_client_name: clientName || null,
+      p_client_email: clientEmail || null,
+      p_client_phone: clientPhone || null,
+      p_client_document: clientDocument || null,
+      p_specialty: specialty || null,
+      p_professional_id: professionalId || null,
+      p_clinic_cep: clinicCep || null,
+      p_clinic_address: clinicAddress || null,
+      p_clinic_number: clinicNumber || null,
+      p_clinic_neighborhood: clinicNeighborhood || null,
+      p_clinic_complement: clinicComplement || null,
+      p_clinic_city: clinicCity || null,
+      p_clinic_state: clinicState || null,
+      p_instagram: instagram || null,
+      p_patients_per_month: patientsPerMonth || null,
+      p_max_capacity: MAX_CAPACITY,
+    })
+
+    if (rpcError || !appointment) {
+      const msg = rpcError?.message || 'Falha ao inserir agendamento.'
+      const isCapacity = msg.includes('CAPACITY_EXCEEDED')
+      console.error('[create-booking] RPC error:', msg)
+      return new Response(
+        JSON.stringify({
+          error: isCapacity
+            ? 'Este horário acabou de esgotar. Escolha outro, por favor.'
+            : 'Não foi possível concluir o agendamento. Tente novamente.',
+        }),
+        {
+          status: isCapacity ? 409 : 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      )
+    }
+
+    // --- 2) Contato sem duplicar ---------------------------------------------
+    let contactId: string | null = null
+    try {
+      contactId = await upsertContact(supabase, appointment)
+    } catch (e: any) {
+      console.error('[create-booking] upsertContact falhou:', e?.message || e)
+    }
+
+    // --- 3) Google Calendar / Meet (real, sem mock) ---------------------------
+    let calendarWarning: string | null = null
+    let eventId: string | null = null
+    let meetLink: string | null = null
+
+    if (createCalendar) {
+      const { data: integration } = await supabase
+        .from('user_integrations')
+        .select('fixed_meet_link')
+        .eq('user_id', userId)
+        .maybeSingle()
+      const fixedMeetLink = integration?.fixed_meet_link || null
+      meetLink = fixedMeetLink
+
+      try {
+        const cal = await createCalendarEvent(supabase, appointment, fixedMeetLink)
+        eventId = cal.eventId
+        meetLink = cal.meetLink || fixedMeetLink
+        calendarWarning = cal.error
+      } catch (e: any) {
+        calendarWarning = e?.message || 'Falha ao sincronizar com Google Calendar.'
+        console.error('[create-booking] createCalendarEvent falhou:', calendarWarning)
+      }
+    }
+
+    if (eventId || meetLink) {
+      const { error: updErr } = await supabase
+        .from('appointments')
+        .update({ google_event_id: eventId, google_meet_link: meetLink })
+        .eq('id', appointment.id)
+      if (updErr) console.error('[create-booking] update meet_link:', updErr.message)
+    }
+
+    // --- 4) E-mail de confirmação (Resend, server-side) ------------------------
+    let emailSent = false
+    if (clientEmail && sendConfirmationEmail) {
+      try {
+        const formattedDate = String(appointmentDate).split('-').reverse().join('/')
+        const meetHtml = meetLink
+          ? `<div style="margin-top: 24px; padding: 16px; background-color: #f8f9fa; border-radius: 8px; text-align: center;"><p style="margin: 0; font-size: 16px; font-weight: bold; color: #333;">Link da reunião no Google Meet:</p><a href="${meetLink}" style="display: inline-block; margin-top: 8px; font-size: 16px; color: #e10050; word-break: break-all;">${meetLink}</a></div>`
+          : ''
+
+        const emailRes = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-email`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+          },
+          body: JSON.stringify({
+            to: clientEmail,
+            subject: 'Confirmação de Agendamento - FourLab Nutrition',
+            html: `<div style="font-family: sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #eaeaea; border-radius: 8px; overflow: hidden;"><div style="background-color: #e10050; padding: 24px; text-align: center;"><h1 style="color: white; margin: 0; font-size: 20px;">Agendamento Confirmado! 🎉</h1></div><div style="padding: 32px; background-color: #ffffff;"><p style="font-size: 16px; line-height: 1.5;">Olá <strong>${clientName || ''}</strong>,</p><p style="font-size: 16px; line-height: 1.5;">Seu agendamento foi realizado com sucesso para o dia <strong>${formattedDate}</strong> às <strong>${startTime}</strong>.</p><p style="font-size: 16px; line-height: 1.5;">Em breve nossa equipe entrará em contato com você para alinhar os detalhes da visita ou da reunião virtual.</p>${meetHtml}<br/><p style="font-size: 14px; color: #666;">Atenciosamente,<br/>Equipe FourLab Nutrition</p></div></div>`,
+            senderName: 'FourLab Nutrition',
+          }),
+        })
+        emailSent = emailRes.ok
+        if (!emailSent) {
+          const t = await emailRes.text().catch(() => '')
+          console.error('[create-booking] send-email status', emailRes.status, t)
+        }
+      } catch (e: any) {
+        console.error('[create-booking] e-mail de confirmação falhou:', e?.message || e)
+      }
+    }
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        appointment,
+        contactId,
+        meetLink,
+        calendarWarning,
+        emailSent,
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    )
+  } catch (error: any) {
+    console.error('[create-booking] Error:', error?.message || error)
+    return new Response(JSON.stringify({ error: error?.message || 'Erro inesperado.' }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+  }
+})

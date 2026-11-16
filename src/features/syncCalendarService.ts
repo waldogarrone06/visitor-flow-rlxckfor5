@@ -64,12 +64,14 @@ export const syncCalendarService = {
   syncCreate: async (appointmentId: string): Promise<SyncResult> => {
     return invokeWithRetry('sync-calendar', { appointmentId })
   },
+  // sync-calendar-update não existe no backend — o update real é feito pela
+  // própria sync-calendar (PATCH no evento quando google_event_id já existe).
   syncUpdate: async (
     appointmentId: string,
-    newDate: string,
-    newTime: string,
+    _newDate: string,
+    _newTime: string,
   ): Promise<SyncResult> => {
-    return invokeWithRetry('sync-calendar-update', { appointmentId, newDate, newTime })
+    return invokeWithRetry('sync-calendar', { appointmentId })
   },
   syncDelete: async (appointmentId: string): Promise<SyncResult> => {
     return invokeWithRetry('sync-calendar-delete', { appointmentId })

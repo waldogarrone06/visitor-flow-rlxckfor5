@@ -7,7 +7,7 @@ import { createPublicAppointment } from '@/services/public-booking'
 import { format } from 'date-fns'
 import { useMainStore } from '@/stores/main'
 import { Lead } from '@/lib/types'
-import { syncCalendarService } from '@/features/syncCalendarService'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Loader2 } from 'lucide-react'
 
 interface BookingFormProps {
@@ -17,10 +17,37 @@ interface BookingFormProps {
   onSuccess: (appointment: any) => void
 }
 
+const DRAFT_KEY = 'fourlab_booking_draft'
+const DRAFT_TTL_MS = 24 * 60 * 60 * 1000 // LGPD: rascunho pessoal expira em 24h
+
+function loadDraft(): Partial<Record<string, string>> {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw)
+    if (!parsed?.savedAt || Date.now() - parsed.savedAt > DRAFT_TTL_MS) {
+      localStorage.removeItem(DRAFT_KEY)
+      return {}
+    }
+    return parsed.values || {}
+  } catch {
+    return {}
+  }
+}
+
+function saveDraft(values: Record<string, string>) {
+  try {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({ savedAt: Date.now(), values }))
+  } catch {
+    // localStorage indisponível — segue sem rascunho
+  }
+}
+
 export function BookingForm({ userId, date, slot, onSuccess }: BookingFormProps) {
   const [submitting, setSubmitting] = useState(false)
   const { dispatch } = useMainStore()
   const [formErrors, setFormErrors] = useState<Record<string, boolean>>({})
+  const [lgpdConsent, setLgpdConsent] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -38,32 +65,10 @@ export function BookingForm({ userId, date, slot, onSuccess }: BookingFormProps)
   })
 
   useEffect(() => {
-    const savedName = localStorage.getItem('fourlab_booking_name')
-    const savedEmail = localStorage.getItem('fourlab_booking_email')
-    const savedPhone = localStorage.getItem('fourlab_booking_phone')
-    const savedDocument = localStorage.getItem('fourlab_booking_document')
-    const savedSpecialty = localStorage.getItem('fourlab_booking_specialty')
-    const savedProfId = localStorage.getItem('fourlab_booking_prof_id')
-    const savedAddress = localStorage.getItem('fourlab_booking_address')
-    const savedCep = localStorage.getItem('fourlab_booking_cep')
-    const savedNumber = localStorage.getItem('fourlab_booking_number')
-    const savedNeighborhood = localStorage.getItem('fourlab_booking_neighborhood')
-    const savedComplement = localStorage.getItem('fourlab_booking_complement')
-
-    setFormData((prev) => ({
-      ...prev,
-      name: savedName || '',
-      email: savedEmail || '',
-      phone: savedPhone || '',
-      document: savedDocument || '',
-      specialty: savedSpecialty || '',
-      professional_id: savedProfId || '',
-      clinic_address: savedAddress || '',
-      clinic_cep: savedCep || '',
-      clinic_number: savedNumber || '',
-      clinic_neighborhood: savedNeighborhood || '',
-      clinic_complement: savedComplement || '',
-    }))
+    const draft = loadDraft()
+    if (Object.keys(draft).length > 0) {
+      setFormData((prev) => ({ ...prev, ...draft }))
+    }
   }, [])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -83,12 +88,15 @@ export function BookingForm({ userId, date, slot, onSuccess }: BookingFormProps)
     if (!formData.phone) errors.phone = true
     if (!formData.document) errors.document = true
     if (!formData.specialty) errors.specialty = true
+    if (!lgpdConsent) errors.lgpd = true
 
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors)
       toast({
-        title: 'Campos Obrigatórios',
-        description: 'Preencha nome, e-mail, telefone, CPF e especialidade.',
+        title: errors.lgpd ? 'Consentimento necessário' : 'Campos Obrigatórios',
+        description: errors.lgpd
+          ? 'É necessário aceitar o uso dos seus dados (LGPD) para concluir o agendamento.'
+          : 'Preencha nome, e-mail, telefone, CPF e especialidade.',
         variant: 'destructive',
       })
       return
@@ -96,17 +104,19 @@ export function BookingForm({ userId, date, slot, onSuccess }: BookingFormProps)
 
     setSubmitting(true)
     try {
-      localStorage.setItem('fourlab_booking_name', formData.name)
-      localStorage.setItem('fourlab_booking_email', formData.email)
-      localStorage.setItem('fourlab_booking_phone', formData.phone)
-      localStorage.setItem('fourlab_booking_document', formData.document)
-      localStorage.setItem('fourlab_booking_specialty', formData.specialty)
-      localStorage.setItem('fourlab_booking_prof_id', formData.professional_id)
-      localStorage.setItem('fourlab_booking_address', formData.clinic_address)
-      localStorage.setItem('fourlab_booking_cep', formData.clinic_cep)
-      localStorage.setItem('fourlab_booking_number', formData.clinic_number)
-      localStorage.setItem('fourlab_booking_neighborhood', formData.clinic_neighborhood)
-      localStorage.setItem('fourlab_booking_complement', formData.clinic_complement)
+      // LGPD: o rascunho NÃO guarda dados sensíveis (e-mail, telefone, CPF) —
+      // só profissional/endereço da clínica, e expira em 24h.
+      saveDraft({
+        specialty: formData.specialty,
+        professional_id: formData.professional_id,
+        clinic_address: formData.clinic_address,
+        clinic_cep: formData.clinic_cep,
+        clinic_number: formData.clinic_number,
+        clinic_neighborhood: formData.clinic_neighborhood,
+        clinic_complement: formData.clinic_complement,
+      })
+
+      const consentAt = new Date().toISOString()
 
       const { newApp, syncWarning } = await createPublicAppointment({
         instagram: formData.instagram,
@@ -127,11 +137,13 @@ export function BookingForm({ userId, date, slot, onSuccess }: BookingFormProps)
         start_time: slot.start_time,
         end_time: slot.end_time,
         status: 'lead',
+        lgpd_consent_at: consentAt,
+        require_consent: true,
       })
 
       const newLeadId = `l-${Date.now()}`
       const newLead: Lead = {
-        id: newLeadId,
+        id: newApp?.id || newLeadId,
         name: formData.name,
         type: 'B2B',
         stage: 'Agendado',
@@ -162,11 +174,11 @@ export function BookingForm({ userId, date, slot, onSuccess }: BookingFormProps)
         })
       }
       onSuccess(newApp)
-    } catch (error) {
+    } catch (error: any) {
       console.error(error)
       toast({
         title: 'Erro no agendamento',
-        description: 'Ocorreu um erro ao tentar agendar. Tente novamente.',
+        description: error?.message || 'Ocorreu um erro ao tentar agendar. Tente novamente.',
         variant: 'destructive',
       })
     } finally {
@@ -342,6 +354,27 @@ export function BookingForm({ userId, date, slot, onSuccess }: BookingFormProps)
             onChange={handleChange}
             placeholder="Ex: 50"
           />
+        </div>
+
+        <div
+          className={`flex items-start gap-3 rounded-md border p-4 ${
+            formErrors.lgpd ? 'border-destructive' : 'border-border/60'
+          }`}
+        >
+          <Checkbox
+            id="lgpd_consent"
+            checked={lgpdConsent}
+            onCheckedChange={(v) => {
+              setLgpdConsent(v === true)
+              if (formErrors.lgpd) setFormErrors((prev) => ({ ...prev, lgpd: false }))
+            }}
+            className="mt-0.5"
+          />
+          <Label htmlFor="lgpd_consent" className="text-sm font-normal leading-relaxed">
+            Autorizo o uso dos meus dados (nome, e-mail, telefone, CPF e endereço) para agendar esta
+            visita e para contato pela equipe FourLab Nutrition, conforme a Lei Geral de Proteção de
+            Dados (LGPD). *
+          </Label>
         </div>
       </div>
 

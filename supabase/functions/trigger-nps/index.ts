@@ -52,7 +52,7 @@ Deno.serve(async (req: Request) => {
       .from('appointments')
       .select('id, client_email, client_name, delivered_at, user_id, client_phone, kit_status')
       .in('kit_status', ['Delivered', 'Entregue'])
-      .neq('status', 'Lead')
+      .neq('status', 'lead')
 
     if (specificAppointmentId) {
       query = query.eq('id', specificAppointmentId)

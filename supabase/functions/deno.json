@@ -1,9 +1,9 @@
 {
   "_versions": {
-    "sync-calendar": 142,
+    "sync-calendar": 143,
     "yampi-service": 136,
     "track-shipping": 152,
-    "trigger-nps": 39,
+    "trigger-nps": 40,
     "check-availability": 126,
     "create-user": 139,
     "google-oauth-exchange": 131,
@@ -11,7 +11,7 @@
     "send-email": 139,
     "whatsapp-send": 171,
     "whatsapp-webhook": 166,
-    "trigger-reminders": 17,
+    "trigger-reminders": 18,
     "sync-calendar-delete": 132,
     "send-meet-link": 18,
     "whatsapp-manage-message": 134,
@@ -24,6 +24,8 @@
     "whatsapp-redeploy": 107,
     "yampi-create-coupon": 99,
     "yampi-dual-coupons": 30,
-    "nps-appointment-name": 2
+    "nps-appointment-name": 2,
+    "create-booking": 1,
+    "get-availability": 1
   }
 }

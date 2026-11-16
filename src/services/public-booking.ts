@@ -3,183 +3,68 @@ import { format } from 'date-fns'
 
 export const MAX_CAPACITY_PER_SLOT = 10
 
+// Disponibilidade do dia vem da edge function get-availability (service role):
+// devolve agenda do dia, slots bloqueados, ocupação por slot e busySlots do
+// Google Calendar — e já filtra horários que já passaram no dia atual (BRT).
 export async function getDayScheduleData(userId: string, date: Date) {
-  const dayOfWeek = date.getDay()
   const dateStr = format(date, 'yyyy-MM-dd')
 
-  const [schedRes, specRes, appsRes, locksRes] = await Promise.all([
-    supabase
-      .from('schedule_settings' as any)
-      .select('*')
-      .eq('user_id', userId)
-      .eq('day_of_week', dayOfWeek),
-    supabase
-      .from('date_specific_schedules' as any)
-      .select('*')
-      .eq('user_id', userId)
-      .eq('specific_date', dateStr),
-    supabase
-      .from('appointments' as any)
-      .select('*')
-      .eq('user_id', userId)
-      .eq('appointment_date', dateStr),
-    supabase
-      .from('locked_slots' as any)
-      .select('*')
-      .eq('user_id', userId)
-      .eq('lock_date', dateStr),
-  ])
+  const { data: syncData, error } = await supabase.functions.invoke('get-availability', {
+    body: { userId, date: dateStr },
+  })
 
-  let lockedSlots = locksRes.data || []
-  let schedule = specRes.data && specRes.data.length > 0 ? specRes.data : schedRes.data || []
-
-  // Check external availability (Google Calendar Sync)
-  try {
-    const { data: syncData } = await supabase.functions.invoke('check-availability', {
-      body: { userId, date: dateStr },
-    })
-
-    if (syncData?.busySlots && Array.isArray(syncData.busySlots)) {
-      const externalLocks = syncData.busySlots.map((b: any) => ({
-        id: `ext-${b.start}-${b.end}`,
-        user_id: userId,
-        lock_date: dateStr,
-        start_time: b.start,
-        end_time: b.end,
-        is_external: true,
-      }))
-      lockedSlots = [...lockedSlots, ...externalLocks]
-    }
-  } catch (e) {
-    console.error('Failed to sync availability', e)
-  }
+  if (error) throw new Error(error.message || 'Falha ao carregar disponibilidade.')
 
   return {
-    schedule,
-    appointments: appsRes.data || [],
-    lockedSlots,
+    schedule: syncData?.schedule || [],
+    appointments: syncData?.slotCounts || {},
+    lockedSlots: syncData?.lockedSlots || [],
+    busySlots: syncData?.busySlots || [],
+    activeCount: syncData?.slotCounts || {},
   }
 }
 
+// Agendamento público passa pela edge function create-booking (servidor):
+// RPC atômica com lock de capacidade, contato sem duplicar, evento real no
+// Google Calendar/Meet e e-mail de confirmação — nada roda no navegador.
 export async function createPublicAppointment(data: any) {
-  const appointmentId =
-    typeof crypto !== 'undefined' && crypto.randomUUID
-      ? crypto.randomUUID()
-      : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-          const r = (Math.random() * 16) | 0
-          return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16)
-        })
-
-  let fixedMeetLink: string | null = null
-  try {
-    const { data: linkData } = await supabase.rpc('get_fixed_meet_link' as any, {
-      p_user_id: data.user_id,
-    })
-    fixedMeetLink = (linkData as string) || null
-  } catch (e) {
-    console.error('Failed to fetch fixed meet link', e)
-  }
-
-  const appointmentData = {
-    ...data,
-    id: appointmentId,
-    ...(fixedMeetLink ? { google_meet_link: fixedMeetLink } : {}),
-  }
-
-  const { error } = await supabase.from('appointments' as any).insert([appointmentData])
-
-  if (error) {
-    console.error('Error inserting appointment:', error)
-    throw error
-  }
-
-  const newApp = appointmentData
-
-  // Upsert Contact/Lead
-  if (data.user_id && data.client_phone) {
-    const phoneNum = data.client_phone.replace(/\D/g, '')
-    const { data: existingContacts } = await (supabase.from('contacts' as any) as any)
-      .select('id')
-      .eq('user_id', data.user_id)
-      .eq('phone', phoneNum)
-
-    const contactPayload = {
-      name: data.client_name,
-      email: data.client_email,
-      document: data.client_document,
-      address: data.clinic_address,
-      cep: data.clinic_cep,
+  const { data: result, error } = await supabase.functions.invoke('create-booking', {
+    body: {
+      userId: data.user_id,
+      appointmentDate: data.appointment_date,
+      startTime: data.start_time,
+      endTime: data.end_time,
+      status: data.status || 'lead',
+      clientName: data.client_name,
+      clientEmail: data.client_email,
+      clientPhone: data.client_phone,
+      clientDocument: data.client_document,
       specialty: data.specialty,
-      registration_number: data.professional_id,
+      professionalId: data.professional_id,
+      clinicCep: data.clinic_cep,
+      clinicAddress: data.clinic_address,
+      clinicNumber: data.clinic_number,
+      clinicNeighborhood: data.clinic_neighborhood,
+      clinicComplement: data.clinic_complement,
+      clinicCity: data.clinic_city,
+      clinicState: data.clinic_state,
       instagram: data.instagram,
-      patients_per_month: data.patients_per_month,
-      profession: data.specialty ? 'médico' : null,
-    }
+      patientsPerMonth: data.patients_per_month,
+      lgpdConsentAt: data.lgpd_consent_at,
+      // Formulário público: o servidor recusa o agendamento sem consentimento
+      requireConsent: data.require_consent === true,
+      // LeadCapture (só captura) não cria evento nem envia e-mail
+      createCalendar: data.createCalendar !== false,
+      sendConfirmationEmail: data.sendConfirmationEmail !== false,
+      // LeadCapture grava em 1970-01-01: fora da checagem de capacidade
+      maxCapacity: data.ignoreCapacity === true ? 2147483647 : MAX_CAPACITY_PER_SLOT,
+    },
+  })
 
-    if (existingContacts && existingContacts.length > 0) {
-      await (supabase.from('contacts' as any) as any)
-        .update(contactPayload)
-        .eq('id', existingContacts[0].id)
-    } else {
-      await supabase.from('contacts' as any).insert({
-        user_id: data.user_id,
-        phone: phoneNum,
-        ...contactPayload,
-      })
-    }
-  }
+  if (error) throw error
+  if (result?.error) throw new Error(result.error)
 
-  let syncWarning = false
-
-  // Trigger Automations
-  if (newApp) {
-    try {
-      const syncRes = await supabase.functions.invoke('sync-calendar', {
-        body: { appointmentId: newApp.id },
-      })
-
-      const meetLink = syncRes.data?.meetLink || fixedMeetLink || newApp.google_meet_link
-      const formattedDate = newApp.appointment_date.split('-').reverse().join('/')
-      let meetLinkHtml = ''
-
-      if (meetLink) {
-        meetLinkHtml = `
-          <div style="margin-top: 24px; padding: 16px; background-color: #f8f9fa; border-radius: 8px; text-align: center;">
-            <p style="margin: 0; font-size: 16px; font-weight: bold; color: #333;">Link da reunião no Google Meet:</p>
-            <a href="${meetLink}" style="display: inline-block; margin-top: 8px; font-size: 16px; color: #e10050; word-break: break-all;">${meetLink}</a>
-          </div>
-        `
-      }
-
-      await supabase.functions.invoke('send-email', {
-        body: {
-          to: newApp.client_email,
-          subject: 'Confirmação de Agendamento - FourLab Nutrition',
-          html: `
-            <div style="font-family: sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #eaeaea; border-radius: 8px; overflow: hidden;">
-              <div style="background-color: #e10050; padding: 24px; text-align: center;">
-                <h1 style="color: white; margin: 0; font-size: 20px;">Agendamento Confirmado! 🎉</h1>
-              </div>
-              <div style="padding: 32px; background-color: #ffffff;">
-                <p style="font-size: 16px; line-height: 1.5;">Olá <strong>${newApp.client_name}</strong>,</p>
-                <p style="font-size: 16px; line-height: 1.5;">Seu agendamento foi realizado com sucesso para o dia <strong>${formattedDate}</strong> às <strong>${newApp.start_time}</strong>.</p>
-                <p style="font-size: 16px; line-height: 1.5;">Em breve nossa equipe entrará em contato com você para alinhar os detalhes da visita ou da reunião virtual.</p>
-                ${meetLinkHtml}
-                <br/>
-                <p style="font-size: 14px; color: #666;">Atenciosamente,<br/>Equipe FourLab Nutrition</p>
-              </div>
-            </div>
-          `,
-          senderName: 'FourLab Nutrition',
-        },
-      })
-    } catch (err) {
-      console.error('Integration Error:', err)
-      syncWarning = true
-    }
-  }
-
-  return { newApp, syncWarning }
+  return { newApp: result.appointment, syncWarning: !!result.calendarWarning, result }
 }
 
 export async function toggleSlotLock(

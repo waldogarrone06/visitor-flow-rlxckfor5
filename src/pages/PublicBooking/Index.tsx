@@ -111,7 +111,8 @@ export default function PublicBookingPage() {
 
       if (isLocked) return false
 
-      const slotCount = dayData.appointments.filter((a) => a.start_time === slot.start_time).length
+      // Ocupação por slot vem da edge get-availability (anônimo não lê appointments)
+      const slotCount = dayData.appointments[slot.start_time] || 0
       return slotCount < MAX_CAPACITY_PER_SLOT
     })
     .sort((a, b) => a.start_time.localeCompare(b.start_time))

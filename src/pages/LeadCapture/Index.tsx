@@ -15,6 +15,8 @@ import {
 import { CheckCircle2, Loader2 } from 'lucide-react'
 import { FourLabLogo } from '@/components/FourLabLogo'
 import { UF_OPTIONS, maskCPF, maskCep, maskPhone, validateContactFields } from '@/lib/validation'
+import { Checkbox } from '@/components/ui/checkbox'
+import { createPublicAppointment } from '@/services/public-booking'
 
 const emptyForm = {
   client_name: '',
@@ -39,6 +41,7 @@ export default function LeadCapturePage() {
   const [success, setSuccess] = useState(false)
   const [professionalName, setProfessionalName] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [lgpdConsent, setLgpdConsent] = useState(false)
 
   const [formData, setFormData] = useState(emptyForm)
 
@@ -86,65 +89,36 @@ export default function LeadCapturePage() {
       return
     }
 
+    if (!lgpdConsent) {
+      setErrors({ lgpd: 'É necessário aceitar o uso dos seus dados (LGPD) para continuar.' })
+      return
+    }
+
     setLoading(true)
     try {
-      const payload = {
+      // Passa pela edge function create-booking (service role): grava o lead de
+      // captura via RPC atômica e cria/encontra o contato sem duplicar — o
+      // anônimo não lê nem escreve em contacts direto.
+      await createPublicAppointment({
         user_id: userId,
         ...formData,
-        clinic_state: formData.clinic_state,
-        clinic_city: formData.clinic_city,
         status: 'lead',
         appointment_date: '1970-01-01',
         start_time: '00:00',
         end_time: '00:00',
-      }
-
-      // Sem .select(): a leitura anônima de appointments foi fechada por segurança
-      // (PII exposta). O insert anônimo continua funcionando; nada aqui consome a
-      // linha retornada.
-      const { error } = await supabase.from('appointments').insert([payload])
-
-      if (error) throw error
-
-      if (formData.client_phone) {
-        const phoneNum = formData.client_phone.replace(/\D/g, '')
-        const { data: existingContacts } = await supabase
-          .from('contacts')
-          .select('id')
-          .eq('user_id', userId)
-          .eq('phone', phoneNum)
-
-        const contactPayload = {
-          name: formData.client_name,
-          email: formData.client_email,
-          document: formData.client_document,
-          specialty: formData.specialty,
-          instagram: formData.instagram,
-          patients_per_month: formData.patients_per_month,
-          cep: formData.clinic_cep,
-          address: formData.clinic_address,
-          number: formData.clinic_number,
-          neighborhood: formData.clinic_neighborhood,
-          complement: formData.clinic_complement,
-          city: formData.clinic_city,
-          state: formData.clinic_state,
-        }
-
-        if (existingContacts && existingContacts.length > 0) {
-          await supabase.from('contacts').update(contactPayload).eq('id', existingContacts[0].id)
-        } else {
-          await supabase.from('contacts').insert({
-            user_id: userId,
-            phone: phoneNum,
-            ...contactPayload,
-          })
-        }
-      }
+        lgpd_consent_at: new Date().toISOString(),
+        require_consent: true,
+        // Captura de contato: sem evento no Calendar e sem e-mail de confirmação
+        createCalendar: false,
+        sendConfirmationEmail: false,
+        // Captura grava em data passada (1970-01-01): não deve contar como slot ocupado
+        ignoreCapacity: true,
+      })
 
       setSuccess(true)
-    } catch (err) {
+    } catch (err: any) {
       console.error(err)
-      alert('Ocorreu um erro ao enviar seus dados. Tente novamente.')
+      alert(err?.message || 'Ocorreu um erro ao enviar seus dados. Tente novamente.')
     } finally {
       setLoading(false)
     }
@@ -368,6 +342,29 @@ export default function LeadCapturePage() {
                   onChange={(e) => setField('patients_per_month', e.target.value)}
                 />
               </div>
+            </div>
+
+            {fieldError('lgpd')}
+
+            <div
+              className={`flex items-start gap-3 rounded-md border p-4 ${
+                errors.lgpd ? 'border-red-500' : 'border-border/60'
+              }`}
+            >
+              <Checkbox
+                id="lgpd_consent"
+                checked={lgpdConsent}
+                onCheckedChange={(v) => {
+                  setLgpdConsent(v === true)
+                  if (errors.lgpd) setErrors((e) => ({ ...e, lgpd: '' }))
+                }}
+                className="mt-0.5"
+              />
+              <Label htmlFor="lgpd_consent" className="text-sm font-normal leading-relaxed">
+                Autorizo o uso dos meus dados (nome, e-mail, telefone, CPF e endereço) para cadastro
+                e contato pela equipe FourLab Nutrition, conforme a Lei Geral de Proteção de Dados
+                (LGPD). *
+              </Label>
             </div>
 
             <Button
