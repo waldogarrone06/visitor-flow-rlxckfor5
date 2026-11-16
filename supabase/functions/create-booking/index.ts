@@ -327,7 +327,8 @@ Deno.serve(async (req: Request) => {
       p_clinic_state: clinicState || null,
       p_instagram: instagram || null,
       p_patients_per_month: patientsPerMonth || null,
-      p_max_capacity: MAX_CAPACITY,
+      p_max_capacity: maxCapacity || MAX_CAPACITY,
+      p_lgpd_consent_at: lgpdConsentAt || null,
     })
 
     if (rpcError || !appointment) {
