@@ -10,6 +10,20 @@ export const MAX_CAPACITY_PER_SLOT = 10
 // cliente não envia capacidade, consentimento-forçado nem flags de permissão.
 export const CAPTURE_SENTINEL_DATE = '1970-01-01'
 
+// Erro HTTP de edge function (non-2xx): o supabase-js devolve só "Edge Function
+// returned a non-2xx status code" e guarda a Response em error.context. Lê o
+// corpo JSON e devolve o campo `error` que o servidor enviou; corpo que não é
+// JSON (ou erro de rede, sem context) cai no fallback.
+async function readFunctionError(error: any, fallback: string): Promise<string> {
+  try {
+    const body = await error?.context?.json()
+    if (typeof body?.error === 'string' && body.error.trim()) return body.error
+  } catch {
+    // corpo não é JSON ou já foi consumido: mantém o fallback
+  }
+  return fallback
+}
+
 // Disponibilidade do dia vem da edge function get-availability (service role):
 // devolve agenda do dia, slots bloqueados, ocupação por slot e busySlots do
 // Google Calendar — e já filtra horários que já passaram no dia atual (BRT).
@@ -20,7 +34,11 @@ export async function getDayScheduleData(userId: string, date: Date) {
     body: { userId, date: dateStr },
   })
 
-  if (error) throw new Error(error.message || 'Falha ao carregar disponibilidade.')
+  if (error) {
+    throw new Error(
+      await readFunctionError(error, error.message || 'Falha ao carregar disponibilidade.'),
+    )
+  }
 
   return {
     schedule: syncData?.schedule || [],
@@ -74,7 +92,10 @@ export async function createPublicAppointment(data: any) {
     },
   })
 
-  if (error) throw error
+  if (error) {
+    // Propaga a mensagem real do servidor (409 capacidade, 422 ocupado, 429, 503).
+    throw new Error(await readFunctionError(error, error.message || 'Falha ao agendar.'))
+  }
   if (result?.error) throw new Error(result.error)
 
   return { newApp: result.appointment, syncWarning: !!result.calendarWarning, result }

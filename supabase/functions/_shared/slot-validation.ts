@@ -129,7 +129,9 @@ async function fetchFreeBusy(
 
   if (!res.ok) {
     console.error(`[slot-validation] freeBusy do Google falhou: HTTP ${res.status}`)
-    throw new Error(`google_freebusy_http_${res.status}`)
+    const httpErr: any = new Error(`google_freebusy_http_${res.status}`)
+    httpErr.status = res.status
+    throw httpErr
   }
 
   const data = await res.json().catch(() => null)
@@ -213,8 +215,12 @@ export async function validateGoogleSlot(
 
   // 3. Token expirado (ou prestes a, margem de 60s)? Renova e persiste.
   let accessToken = secrets.accessToken || ''
+  // expires_at nulo com access_token presente = expiração DESCONHECIDA, não
+  // "certamente expirada": não renova por precaução (poupa chamada ao Google).
+  const expiryUnknown = !!accessToken && !secrets.expiresAt
   const expiryMs = secrets.expiresAt ? Date.parse(secrets.expiresAt) : 0
-  const isExpired = !accessToken || !expiryMs || expiryMs <= Date.now() + 60_000
+  const isExpired =
+    !accessToken || (!expiryUnknown && (!expiryMs || expiryMs <= Date.now() + 60_000))
 
   if (isExpired) {
     const renewed = await refreshAccessToken(supabase, userId, secrets.refreshToken)
@@ -237,14 +243,37 @@ export async function validateGoogleSlot(
   let busy: BusyPeriod[]
   try {
     busy = await fetchFreeBusy(accessToken, startIso, endIso)
-  } catch (err) {
-    console.error('[slot-validation] freeBusy indisponível:', err?.message || err)
-    await logGoogleTokenAlert(supabase, userId, 'google_error')
-    return {
-      ok: false,
-      code: 'google_error',
-      error: 'Google Calendar temporariamente indisponível. Tente novamente em instantes.',
+  } catch (err: any) {
+    // Com expires_at nulo, o primeiro 401 do Google dispara UMA renovação, que
+    // grava a nova expiração — a partir daí o fluxo normal de expiração vale.
+    let retried: BusyPeriod[] | null = null
+    if (expiryUnknown && err?.status === 401) {
+      const renewed = await refreshAccessToken(supabase, userId, secrets.refreshToken)
+      if (!renewed.ok) {
+        await logGoogleTokenAlert(supabase, userId, 'expired_token')
+        return {
+          ok: false,
+          code: 'expired_token',
+          error: 'Não foi possível renovar o token do Google Calendar. Reconecte a conta.',
+        }
+      }
+      try {
+        retried = await fetchFreeBusy(renewed.accessToken, startIso, endIso)
+      } catch (err2: any) {
+        console.error('[slot-validation] freeBusy indisponível:', err2?.message || err2)
+      }
+    } else {
+      console.error('[slot-validation] freeBusy indisponível:', err?.message || err)
     }
+    if (!retried) {
+      await logGoogleTokenAlert(supabase, userId, 'google_error')
+      return {
+        ok: false,
+        code: 'google_error',
+        error: 'Google Calendar temporariamente indisponível. Tente novamente em instantes.',
+      }
+    }
+    busy = retried
   }
 
   // 5. Sobreposição slot × busy[] — comparação em UTC (ms). Os horários do slot

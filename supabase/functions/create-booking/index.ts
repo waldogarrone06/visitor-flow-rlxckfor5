@@ -478,8 +478,9 @@ Deno.serve(async (req: Request) => {
       // validateGoogleSlot LANÇA GoogleBusyError quando há sobreposição com
       // evento no Google Calendar (422, regra de negócio — recusa ANTES de
       // gravar) e devolve ok:false em falha de infraestrutura (503 fail-
-      // closed). Qualquer GoogleBusyError que escapar é capturado pelo catch
-      // externo e devolvido como 422 (guarda de código, nunca 400).
+      // closed). O GoogleBusyError é tratado no try/catch interno (422). Qualquer
+      // outro erro que escapar cai no catch externo, que devolve 400 com a
+      // mensagem do erro.
       let googleCheck: Awaited<ReturnType<typeof validateGoogleSlot>>
       try {
         googleCheck = await validateGoogleSlot(
