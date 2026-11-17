@@ -2,6 +2,14 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 import { forbidden, requireInternalOrUserAuth } from '../_shared/internal-auth.ts'
+import { renderTemplate, type EmailTemplatePurpose, type EmailTemplateVars } from '../_shared/email-templates.ts'
+
+// Atributo href seguro (front): bloqueia javascript:/data: e escapa aspas.
+function escapeUrlAttribute(value: string): string {
+  const v = String(value || '').trim()
+  if (/^(javascript|data|vbscript):/i.test(v)) return '#'
+  return v.replace(/"/g, '%22').replace(/'/g, '%27').replace(/</g, '%3C').replace(/>/g, '%3E')
+}
 
 // Envio de e-mail autenticado (Resend).
 //
@@ -14,12 +22,22 @@ import { forbidden, requireInternalOrUserAuth } from '../_shared/internal-auth.t
 // 2. Usuários autenticados do front: JWT no Authorization, validado via
 //    auth.getUser(). Anon key => 401.
 //
-// OWNERSHIP (auditoria): usuário autenticado do front que enviar
-// appointmentId precisa ser DONO do agendamento (403 caso contrário) — sem
-// isso qualquer usuário logado poderia disparar e-mails em nome de outro.
+// OWNERSHIP (auditoria):
+// - Com appointmentId: usuário do front precisa ser DONO do agendamento (403).
+// - SEM appointmentId (envio livre do front): o destinatário precisa ser um
+//   CONTATO DO PRÓPRIO USUÁRIO (contacts.user_id = auth.userId — match por
+//   e-mail normalizado em minúsculas; sem contato dono => 403) e o conteúdo
+//   vem de TEMPLATE FIXO por propósito (`template` + `vars`) — subject e HTML
+//   arbitrários do corpo da requisição são IGNORADOS.
 //
 // A chave da Resend vem EXCLUSIVAMENTE do secret RESEND_API_KEY (nunca
 // hardcoded, nunca do corpo da requisição).
+
+function normalizeEmail(value: unknown): string {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+}
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -39,29 +57,14 @@ Deno.serve(async (req: Request) => {
     const body = await req.json().catch(() => ({}))
     const { to, subject, html, text, senderName, from, userId, meetLink, appointmentId } = body
 
-    if (!to || !subject || (!html && !text)) {
-      throw new Error('Parâmetros obrigatórios ausentes: to, subject e html (ou text).')
+    if (!to) {
+      throw new Error('Parâmetro obrigatório ausente: to.')
     }
 
-    // --- Ownership (apenas chamadas autenticadas do front) ------------------
-    // Interno (service role) confia: as próprias functions validam ownership
-    // na camada delas. Front autenticado: precisa ser dono do agendamento.
-    if (!isInternalCaller && appointmentId) {
-      const supabaseAsUser = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY') || '', {
-        global: {
-          headers: { Authorization: req.headers.get('Authorization') || '' },
-        },
-      })
-      const { data: owned, error: ownedErr } = await supabaseAsUser
-        .from('appointments')
-        .select('id')
-        .eq('id', appointmentId)
-        .eq('user_id', auth.userId!)
-        .maybeSingle()
-      if (ownedErr || !owned) {
-        return forbidden('Você não tem permissão para este agendamento.')
-      }
-    }
+    // Contexto do chamador do front (para os templates).
+    const frontTemplate = typeof body.template === 'string' ? body.template : ''
+    const frontVars: EmailTemplateVars =
+      body.vars && typeof body.vars === 'object' && !Array.isArray(body.vars) ? body.vars : {}
 
     // --- Chave da Resend: apenas do ambiente/secrets -------------------------
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') || ''
@@ -72,13 +75,108 @@ Deno.serve(async (req: Request) => {
       )
     }
 
+    let finalSubject = subject
+    let finalHtml = html
+    let finalText = text
+
+    // --- Caminho do FRONT autenticado ---------------------------------------
+    // Contrato novo (auditoria): SEMPRE template fixo; subject/html/text do
+    // corpo da requisição são IGNORADOS. Destinatário restrito:
+    //  - com appointmentId: dono do agendamento e destinatário = e-mail do
+    //    cliente do PRÓPRIO agendamento;
+    //  - sem appointmentId: contato do próprio usuário (contacts.user_id) —
+    //    exceto o pedido interno de cupom (marketing), que só vale para o
+    //    domínio da equipe;
+    //  - template 'test': apenas para o e-mail da própria conta logada.
+    if (!isInternalCaller) {
+      const supabaseAsUser = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY') || '', {
+        global: {
+          headers: { Authorization: req.headers.get('Authorization') || '' },
+        },
+      })
+
+      const VALID_PURPOSES: EmailTemplatePurpose[] = [
+        'coupons',
+        'kit_shipped',
+        'marketing_coupon_request',
+        'appointment_confirmation',
+        'meet_link',
+        'test',
+      ]
+      if (!VALID_PURPOSES.includes(frontTemplate as EmailTemplatePurpose)) {
+        return forbidden(
+          'Envio de e-mail requer um template fixo válido (template: coupons, kit_shipped, marketing_coupon_request, appointment_confirmation, meet_link ou test).',
+        )
+      }
+
+      const INTERNAL_TEAM_DOMAINS = ['fourlabnutrition.com.br', 'fourlabnutri.com.br']
+      const recipientEmail = normalizeEmail(to)
+      const isInternalTeamAddress = INTERNAL_TEAM_DOMAINS.some((d) => recipientEmail.endsWith(`@${d}`))
+
+      if (appointmentId) {
+        // Dono do agendamento E destinatário é o e-mail do cliente dele.
+        const { data: owned, error: ownedErr } = await supabaseAsUser
+          .from('appointments')
+          .select('id, client_email')
+          .eq('id', appointmentId)
+          .eq('user_id', auth.userId!)
+          .maybeSingle()
+        if (ownedErr || !owned) {
+          return forbidden('Você não tem permissão para este agendamento.')
+        }
+        if (recipientEmail !== normalizeEmail((owned as any).client_email)) {
+          return forbidden(
+            'O destinatário deve ser o e-mail do cliente deste agendamento.',
+          )
+        }
+      } else if (frontTemplate === 'test') {
+        // Teste de configuração: só para o e-mail da própria conta logada.
+        const { data: meData } = await supabaseAsUser.auth.getUser()
+        const myEmail = normalizeEmail(meData?.user?.email)
+        if (!myEmail || recipientEmail !== myEmail) {
+          return forbidden(
+            'O e-mail de teste só pode ser enviado para o e-mail da sua própria conta.',
+          )
+        }
+      } else if (frontTemplate === 'marketing_coupon_request' && isInternalTeamAddress) {
+        // Pedido interno de cadastro de cupom para a equipe: destinatário fixo
+        // do domínio interno, conteúdo de template fixo — risco fechado.
+      } else {
+        // Destinatário precisa ser um contato do próprio usuário.
+        const { data: ownedContact, error: contactErr } = await supabaseAsUser
+          .from('contacts')
+          .select('id')
+          .eq('user_id', auth.userId!)
+          .eq('email', recipientEmail)
+          .limit(1)
+
+        if (contactErr || !ownedContact || ownedContact.length === 0) {
+          return forbidden(
+            'Destinatário não autorizado: o e-mail deve pertencer a um contato do seu cadastro.',
+          )
+        }
+      }
+
+      // Conteúdo SEMPRE do template fixo com variáveis controladas.
+      const rendered = renderTemplate(frontTemplate as EmailTemplatePurpose, frontVars)
+      finalSubject = rendered.subject
+      finalHtml = rendered.html
+      finalText = rendered.text
+    }
+
     const safeSenderName = (senderName || 'FourLab Nutrition').replace(/[<>]/g, '').trim()
     const defaultFrom = 'contato@fourlabnutrition.com.br'
     const fromEmail = `${safeSenderName} <${from || defaultFrom}>`
 
     let finalMeetLink = meetLink || null
 
-    if (!finalMeetLink && userId) {
+    if (!finalMeetLink && !isInternalCaller) {
+      // Front: usa o meetLink das variáveis do template (fornecido pelo próprio
+      // agendamento do usuário — ownership já validado acima).
+      finalMeetLink = (frontVars.meetLink as string) || null
+    }
+
+    if (!finalMeetLink && userId && isInternalCaller) {
       if (supabaseUrl && serviceKey) {
         const supabase = createClient(supabaseUrl, serviceKey)
         const { data: fixedLink, error: rpcError } = await supabase.rpc('get_fixed_meet_link', {
@@ -91,11 +189,10 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    let finalHtml = html
-    let finalText = text
-
     if (finalMeetLink) {
-      const meetLinkHtml = `<div style="margin-top: 16px; padding: 12px; background-color: #f0fdfa; border: 1px solid #14b8a6; border-radius: 8px;"><p style="margin: 0 0 4px 0; font-size: 14px; color: #0f766e; font-weight: bold;">🔗 Link da Reunião</p><a href="${finalMeetLink}" style="color: #0d9488; font-weight: bold; word-break: break-all; text-decoration: underline;">${finalMeetLink}</a></div>`
+      const safeMeetLink = isInternalCaller ? finalMeetLink : escapeUrlAttribute(finalMeetLink)
+      finalMeetLink = safeMeetLink
+      const meetLinkHtml = `<div style="margin-top: 16px; padding: 12px; background-color: #f0fdfa; border: 1px solid #14b8a6; border-radius: 8px;"><p style="margin: 0 0 4px 0; font-size: 14px; color: #0f766e; font-weight: bold;">🔗 Link da Reunião</p><a href="${safeMeetLink}" style="color: #0d9488; font-weight: bold; word-break: break-all; text-decoration: underline;">${safeMeetLink}</a></div>`
       const meetLinkText = `\n\n---\n🔗 Link da Reunião: ${finalMeetLink}\n`
 
       if (finalHtml) {
@@ -111,7 +208,7 @@ Deno.serve(async (req: Request) => {
     }
 
     console.log(
-      `Attempting to send email to ${to} via Resend from ${fromEmail} (internal caller: ${isInternalCaller})...`,
+      `Attempting to send email to ${to} via Resend from ${fromEmail} (internal caller: ${isInternalCaller}, template: ${frontTemplate || 'custom'})...`,
     )
 
     const res = await fetch('https://api.resend.com/emails', {
@@ -123,7 +220,7 @@ Deno.serve(async (req: Request) => {
       body: JSON.stringify({
         from: fromEmail,
         to: [to],
-        subject: subject,
+        subject: finalSubject,
         html: finalHtml,
         text: finalText,
       }),
@@ -152,3 +249,22 @@ Deno.serve(async (req: Request) => {
     })
   }
 })
+
+// Meet link fixo por usuário (RPC de leitura, service role interno).
+function fetchFixedMeetLink(
+  supabaseUrl: string,
+  serviceKey: string,
+  targetUserId?: string,
+): Promise<string | null> {
+  if (!supabaseUrl || !serviceKey || !targetUserId) return Promise.resolve(null)
+  try {
+    const supabase = createClient(supabaseUrl, serviceKey)
+    const { data, error } = await supabase.rpc('get_fixed_meet_link', {
+      p_user_id: targetUserId,
+    })
+    if (!error && data) return data
+  } catch (e: any) {
+    console.error('fetchFixedMeetLink:', e?.message || e)
+  }
+  return Promise.resolve(null)
+}

@@ -77,13 +77,29 @@ export async function checkRateLimit(
 
 /**
  * Extrai o melhor identificador de IP do request (por trás do gateway do
- * Supabase). Cadeia X-Forwarded-For: o primeiro IP é o cliente original.
+ * Supabase).
+ *
+ * SEGURANÇA (auditoria): o PRIMEIRO valor da cadeia X-Forwarded-For é
+ * CONTROLADO PELO PRÓPRIO CLIENTE — o proxy só ACRESCENTA o IP real ao final
+ * da cadeia. Quem manda `X-Forwarded-For: <IP aleatório>` a cada chamada
+ * trocava de "IP" e nunca atingia o limite. Ordem correta:
+ *  1. cf-connecting-ip (definido pela Cloudflare, não forjável pelo cliente);
+ *  2. ÚLTIMO IP da cadeia X-Forwarded-For (o mais próximo do nosso proxy);
+ *  3. x-real-ip; 4. 'desconhecido'.
  */
 export function getClientIp(req: Request): string {
+  const cfIp = (req.headers.get('cf-connecting-ip') || '').trim()
+  if (cfIp) return cfIp
+
   const fwd = req.headers.get('x-forwarded-for') || ''
-  const first = fwd.split(',')[0]?.trim()
-  if (first) return first
-  return req.headers.get('cf-connecting-ip') || req.headers.get('x-real-ip') || 'desconhecido'
+  const parts = fwd
+    .split(',')
+    .map((p) => p.trim())
+    .filter((p) => p !== '')
+  const last = parts[parts.length - 1]
+  if (last) return last
+
+  return req.headers.get('x-real-ip') || 'desconhecido'
 }
 
 /**
