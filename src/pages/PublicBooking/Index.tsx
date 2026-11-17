@@ -388,6 +388,7 @@ export default function PublicBookingPage() {
                               appointments: [],
                               lockedSlots: [],
                               busySlots: [],
+                              googleError: false,
                             })
                             setLoadError(
                               'Não foi possível carregar os horários agora. Verifique sua conexão e tente novamente.',
@@ -398,6 +399,13 @@ export default function PublicBookingPage() {
                     >
                       <RefreshCw className="w-4 h-4 mr-1" /> Tentar novamente
                     </Button>
+                  </div>
+                ) : dayData.googleError ? (
+                  <div className="flex flex-col items-center gap-3 py-6 text-center">
+                    <AlertCircle className="w-8 h-8 text-amber-500" />
+                    <p className="text-sm text-muted-foreground max-w-xs">
+                      Agenda indisponível temporariamente — tente novamente.
+                    </p>
                   </div>
                 ) : availableSlots.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-4">

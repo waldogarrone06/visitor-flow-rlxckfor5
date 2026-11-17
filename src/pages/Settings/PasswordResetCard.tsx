@@ -8,13 +8,11 @@ import { KeyRound, Loader2 } from 'lucide-react'
 // Contas criadas por migrations com senha padrão conhecida ("Skip@Pass" /
 // "Skip@Pass123"). Envia e-mail de redefinição (fluxo recovery do Supabase)
 // para cada uma, para que a senha padrão deixe de ser a credencial válida.
-const DEFAULT_PASSWORD_EMAILS = [
-  'wal@fourlabnutri.com.br',
-  'anderson@fourlabnutri.com.br',
-  'caique.andrada@trinia.com.br',
-  'admin@example.com',
-  'user@example.com',
-]
+// Lista conciliada com o banco vivo (crypt('Skip@Pass', encrypted_password) em
+// auth.users, conferido em 2026-11): apenas esta conta ainda tem a senha
+// padrão — as demais (anderson@, caique.andrada@, admin@example.com,
+// user@example.com) já foram redefinidas.
+const DEFAULT_PASSWORD_EMAILS = ['wal@fourlabnutri.com.br']
 
 export function PasswordResetCard() {
   const [isLoading, setIsLoading] = useState<string | null>(null)

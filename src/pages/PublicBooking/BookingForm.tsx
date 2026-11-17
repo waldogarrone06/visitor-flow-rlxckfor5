@@ -5,8 +5,6 @@ import { Label } from '@/components/ui/label'
 import { toast } from '@/hooks/use-toast'
 import { createPublicAppointment } from '@/services/public-booking'
 import { format } from 'date-fns'
-import { useMainStore } from '@/stores/main'
-import { Lead } from '@/lib/types'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Loader2 } from 'lucide-react'
 
@@ -45,7 +43,6 @@ function saveDraft(values: Record<string, string>) {
 
 export function BookingForm({ userId, date, slot, onSuccess }: BookingFormProps) {
   const [submitting, setSubmitting] = useState(false)
-  const { dispatch } = useMainStore()
   const [formErrors, setFormErrors] = useState<Record<string, boolean>>({})
   const [lgpdConsent, setLgpdConsent] = useState(false)
   const [formData, setFormData] = useState({
@@ -136,25 +133,6 @@ export function BookingForm({ userId, date, slot, onSuccess }: BookingFormProps)
         end_time: slot.end_time,
         lgpd_consent: true,
       })
-
-      const newLeadId = `l-${Date.now()}`
-      const newLead: Lead = {
-        id: newApp?.id || newLeadId,
-        name: formData.name,
-        type: 'B2B',
-        stage: 'Agendado',
-        score: 3,
-        document: formData.document,
-        address: formData.clinic_address || 'Endereço não informado',
-        profession: 'médico',
-        specialty: formData.specialty,
-        phone: formData.phone,
-        email: formData.email,
-        lastInteraction: new Date().toISOString(),
-        userId: userId,
-      } as any
-
-      dispatch({ type: 'ADD_LEAD', payload: newLead })
 
       if (syncWarning) {
         toast({
