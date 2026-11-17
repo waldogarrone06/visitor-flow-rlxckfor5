@@ -2,6 +2,12 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 import { getGoogleTokens } from '../_shared/integration-secrets.ts'
+import { checkRateLimit, getClientIp, bucketFor } from '../_shared/rate-limit.ts'
+import {
+  validatePublicSlot,
+  isValidDateFormat,
+  isValidTimeFormat,
+} from '../_shared/slot-validation.ts'
 
 // create-booking — pós-agendamento 100% no servidor.
 // O front (formulário público) chama ESTA função em vez de gravar direto no banco:
@@ -14,10 +20,23 @@ import { getGoogleTokens } from '../_shared/integration-secrets.ts'
 // SEGURANÇA: o cliente NÃO controla userId, capacidade, status nem exigência de
 // consentimento — tudo é decidido AQUI. O userId vem da URL da página pública
 // (route param, mesmo valor validado pela get-availability); capacidade e
-// consentimento são constantes do servidor.
+// consentimento (quando e versão do termo) são constantes do servidor.
+// LGPD: o timestamp de consentimento enviado pelo body é IGNORADO — a RPC grava
+// now() do banco e a versão do termo vigente.
+// ENTRADA: rate limit por IP (geral e por profissional) + validação do slot
+// (existe na agenda, não passou, não está bloqueado/ocupado no Google).
 
 const MAX_CAPACITY = 10
 const CAPTURE_DATE = '1970-01-01' // LeadCapture: data sentinela fora da checagem de capacidade
+
+// Rate limits (janela fixa persistida na tabela rate_limit_events):
+// - agendamento real: 10 por IP a cada 10 min e 30 por IP/dia por profissional
+// - captura de lead (sentinela): 5 por IP a cada 10 min e 20 leads/dia por IP
+const BOOKING_LIMIT_10MIN = 10
+const BOOKING_LIMIT_DAILY = 30
+const CAPTURE_LIMIT_10MIN = 5
+const CAPTURE_LIMIT_DAILY = 20
+const DAY_WINDOW_SECONDS = 24 * 3600
 
 function normalizePhone(raw: string | null | undefined): string {
   return (raw || '').replace(/\D/g, '')
@@ -31,6 +50,7 @@ function isValidUuid(value: string | null | undefined): boolean {
 
 // Escapa HTML de valores digitados pelo visitante antes de interpolar no
 // template do e-mail — evita injeção de HTML/falsificação de conteúdo.
+// SÓ para o corpo HTML do e-mail: WhatsApp e texto simples usam o valor PURO.
 function escapeHtml(value: string | null | undefined): string {
   return String(value ?? '')
     .replace(/&/g, '&amp;')
@@ -38,6 +58,29 @@ function escapeHtml(value: string | null | undefined): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;')
+}
+
+// Texto puro (WhatsApp): sem nenhuma interpretação de HTML — o valor chega
+// exatamente como o usuário digitou ("D'Ávila" continua "D'Ávila",
+// "link.com/a?b=1&c=2" continua com "&").
+function plainText(value: string | null | undefined): string {
+  return String(value ?? '')
+}
+
+function rateLimitedResponse(resetSeconds: number): Response {
+  return new Response(
+    JSON.stringify({
+      error: 'Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente novamente.',
+    }),
+    {
+      status: 429,
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json',
+        'Retry-After': String(resetSeconds),
+      },
+    },
+  )
 }
 
 async function refreshGoogleToken(
@@ -203,6 +246,7 @@ async function upsertContact(supabase: any, a: any): Promise<string | null> {
           instagram: a.instagram || undefined,
           patients_per_month: a.patients_per_month || undefined,
           lgpd_consent_at: a.lgpd_consent_at || undefined,
+          lgpd_consent_term_version: a.lgpd_consent_term_version || undefined,
         })
         .eq('id', byPhone[0].id)
       return byPhone[0].id
@@ -235,6 +279,7 @@ async function upsertContact(supabase: any, a: any): Promise<string | null> {
           instagram: a.instagram || undefined,
           patients_per_month: a.patients_per_month || undefined,
           lgpd_consent_at: a.lgpd_consent_at || undefined,
+          lgpd_consent_term_version: a.lgpd_consent_term_version || undefined,
           ...(phone ? { phone } : {}),
         })
         .eq('id', byEmail[0].id)
@@ -263,6 +308,7 @@ async function upsertContact(supabase: any, a: any): Promise<string | null> {
       instagram: a.instagram || null,
       patients_per_month: a.patients_per_month || null,
       lgpd_consent_at: a.lgpd_consent_at || null,
+      lgpd_consent_term_version: a.lgpd_consent_term_version || null,
     })
     .select('id')
     .single()
@@ -285,7 +331,6 @@ Deno.serve(async (req: Request) => {
       userId,
       appointmentDate,
       startTime,
-      endTime,
       clientName,
       clientEmail,
       clientPhone,
@@ -301,13 +346,16 @@ Deno.serve(async (req: Request) => {
       clinicState,
       instagram,
       patientsPerMonth,
-      lgpdConsentAt,
+      // lgpdConsentAt do body é lido só para COMPATIBILIDADE de contrato — o
+      // valor gravado é sempre now() do SERVIDOR (RPC book_appointment).
       // LeadCapture (só captura de contato) não cria evento nem envia e-mail.
       // São flags de COMPORTAMENTO do fluxo, não de permissão — nada aqui
       // afeta capacidade, consentimento, status ou de quem é o agendamento.
       createCalendar = true,
       sendConfirmationEmail = true,
+      endTime: endTimeRaw,
     } = body || {}
+    const endTime = isValidTimeFormat(endTimeRaw) ? endTimeRaw : ''
 
     // userId NUNCA vem "de confiança" do body de dados: o chamador público é a
     // página /agendar/:userId e o userId do route param é a origem válida.
@@ -316,13 +364,38 @@ Deno.serve(async (req: Request) => {
         'Campos obrigatórios ausentes ou inválidos: userId, appointmentDate e startTime.',
       )
     }
+    if (!isValidDateFormat(appointmentDate) || !isValidTimeFormat(startTime)) {
+      throw new Error('Data ou horário em formato inválido.')
+    }
 
-    // --- 1) userId existe (servidor resolve quem é o profissional) -----------
+    // --- 0) Rate limit por IP (antes de qualquer consulta ao banco) ----------
+    const clientIp = getClientIp(req)
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') || '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '',
     )
 
+    const isCaptureLead = String(appointmentDate) === CAPTURE_DATE
+    const rateLimit = isCaptureLead
+      ? [bucketFor('booking', clientIp), CAPTURE_LIMIT_10MIN, 600]
+      : [bucketFor('booking', clientIp), BOOKING_LIMIT_10MIN, 600]
+    const general = await checkRateLimit(supabase, rateLimit[0], rateLimit[1], rateLimit[2])
+    if (!general.ok) return rateLimitedResponse(general.resetSeconds)
+
+    // Limite específico do caminho de captura de lead: a data sentinela pula a
+    // capacidade, então o freio aqui é a taxa de leads por IP (evita encher a
+    // tabela de leads batendo no atalho da sentinela).
+    if (isCaptureLead) {
+      const daily = await checkRateLimit(
+        supabase,
+        bucketFor('capture-daily', clientIp),
+        CAPTURE_LIMIT_DAILY,
+        DAY_WINDOW_SECONDS,
+      )
+      if (!daily.ok) return rateLimitedResponse(daily.resetSeconds)
+    }
+
+    // --- 1) userId existe (servidor resolve quem é o profissional) -----------
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('id')
@@ -336,17 +409,53 @@ Deno.serve(async (req: Request) => {
       })
     }
 
-    // --- 2) LGPD: consentimento é SEMPRE exigido pelo servidor ----------------
-    if (!lgpdConsentAt) {
+    // Limite diário de agendamentos reais por IP × profissional.
+    if (!isCaptureLead) {
+      const perUser = await checkRateLimit(
+        supabase,
+        bucketFor('booking-user-daily', clientIp, userId),
+        BOOKING_LIMIT_DAILY,
+        DAY_WINDOW_SECONDS,
+      )
+      if (!perUser.ok) return rateLimitedResponse(perUser.resetSeconds)
+    }
+
+    // --- 2) LGPD: consentimento é SEMPRE exigido pelo servidor. O front manda
+    // APENAS a flag booleana (aceitou/não) — o QUANDO e a VERSÃO do termo são
+    // fatos do SERVIDOR (RPC grava now() e 'v1'; timestamp do body é ignorado).
+    const consentGiven =
+      body?.lgpdConsent === true ||
+      body?.lgpdConsentAccepted === true ||
+      // compatibilidade: versões antigas do front mandavam um timestamp
+      (typeof body?.lgpdConsentAt === 'string' && body.lgpdConsentAt.trim() !== '')
+    if (!consentGiven) {
       return new Response(
         JSON.stringify({ error: 'Consentimento LGPD obrigatório para concluir o agendamento.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       )
     }
 
+    // --- 2b) Validação do slot: existe na agenda, não está no passado (BRT),
+    // não está bloqueado nem ocupado no Google Calendar. A captura de lead
+    // (data sentinela) não é um slot real — pula esta validação.
+    if (!isCaptureLead) {
+      const slotCheck = await validatePublicSlot({
+        supabase,
+        userId,
+        date: appointmentDate,
+        startTime,
+        endTime: endTime || startTime,
+      })
+      if (!slotCheck.ok) {
+        return new Response(JSON.stringify({ error: slotCheck.error }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+    }
+
     // --- 3) Capacidade: constante do SERVIDOR. LeadCapture grava em data
     // sentinela (1970-01-01), fora da checagem de capacidade por slot.
-    const isCaptureLead = String(appointmentDate) === CAPTURE_DATE
     const pMaxCapacity = isCaptureLead ? 2147483647 : MAX_CAPACITY
 
     // --- 4) Inserção atômica (RPC com lock de capacidade) ---------------------
@@ -374,7 +483,8 @@ Deno.serve(async (req: Request) => {
       p_instagram: instagram || null,
       p_patients_per_month: patientsPerMonth || null,
       p_max_capacity: pMaxCapacity,
-      p_lgpd_consent_at: lgpdConsentAt || null,
+      // p_lgpd_consent_at do body NÃO é repassado: a RPC grava now() do banco.
+      p_lgpd_consent_at: null,
     })
 
     if (rpcError || !appointment) {
@@ -436,6 +546,9 @@ Deno.serve(async (req: Request) => {
     }
 
     // --- 7) E-mail de confirmação (Resend, server-side) -----------------------
+    // Dois renderings a partir dos dados PUROS: texto simples (WhatsApp, se um
+    // dia este canal for usado aqui) e HTML escapado — nunca reutilizar a
+    // string escapada do e-mail em mensagem de WhatsApp.
     let emailSent = false
     if (clientEmail && sendConfirmationEmail) {
       try {
@@ -466,6 +579,37 @@ Deno.serve(async (req: Request) => {
         }
       } catch (e: any) {
         console.error('[create-booking] e-mail de confirmação falhou:', e?.message || e)
+      }
+    }
+
+    // WhatsApp (texto PURO, sem escape) — quando configurado para o
+    // profissional.Nunca recebe a string escapada do e-mail.
+    if (sendConfirmationEmail && clientPhone) {
+      try {
+        const { data: waIntegration } = await supabase
+          .from('user_integrations')
+          .select('whatsapp_connected')
+          .eq('user_id', userId)
+          .maybeSingle()
+        if (waIntegration?.whatsapp_connected) {
+          const plainName = plainText(clientName)
+          const plainMeetLink = plainText(meetLink)
+          const waText = `Olá, ${plainName}! 👋\n\nSeu agendamento na FourLab Nutrition foi confirmado para o dia ${formattedDate} às ${startTime}.${plainMeetLink ? `\n\n🔗 Link da reunião: ${plainMeetLink}` : ''}\n\nAté logo! 😊\n*Equipe FourLab*`
+          await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/whatsapp-send`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+            },
+            body: JSON.stringify({
+              to: clientPhone,
+              text: waText,
+              userId,
+            }),
+          })
+        }
+      } catch (e: any) {
+        console.error('[create-booking] WhatsApp de confirmação falhou:', e?.message || e)
       }
     }
 

@@ -2,12 +2,35 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 import { getGoogleTokens } from '../_shared/integration-secrets.ts'
+import { checkRateLimit, getClientIp, bucketFor } from '../_shared/rate-limit.ts'
 
 // get-availability — disponibilidade de horários para o agendamento público.
 // Retorna: agenda do dia (recurring ou específica), horários ocupados (Google
 // Calendar via freeBusy) e contagem de agendamentos ativos por slot.
 // IMPORTANTE: horários que JÁ PASSARAM no dia atual são removidos usando o
 // fuso de Brasília (America/Sao_Paulo) — não UTC.
+// Rate limit por IP (leitura pública): 60/min e 300/hora por IP — folgado o
+// bastante para não atrapalhar a navegação normal do formulário público.
+const READ_LIMIT_PER_MIN = 60
+const READ_LIMIT_PER_HOUR = 300
+const MINUTE_WINDOW = 60
+const HOUR_WINDOW = 3600
+
+function rateLimitedResponse(resetSeconds: number): Response {
+  return new Response(
+    JSON.stringify({
+      error: 'Muitas consultas em pouco tempo. Aguarde alguns instantes e tente novamente.',
+    }),
+    {
+      status: 429,
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json',
+        'Retry-After': String(resetSeconds),
+      },
+    },
+  )
+}
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -22,6 +45,23 @@ Deno.serve(async (req: Request) => {
       Deno.env.get('SUPABASE_URL') || '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '',
     )
+
+    // --- Rate limit por IP (antes de qualquer consulta pesada) ---------------
+    const clientIp = getClientIp(req)
+    const perMinute = await checkRateLimit(
+      supabase,
+      bucketFor('availability', clientIp),
+      READ_LIMIT_PER_MIN,
+      MINUTE_WINDOW,
+    )
+    if (!perMinute.ok) return rateLimitedResponse(perMinute.resetSeconds)
+    const perHour = await checkRateLimit(
+      supabase,
+      bucketFor('availability-hour', clientIp),
+      READ_LIMIT_PER_HOUR,
+      HOUR_WINDOW,
+    )
+    if (!perHour.ok) return rateLimitedResponse(perHour.resetSeconds)
 
     // Data/hora atual em BRT — via formatToParts com hourCycle h23, porque
     // toLocaleString('en-CA') pode devolver 12h ("2:59:00 p.m.") e quebrar a

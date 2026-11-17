@@ -114,9 +114,12 @@ Deno.serve(async (req: Request) => {
 
         const publicUrl = Deno.env.get('FRONTEND_URL') || 'https://4labnutricom.goskip.app'
         const npsUrl = `${publicUrl}/nps/${app.id}`
-        const safeClientName = escapeHtml(app.client_name)
+        // Texto PURO para o WhatsApp — o escape HTML era reutilizado aqui e o
+        // cliente recebia "D&#39;Ávila" / "&amp;" na mensagem.
+        const plainClientName = String(app.client_name ?? '')
+        const message = `Olá, ${plainClientName}! Esperamos que tenha recebido seu kit com sucesso. Poderia nos avaliar rapidamente? ${npsUrl}`
+        const safeClientName = escapeHtml(plainClientName)
         const safeNpsUrl = escapeHtml(npsUrl)
-        const message = `Olá, ${safeClientName}! Esperamos que tenha recebido seu kit com sucesso. Poderia nos avaliar rapidamente? ${safeNpsUrl}`
 
         let channelSent = false
 

@@ -1,6 +1,5 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
-import { escapeHtml } from '../_shared/internal-auth.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -71,14 +70,37 @@ Deno.serve(async (req: Request) => {
       const integration = integrationsMap.get(app.user_id)
       if (!integration) continue
 
-      // Dados do usuário são escapados antes de virar HTML do e-mail (S7).
-      // (No WhatsApp a substituição também usa os valores escapados — sem
-      // efeito colateral real, pois o WhatsApp não interpreta HTML.)
-      const replacements = {
-        '\\{\\{nome_cliente\\}\\}': escapeHtml(app.client_name),
-        '\\{\\{data\\}\\}': escapeHtml(app.appointment_date.split('-').reverse().join('/')),
-        '\\{\\{hora\\}\\}': escapeHtml(app.start_time),
-        '\\{\\{meet_link\\}\\}': escapeHtml(app.google_meet_link || 'Link não gerado'),
+      // DUAS renderizações a partir dos mesmos dados PUROS — nunca reutilizar a
+      // string escapada do e-mail no WhatsApp: "D'Ávila" chega como "D'Ávila"
+      // (não "D&#39;Ávila") e o link mantém o "&" (não "&amp;").
+      const plainValues = {
+        '{{nome_cliente}}': String(app.client_name ?? ''),
+        '{{data}}': String(app.appointment_date ?? '')
+          .split('-')
+          .reverse()
+          .join('/'),
+        '{{hora}}': String(app.start_time ?? ''),
+        '{{meet_link}}': String(app.google_meet_link || 'Link não gerado'),
+      }
+
+      const escapeHtmlLocal = (value: string): string =>
+        value
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;')
+
+      const htmlValues = Object.fromEntries(
+        Object.entries(plainValues).map(([k, v]) => [k, escapeHtmlLocal(v)]),
+      )
+
+      const fillTemplate = (template: string, values: Record<string, string>): string => {
+        let out = template
+        for (const [key, value] of Object.entries(values)) {
+          out = out.replaceAll(key, value)
+        }
+        return out
       }
 
       let sentAny = false
@@ -89,10 +111,8 @@ Deno.serve(async (req: Request) => {
         app.client_phone &&
         integration.reminder_whatsapp_template
       ) {
-        let msg = integration.reminder_whatsapp_template
-        for (const [k, v] of Object.entries(replacements)) {
-          msg = msg.replace(new RegExp(k, 'g'), v as string)
-        }
+        // Texto PURO para o WhatsApp (sem escape HTML).
+        const msg = fillTemplate(integration.reminder_whatsapp_template, plainValues)
 
         try {
           await fetch(`${supabaseUrl}/functions/v1/whatsapp-send`, {
@@ -115,10 +135,8 @@ Deno.serve(async (req: Request) => {
 
       // Send Email
       if (app.client_email && integration.reminder_email_template) {
-        let msg = integration.reminder_email_template
-        for (const [k, v] of Object.entries(replacements)) {
-          msg = msg.replace(new RegExp(k, 'g'), v as string)
-        }
+        // HTML escapado SOMENTE para o corpo HTML do e-mail.
+        const msg = fillTemplate(integration.reminder_email_template, htmlValues)
 
         try {
           await fetch(`${supabaseUrl}/functions/v1/send-email`, {

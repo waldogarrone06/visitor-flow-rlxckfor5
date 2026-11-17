@@ -105,7 +105,7 @@ export default function LeadCapturePage() {
         appointment_date: '1970-01-01',
         start_time: '00:00',
         end_time: '00:00',
-        lgpd_consent_at: new Date().toISOString(),
+        lgpd_consent: true,
       })
 
       setSuccess(true)

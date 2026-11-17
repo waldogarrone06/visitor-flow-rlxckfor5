@@ -116,8 +116,6 @@ export function BookingForm({ userId, date, slot, onSuccess }: BookingFormProps)
         clinic_complement: formData.clinic_complement,
       })
 
-      const consentAt = new Date().toISOString()
-
       const { newApp, syncWarning } = await createPublicAppointment({
         instagram: formData.instagram,
         patients_per_month: formData.patientsPerMonth,
@@ -136,7 +134,7 @@ export function BookingForm({ userId, date, slot, onSuccess }: BookingFormProps)
         appointment_date: format(date, 'yyyy-MM-dd'),
         start_time: slot.start_time,
         end_time: slot.end_time,
-        lgpd_consent_at: consentAt,
+        lgpd_consent: true,
       })
 
       const newLeadId = `l-${Date.now()}`

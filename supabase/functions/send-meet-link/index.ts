@@ -1,7 +1,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
-import { requireInternalOrUserAuth, escapeHtml } from '../_shared/internal-auth.ts'
+import { requireInternalOrUserAuth } from '../_shared/internal-auth.ts'
 
 // Chamada pelo FRONT autenticado (UpcomingOnlineMeetings — botão "Enviar Link").
 // Requer service role (chamadas internas) ou JWT de usuário — anônimo 401.
@@ -85,23 +85,42 @@ Sua visita online com a equipe Fourlab está confirmada e o link da reunião já
 Até logo! 😊
 *Equipe Fourlab*`
 
-    let msg = messageTemplate
-    for (const [k, v] of Object.entries(replacements)) {
-      msg = msg.replace(new RegExp(k, 'g'), v)
+    // DUAS renderizações a partir dos mesmos dados PUROS (nunca reutilizar a
+    // string escapada do e-mail no WhatsApp):
+    // - texto PURO → WhatsApp/texto simples ("D'Ávila" fica "D'Ávila", "&" fica "&");
+    // - HTML escapado → corpo HTML do e-mail (anti-injeção).
+    const fillTemplate = (values: Record<string, string>): string => {
+      let out = messageTemplate
+      for (const [key, value] of Object.entries(values)) {
+        out = out.replaceAll(`{{${key}}}`, value)
+      }
+      return out
     }
 
-    // Escapa dados do usuário antes de interpolar no HTML do e-mail (S7).
-    const replacements: Record<string, string> = {
-      '\\{\\{nome_cliente\\}\\}': escapeHtml(appointment.client_name),
-      '\\{\\{data\\}\\}': escapeHtml(
-        appointment.appointment_date
-          ? appointment.appointment_date.split('-').reverse().join('/')
-          : '',
-      ),
-      '\\{\\{hora\\}\\}': escapeHtml(appointment.start_time),
-      '\\{\\{meet_link\\}\\}': escapeHtml(effectiveMeetLink),
-      '\\{\\{professional_name\\}\\}': escapeHtml(profile?.name || 'Nossa equipe'),
+    const plainValues: Record<string, string> = {
+      nome_cliente: String(appointment.client_name ?? ''),
+      data: appointment.appointment_date
+        ? appointment.appointment_date.split('-').reverse().join('/')
+        : '',
+      hora: String(appointment.start_time ?? ''),
+      meet_link: String(effectiveMeetLink ?? ''),
+      professional_name: String(profile?.name || 'Nossa equipe'),
     }
+
+    const escapeHtmlLocal = (value: string): string =>
+      value
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+
+    const htmlValues: Record<string, string> = Object.fromEntries(
+      Object.entries(plainValues).map(([k, v]) => [k, escapeHtmlLocal(v)]),
+    )
+
+    const plainMessage = fillTemplate(plainValues) // WhatsApp / texto simples
+    const htmlMessage = fillTemplate(htmlValues) // corpo HTML do e-mail
 
     // WhatsApp Delivery
     if (integration.whatsapp_connected && appointment.client_phone) {
@@ -114,7 +133,7 @@ Até logo! 😊
           },
           body: JSON.stringify({
             to: appointment.client_phone,
-            text: msg,
+            text: plainMessage,
             userId: appointment.user_id,
           }),
         })
@@ -136,7 +155,7 @@ Até logo! 😊
           body: JSON.stringify({
             to: appointment.client_email,
             subject: 'Sua visita online está pronta - Fourlab',
-            html: `<div style="font-family: sans-serif; padding: 20px; color: #333;"><p>${msg.replace(/\n/g, '<br/>')}</p></div>`,
+            html: `<div style="font-family: sans-serif; padding: 20px; color: #333;"><p>${htmlMessage.replace(/\n/g, '<br/>')}</p></div>`,
             senderName: 'FourLab Nutrition',
             userId: appointment.user_id,
             meetLink: effectiveMeetLink,

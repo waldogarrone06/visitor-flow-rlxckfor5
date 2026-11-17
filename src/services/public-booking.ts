@@ -60,7 +60,9 @@ export async function createPublicAppointment(data: any) {
       clinicState: data.clinic_state,
       instagram: data.instagram,
       patientsPerMonth: data.patients_per_month,
-      lgpdConsentAt: data.lgpd_consent_at,
+      // LGPD: o cliente envia APENAS a flag booleana de aceite — o QUANDO
+      // (now() do servidor) e a VERSÃO do termo são fatos do SERVIDOR.
+      lgpdConsent: data.lgpd_consent === true || !!data.lgpd_consent_at,
       // Comportamento do fluxo (não é permissão): captura de contato não cria
       // evento no Calendar nem envia e-mail de confirmação.
       createCalendar: !isCapture,
