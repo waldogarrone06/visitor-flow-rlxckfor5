@@ -611,6 +611,27 @@ export type Database = {
         }
         Relationships: []
       }
+      qa_test_log: {
+        Row: {
+          created_at: string
+          detail: Json | null
+          id: number
+          step: string
+        }
+        Insert: {
+          created_at?: string
+          detail?: Json | null
+          id?: number
+          step: string
+        }
+        Update: {
+          created_at?: string
+          detail?: Json | null
+          id?: number
+          step?: string
+        }
+        Relationships: []
+      }
       rate_limit_events: {
         Row: {
           bucket: string
@@ -892,6 +913,30 @@ export type Database = {
       get_fixed_meet_link: { Args: { p_user_id: string }; Returns: string }
       get_prescriber_email: { Args: { p_user_id: string }; Returns: string }
       is_admin: { Args: never; Returns: boolean }
+      qa_http_create_booking: { Args: never; Returns: number }
+      qa_http_get_response: {
+        Args: { p_request: number }
+        Returns: {
+          body: string
+          content_type: string
+          status_code: number
+        }[]
+      }
+      qa_http_pending: {
+        Args: never
+        Returns: {
+          delivered: number
+          pending: number
+        }[]
+      }
+      qa_read_results: {
+        Args: never
+        Returns: {
+          created_at: string
+          detail: Json
+          step: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
