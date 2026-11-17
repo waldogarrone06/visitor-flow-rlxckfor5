@@ -2,6 +2,7 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 import { getGoogleTokens } from '../_shared/integration-secrets.ts'
+import { logGoogleTokenAlert } from '../_shared/google-alert.ts'
 import { checkRateLimit, getClientIp, bucketFor } from '../_shared/rate-limit.ts'
 
 // get-availability — disponibilidade de horários para o agendamento público.
@@ -180,9 +181,18 @@ Deno.serve(async (req: Request) => {
               token = refreshData.access_token
               await supabase
                 .from('integration_secrets')
-                .update({ google_access_token: token, updated_at: new Date().toISOString() })
+                .update({
+                  google_access_token: token,
+                  google_token_expires_at: new Date(
+                    Date.now() + (Number(refreshData.expires_in) || 3600) * 1000,
+                  ).toISOString(),
+                  updated_at: new Date().toISOString(),
+                })
                 .eq('user_id', userId)
               response = await makeRequest(token)
+            } else {
+              // Token vencido e renovação falhou: alerta interno (dedupe 1h).
+              await logGoogleTokenAlert(supabase, userId, 'expired_token')
             }
           }
 
@@ -205,12 +215,14 @@ Deno.serve(async (req: Request) => {
             googleError = true
             googleErrorMessage = `freeBusy HTTP ${response.status}`
             console.error('[get-availability] freeBusy falhou:', response.status)
+            await logGoogleTokenAlert(supabase, userId, 'google_error')
           }
         } else {
           // Sem credenciais completas para consultar o Google, não é possível
           // afirmar que os horários estão livres.
           googleError = true
           googleErrorMessage = 'Credenciais do Google Calendar incompletas'
+          await logGoogleTokenAlert(supabase, userId, 'no_token')
         }
       } catch (e: any) {
         // Erro inesperado (rede, getGoogleTokens, JSON): mesmo tratamento do
@@ -218,6 +230,7 @@ Deno.serve(async (req: Request) => {
         googleError = true
         googleErrorMessage = e?.message || 'Falha na consulta ao Google Calendar'
         console.error('[get-availability] freeBusy lançou erro:', e?.message || e)
+        await logGoogleTokenAlert(supabase, userId, 'google_error')
       }
     }
 

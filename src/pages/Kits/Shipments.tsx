@@ -507,16 +507,14 @@ Obrigado por confiar em nosso trabalho!`
         await supabase.functions.invoke('send-email', {
           body: {
             to: s.client_email,
-            subject: 'Seu Kit Fourlab foi enviado!',
-            html: `<div style="font-family: sans-serif; color: #333;">
-              <p>Olá, ${s.client_name}!</p>
-              <p>Seu kit da Fourlab Nutrition foi enviado com sucesso.</p>
-              <p><strong>Código de Rastreio:</strong> ${s.tracking_number}</p>
-              <p><strong>Cupom Prescritor:</strong> ${s.resolved_nutritionist_coupon}</p>
-              <p><strong>Cupom Paciente:</strong> ${s.resolved_patient_coupon}</p>
-              <p>Obrigado por confiar em nosso trabalho!</p>
-            </div>`,
-            senderName: 'FourLab Nutrition',
+            template: 'kit_shipped',
+            vars: {
+              name: s.client_name || '',
+              trackingNumber: s.tracking_number || '',
+              nutritionistCoupon: s.resolved_nutritionist_coupon || '',
+              patientCoupon: s.resolved_patient_coupon || '',
+              senderName: 'FourLab Nutrition',
+            },
           },
         })
       }
@@ -562,42 +560,17 @@ Obrigado por confiar em nosso trabalho!`
       return
     }
 
-    const html = `<div style="font-family: sans-serif; color: #333; max-width: 600px; margin: 0 auto;">
-  <h2 style="color: #0d9488;">Olá! Seus cupons Fourlab estão prontos! 🎉</h2>
-  <p>Que bom ter você com a gente! Seus cupons já estão ativos e prontos para uso.</p>
-
-  <div style="background-color: #f0fdfa; border: 1px solid #14b8a6; border-radius: 8px; padding: 16px; margin: 16px 0;">
-    <p style="margin: 0 0 8px 0; font-size: 16px; color: #0f766e; font-weight: bold;">🧑‍⚕️ Cupom do Nutricionista (uso pessoal)</p>
-    <p style="margin: 0; font-size: 22px; font-weight: bold; color: #0d9488;">${nutriCoupon || 'Não informado'}</p>
-    <p style="margin: 8px 0 0 0; font-size: 14px; color: #555;">Este é o seu cupom exclusivo para suas próprias compras na Fourlab. Use-o em seus pedidos e aproveite as condições especiais reservadas para você!</p>
-  </div>
-
-  <div style="background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 16px; margin: 16px 0;">
-    <p style="margin: 0 0 8px 0; font-size: 16px; color: #92400e; font-weight: bold;">👥 Cupom do Paciente (para seus pacientes)</p>
-    <p style="margin: 0; font-size: 22px; font-weight: bold; color: #b45309;">${patientCoupon || 'Não informado'}</p>
-    <p style="margin: 8px 0 0 0; font-size: 14px; color: #555;">Compartilhe este cupom com seus pacientes para que eles também aproveitem os produtos Fourlab com condições especiais. Indique-o nas suas consultas e nas suas redes!</p>
-  </div>
-
-  <div style="background-color: #f8fafc; border-radius: 8px; padding: 12px 16px; margin: 16px 0;">
-    <p style="margin: 0; font-size: 14px; color: #555;"><strong>Resumo:</strong></p>
-    <ul style="margin: 8px 0 0 0; font-size: 14px; color: #555; padding-left: 20px;">
-      <li><strong>Cupom do Nutricionista</strong> → para o seu próprio uso</li>
-      <li><strong>Cupom do Paciente</strong> → para compartilhar com seus pacientes</li>
-    </ul>
-  </div>
-
-  <p>Qualquer dúvida, estamos à disposição!</p>
-  <p>Abraços,</p>
-  <p style="font-weight: bold; color: #0d9488;">Equipe Fourlab Nutrition</p>
-</div>`
-
     try {
       const { error } = await supabase.functions.invoke('send-email', {
         body: {
           to: s.client_email,
-          subject: 'Seu cumpom da Fourlab ja esta aivo e vc ja pode usar.',
-          html,
-          senderName: 'FourLab Nutrition',
+          template: 'coupons',
+          vars: {
+            name: s.client_name || '',
+            nutritionistCoupon: nutriCoupon,
+            patientCoupon: patientCoupon,
+            senderName: 'Equipe Fourlab Nutrition',
+          },
         },
       })
 

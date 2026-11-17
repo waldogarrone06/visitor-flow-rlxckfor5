@@ -109,7 +109,13 @@ async function refreshGoogleToken(
 
   await supabase
     .from('integration_secrets')
-    .update({ google_access_token: data.access_token, updated_at: new Date().toISOString() })
+    .update({
+      google_access_token: data.access_token,
+      google_token_expires_at: new Date(
+        Date.now() + (Number(data.expires_in) || 3600) * 1000,
+      ).toISOString(),
+      updated_at: new Date().toISOString(),
+    })
     .eq('user_id', userId)
 
   return data.access_token as string

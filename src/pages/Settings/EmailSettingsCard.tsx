@@ -38,22 +38,7 @@ export function EmailSettingsCard() {
       const { data, error } = await supabase.functions.invoke('send-email', {
         body: {
           to: testEmail,
-          subject: 'Teste de Automação de E-mail - FourLab Nutrition',
-          html: `
-            <div style="font-family: sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #eaeaea; border-radius: 8px; overflow: hidden;">
-              <div style="background-color: #e10050; padding: 24px; text-align: center;">
-                <h1 style="color: white; margin: 0; font-size: 20px;">Automação Ativa! 🎉</h1>
-              </div>
-              <div style="padding: 32px; background-color: #ffffff;">
-                <p style="font-size: 16px; line-height: 1.5;">Olá,</p>
-                <p style="font-size: 16px; line-height: 1.5;">Este é um e-mail de teste disparado pelo sistema <strong>${senderName}</strong> utilizando a infraestrutura do <strong>Resend</strong>.</p>
-                <p style="font-size: 16px; line-height: 1.5;">Se você está lendo esta mensagem, significa que o domínio <strong>fourlabnutrition.com.br</strong> está corretamente verificado e sua automação de agendamentos está operante.</p>
-                <p style="font-size: 16px; line-height: 1.5;">A partir de agora, cada novo agendamento disparará uma confirmação automática sem intervenção manual.</p>
-                <br/>
-                <p style="font-size: 14px; color: #666;">Atenciosamente,<br/>Equipe Técnica</p>
-              </div>
-            </div>
-          `,
+          template: 'test',
           senderName: senderName,
         },
       })

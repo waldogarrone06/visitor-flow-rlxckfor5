@@ -190,11 +190,14 @@ Até logo! 😊
         const { error } = await supabase.functions.invoke('send-email', {
           body: {
             to: app.client_email,
-            subject: 'Sua visita online está pronta - Fourlab',
-            html: `<div style="font-family: sans-serif; padding: 20px; color: #333;"><p>${finalMsg.replace(/\n/g, '<br/>')}</p></div>`,
-            senderName: 'Atendimento',
-            userId: user.id,
-            meetLink: app.google_meet_link,
+            template: 'meet_link',
+            vars: {
+              name: app.client_name || '',
+              date: app.appointment_date ? app.appointment_date.split('-').reverse().join('/') : '',
+              time: app.start_time || '',
+              meetLink: app.google_meet_link || '',
+              senderName: 'Atendimento',
+            },
           },
         })
         if (error) throw error

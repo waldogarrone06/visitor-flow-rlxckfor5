@@ -229,19 +229,12 @@ export function LeadList() {
       const { error: mktError } = await supabase.functions.invoke('send-email', {
         body: {
           to: 'marketing@fourlabnutri.com.br',
-          subject: `Solicitação de Cadastro de Cupom - Yampi - ${p.client_name}`,
-          html: `
-            <div style="font-family: sans-serif; color: #333;">
-              <p>Olá equipe de Marketing,</p>
-              <p>Uma nova visita foi realizada. Solicitamos o cadastro dos seguintes cupons no Yampi para o profissional <strong>${p.client_name}</strong>:</p>
-              <ul>
-                <li><strong>Cupom Nutri:</strong> ${nutriCoupon}</li>
-                <li><strong>Cupom Paciente:</strong> ${patientCoupon}</li>
-              </ul>
-              <p>Obrigado!</p>
-            </div>
-          `,
-          senderName: 'Sistema FourLab',
+          template: 'marketing_coupon_request',
+          vars: {
+            name: p.client_name,
+            nutritionistCoupon: nutriCoupon,
+            patientCoupon: patientCoupon,
+          },
         },
       })
       if (mktError) throw mktError
@@ -251,22 +244,13 @@ export function LeadList() {
         const { error: prescriberError } = await supabase.functions.invoke('send-email', {
           body: {
             to: p.client_email,
-            subject: 'Um agradecimento especial da Fourlab Nutri!',
-            html: `
-              <div style="font-family: sans-serif; color: #333; line-height: 1.5;">
-                <p>Olá, ${p.client_name}!</p>
-                <p>Gostaríamos de agradecer imensamente pelo seu tempo e atenção durante nossa recente visita.</p>
-                <p>É uma honra apresentar as soluções da Fourlab Nutri para você.</p>
-                <p>Conforme conversamos, aqui estão os seus cupons exclusivos:</p>
-                <ul>
-                  <li><strong>Cupom Nutri (${nutriCoupon}):</strong> Este cupom é para seu uso pessoal e exclusivo. Fique à vontade para utilizá-lo em suas próprias compras em nosso site.</li>
-                  <li><strong>Cupom Paciente (${patientCoupon}):</strong> Este cupom é para você compartilhar com seus pacientes após as consultas, oferecendo a eles condições especiais.</li>
-                </ul>
-                <p>Estamos à disposição para qualquer dúvida ou suporte que precisar.</p>
-                <p>Um grande abraço,<br/>Equipe Fourlab Nutri</p>
-              </div>
-            `,
-            senderName: 'Fourlab Nutri',
+            template: 'coupons',
+            vars: {
+              name: p.client_name,
+              nutritionistCoupon: nutriCoupon,
+              patientCoupon: patientCoupon,
+              senderName: 'Equipe Fourlab Nutri',
+            },
           },
         })
         if (prescriberError) throw prescriberError

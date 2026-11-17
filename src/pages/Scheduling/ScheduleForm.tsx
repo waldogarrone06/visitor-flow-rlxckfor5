@@ -450,23 +450,14 @@ export function ScheduleForm({
           .invoke('send-email', {
             body: {
               to: values.email,
-              subject: 'Confirmação de Agendamento - FourLab Nutrition',
-              html: `
-              <div style="font-family: sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #eaeaea; border-radius: 8px; overflow: hidden;">
-                <div style="background-color: #ffb800; padding: 24px; text-align: center;">
-                  <h1 style="color: white; margin: 0; font-size: 20px;">Visita Confirmada! 🎉</h1>
-                </div>
-                <div style="padding: 32px; background-color: #ffffff;">
-                  <p style="font-size: 16px; line-height: 1.5;">Olá <strong>${values.name}</strong>,</p>
-                  <p style="font-size: 16px; line-height: 1.5;">Seu agendamento foi registrado com sucesso para o dia <strong>${format(appointmentDate, 'dd/MM/yyyy')}</strong> às <strong>${timeParts[0]}:${timeParts[1]}</strong>.</p>
-                  ${finalMeetLink ? `<p style="font-size: 16px; line-height: 1.5; background-color: #f0fdfa; padding: 12px; border-radius: 6px; border: 1px solid #ccfbf1;"><strong>🔗 Link da Reunião Online:</strong> <br/><a href="${finalMeetLink}" style="color: #0f766e; text-decoration: none;">${finalMeetLink}</a></p>` : ''}
-                  <p style="font-size: 16px; line-height: 1.5;">Um de nossos representantes entrará em contato em breve para confirmar os últimos detalhes.</p>
-                  <br/>
-                  <p style="font-size: 14px; color: #666;">Atenciosamente,<br/>Equipe FourLab Nutrition</p>
-                </div>
-              </div>
-            `,
-              senderName: 'FourLab Nutrition',
+              template: 'appointment_confirmation',
+              vars: {
+                name: values.name || '',
+                date: format(appointmentDate, 'dd/MM/yyyy'),
+                time: `${timeParts[0]}:${timeParts[1]}`,
+                meetLink: finalMeetLink || undefined,
+                senderName: 'FourLab Nutrition',
+              },
             },
           })
           .catch(console.error)
