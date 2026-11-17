@@ -28,6 +28,10 @@ export async function getDayScheduleData(userId: string, date: Date) {
     lockedSlots: syncData?.lockedSlots || [],
     busySlots: syncData?.busySlots || [],
     activeCount: syncData?.slotCounts || {},
+    // FAIL-SAFE: true quando o Google Calendar não pôde ser consultado — o dia
+    // vem com schedule vazio e o front deve avisar em vez de mostrar horários.
+    googleError: syncData?.googleError === true,
+    googleErrorMessage: syncData?.googleErrorMessage || null,
   }
 }
 

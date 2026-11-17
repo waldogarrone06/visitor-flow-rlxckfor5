@@ -46,7 +46,8 @@ export default function PublicBookingPage() {
     appointments: any[]
     lockedSlots: any[]
     busySlots: any[]
-  }>({ schedule: [], appointments: [], lockedSlots: [], busySlots: [] })
+    googleError: boolean
+  }>({ schedule: [], appointments: [], lockedSlots: [], busySlots: [], googleError: false })
   const [weeklySchedule, setWeeklySchedule] = useState<number[]>([])
   const [specificDates, setSpecificDates] = useState<string[]>([])
 
@@ -87,7 +88,13 @@ export default function PublicBookingPage() {
         setDayData(data)
       } catch (e: any) {
         console.error('Falha ao carregar horários:', e?.message || e)
-        setDayData({ schedule: [], appointments: [], lockedSlots: [], busySlots: [] })
+        setDayData({
+          schedule: [],
+          appointments: [],
+          lockedSlots: [],
+          busySlots: [],
+          googleError: false,
+        })
         setLoadError(
           'Não foi possível carregar os horários agora. Verifique sua conexão e tente novamente.',
         )

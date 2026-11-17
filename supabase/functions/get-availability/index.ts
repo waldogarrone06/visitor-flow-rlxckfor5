@@ -123,7 +123,13 @@ Deno.serve(async (req: Request) => {
     }
 
     // --- Google Calendar freeBusy (se configurado) ----------------------------
+    // FAIL-SAFE (auditoria): se a consulta ao Google falhar (erro transitório,
+    // token quebrado, Google fora), os horários do dia NÃO podem ser oferecidos
+    // como livres — respondemos com schedule vazio + googleError=true. O front
+    // mostra aviso de indisponibilidade temporária em vez de slots fantasmas.
     let busySlots: { start: string; end: string }[] = []
+    let googleError = false
+    let googleErrorMessage: string | null = null
     const { data: integration } = await supabase
       .from('user_integrations')
       .select('sync_enabled')
@@ -131,67 +137,87 @@ Deno.serve(async (req: Request) => {
       .maybeSingle()
 
     if (integration?.sync_enabled) {
-      const googleTokens = await getGoogleTokens(supabase, userId)
-      const clientId =
-        Deno.env.get('GOOGLE_CLIENT_ID') || Deno.env.get('VITE_GOOGLE_CLIENT_ID') || ''
-      const clientSecret =
-        Deno.env.get('GOOGLE_CLIENT_SECRET') || Deno.env.get('VITE_GOOGLE_CLIENT_SECRET') || ''
+      try {
+        const googleTokens = await getGoogleTokens(supabase, userId)
+        const clientId =
+          Deno.env.get('GOOGLE_CLIENT_ID') || Deno.env.get('VITE_GOOGLE_CLIENT_ID') || ''
+        const clientSecret =
+          Deno.env.get('GOOGLE_CLIENT_SECRET') || Deno.env.get('VITE_GOOGLE_CLIENT_SECRET') || ''
 
-      if (googleTokens.accessToken && clientId && clientSecret) {
-        let token = googleTokens.accessToken
-        const startOfDay = new Date(`${date}T00:00:00-03:00`).toISOString()
-        const endOfDay = new Date(`${date}T23:59:59-03:00`).toISOString()
+        if (googleTokens.accessToken && clientId && clientSecret) {
+          let token = googleTokens.accessToken
+          const startOfDay = new Date(`${date}T00:00:00-03:00`).toISOString()
+          const endOfDay = new Date(`${date}T23:59:59-03:00`).toISOString()
 
-        const makeRequest = (accessToken: string) =>
-          fetch('https://www.googleapis.com/calendar/v3/freeBusy', {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              timeMin: startOfDay,
-              timeMax: endOfDay,
-              items: [{ id: 'primary' }],
-            }),
-          })
+          const makeRequest = (accessToken: string) =>
+            fetch('https://www.googleapis.com/calendar/v3/freeBusy', {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                timeMin: startOfDay,
+                timeMax: endOfDay,
+                items: [{ id: 'primary' }],
+              }),
+            })
 
-        let response = await makeRequest(token)
-        if (response.status === 401 && googleTokens.refreshToken) {
-          const refreshRes = await fetch('https://oauth2.googleapis.com/token', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({
-              client_id: clientId,
-              client_secret: clientSecret,
-              refresh_token: googleTokens.refreshToken,
-              grant_type: 'refresh_token',
-            }),
-          })
-          if (refreshRes.ok) {
-            const refreshData = await refreshRes.json()
-            token = refreshData.access_token
-            await supabase
-              .from('integration_secrets')
-              .update({ google_access_token: token, updated_at: new Date().toISOString() })
-              .eq('user_id', userId)
-            response = await makeRequest(token)
+          let response = await makeRequest(token)
+          if (response.status === 401 && googleTokens.refreshToken) {
+            const refreshRes = await fetch('https://oauth2.googleapis.com/token', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: new URLSearchParams({
+                client_id: clientId,
+                client_secret: clientSecret,
+                refresh_token: googleTokens.refreshToken,
+                grant_type: 'refresh_token',
+              }),
+            })
+            if (refreshRes.ok) {
+              const refreshData = await refreshRes.json()
+              token = refreshData.access_token
+              await supabase
+                .from('integration_secrets')
+                .update({ google_access_token: token, updated_at: new Date().toISOString() })
+                .eq('user_id', userId)
+              response = await makeRequest(token)
+            }
           }
-        }
 
-        if (response.ok) {
-          const data = await response.json()
-          const primary = data.calendars?.primary || { busy: [] }
-          busySlots = (primary.busy || []).map((b: any) => ({
-            start: new Date(b.start).toLocaleTimeString('pt-BR', {
-              hour: '2-digit',
-              minute: '2-digit',
-              timeZone: 'America/Sao_Paulo',
-            }),
-            end: new Date(b.end).toLocaleTimeString('pt-BR', {
-              hour: '2-digit',
-              minute: '2-digit',
-              timeZone: 'America/Sao_Paulo',
-            }),
-          }))
+          if (response.ok) {
+            const data = await response.json()
+            const primary = data.calendars?.primary || { busy: [] }
+            busySlots = (primary.busy || []).map((b: any) => ({
+              start: new Date(b.start).toLocaleTimeString('pt-BR', {
+                hour: '2-digit',
+                minute: '2-digit',
+                timeZone: 'America/Sao_Paulo',
+              }),
+              end: new Date(b.end).toLocaleTimeString('pt-BR', {
+                hour: '2-digit',
+                minute: '2-digit',
+                timeZone: 'America/Sao_Paulo',
+              }),
+            }))
+          } else {
+            googleError = true
+            googleErrorMessage = `freeBusy HTTP ${response.status}`
+            console.error('[get-availability] freeBusy falhou:', response.status)
+          }
+        } else {
+          // Sem credenciais completas para consultar o Google, não é possível
+          // afirmar que os horários estão livres.
+          googleError = true
+          googleErrorMessage = 'Credenciais do Google Calendar incompletas'
         }
+      } catch (e: any) {
+        // Erro inesperado (rede, getGoogleTokens, JSON): mesmo tratamento do
+        // fail-safe — não oferecer horários sem confirmar com o Google.
+        googleError = true
+        googleErrorMessage = e?.message || 'Falha na consulta ao Google Calendar'
+        console.error('[get-availability] freeBusy lançou erro:', e?.message || e)
       }
     }
 
@@ -207,6 +233,24 @@ Deno.serve(async (req: Request) => {
       return true
     })
 
+    // FAIL-SAFE: erro do Google bloqueia os horários do dia (agenda vazia),
+    // mas NÃO derruba a página — resposta 200 sinalizando a falha.
+    if (googleError) {
+      return new Response(
+        JSON.stringify({
+          today: todayBrt,
+          nowBrt: nowBrtMinutes,
+          schedule: [],
+          lockedSlots: lockedSlots || [],
+          slotCounts,
+          busySlots,
+          googleError: true,
+          googleErrorMessage,
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
+
     return new Response(
       JSON.stringify({
         today: todayBrt,
@@ -215,6 +259,8 @@ Deno.serve(async (req: Request) => {
         lockedSlots: lockedSlots || [],
         slotCounts,
         busySlots,
+        googleError: false,
+        googleErrorMessage: null,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     )

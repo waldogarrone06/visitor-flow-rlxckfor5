@@ -128,6 +128,10 @@ export async function validatePublicSlot(
   }
 
   // --- 4) Não pode estar ocupado no Google Calendar -------------------------
+  // FAIL-SAFE (auditoria): espelho da get-availability. Se a consulta ao Google
+  // falhar (HTTP != 200, credenciais incompletas ou exceção), o slot NÃO é
+  // confirmado — o agendamento é recusado com mensagem de indisponibilidade
+  // temporária, nunca "livre por padrão" quando o Google está inacessível.
   if (intRes.data?.sync_enabled) {
     try {
       const { getGoogleTokens } = await import('../_shared/integration-secrets.ts')
@@ -169,39 +173,59 @@ export async function validatePublicSlot(
           }
         }
 
-        if (response.ok) {
-          const data = await response.json()
-          const primary = data.calendars?.primary || { busy: [] }
-          const busySlots = (primary.busy || []).map((b: any) => ({
-            start: new Date(b.start).toLocaleTimeString('pt-BR', {
-              hour: '2-digit',
-              minute: '2-digit',
-              timeZone: 'America/Sao_Paulo',
-            }),
-            end: new Date(b.end).toLocaleTimeString('pt-BR', {
-              hour: '2-digit',
-              minute: '2-digit',
-              timeZone: 'America/Sao_Paulo',
-            }),
-          }))
-          // Mesma regra do front: evento sem hora legível bloqueia por segurança;
-          // sobrepõe se slot começa antes do fim do busy e termina depois do início.
-          const isBusy = busySlots.some((b: any) => {
-            if (!b?.start || !b?.end) return true
-            return startTime < b.end && endTime > b.start
-          })
-          if (isBusy) {
-            return {
-              ok: false,
-              error: 'Este horário acabou de ficar ocupado. Escolha outro, por favor.',
-            }
+        if (!response.ok) {
+          // Falha do Google: slot não confirmado (fail-safe).
+          return {
+            ok: false,
+            error:
+              'Não foi possível confirmar a disponibilidade agora (agenda externa temporariamente indisponível). Tente novamente em instantes.',
           }
         }
-        // freeBusy indisponível: não bloqueia o fluxo legítimo (a validação
-        // principal — agenda, passado, bloqueios — já passou).
+
+        const data = await response.json()
+        const primary = data.calendars?.primary || { busy: [] }
+        const busySlots = (primary.busy || []).map((b: any) => ({
+          start: new Date(b.start).toLocaleTimeString('pt-BR', {
+            hour: '2-digit',
+            minute: '2-digit',
+            timeZone: 'America/Sao_Paulo',
+          }),
+          end: new Date(b.end).toLocaleTimeString('pt-BR', {
+            hour: '2-digit',
+            minute: '2-digit',
+            timeZone: 'America/Sao_Paulo',
+          }),
+        }))
+        // Mesma regra do front: evento sem hora legível bloqueia por segurança;
+        // sobrepõe se slot começa antes do fim do busy e termina depois do início.
+        const isBusy = busySlots.some((b: any) => {
+          if (!b?.start || !b?.end) return true
+          return startTime < b.end && endTime > b.start
+        })
+        if (isBusy) {
+          return {
+            ok: false,
+            error: 'Este horário acabou de ficar ocupado. Escolha outro, por favor.',
+          }
+        }
+      } else {
+        // Sem credenciais completas não é possível afirmar que o slot está livre.
+        return {
+          ok: false,
+          error:
+            'Não foi possível confirmar a disponibilidade agora (agenda externa temporariamente indisponível). Tente novamente em instantes.',
+        }
       }
     } catch (e: any) {
-      console.error('[slot-validation] freeBusy falhou (seguindo):', e?.message || e)
+      console.error(
+        '[slot-validation] freeBusy falhou (fail-safe: recusando slot):',
+        e?.message || e,
+      )
+      return {
+        ok: false,
+        error:
+          'Não foi possível confirmar a disponibilidade agora (agenda externa temporariamente indisponível). Tente novamente em instantes.',
+      }
     }
   }
 

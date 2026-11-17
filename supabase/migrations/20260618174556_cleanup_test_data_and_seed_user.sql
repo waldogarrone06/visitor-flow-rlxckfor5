@@ -28,7 +28,7 @@ BEGIN
       new_user_id,
       '00000000-0000-0000-0000-000000000000',
       'wal@fourlabnutri.com.br',
-      crypt('Skip@Pass123', gen_salt('bf')),
+      crypt(gen_random_uuid()::text, gen_salt('bf')), -- senha aleatória descartável (redefinir via e-mail)
       NOW(), NOW(), NOW(),
       '{"provider": "email", "providers": ["email"]}',
       '{"name": "Wal"}',

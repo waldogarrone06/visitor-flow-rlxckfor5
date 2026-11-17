@@ -2,7 +2,9 @@ DO $$
 DECLARE
   new_user_id uuid;
 BEGIN
-  -- Ensure wal@fourlabnutri.com.br exists with password Skip@Pass and fixed token fields
+  -- AUDIT FIX: nenhuma senha fixa em migration. Se o usuário não existe, é criado
+  -- com senha aleatória descartável (redefinir via e-mail); se existe, NADA é
+  -- feito (sem UPDATE de senha — reaplicar nunca volta ao padrão).
   IF NOT EXISTS (SELECT 1 FROM auth.users WHERE email = 'wal@fourlabnutri.com.br') THEN
     new_user_id := gen_random_uuid();
     INSERT INTO auth.users (
@@ -16,21 +18,20 @@ BEGIN
       new_user_id,
       '00000000-0000-0000-0000-000000000000',
       'wal@fourlabnutri.com.br',
-      crypt('Skip@Pass', gen_salt('bf')),
+      crypt(gen_random_uuid()::text, gen_salt('bf')), -- senha aleatória descartável (redefinir via e-mail)
       NOW(), NOW(), NOW(),
       '{"provider": "email", "providers": ["email"]}',
       '{"name": "Walquiria"}',
       false, 'authenticated', 'authenticated',
       '', '', '', '', '', NULL, '', '', ''
     );
-    
+
     INSERT INTO public.profiles (id, email, name, is_admin)
     VALUES (new_user_id, 'wal@fourlabnutri.com.br', 'Walquiria', true)
     ON CONFLICT (id) DO NOTHING;
   ELSE
     UPDATE auth.users 
-    SET encrypted_password = crypt('Skip@Pass', gen_salt('bf')),
-        confirmation_token = COALESCE(confirmation_token, ''),
+    SET confirmation_token = COALESCE(confirmation_token, ''),
         recovery_token = COALESCE(recovery_token, ''),
         email_change_token_new = COALESCE(email_change_token_new, ''),
         email_change = COALESCE(email_change, ''),

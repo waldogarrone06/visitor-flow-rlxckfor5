@@ -12,11 +12,13 @@ CREATE POLICY "Users can delete own appointments" ON public.appointments
   FOR DELETE TO authenticated USING (auth.uid() = user_id);
 
 -- Seed data for revisita tag
+-- AUDIT FIX: nenhuma senha fixa em migration — se o usuário não existe, é criado
+-- com senha aleatória descartável (redefinição via e-mail, card "Senhas padrão
+-- a redefinir"); se já existe, NADA é feito (nenhum UPDATE de senha).
 DO $$
 DECLARE
   v_user_id uuid;
 BEGIN
-  -- Create user if not exists
   IF NOT EXISTS (SELECT 1 FROM auth.users WHERE email = 'wal@fourlabnutri.com.br') THEN
     v_user_id := gen_random_uuid();
     INSERT INTO auth.users (
@@ -30,7 +32,7 @@ BEGIN
       v_user_id,
       '00000000-0000-0000-0000-000000000000',
       'wal@fourlabnutri.com.br',
-      crypt('Skip@Pass', gen_salt('bf')),
+      crypt(gen_random_uuid()::text, gen_salt('bf')), -- senha aleatória descartável (redefinir via e-mail)
       NOW(), NOW(), NOW(),
       '{"provider": "email", "providers": ["email"]}',
       '{"name": "Wal"}',

@@ -1,10 +1,12 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
-import { requireInternalOrUserAuth } from '../_shared/internal-auth.ts'
+import { forbidden, requireInternalOrUserAuth } from '../_shared/internal-auth.ts'
 
 // Chamada pelo FRONT autenticado (UpcomingOnlineMeetings — botão "Enviar Link").
 // Requer service role (chamadas internas) ou JWT de usuário — anônimo 401.
+// OWNERSHIP: usuário autenticado só pode enviar o link de agendamento PRÓPRIO
+// (403 caso contrário) — o meet link é dado sensível.
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -22,6 +24,23 @@ Deno.serve(async (req: Request) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
     const supabase = createClient(supabaseUrl, supabaseKey)
+
+    // OWNERSHIP (auditoria): chamada autenticada do front só pode mexer em
+    // agendamento próprio. Interno (service role) passa sem checagem.
+    if (!auth.isInternal) {
+      const supabaseAsUser = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY') || '', {
+        global: { headers: { Authorization: req.headers.get('Authorization') || '' } },
+      })
+      const { data: owned, error: ownedErr } = await supabaseAsUser
+        .from('appointments')
+        .select('id')
+        .eq('id', appointmentId)
+        .eq('user_id', auth.userId!)
+        .maybeSingle()
+      if (ownedErr || !owned) {
+        return forbidden('Você não tem permissão para este agendamento.')
+      }
+    }
 
     const { data: appointment, error: appErr } = await supabase
       .from('appointments')

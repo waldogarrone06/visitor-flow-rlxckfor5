@@ -9,11 +9,22 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { corsHeaders } from './cors.ts'
 
-export type AuthResult = { ok: true; isInternal: boolean } | { ok: false; response: Response }
+export type AuthResult =
+  | { ok: true; isInternal: boolean; userId?: string }
+  | { ok: false; response: Response }
 
 export function unauthorized(message = 'Não autenticado ou token inválido.'): Response {
   return new Response(JSON.stringify({ error: message }), {
     status: 401,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  })
+}
+
+// 403: autenticado, mas sem permissão sobre o recurso (ex.: não é dono do
+// agendamento). Diferente de 401 (não autenticado).
+export function forbidden(message = 'Você não tem permissão para acessar este recurso.'): Response {
+  return new Response(JSON.stringify({ error: message }), {
+    status: 403,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   })
 }
@@ -28,7 +39,7 @@ export async function requireInternalOrUserAuth(req: Request): Promise<AuthResul
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
 
   // 1) Interno: comparação exata com a service role key do ambiente.
-  if (serviceKey && token === serviceKey) return { ok: true, isInternal: true }
+  if (serviceKey && token === serviceKey) return { ok: true, isInternal: true, userId: undefined }
 
   // 2) Front: JWT de usuário autenticado. Anon key => 401.
   const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || ''
@@ -41,7 +52,7 @@ export async function requireInternalOrUserAuth(req: Request): Promise<AuthResul
     return { ok: false, response: unauthorized() }
   }
 
-  return { ok: true, isInternal: false }
+  return { ok: true, isInternal: false, userId: userData.user.id }
 }
 
 // Escapa dados do usuário interpolados em HTML de e-mails (auditoria S7).

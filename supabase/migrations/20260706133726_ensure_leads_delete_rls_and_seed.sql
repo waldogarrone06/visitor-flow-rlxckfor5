@@ -7,7 +7,8 @@ BEGIN
   CREATE POLICY "Users can delete own appointments" ON public.appointments
     FOR DELETE TO authenticated USING (auth.uid() = user_id);
 
-  -- Ensure auth seed user exists with password Skip@Pass
+  -- AUDIT FIX: nenhuma senha fixa em migration — cria com senha aleatória
+  -- descartável (redefinir via e-mail); se existe, NADA é feito.
   IF NOT EXISTS (SELECT 1 FROM auth.users WHERE email = 'wal@fourlabnutri.com.br') THEN
     v_user_id := gen_random_uuid();
     INSERT INTO auth.users (
@@ -21,7 +22,7 @@ BEGIN
       v_user_id,
       '00000000-0000-0000-0000-000000000000',
       'wal@fourlabnutri.com.br',
-      crypt('Skip@Pass', gen_salt('bf')),
+      crypt(gen_random_uuid()::text, gen_salt('bf')), -- senha aleatória descartável (redefinir via e-mail)
       NOW(), NOW(), NOW(),
       '{"provider": "email", "providers": ["email"]}',
       '{"name": "Walquiria"}',
@@ -34,9 +35,5 @@ BEGIN
     INSERT INTO public.profiles (id, email, name, is_admin)
     VALUES (v_user_id, 'wal@fourlabnutri.com.br', 'Walquiria', true)
     ON CONFLICT (id) DO NOTHING;
-  ELSE
-    UPDATE auth.users
-    SET encrypted_password = crypt('Skip@Pass', gen_salt('bf'))
-    WHERE email = 'wal@fourlabnutri.com.br';
   END IF;
 END $$;

@@ -1,17 +1,22 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
+import { forbidden, requireInternalOrUserAuth } from '../_shared/internal-auth.ts'
 
 // Envio de e-mail autenticado (Resend).
 //
-// Autenticação com DOIS caminhos:
+// Autenticação com DOIS caminhos (requireInternalOrUserAuth):
 // 1. Chamadores INTERNOS (outras edge functions: create-booking, sync-calendar,
-//    send-meet-link, trigger-reminders, trigger-nps): header Authorization
+//    send-meet-link, trigger-reminders): header Authorization
 //    `Bearer <SUPABASE_SERVICE_ROLE_KEY>`, comparado com o secret do ambiente.
 //    A service role key NÃO é um token de usuário — auth.getUser() falha para
 //    ela, por isso a comparação direta vem PRIMEIRO.
 // 2. Usuários autenticados do front: JWT no Authorization, validado via
 //    auth.getUser(). Anon key => 401.
+//
+// OWNERSHIP (auditoria): usuário autenticado do front que enviar
+// appointmentId precisa ser DONO do agendamento (403 caso contrário) — sem
+// isso qualquer usuário logado poderia disparar e-mails em nome de outro.
 //
 // A chave da Resend vem EXCLUSIVAMENTE do secret RESEND_API_KEY (nunca
 // hardcoded, nunca do corpo da requisição).
@@ -23,46 +28,39 @@ Deno.serve(async (req: Request) => {
 
   try {
     // --- Autenticação obrigatória -------------------------------------------
-    const authHeader = req.headers.get('Authorization') || ''
-    const token = authHeader.replace(/^Bearer\s+/i, '').trim()
-
-    if (!token) {
-      return new Response(JSON.stringify({ error: 'Não autenticado: token ausente.' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
+    const auth = await requireInternalOrUserAuth(req)
+    if (!auth.ok) return auth.response
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
-
-    // 1) Caminho INTERNO: service role key do ambiente (comparação exata).
-    //    Deve vir antes do auth.getUser — a service role key não é um JWT de
-    //    usuário e auth.getUser(token) retorna erro para ela.
-    const isInternalCaller = !!serviceKey && token === serviceKey
-
-    if (!isInternalCaller) {
-      // 2) Caminho FRONT: valida JWT real de usuário autenticado.
-      const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || ''
-      const supabaseAsUser = createClient(supabaseUrl, supabaseAnonKey || token, {
-        global: { headers: { Authorization: authHeader } },
-      })
-      const { data: userData, error: userError } = await supabaseAsUser.auth.getUser(token)
-
-      if (userError || !userData?.user || userData.user.role !== 'authenticated') {
-        return new Response(JSON.stringify({ error: 'Não autenticado ou token inválido.' }), {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        })
-      }
-    }
+    const isInternalCaller = auth.isInternal
 
     // --- Payload ------------------------------------------------------------
     const body = await req.json().catch(() => ({}))
-    const { to, subject, html, text, senderName, from, userId, meetLink } = body
+    const { to, subject, html, text, senderName, from, userId, meetLink, appointmentId } = body
 
     if (!to || !subject || (!html && !text)) {
       throw new Error('Parâmetros obrigatórios ausentes: to, subject e html (ou text).')
+    }
+
+    // --- Ownership (apenas chamadas autenticadas do front) ------------------
+    // Interno (service role) confia: as próprias functions validam ownership
+    // na camada delas. Front autenticado: precisa ser dono do agendamento.
+    if (!isInternalCaller && appointmentId) {
+      const supabaseAsUser = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY') || '', {
+        global: {
+          headers: { Authorization: req.headers.get('Authorization') || '' },
+        },
+      })
+      const { data: owned, error: ownedErr } = await supabaseAsUser
+        .from('appointments')
+        .select('id')
+        .eq('id', appointmentId)
+        .eq('user_id', auth.userId!)
+        .maybeSingle()
+      if (ownedErr || !owned) {
+        return forbidden('Você não tem permissão para este agendamento.')
+      }
     }
 
     // --- Chave da Resend: apenas do ambiente/secrets -------------------------
