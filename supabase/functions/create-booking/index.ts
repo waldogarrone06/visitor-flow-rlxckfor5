@@ -475,7 +475,13 @@ Deno.serve(async (req: Request) => {
       // houver evento no Google Calendar — mesmo com chamada direta ao
       // create-booking. Ocupado no Google é regra de negócio (422); falha de
       // infraestrutura é erro do servidor (503).
-      const googleCheck = await validateGoogleSlot(supabase, userId, appointmentDate)
+      const googleCheck = await validateGoogleSlot(
+        supabase,
+        userId,
+        appointmentDate,
+        startTime,
+        endTime || startTime,
+      )
       if (googleCheck instanceof GoogleBusyError) {
         return new Response(JSON.stringify({ error: googleCheck.message }), {
           status: 422,

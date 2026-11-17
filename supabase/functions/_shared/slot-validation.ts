@@ -98,11 +98,22 @@ async function refreshAccessToken(
   return { ok: true, accessToken: data.access_token as string, expiresAt }
 }
 
+interface BusyPeriod {
+  start: string
+  end: string
+}
+
+/**
+ * Consulta freeBusy do Google e DEVOLVE os períodos ocupados (busy[]) do
+ * calendário primary na janela pedida. Falha de infraestrutura (HTTP não-ok,
+ * corpo inválido, exceção) LANÇA — o chamador trata como falha (fail-closed),
+ * nunca como "livre".
+ */
 async function fetchFreeBusy(
   accessToken: string,
   timeMin: string,
   timeMax: string,
-): Promise<boolean> {
+): Promise<BusyPeriod[]> {
   const res = await fetch('https://www.googleapis.com/calendar/v3/freeBusy', {
     method: 'POST',
     headers: {
@@ -115,16 +126,32 @@ async function fetchFreeBusy(
       items: [{ id: 'primary' }],
     }),
   })
-  return res.ok
+
+  if (!res.ok) {
+    console.error(`[slot-validation] freeBusy do Google falhou: HTTP ${res.status}`)
+    throw new Error(`google_freebusy_http_${res.status}`)
+  }
+
+  const data = await res.json().catch(() => null)
+  const primary = data?.calendars?.primary
+  if (!primary || typeof primary !== 'object') {
+    // Corpo inesperado do Google: falha de infraestrutura (fail-closed),
+    // nunca "dia livre".
+    console.error('[slot-validation] freeBusy devolveu corpo inesperado.')
+    throw new Error('google_freebusy_invalid_body')
+  }
+  // "errors" no calendário (ex.: permissão negada) também é falha, não livre.
+  if (Array.isArray(primary.errors) && primary.errors.length > 0) {
+    console.error('[slot-validation] freeBusy sinalizou erro no calendário primary.')
+    throw new Error('google_freebusy_calendar_error')
+  }
+
+  const busy: BusyPeriod[] = Array.isArray(primary.busy)
+    ? primary.busy.filter((b: any) => typeof b?.start === 'string' && typeof b?.end === 'string')
+    : []
+  return busy
 }
 
-/**
- * Validação FAIL-CLOSED completa do dia/slot: usada pelo create-booking antes
- * de gravar o agendamento.
- * - sync_enabled desligado: ok (não há integração ativa).
- * - sync_enabled ligado e token ausente/expirado/Google fora: RECUSA o slot e
- *   grava o alerta interno google_token_alert (dedupe de 1h).
- */
 // Exceção de negócio recusada pelo fail-closed, para o chamador distinguir
 // "Google ocupado" (regra) de "infraestrutura quebrada" (erro).
 export interface GoogleBusyError extends Error {
@@ -132,15 +159,20 @@ export interface GoogleBusyError extends Error {
 }
 
 /**
- * Valida se o slot está LIVRE no Google Calendar (freeBusy do dia 00:00–23:59
- * BRT). Em ocupado, lança GoogleBusyError (code 'google_busy'); em falha de
- * infra (token ausente/expirado, Google fora), devolve ok:false — o chamador
- * recusa a reserva em ambos os casos (fail-closed).
+ * Valida se o slot (date + startTime + endTime, horários em BRT) está LIVRE no
+ * Google Calendar via freeBusy do dia (janela BRT 00:00–23:59, convertida para
+ * UTC). Sobreposição entre o slot e qualquer período busy[] lança
+ * GoogleBusyError (code 'google_busy') — o chamador recusa com 422. Falha de
+ * infra (token ausente/expirado, Google fora) devolve ok:false com code
+ * 'google_error' — o chamador recusa com 503 (fail-closed). Em ambos os casos
+ * é gravado o alerta interno google_token_alert quando a causa é autenticação.
  */
 export async function validateGoogleSlot(
   supabase: any,
   userId: string,
   date: string,
+  startTime?: string,
+  endTime?: string,
 ): Promise<GoogleSlotValidationResult> {
   // 1. sync_enabled está ligado?
   const { data: integration, error: integrationError } = await supabase
@@ -190,17 +222,54 @@ export async function validateGoogleSlot(
     accessToken = renewed.accessToken
   }
 
-  // 4. freeBusy do dia (janela BRT 00:00–23:59) — fail-closed.
+  // 4. Janela do dia em BRT (–03:00), convertida para UTC ISO — o Google
+  // freeBusy trabalha em UTC.
   const startIso = new Date(`${date}T00:00:00-03:00`).toISOString()
   const endIso = new Date(`${date}T23:59:59-03:00`).toISOString()
-  const freeBusyOk = await fetchFreeBusy(accessToken, startIso, endIso)
-  if (!freeBusyOk) {
+
+  let busy: BusyPeriod[]
+  try {
+    busy = await fetchFreeBusy(accessToken, startIso, endIso)
+  } catch (err) {
+    console.error('[slot-validation] freeBusy indisponível:', err?.message || err)
     await logGoogleTokenAlert(supabase, userId, 'google_error')
     return {
       ok: false,
       code: 'google_error',
       error: 'Google Calendar temporariamente indisponível. Tente novamente em instantes.',
     }
+  }
+
+  // 5. Sobreposição slot × busy[] — comparação em UTC (ms). Os horários do slot
+  // são BRT (–03:00); o evento do Google pode vir em qualquer fuso (o Google
+  // devolve UTC com offset — ex.: "2026-01-10T14:00:00Z" para 11:00 BRT).
+  // new Date() faz a conversão correta dos dois lados.
+  const slotStartMs = new Date(`${date}T${startTime}:00-03:00`).getTime()
+  const slotEndMs = new Date(`${date}T${endTime || startTime}:00-03:00`).getTime()
+  if (Number.isNaN(slotStartMs) || Number.isNaN(slotEndMs)) {
+    console.error('[slot-validation] startTime/endTime do slot inválidos.')
+    return {
+      ok: false,
+      code: 'google_error',
+      error: 'Horário do agendamento inválido.',
+    }
+  }
+
+  const overlaps = busy.some((b) => {
+    const bStartMs = new Date(b.start).getTime()
+    const bEndMs = new Date(b.end).getTime()
+    if (Number.isNaN(bStartMs) || Number.isNaN(bEndMs)) return false
+    // Sobreposição real: slot começa antes do evento acabar E termina depois
+    // do evento começar. Encostar nos extremos (slotEnd == busyStart) não conta.
+    return slotStartMs < bEndMs && slotEndMs > bStartMs
+  })
+
+  if (overlaps) {
+    const busyError = new Error(
+      'Este horário já está ocupado na agenda do profissional (Google Calendar).',
+    ) as GoogleBusyError
+    busyError.code = 'google_busy'
+    throw busyError
   }
 
   return { ok: true }
