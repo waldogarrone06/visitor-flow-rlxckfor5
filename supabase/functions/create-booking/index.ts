@@ -29,6 +29,17 @@ function isValidUuid(value: string | null | undefined): boolean {
   )
 }
 
+// Escapa HTML de valores digitados pelo visitante antes de interpolar no
+// template do e-mail — evita injeção de HTML/falsificação de conteúdo.
+function escapeHtml(value: string | null | undefined): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 async function refreshGoogleToken(
   supabase: any,
   userId: string,
@@ -429,8 +440,10 @@ Deno.serve(async (req: Request) => {
     if (clientEmail && sendConfirmationEmail) {
       try {
         const formattedDate = String(appointmentDate).split('-').reverse().join('/')
+        const safeClientName = escapeHtml(clientName)
+        const safeMeetLink = escapeHtml(meetLink)
         const meetHtml = meetLink
-          ? `<div style="margin-top: 24px; padding: 16px; background-color: #f8f9fa; border-radius: 8px; text-align: center;"><p style="margin: 0; font-size: 16px; font-weight: bold; color: #333;">Link da reunião no Google Meet:</p><a href="${meetLink}" style="display: inline-block; margin-top: 8px; font-size: 16px; color: #e10050; word-break: break-all;">${meetLink}</a></div>`
+          ? `<div style="margin-top: 24px; padding: 16px; background-color: #f8f9fa; border-radius: 8px; text-align: center;"><p style="margin: 0; font-size: 16px; font-weight: bold; color: #333;">Link da reunião no Google Meet:</p><a href="${safeMeetLink}" style="display: inline-block; margin-top: 8px; font-size: 16px; color: #e10050; word-break: break-all;">${safeMeetLink}</a></div>`
           : ''
 
         const emailRes = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-email`, {
@@ -442,7 +455,7 @@ Deno.serve(async (req: Request) => {
           body: JSON.stringify({
             to: clientEmail,
             subject: 'Confirmação de Agendamento - FourLab Nutrition',
-            html: `<div style="font-family: sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #eaeaea; border-radius: 8px; overflow: hidden;"><div style="background-color: #e10050; padding: 24px; text-align: center;"><h1 style="color: white; margin: 0; font-size: 20px;">Agendamento Confirmado! 🎉</h1></div><div style="padding: 32px; background-color: #ffffff;"><p style="font-size: 16px; line-height: 1.5;">Olá <strong>${clientName || ''}</strong>,</p><p style="font-size: 16px; line-height: 1.5;">Seu agendamento foi realizado com sucesso para o dia <strong>${formattedDate}</strong> às <strong>${startTime}</strong>.</p><p style="font-size: 16px; line-height: 1.5;">Em breve nossa equipe entrará em contato com você para alinhar os detalhes da visita ou da reunião virtual.</p>${meetHtml}<br/><p style="font-size: 14px; color: #666;">Atenciosamente,<br/>Equipe FourLab Nutrition</p></div></div>`,
+            html: `<div style="font-family: sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #eaeaea; border-radius: 8px; overflow: hidden;"><div style="background-color: #e10050; padding: 24px; text-align: center;"><h1 style="color: white; margin: 0; font-size: 20px;">Agendamento Confirmado! 🎉</h1></div><div style="padding: 32px; background-color: #ffffff;"><p style="font-size: 16px; line-height: 1.5;">Olá <strong>${safeClientName}</strong>,</p><p style="font-size: 16px; line-height: 1.5;">Seu agendamento foi realizado com sucesso para o dia <strong>${formattedDate}</strong> às <strong>${startTime}</strong>.</p><p style="font-size: 16px; line-height: 1.5;">Em breve nossa equipe entrará em contato com você para alinhar os detalhes da visita ou da reunião virtual.</p>${meetHtml}<br/><p style="font-size: 14px; color: #666;">Atenciosamente,<br/>Equipe FourLab Nutrition</p></div></div>`,
             senderName: 'FourLab Nutrition',
           }),
         })
