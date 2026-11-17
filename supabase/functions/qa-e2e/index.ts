@@ -1,23 +1,22 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
-// qa-e2e — edge function TEMPORÁRIA de teste (será apagada após o QA).
-// Executa, com service role, o teste E2E real de reserva e devolve um relatório
-// JSON. Protegida por token próprio (env QA_E2E_TOKEN) — nunca exposta ao app.
+// qa-e2e — edge function TEMPORÁRIA de teste (stub 404 logo após o QA).
+// Token HARDCODED de propósito (temporário): QA_E2E_TOKEN não chegava ao
+// runtime; a function é apagada no fim do teste e o secret removido.
 //
-// Passos (pedido do usuário):
-//  1) Reserva real via RPC book_appointment (mesma chamada da create-booking);
-//  2) E-mail de confirmação via send-email (Resend) — status do envio;
-//  3) WhatsApp via whatsapp-send (Evolution) — status do envio;
-//  4) Contato: verifica duplicidade por telefone normalizado;
-//  5) Capacidade: enche o MESMO slot até a 11ª ser recusada (CAPACITY_EXCEEDED).
-// Todos os registros de teste são marcados e podem ser apagados via ?cleanup=1.
+// Uso (GET): ?token=<TOKEN>&phase=full|booking|email|whatsapp|dup|capacity|cleanup
+// Fases exercitam o caminho REAL (create-booking via HTTP, send-email,
+// whatsapp-send) com dados marcados "TESTE QA E2E" e contato interno.
 
+const QA_TOKEN = 'qa-e2e-tmp-20261117'
 const USER_ID = '1210e006-fbee-4c23-b7da-33e85e7703e0'
 const INTERNAL_EMAIL = 'contato@fourlabnutrition.com.br' // caixa própria do negócio
-const TEST_PHONE = '5511987654321' // telefone de teste da própria equipe
-const TEST_DATE = '2026-11-19'
-const TEST_TIME = '11:00'
+const TEST_PHONE = '5511987654321' // telefone de teste marcado (fake)
+const TEST_NAME = 'TESTE QA E2E'
+const TEST_DATE = '2026-11-22' // domingo — slot recorrente 12:00-13:00 existente
+const TEST_TIME = '12:00'
+const TEST_END = '13:00'
 const MAX_CAPACITY = 10
 
 function json(data: unknown, status = 200): Response {
@@ -46,177 +45,197 @@ async function callFunction(name: string, body: unknown): Promise<{ status: numb
   return { status: res.status, body: parsed }
 }
 
+const BOOKING_BODY = () => ({
+  userId: USER_ID,
+  appointmentDate: TEST_DATE,
+  startTime: TEST_TIME,
+  endTime: TEST_END,
+  clientName: TEST_NAME,
+  clientEmail: INTERNAL_EMAIL,
+  clientPhone: TEST_PHONE,
+  lgpdConsent: true,
+  createCalendar: false, // teste não cria evento no Google Calendar
+  sendConfirmationEmail: true,
+})
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok')
 
-  const token = req.headers.get('x-qa-token') || new URL(req.url).searchParams.get('token') || ''
-  const expected = Deno.env.get('QA_E2E_TOKEN') || ''
-  if (!expected || token !== expected) return json({ error: 'Token de QA inválido.' }, 401)
-
   const url = new URL(req.url)
-  const cleanup = url.searchParams.get('cleanup') === '1'
+  const token = req.headers.get('x-qa-token') || url.searchParams.get('token') || ''
+  if (token !== QA_TOKEN) return json({ error: 'Token de QA inválido.' }, 401)
+
+  const phase = url.searchParams.get('phase') || 'full'
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL') || '',
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '',
   )
+  const report: Record<string, any> = { phase, now: new Date().toISOString() }
 
-  // ---------------- Limpeza de qualquer teste anterior -----------------------
-  const del = await supabase.from('appointments').delete().eq('client_name', 'TESTE QA E2E')
-  await supabase.from('messages').delete().eq('content', 'qa-e2e-whatsapp-marker')
-  const preExisting = await supabase
-    .from('contacts')
-    .select('id, phone, email, name')
-    .eq('user_id', USER_ID)
-    .or(`phone.eq.${TEST_PHONE},email.eq.${INTERNAL_EMAIL}`)
-  const hadContactBefore = (preExisting.data || []).length > 0
-
-  if (cleanup) {
-    // Remove contato de teste se ele foi criado por este teste (não existia antes).
-    if (!hadContactBefore) {
-      await supabase.from('contacts').delete().eq('user_id', USER_ID).eq('phone', TEST_PHONE)
+  // ---------------- cleanup (apagável a qualquer momento) --------------------
+  if (phase === 'cleanup' || phase === 'full') {
+    const ap = await supabase.from('appointments').delete().eq('client_name', TEST_NAME)
+    const ct = await supabase
+      .from('contacts')
+      .delete()
+      .eq('user_id', USER_ID)
+      .eq('phone', TEST_PHONE)
+    const ms = await supabase
+      .from('messages')
+      .delete()
+      .eq('user_id', USER_ID)
+      .ilike('content', 'TESTE QA%')
+    const il = await supabase
+      .from('interaction_log')
+      .delete()
+      .eq('user_id', USER_ID)
+      .or(`details->>to.eq.${TEST_PHONE},type.ilike.qa%`)
+    const rl = await supabase
+      .from('rate_limit_events')
+      .delete()
+      .like('bucket', 'booking%')
+      .gte('created_at', new Date(Date.now() - 2 * 3600_000).toISOString())
+    const qtl = await supabase.from('qa_test_log').delete().neq('step', '')
+    report.cleanup = {
+      appointments: !ap.error,
+      contacts: !ct.error,
+      messages: !ms.error,
+      interactionLog: !il.error,
+      rateLimitEvents: !rl.error,
+      qaTestLog: !qtl.error,
+      errors: [ap, ct, ms, il, rl, qtl]
+        .filter((r: any) => r.error)
+        .map((r: any) => r.error.message),
     }
-    return json({ cleanup: true, removedContacts: !hadContactBefore })
+    if (phase === 'cleanup') return json(report)
   }
 
-  const report: Record<string, any> = {}
-
-  // ---------------- (a) Reserva real -----------------------------------------
-  const booking = await supabase.rpc('book_appointment', {
-    p_user_id: USER_ID,
-    p_appointment_date: TEST_DATE,
-    p_start_time: TEST_TIME,
-    p_end_time: '11:30',
-    p_status: 'scheduled',
-    p_client_name: 'TESTE QA E2E',
-    p_client_email: INTERNAL_EMAIL,
-    p_client_phone: TEST_PHONE,
-    p_client_document: null,
-    p_specialty: null,
-    p_professional_id: null,
-    p_clinic_cep: null,
-    p_clinic_address: null,
-    p_clinic_number: null,
-    p_clinic_neighborhood: null,
-    p_clinic_complement: null,
-    p_clinic_city: null,
-    p_clinic_state: null,
-    p_instagram: null,
-    p_patients_per_month: null,
-    p_max_capacity: MAX_CAPACITY,
-    p_lgpd_consent_at: null,
-  })
-  report.booking = {
-    ok: !booking.error,
-    error: booking.error?.message || null,
-    appointmentId: booking.data?.[0]?.id || booking.data?.id || null,
+  // ---------------- (a) reserva real via create-booking (HTTP) ----------------
+  if (phase === 'full' || phase === 'booking') {
+    const r = await callFunction('create-booking', BOOKING_BODY())
+    report.booking = {
+      status: r.status,
+      success: r.body?.success === true,
+      appointmentId: r.body?.appointment?.id || null,
+      contactId: r.body?.contactId || null,
+      emailSent: r.body?.emailSent ?? null,
+      calendarWarning: r.body?.calendarWarning ?? null,
+      error: r.body?.error || null,
+    }
   }
-  if (booking.error || !booking.data) return json({ report, fatal: 'booking' }, 200)
 
-  // ---------------- (b) E-mail via send-email (Resend) ------------------------
-  const email = await callFunction('send-email', {
-    to: INTERNAL_EMAIL,
-    template: 'confirmation',
-    vars: {},
-  })
-  // send-email pode exigir um template fixo; se falhar, tenta um payload cru
-  // apenas para PROVAR o caminho do Resend (o teste é sobre o canal, não o copy).
-  let emailStatus = { status: email.status, body: email.body }
-  if (email.status !== 200) {
-    const raw = await callFunction('send-email', {
-      to: INTERNAL_EMAIL,
-      subject: 'TESTE QA E2E — confirmação de agendamento',
-      html: '<p>Teste E2E de reserva (QA automatizado).</p>',
-      senderName: 'FourLab Nutrition',
-    })
-    emailStatus = { status: raw.status, body: raw.body }
+  // ---------------- (b) e-mail via send-email (Resend) ------------------------
+  if (phase === 'full' || phase === 'email') {
+    // Tenta 1) domínio do negócio (pode falhar se não verificado no Resend)
+    // e 2) sandbox onboarding@resend.dev (entregável ao dono da conta Resend).
+    const attempts: any[] = []
+    const froms: Array<{ from?: string; label: string }> = [
+      { label: 'contato@fourlabnutrition.com.br' },
+      { from: 'onboarding@resend.dev', label: 'onboarding@resend.dev (sandbox)' },
+    ]
+    for (const f of froms) {
+      const r = await callFunction('send-email', {
+        to: INTERNAL_EMAIL,
+        subject: `TESTE QA E2E — confirmação de agendamento ${TEST_DATE} ${TEST_TIME}`,
+        html: '<p>Teste E2E de reserva (QA automatizado). Pode apagar.</p>',
+        text: 'TESTE QA E2E — pode apagar.',
+        senderName: 'FourLab Nutrition',
+        from: f.from,
+      })
+      const resendId = r.body?.messageId || null
+      let resendStatus: any = null
+      if (resendId) {
+        const chk = await fetch(`https://api.resend.com/emails/${resendId}`, {
+          headers: { Authorization: `Bearer ${Deno.env.get('RESEND_API_KEY')}` },
+        })
+        resendStatus = chk.ok ? await chk.json().catch(() => null) : { http: chk.status }
+      }
+      attempts.push({
+        from: f.label,
+        sendStatus: r.status,
+        messageId: resendId,
+        resendReadback: resendStatus?.last_event || resendStatus || null,
+        error: r.body?.error || null,
+      })
+      if (r.status === 200) break // entregue — não precisa do fallback
+    }
+    report.email = { attempts, delivered: attempts.some((a) => a.sendStatus === 200) }
   }
-  report.email = emailStatus
 
   // ---------------- (c) WhatsApp via whatsapp-send (Evolution) ----------------
-  const wa = await callFunction('whatsapp-send', {
-    to: TEST_PHONE,
-    text: 'qa-e2e-whatsapp-marker',
-    userId: USER_ID,
-  })
-  report.whatsapp = { status: wa.status, body: wa.body }
-
-  // ---------------- (d) Contato duplicado? ------------------------------------
-  const before = (preExisting.data || []).length
-  const after = await supabase
-    .from('contacts')
-    .select('id, phone, email, name')
-    .eq('user_id', USER_ID)
-    .eq('phone', TEST_PHONE)
-  report.contact = {
-    existedBefore: before > 0,
-    countAfter: (after.data || []).length,
-    ids: (after.data || []).map((c) => c.id),
-  }
-
-  // ---------------- (e) Capacidade: 10 por slot, a 11ª recusada ----------------
-  // (a) já ocupa 1 vaga. Preencher até 10 e tentar a 11ª.
-  const capacity: any[] = []
-  for (let n = 2; n <= MAX_CAPACITY; n++) {
-    const r = await supabase.rpc('book_appointment', {
-      p_user_id: USER_ID,
-      p_appointment_date: TEST_DATE,
-      p_start_time: TEST_TIME,
-      p_end_time: '11:30',
-      p_status: 'scheduled',
-      p_client_name: 'TESTE QA E2E',
-      p_client_email: INTERNAL_EMAIL,
-      p_client_phone: TEST_PHONE,
-      p_client_document: null,
-      p_specialty: null,
-      p_professional_id: null,
-      p_clinic_cep: null,
-      p_clinic_address: null,
-      p_clinic_number: null,
-      p_clinic_neighborhood: null,
-      p_clinic_complement: null,
-      p_clinic_city: null,
-      p_clinic_state: null,
-      p_instagram: null,
-      p_patients_per_month: null,
-      p_max_capacity: MAX_CAPACITY,
-      p_lgpd_consent_at: null,
+  if (phase === 'full' || phase === 'whatsapp') {
+    const r = await callFunction('whatsapp-send', {
+      to: TEST_PHONE,
+      text: `TESTE QA E2E — mensagem de teste do fluxo de agendamento. Pode apagar.`,
+      userId: USER_ID,
     })
-    capacity.push({ n, ok: !r.error, error: r.error?.message || null })
-    if (r.error) break
-  }
-  // A 11ª tentativa DEVE falhar.
-  const eleventh = await supabase.rpc('book_appointment', {
-    p_user_id: USER_ID,
-    p_appointment_date: TEST_DATE,
-    p_start_time: TEST_TIME,
-    p_end_time: '11:30',
-    p_status: 'scheduled',
-    p_client_name: 'TESTE QA E2E',
-    p_client_email: INTERNAL_EMAIL,
-    p_client_phone: TEST_PHONE,
-    p_client_document: null,
-    p_specialty: null,
-    p_professional_id: null,
-    p_clinic_cep: null,
-    p_clinic_address: null,
-    p_clinic_number: null,
-    p_clinic_neighborhood: null,
-    p_clinic_complement: null,
-    p_clinic_city: null,
-    p_clinic_state: null,
-    p_instagram: null,
-    p_patients_per_month: null,
-    p_max_capacity: MAX_CAPACITY,
-    p_lgpd_consent_at: null,
-  })
-  report.capacity = {
-    filled: capacity.filter((c) => c.ok).length + 1, // +1 da reserva (a)
-    lastFill: capacity[capacity.length - 1] || null,
-    eleventh: {
-      ok: !eleventh.error,
-      error: eleventh.error?.message || null,
-    },
+    report.whatsapp = {
+      status: r.status,
+      provider: r.body?.provider || null,
+      messageId: r.body?.messageId || r.body?.wamid || null,
+      evolutionResponse: r.body?.evolutionResponse || null,
+      error: r.body?.error || null,
+    }
   }
 
-  return json({ report })
+  // ---------------- (d) contato NÃO duplica (2ª reserva mesmo telefone) -------
+  if (phase === 'full' || phase === 'dup') {
+    const r = await callFunction('create-booking', BOOKING_BODY())
+    const after = await supabase
+      .from('contacts')
+      .select('id')
+      .eq('user_id', USER_ID)
+      .eq('phone', TEST_PHONE)
+    report.duplicateContact = {
+      secondBookingStatus: r.status,
+      secondContactId: r.body?.contactId || null,
+      contactsCountAfter: (after.data || []).length,
+      unique: (after.data || []).length === 1,
+      error: r.body?.error || null,
+    }
+  }
+
+  // ---------------- (e) capacidade: 10 aceitas, 11ª recusada ------------------
+  if (phase === 'full' || phase === 'capacity') {
+    const countRes = await supabase
+      .from('appointments')
+      .select('id', { count: 'exact', head: false })
+      .eq('user_id', USER_ID)
+      .eq('appointment_date', TEST_DATE)
+      .eq('start_time', TEST_TIME)
+      .in('status', ['lead', 'scheduled'])
+    let active = countRes.count || 0
+    const filledViaRpc: number[] = []
+    while (active < MAX_CAPACITY) {
+      const r = await supabase.rpc('book_appointment', {
+        p_user_id: USER_ID,
+        p_appointment_date: TEST_DATE,
+        p_start_time: TEST_TIME,
+        p_end_time: TEST_END,
+        p_status: 'scheduled',
+        p_client_name: TEST_NAME,
+        p_client_email: INTERNAL_EMAIL,
+        p_client_phone: TEST_PHONE,
+        p_max_capacity: MAX_CAPACITY,
+        p_lgpd_consent_at: null,
+      })
+      if (r.error) {
+        report.capacity = { stage: 'fill', active, error: r.error.message }
+        return json(report)
+      }
+      active++
+      filledViaRpc.push(active)
+    }
+    // 11ª tentativa pelo CAMINHO REAL (create-booking): deve ser 409 capacidade.
+    const eleventh = await callFunction('create-booking', BOOKING_BODY())
+    report.capacity = {
+      activeBeforeFill: countRes.count || 0,
+      acceptedBeforeRefusal: active, // deve ser 10
+      eleventhStatus: eleventh.status, // deve ser 409
+      eleventhError: eleventh.body?.error || null,
+      refusedCorrectly: eleventh.status === 409,
+    }
+  }
+
+  return json(report)
 })

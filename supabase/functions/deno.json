@@ -1,5 +1,17 @@
 {
   "_versions": {
+    "send-meet-link": 24,
+    "whatsapp-edit": 136,
+    "meta-webhook": 120,
+    "whatsapp-webhook": 168,
+    "qa-e2e": 3,
+    "send-email": 143,
+    "whatsapp-redeploy": 109,
+    "track-shipping": 154,
+    "get-availability": 9,
+    "purge-appointments": 132,
+    "google-oauth-exchange": 133,
+    "whatsapp-delete": 134,
     "yampi-service": 138,
     "trigger-nps": 45,
     "nps-appointment-name": 4,
@@ -15,18 +27,6 @@
     "yampi-create-coupon": 101,
     "google-oauth-url": 18,
     "check-availability": 1,
-    "sync-calendar": 147,
-    "send-meet-link": 24,
-    "whatsapp-edit": 136,
-    "meta-webhook": 120,
-    "whatsapp-webhook": 168,
-    "qa-e2e": 1,
-    "send-email": 143,
-    "whatsapp-redeploy": 109,
-    "track-shipping": 154,
-    "get-availability": 9,
-    "purge-appointments": 132,
-    "google-oauth-exchange": 133,
-    "whatsapp-delete": 134
+    "sync-calendar": 147
   }
 }
