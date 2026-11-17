@@ -2,7 +2,7 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 import { getGoogleTokens } from '../_shared/integration-secrets.ts'
-import { checkRateLimit, getClientIp, bucketFor } from '../_shared/rate-limit.ts'
+import { checkRateLimits, getClientIp, bucketFor } from '../_shared/rate-limit.ts'
 import {
   validatePublicSlot,
   isValidDateFormat,
@@ -375,6 +375,8 @@ Deno.serve(async (req: Request) => {
     }
 
     // --- 0) Rate limit por IP (antes de qualquer consulta ao banco) ----------
+    // RPC ATÔMICA: cada janela é incrementada e contada numa ÚNICA viagem ao
+    // banco (antes: um INSERT + um SELECT por janela, em chamadas separadas).
     const clientIp = getClientIp(req)
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') || '',
@@ -382,24 +384,28 @@ Deno.serve(async (req: Request) => {
     )
 
     const isCaptureLead = String(appointmentDate) === CAPTURE_DATE
-    const rateLimit = isCaptureLead
-      ? [bucketFor('booking', clientIp), CAPTURE_LIMIT_10MIN, 600]
-      : [bucketFor('booking', clientIp), BOOKING_LIMIT_10MIN, 600]
-    const general = await checkRateLimit(supabase, rateLimit[0], rateLimit[1], rateLimit[2])
-    if (!general.ok) return rateLimitedResponse(general.resetSeconds)
-
     // Limite específico do caminho de captura de lead: a data sentinela pula a
     // capacidade, então o freio aqui é a taxa de leads por IP (evita encher a
     // tabela de leads batendo no atalho da sentinela).
-    if (isCaptureLead) {
-      const daily = await checkRateLimit(
-        supabase,
-        bucketFor('capture-daily', clientIp),
-        CAPTURE_LIMIT_DAILY,
-        DAY_WINDOW_SECONDS,
-      )
-      if (!daily.ok) return rateLimitedResponse(daily.resetSeconds)
-    }
+    const rules = [
+      {
+        bucket: bucketFor('booking', clientIp),
+        max: isCaptureLead ? CAPTURE_LIMIT_10MIN : BOOKING_LIMIT_10MIN,
+        windowSeconds: 600,
+      },
+      ...(isCaptureLead
+        ? [
+            {
+              bucket: bucketFor('capture-daily', clientIp),
+              max: CAPTURE_LIMIT_DAILY,
+              windowSeconds: DAY_WINDOW_SECONDS,
+            },
+          ]
+        : []),
+    ]
+    const [general, captureDaily] = await checkRateLimits(supabase, rules)
+    if (!general.ok) return rateLimitedResponse(general.resetSeconds)
+    if (captureDaily && !captureDaily.ok) return rateLimitedResponse(captureDaily.resetSeconds)
 
     // --- 1) userId existe (servidor resolve quem é o profissional) -----------
     const { data: profile, error: profileError } = await supabase
@@ -415,14 +421,16 @@ Deno.serve(async (req: Request) => {
       })
     }
 
-    // Limite diário de agendamentos reais por IP × profissional.
+    // Limite diário de agendamentos reais por IP × profissional (só depois de
+    // confirmar que o profissional existe — userId é validado acima).
     if (!isCaptureLead) {
-      const perUser = await checkRateLimit(
-        supabase,
-        bucketFor('booking-user-daily', clientIp, userId),
-        BOOKING_LIMIT_DAILY,
-        DAY_WINDOW_SECONDS,
-      )
+      const [perUser] = await checkRateLimits(supabase, [
+        {
+          bucket: bucketFor('booking-user-daily', clientIp, userId),
+          max: BOOKING_LIMIT_DAILY,
+          windowSeconds: DAY_WINDOW_SECONDS,
+        },
+      ])
       if (!perUser.ok) return rateLimitedResponse(perUser.resetSeconds)
     }
 

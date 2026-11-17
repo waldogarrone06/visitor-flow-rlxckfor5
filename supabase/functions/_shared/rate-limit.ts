@@ -3,10 +3,11 @@
 // agendamento (create-booking, get-availability) com a service role, que
 // ignora RLS na tabela public.rate_limit_events.
 //
-// Design: cada check registra um evento (bucket, created_at) e conta os
-// eventos da mesma bucket dentro da janela. Se passar do limite, a chamada é
-// rejeitada. Eventos antigos são podados com baixa probabilidade para manter
-// a tabela pequena sem precisar de cron.
+// Design: uma RPC ATÔMICA (public.check_rate_limit) incrementa o contador de
+// cada janela e devolve o count atual numa ÚNICA viagem ao banco — substitui
+// o par INSERT + SELECT que cada check fazia antes. A get-availability passa
+// as duas janelas (minuto e hora) numa só chamada. Se passar do limite, a
+// chamada é rejeitada. Eventos antigos são podados dentro da própria RPC.
 
 export const RATE_LIMIT_TABLE = 'rate_limit_events'
 
@@ -16,14 +17,16 @@ export interface RateLimitResult {
   resetSeconds: number
 }
 
-function pruningRoll(): boolean {
-  // ~5% das chamadas podam eventos mais antigos que 24h.
-  return Math.random() < 0.05
+interface RateLimitRule {
+  bucket: string
+  max: number
+  windowSeconds: number
 }
 
 /**
  * Janela fixa por bucket. Incrementa e devolve ok=false quando estoura.
  * `max` = número máximo de eventos permitidos por `windowSeconds`.
+ * (Compatibilidade: segue existendo para 1 janela, via RPC.)
  */
 export async function checkRateLimit(
   supabase: any,
@@ -31,47 +34,57 @@ export async function checkRateLimit(
   max: number,
   windowSeconds: number,
 ): Promise<RateLimitResult> {
-  const windowStart = new Date(Date.now() - windowSeconds * 1000).toISOString()
+  const results = await checkRateLimits(supabase, [{ bucket, max, windowSeconds }])
+  return results[0]
+}
 
-  // Registra a tentativa ANTES de decidir: toda requisição conta para a janela.
-  const { error: insertError } = await supabase
-    .from(RATE_LIMIT_TABLE)
-    .insert({ bucket, created_at: new Date().toISOString() })
+/**
+ * Várias janelas numa ÚNICA viagem ao banco (RPC atômica):
+ * devolve um resultado por regra, na mesma ordem em que foram passadas.
+ *
+ * FAIL-OPEN INTENCIONAL E DOCUMENTADO: se a RPC do limitador falhar (erro,
+ * timeout, indisponibilidade do Postgres), a chamada segue LIBERADA — o
+ * limitador existe para conter abuso, nunca para derrubar o fluxo legítimo
+ * de agendamento. Toda falha é logada para auditoria.
+ */
+export async function checkRateLimits(
+  supabase: any,
+  rules: RateLimitRule[],
+): Promise<RateLimitResult[]> {
+  if (!rules || rules.length === 0) return []
 
-  if (insertError) {
-    // Falha do limitador NUNCA derruba o fluxo legítimo: libera e loga.
-    console.error('[rate-limit] insert falhou (liberando):', insertError.message)
-    return { ok: true, remaining: max, resetSeconds: windowSeconds }
-  }
+  try {
+    const { data, error } = await supabase.rpc('check_rate_limit', {
+      p_rules: rules.map((r) => ({
+        bucket: r.bucket,
+        max: r.max,
+        windowSeconds: r.windowSeconds,
+      })),
+    })
 
-  const { data: rows, error: countError } = await supabase
-    .from(RATE_LIMIT_TABLE)
-    .select('id', { count: 'exact', head: false })
-    .eq('bucket', bucket)
-    .gte('created_at', windowStart)
+    if (error) {
+      console.error('[rate-limit] RPC falhou (liberando — fail-open):', error.message)
+      return rules.map((r) => ({ ok: true, remaining: r.max, resetSeconds: r.windowSeconds }))
+    }
 
-  if (countError) {
-    console.error('[rate-limit] count falhou (liberando):', countError.message)
-    return { ok: true, remaining: max, resetSeconds: windowSeconds }
-  }
-
-  const used = rows?.length ?? 0
-  if (pruningRoll()) {
-    const dayAgo = new Date(Date.now() - 24 * 3600 * 1000).toISOString()
-    supabase
-      .from(RATE_LIMIT_TABLE)
-      .delete()
-      .lt('created_at', dayAgo)
-      .then(({ error }: any) => {
-        if (error) console.error('[rate-limit] prune falhou:', error.message)
-      })
-      .catch(() => {})
-  }
-
-  return {
-    ok: used <= max,
-    remaining: Math.max(0, max - used),
-    resetSeconds: windowSeconds,
+    const arr = Array.isArray(data) ? data : []
+    return rules.map((r, i) => {
+      const item = arr[i]
+      if (!item || typeof item.ok !== 'boolean') {
+        // Resposta inesperada da RPC: fail-open (mesma política).
+        console.error('[rate-limit] resposta inesperada da RPC (liberando — fail-open)')
+        return { ok: true, remaining: r.max, resetSeconds: r.windowSeconds }
+      }
+      return {
+        ok: item.ok,
+        remaining: Math.max(0, r.max - (Number(item.count) || 0)),
+        resetSeconds: r.windowSeconds,
+      }
+    })
+  } catch (e: any) {
+    // Fail-open: qualquer exceção (rede, timeout, parsing) libera a chamada.
+    console.error('[rate-limit] exceção na RPC (liberando — fail-open):', e?.message || e)
+    return rules.map((r) => ({ ok: true, remaining: r.max, resetSeconds: r.windowSeconds }))
   }
 }
 

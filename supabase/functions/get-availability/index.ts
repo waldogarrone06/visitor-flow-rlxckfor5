@@ -3,7 +3,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 import { getGoogleTokens } from '../_shared/integration-secrets.ts'
 import { logGoogleTokenAlert } from '../_shared/google-alert.ts'
-import { checkRateLimit, getClientIp, bucketFor } from '../_shared/rate-limit.ts'
+import { checkRateLimits, getClientIp, bucketFor } from '../_shared/rate-limit.ts'
 
 // get-availability — disponibilidade de horários para o agendamento público.
 // Retorna: agenda do dia (recurring ou específica), horários ocupados (Google
@@ -48,20 +48,22 @@ Deno.serve(async (req: Request) => {
     )
 
     // --- Rate limit por IP (antes de qualquer consulta pesada) ---------------
+    // RPC ATÔMICA: as duas janelas (minuto e hora) vão numa ÚNICA viagem ao
+    // banco — antes eram dois INSERTs e dois SELECTs por requisição.
     const clientIp = getClientIp(req)
-    const perMinute = await checkRateLimit(
-      supabase,
-      bucketFor('availability', clientIp),
-      READ_LIMIT_PER_MIN,
-      MINUTE_WINDOW,
-    )
+    const [perMinute, perHour] = await checkRateLimits(supabase, [
+      {
+        bucket: bucketFor('availability', clientIp),
+        max: READ_LIMIT_PER_MIN,
+        windowSeconds: MINUTE_WINDOW,
+      },
+      {
+        bucket: bucketFor('availability-hour', clientIp),
+        max: READ_LIMIT_PER_HOUR,
+        windowSeconds: HOUR_WINDOW,
+      },
+    ])
     if (!perMinute.ok) return rateLimitedResponse(perMinute.resetSeconds)
-    const perHour = await checkRateLimit(
-      supabase,
-      bucketFor('availability-hour', clientIp),
-      READ_LIMIT_PER_HOUR,
-      HOUR_WINDOW,
-    )
     if (!perHour.ok) return rateLimitedResponse(perHour.resetSeconds)
 
     // Data/hora atual em BRT — via formatToParts com hourCycle h23, porque
