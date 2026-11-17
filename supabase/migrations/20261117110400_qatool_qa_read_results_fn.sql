@@ -1,9 +1,5 @@
--- [QA E2E] Ferramenta TEMPORÁRIA de leitura dos resultados do teste (db_query
--- read-only não acessa esta tabela; esta function dá acesso via GET + fetch_url
--- e é apagada na limpeza). Leitura APENAS.
-
-CREATE OR REPLACE FUNCTION public.qa_read_results()
-RETURNS TABLE (step text, detail jsonb, created_at timestamptz)
-LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
-  SELECT step, detail, created_at FROM public.qa_test_log ORDER BY id
-$$;
+-- [QA E2E] Conteúdo removido em segurança (v0.0.428): esta migration criava ferramentas
+-- de teste que faziam reservas HTTP reais contra produção se aplicada em banco novo.
+-- Mantida como no-op para preservar o histórico de versões. A limpeza das functions
+-- qa_* e da tabela qa_test_log é feita pela migration drop_qa_artifacts.
+SELECT 1;
