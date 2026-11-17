@@ -5,8 +5,10 @@ import { forbidden, requireInternalOrUserAuth } from '../_shared/internal-auth.t
 
 // Chamada pelo FRONT autenticado (UpcomingOnlineMeetings — botão "Enviar Link").
 // Requer service role (chamadas internas) ou JWT de usuário — anônimo 401.
-// OWNERSHIP: usuário autenticado só pode enviar o link de agendamento PRÓPRIO
-// (403 caso contrário) — o meet link é dado sensível.
+// OWNERSHIP (auditoria): usuário autenticado só pode enviar o link de
+// agendamento PRÓPRIO (403 caso contrário) — o meet link é dado sensível.
+// EXCEÇÃO: ADMINISTRADOR (profiles.is_admin = true) pode enviar o link de
+// agendamento de qualquer membro da equipe (ex.: cobrir ausências).
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -27,18 +29,32 @@ Deno.serve(async (req: Request) => {
 
     // OWNERSHIP (auditoria): chamada autenticada do front só pode mexer em
     // agendamento próprio. Interno (service role) passa sem checagem.
+    // Administrador (profiles.is_admin) tem acesso a agendamentos da equipe.
     if (!auth.isInternal) {
       const supabaseAsUser = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY') || '', {
         global: { headers: { Authorization: req.headers.get('Authorization') || '' } },
       })
-      const { data: owned, error: ownedErr } = await supabaseAsUser
-        .from('appointments')
-        .select('id')
-        .eq('id', appointmentId)
-        .eq('user_id', auth.userId!)
+
+      // Admin? Lido via client autenticado do usuário — a policy
+      // profiles_read_admin libera a leitura só para o próprio admin.
+      const { data: profile } = await supabaseAsUser
+        .from('profiles')
+        .select('is_admin')
+        .eq('id', auth.userId!)
         .maybeSingle()
-      if (ownedErr || !owned) {
-        return forbidden('Você não tem permissão para este agendamento.')
+
+      const isAdmin = profile?.is_admin === true
+
+      if (!isAdmin) {
+        const { data: owned, error: ownedErr } = await supabaseAsUser
+          .from('appointments')
+          .select('id')
+          .eq('id', appointmentId)
+          .eq('user_id', auth.userId!)
+          .maybeSingle()
+        if (ownedErr || !owned) {
+          return forbidden('Você não tem permissão para este agendamento.')
+        }
       }
     }
 
