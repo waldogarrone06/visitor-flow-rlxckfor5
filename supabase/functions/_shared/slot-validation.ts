@@ -15,7 +15,7 @@ import { logGoogleTokenAlert } from './google-alert.ts'
 
 export interface GoogleSlotValidationResult {
   ok: boolean
-  code?: 'no_token' | 'expired_token' | 'google_error'
+  code?: 'no_token' | 'expired_token' | 'google_error' | 'google_busy'
   error?: string
 }
 
@@ -125,11 +125,22 @@ async function fetchFreeBusy(
  * - sync_enabled ligado e token ausente/expirado/Google fora: RECUSA o slot e
  *   grava o alerta interno google_token_alert (dedupe de 1h).
  */
+// Exceção de negócio recusada pelo fail-closed, para o chamador distinguir
+// "Google ocupado" (regra) de "infraestrutura quebrada" (erro).
+export interface GoogleBusyError extends Error {
+  code: 'google_busy'
+}
+
+/**
+ * Valida se o slot está LIVRE no Google Calendar (freeBusy do dia 00:00–23:59
+ * BRT). Em ocupado, lança GoogleBusyError (code 'google_busy'); em falha de
+ * infra (token ausente/expirado, Google fora), devolve ok:false — o chamador
+ * recusa a reserva em ambos os casos (fail-closed).
+ */
 export async function validateGoogleSlot(
   supabase: any,
   userId: string,
-  startIso: string,
-  endIso: string,
+  date: string,
 ): Promise<GoogleSlotValidationResult> {
   // 1. sync_enabled está ligado?
   const { data: integration, error: integrationError } = await supabase
@@ -179,7 +190,9 @@ export async function validateGoogleSlot(
     accessToken = renewed.accessToken
   }
 
-  // 4. freeBusy do Google — fail-closed.
+  // 4. freeBusy do dia (janela BRT 00:00–23:59) — fail-closed.
+  const startIso = new Date(`${date}T00:00:00-03:00`).toISOString()
+  const endIso = new Date(`${date}T23:59:59-03:00`).toISOString()
   const freeBusyOk = await fetchFreeBusy(accessToken, startIso, endIso)
   if (!freeBusyOk) {
     await logGoogleTokenAlert(supabase, userId, 'google_error')
@@ -200,12 +213,18 @@ export function isValidDateFormat(value: unknown): boolean {
 }
 
 export function isValidTimeFormat(value: unknown): boolean {
-  return typeof value === 'string' && /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/.test(value.trim())
+  // Formato EXATO HH:MM — HH:MM:SS não é aceito (regressão restaurada).
+  return typeof value === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(value.trim())
 }
 
-function slotToMinutes(hhmm: string): number {
-  const [h, m] = String(hhmm).split(':')
-  return Number(h) * 60 + Number(m || 0)
+function slotToMinutes(hhmm: string | null | undefined): number {
+  // null/undefined/"" (bloqueio de dia inteiro) => NaN: usado pela checagem
+  // de dia inteiro abaixo — NaN quebra qualquer comparação de sobreposição,
+  // então um bloqueio sem start_time nunca é tratado como intervalo normal.
+  const [h, m] = String(hhmm ?? '').split(':')
+  const n = Number(h)
+  if (hhmm == null || hhmm === '' || Number.isNaN(n)) return NaN
+  return n * 60 + Number(m || 0)
 }
 
 // "Hoje" em BRT (America/Sao_Paulo) e o minuto atual — com hourCycle h23,
@@ -242,16 +261,18 @@ export async function validatePublicSlot(opts: {
 }): Promise<{ ok: boolean; error?: string }> {
   const { supabase, userId, date, startTime } = opts
 
+  // Agenda do dia (específica tem precedência sobre a recorrente): início E fim
+  // exatos — a validação exata de início E fim foi restaurada (regressão).
   const dayOfWeek = new Date(`${date}T12:00:00-03:00`).getDay()
   const [schedRes, specRes] = await Promise.all([
     supabase
       .from('schedule_settings')
-      .select('start_time')
+      .select('start_time, end_time')
       .eq('user_id', userId)
       .eq('day_of_week', dayOfWeek),
     supabase
       .from('date_specific_schedules')
-      .select('start_time')
+      .select('start_time, end_time')
       .eq('user_id', userId)
       .eq('specific_date', date),
   ])
@@ -262,8 +283,10 @@ export async function validatePublicSlot(opts: {
 
   const spec = specRes.data || []
   const schedule = spec.length > 0 ? spec : schedRes.data || []
+  const reqStart = slotToMinutes(startTime)
+  const reqEnd = slotToMinutes(opts.endTime || startTime)
   const slotExists = schedule.some(
-    (s: any) => slotToMinutes(s.start_time) === slotToMinutes(startTime),
+    (s: any) => slotToMinutes(s.start_time) === reqStart && slotToMinutes(s.end_time) === reqEnd,
   )
   if (!slotExists) {
     return { ok: false, error: 'Horário fora da agenda disponível deste profissional.' }
@@ -278,8 +301,12 @@ export async function validatePublicSlot(opts: {
   if (lockedError) {
     return { ok: false, error: 'Falha ao consultar horários bloqueados.' }
   }
-  const reqStart = slotToMinutes(startTime)
-  const reqEnd = slotToMinutes(opts.endTime || startTime)
+  // Bloqueio de dia inteiro (sem start_time) RECUSA o dia: slotToMinutes
+  // devolve NaN e a sobreposição numérica nunca casa — checagem explícita.
+  const wholeDayLocked = (locked || []).some((l: any) => !l.start_time)
+  if (wholeDayLocked) {
+    return { ok: false, error: 'Este dia está bloqueado pelo profissional.' }
+  }
   const overlapsLocked = (locked || []).some((l: any) => {
     const lStart = slotToMinutes(l.start_time)
     const lEnd = slotToMinutes(l.end_time || l.start_time)
@@ -289,7 +316,12 @@ export async function validatePublicSlot(opts: {
     return { ok: false, error: 'Este horário está bloqueado pelo profissional.' }
   }
 
+  // Datas passadas (BRT): recusa qualquer data ANTERIOR a hoje, não só horários
+  // passados do dia corrente (regressão restaurada).
   const { date: todayBrt, minutes: nowBrtMinutes } = nowInBrt()
+  if (date < todayBrt) {
+    return { ok: false, error: 'Não é possível agendar em datas passadas.' }
+  }
   if (date === todayBrt && reqStart <= nowBrtMinutes) {
     return { ok: false, error: 'Este horário já passou. Escolha outro, por favor.' }
   }

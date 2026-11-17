@@ -5,6 +5,8 @@ import { getGoogleTokens } from '../_shared/integration-secrets.ts'
 import { checkRateLimits, getClientIp, bucketFor } from '../_shared/rate-limit.ts'
 import {
   validatePublicSlot,
+  validateGoogleSlot,
+  GoogleBusyError,
   isValidDateFormat,
   isValidTimeFormat,
 } from '../_shared/slot-validation.ts'
@@ -449,8 +451,10 @@ Deno.serve(async (req: Request) => {
       )
     }
 
-    // --- 2b) Validação do slot: existe na agenda, não está no passado (BRT),
-    // não está bloqueado nem ocupado no Google Calendar. A captura de lead
+    // --- 2b) Validação do slot: existe na agenda (início E fim exatos), não
+    // está no passado (data < hoje BRT também é recusada), não está bloqueado
+    // (bloqueio de dia inteiro recusa o dia) e o dia está LIVRE no Google
+    // Calendar (freeBusy fail-closed — validateGoogleSlot). A captura de lead
     // (data sentinela) não é um slot real — pula esta validação.
     if (!isCaptureLead) {
       const slotCheck = await validatePublicSlot({
@@ -463,6 +467,24 @@ Deno.serve(async (req: Request) => {
       if (!slotCheck.ok) {
         return new Response(JSON.stringify({ error: slotCheck.error }), {
           status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+
+      // Checagem do Google restaurada (server-side): reserva é RECUSADA se
+      // houver evento no Google Calendar — mesmo com chamada direta ao
+      // create-booking. Ocupado no Google é regra de negócio (422); falha de
+      // infraestrutura é erro do servidor (503).
+      const googleCheck = await validateGoogleSlot(supabase, userId, appointmentDate)
+      if (googleCheck instanceof GoogleBusyError) {
+        return new Response(JSON.stringify({ error: googleCheck.message }), {
+          status: 422,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+      if (googleCheck && !googleCheck.ok) {
+        return new Response(JSON.stringify({ error: googleCheck.error }), {
+          status: 503,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
       }
