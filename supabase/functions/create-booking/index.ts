@@ -475,18 +475,28 @@ Deno.serve(async (req: Request) => {
       // houver evento no Google Calendar — mesmo com chamada direta ao
       // create-booking. Ocupado no Google é regra de negócio (422); falha de
       // infraestrutura é erro do servidor (503).
-      const googleCheck = await validateGoogleSlot(
-        supabase,
-        userId,
-        appointmentDate,
-        startTime,
-        endTime || startTime,
-      )
-      if (googleCheck instanceof GoogleBusyError) {
-        return new Response(JSON.stringify({ error: googleCheck.message }), {
-          status: 422,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        })
+      // validateGoogleSlot LANÇA GoogleBusyError quando há sobreposição com
+      // evento no Google Calendar (422, regra de negócio — recusa ANTES de
+      // gravar) e devolve ok:false em falha de infraestrutura (503 fail-
+      // closed). Qualquer GoogleBusyError que escapar é capturado pelo catch
+      // externo e devolvido como 422 (guarda de código, nunca 400).
+      let googleCheck: Awaited<ReturnType<typeof validateGoogleSlot>>
+      try {
+        googleCheck = await validateGoogleSlot(
+          supabase,
+          userId,
+          appointmentDate,
+          startTime,
+          endTime || startTime,
+        )
+      } catch (e: any) {
+        if (e instanceof GoogleBusyError) {
+          return new Response(JSON.stringify({ error: e.message }), {
+            status: 422,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          })
+        }
+        throw e
       }
       if (googleCheck && !googleCheck.ok) {
         return new Response(JSON.stringify({ error: googleCheck.error }), {

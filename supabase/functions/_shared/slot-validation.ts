@@ -154,19 +154,26 @@ async function fetchFreeBusy(
 
 // Exceção de negócio recusada pelo fail-closed, para o chamador distinguir
 // "Google ocupado" (regra) de "infraestrutura quebrada" (erro).
-export interface GoogleBusyError extends Error {
+// CLASSE (não interface): o create-booking usa `instanceof` — uma interface
+// não existe em tempo de execução e derruba a carga do módulo no Deno.
+export class GoogleBusyError extends Error {
   code: 'google_busy'
+  constructor(message: string) {
+    super(message)
+    this.name = 'GoogleBusyError'
+    this.code = 'google_busy'
+  }
 }
 
 /**
  * Valida se o slot (date + startTime + endTime, horários em BRT) está LIVRE no
  * Google Calendar via freeBusy do dia (janela BRT 00:00–23:59, convertida para
- * UTC). Sobreposição entre o slot e qualquer período busy[] lança
- * GoogleBusyError (code 'google_busy') — o chamador recusa com 422. Falha de
- * infra (token ausente/expirado, Google fora) devolve ok:false com code
- * 'google_error' — o chamador recusa com 503 (fail-closed). Em ambos os casos
- * é gravado o alerta interno google_token_alert quando a causa é autenticação.
- */
+ * UTC). Sobreposição entre o slot e qualquer período busy[] LANÇA
+ * GoogleBusyError (code 'google_busy') — o chamador captura e recusa com 422.
+ * Falha de infra (token ausente/expirado, Google fora) devolve ok:false com
+ * code 'google_error' — o chamador recusa com 503 (fail-closed). Em ambos os
+ * casos é gravado o alerta interno google_token_alert quando a causa é
+ * autenticação. */
 export async function validateGoogleSlot(
   supabase: any,
   userId: string,
@@ -265,11 +272,9 @@ export async function validateGoogleSlot(
   })
 
   if (overlaps) {
-    const busyError = new Error(
+    throw new GoogleBusyError(
       'Este horário já está ocupado na agenda do profissional (Google Calendar).',
-    ) as GoogleBusyError
-    busyError.code = 'google_busy'
-    throw busyError
+    )
   }
 
   return { ok: true }

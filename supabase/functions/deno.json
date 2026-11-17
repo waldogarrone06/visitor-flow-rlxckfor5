@@ -1,5 +1,9 @@
 {
   "_versions": {
+    "yampi-service": 141,
+    "trigger-nps": 48,
+    "nps-appointment-name": 7,
+    "whatsapp-templates": 124,
     "save-integration-secret": 116,
     "yampi-dual-coupons": 35,
     "whatsapp-manage-message": 139,
@@ -7,7 +11,7 @@
     "trigger-reminders": 25,
     "sync-calendar-delete": 137,
     "create-user": 144,
-    "create-booking": 16,
+    "create-booking": 17,
     "yampi-create-coupon": 104,
     "google-oauth-url": 21,
     "check-availability": 4,
@@ -22,10 +26,6 @@
     "get-availability": 12,
     "purge-appointments": 135,
     "google-oauth-exchange": 136,
-    "whatsapp-delete": 137,
-    "yampi-service": 141,
-    "trigger-nps": 48,
-    "nps-appointment-name": 7,
-    "whatsapp-templates": 124
+    "whatsapp-delete": 137
   }
 }
