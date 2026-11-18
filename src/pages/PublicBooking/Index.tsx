@@ -147,8 +147,11 @@ export default function PublicBookingPage() {
       // Ocupado no Google Calendar (busySlots) = indisponível, como locked
       if (isSlotBusy(dayData.busySlots, slot)) return false
 
-      // Ocupação por slot vem da edge get-availability (anônimo não lê appointments)
-      const slotCount = dayData.appointments[slot.start_time] || 0
+      // Ocupação por slot vem da edge get-availability (anônimo não lê appointments).
+      // Chave = slot COMPLETO (start-end), mesma da RPC book_appointment: um slot
+      // 11:00-11:30 lotado não pode esconder o 11:00-12:00 vazio — o servidor
+      // aceita a reserva do segundo.
+      const slotCount = dayData.appointments[`${slot.start_time}-${slot.end_time ?? ''}`] || 0
       return slotCount < MAX_CAPACITY_PER_SLOT
     })
     .sort((a, b) => a.start_time.localeCompare(b.start_time))

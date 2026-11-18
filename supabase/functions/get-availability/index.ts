@@ -119,9 +119,14 @@ Deno.serve(async (req: Request) => {
       .eq('appointment_date', date)
       .or('status.is.null,status.ilike.lead,status.ilike.scheduled')
 
+    // Mesma chave da RPC book_appointment (v0.0.432): capacidade por SLOT
+    // COMPLETO (data + start_time + end_time). Se agrupasse só por start_time,
+    // um slot 11:00-11:30 cheio esconderia o 11:00-12:00 vazio, que o servidor
+    // aceitaria. end_time ausente vira '' — nunca casa com um slot com fim,
+    // igual à comparação SQL (NULL ≠ valor) do servidor.
     const slotCounts: Record<string, number> = {}
     for (const a of appointments || []) {
-      const key = String(a.start_time)
+      const key = `${String(a.start_time)}-${a.end_time ?? ''}`
       slotCounts[key] = (slotCounts[key] || 0) + 1
     }
 
