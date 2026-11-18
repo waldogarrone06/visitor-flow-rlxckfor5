@@ -3,7 +3,7 @@
 //
 // POST { userId, cpf }
 // Retorna:
-//   200 { action: 'remarcar' | 'bloqueado' | 'nova_visita' | 'sem_visita', visit?, eligibleFrom? }
+//   200 { action: 'remarcar' | 'bloqueado' | 'nova_visita' | 'sem_visita', visit?, released_at?, code? }
 //   400 CPF inválido | 404 representante não encontrado | 405 método | 500 erro interno
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
@@ -87,32 +87,40 @@ Deno.serve(async (req) => {
     const rawAction = String(result.action ?? '')
     const appt = (result.appointment ?? null) as Record<string, any> | null
     let action: string
+    let code: string | null = null
     if (rawAction === 'reschedule' && result.canReschedule === false) {
-      action = 'sem_visita' // 5 remarcações esgotadas → falar com o representante
+      // 5 remarcações esgotadas: mantém a visita no payload para a página exibir
+      // "fale com o seu representante" com o contexto da visita.
+      action = 'sem_visita'
+      code = 'reschedule_limit'
     } else if (rawAction === 'reschedule' && appt?.id) {
       action = 'remarcar'
     } else if (rawAction === 'blocked') {
       action = 'bloqueado'
+      code = 'cpf_blocked_30d'
     } else if (rawAction === 'new') {
       action = 'nova_visita'
     } else {
       action = 'sem_visita'
     }
 
+    const visit =
+      appt && (action === 'remarcar' || (action === 'sem_visita' && code === 'reschedule_limit'))
+        ? {
+            id: appt.id,
+            appointment_date: appt.appointment_date ?? null,
+            start_time: appt.start_time ?? null,
+            end_time: appt.end_time ?? null,
+            reschedule_count: Number(result.rescheduleCount ?? appt.reschedule_count ?? 0),
+          }
+        : null
+
     return new Response(
       JSON.stringify({
         action,
-        visit:
-          action === 'remarcar' && appt
-            ? {
-                id: appt.id,
-                appointment_date: appt.appointment_date ?? null,
-                start_time: appt.start_time ?? null,
-                end_time: appt.end_time ?? null,
-                reschedule_count: Number(result.rescheduleCount ?? appt.reschedule_count ?? 0),
-              }
-            : null,
+        visit,
         released_at: result.releaseDate ?? null,
+        ...(code ? { code } : {}),
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     )

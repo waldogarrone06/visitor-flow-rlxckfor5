@@ -4,28 +4,27 @@ import { supabase } from '@/lib/supabase/client'
 // a visita (UPDATE da mesma linha). Erros HTTP da edge function são lidos do
 // corpo JSON (mesma técnica de readFunctionError em public-booking.ts).
 
-export interface VisitEligibility {
+export interface VisitLookupResult {
   action: 'remarcar' | 'bloqueado' | 'nova_visita' | 'sem_visita'
-  appointment?: {
+  visit?: {
     id: string
     appointment_date: string
     start_time: string
     end_time: string
-    status: string
     reschedule_count: number
-    kit_status: string | null
-    tracking_number: string | null
   } | null
-  released_at?: string | null // data em que libera nova visita (bloqueio <30d)
-  message?: string
-  contact_name?: string | null
+  released_at?: string | null // data (yyyy-mm-dd) em que libera nova visita (bloqueio <30d)
+  error?: string
+  code?: string
 }
 
 export interface RescheduleResult {
-  success: boolean
+  ok?: boolean
+  success?: boolean
   appointment?: any
-  reschedule_count?: number
-  message?: string
+  rescheduleCount?: number | null
+  error?: string
+  code?: string
 }
 
 async function readFunctionError(error: any, fallback: string): Promise<string> {
@@ -38,21 +37,49 @@ async function readFunctionError(error: any, fallback: string): Promise<string> 
   return fallback
 }
 
-export async function lookupVisitByCpf(userId: string, cpf: string): Promise<VisitEligibility> {
+// Lê code/releaseDate do corpo do erro da edge function — usados pela UI para
+// exibir a data de liberação (bloqueio <30d) e diferenciar o tipo de bloqueio.
+async function readFunctionErrorPayload(
+  error: any,
+  fallback: string,
+): Promise<{ message: string; code?: string; releaseDate?: string | null }> {
+  try {
+    const body = await error?.context?.json()
+    const message = typeof body?.error === 'string' && body.error.trim() ? body.error : fallback
+    return { message, code: body?.code ?? undefined, releaseDate: body?.releaseDate ?? null }
+  } catch {
+    return { message: fallback }
+  }
+}
+
+// Consulta a elegibilidade do CPF. NUNCA lança — devolve o resultado ou um
+// objeto com error/code para a página decidir o que mostrar.
+export async function lookupVisitByCpf(userId: string, cpf: string): Promise<VisitLookupResult> {
   const { data, error } = await supabase.functions.invoke('visit-lookup', {
     body: { userId, cpf },
   })
   if (error) {
-    throw new Error(await readFunctionError(error, 'Falha ao consultar o CPF. Tente novamente.'))
+    const { message, code, releaseDate } = await readFunctionErrorPayload(
+      error,
+      'Falha ao consultar o CPF. Tente novamente.',
+    )
+    return { action: 'sem_visita', error: message, code, released_at: releaseDate }
   }
-  if (data?.error) throw new Error(data.error)
-  return data as VisitEligibility
+  if (data?.error) {
+    return {
+      action: 'sem_visita',
+      error: data.error,
+      code: data.code ?? undefined,
+      released_at: data.releaseDate ?? data.released_at ?? null,
+    }
+  }
+  return data as VisitLookupResult
 }
 
 export async function rescheduleVisitByCpf(params: {
   userId: string
   cpf: string
-  appointmentDate: string
+  date: string
   startTime: string
   endTime: string
 }): Promise<RescheduleResult> {
@@ -60,9 +87,15 @@ export async function rescheduleVisitByCpf(params: {
     body: params,
   })
   if (error) {
-    throw new Error(await readFunctionError(error, 'Falha ao remarcar a visita. Tente novamente.'))
+    const { message, code } = await readFunctionErrorPayload(
+      error,
+      'Falha ao remarcar a visita. Tente novamente.',
+    )
+    return { success: false, error: message, code }
   }
-  if (data?.error) throw new Error(data.error)
+  if (data?.error) {
+    return { success: false, error: data.error, code: data.code ?? undefined }
+  }
   return data as RescheduleResult
 }
 

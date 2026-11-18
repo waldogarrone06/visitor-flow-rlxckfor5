@@ -14,6 +14,7 @@ import SettingsPage from './pages/Settings/Index'
 import LogsPage from './pages/Logs/Index'
 import ChatPage from './pages/Chat/Index'
 import PublicBookingPage from './pages/PublicBooking/Index'
+import ReschedulePage from './pages/Reschedule/Index'
 import LeadCapturePage from './pages/LeadCapture/Index'
 import NpsPage from './pages/NPS/Index'
 import NotFound from './pages/NotFound'
@@ -30,6 +31,7 @@ const App = () => (
           <Sonner />
           <Routes>
             <Route path="/agendar/:userId" element={<PublicBookingPage />} />
+            <Route path="/remarcar/:userId" element={<ReschedulePage />} />
             <Route path="/contato/:userId" element={<LeadCapturePage />} />
             <Route path="/nps/:appointmentId" element={<NpsPage />} />
             <Route path="/auth/callback/google" element={<GoogleCallback />} />

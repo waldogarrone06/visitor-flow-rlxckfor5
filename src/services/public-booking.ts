@@ -10,18 +10,31 @@ export const MAX_CAPACITY_PER_SLOT = 10
 // cliente não envia capacidade, consentimento-forçado nem flags de permissão.
 export const CAPTURE_SENTINEL_DATE = '1970-01-01'
 
+// Erros de negócio do create-booking que a UI trata de forma especial:
+// trava de CPF (leia-me "Remarcar visita por CPF"). O visitante vê a data de
+// liberação e/ou link para /remarcar — não um toast genérico.
+export interface BookingError extends Error {
+  code?: string
+  releaseDate?: string | null
+  rescheduleUrl?: string | null
+}
+
 // Erro HTTP de edge function (non-2xx): o supabase-js devolve só "Edge Function
 // returned a non-2xx status code" e guarda a Response em error.context. Lê o
-// corpo JSON e devolve o campo `error` que o servidor enviou; corpo que não é
-// JSON (ou erro de rede, sem context) cai no fallback.
-async function readFunctionError(error: any, fallback: string): Promise<string> {
+// corpo JSON e devolve error/code/releaseDate/rescheduleUrl que o servidor
+// enviou; corpo que não é JSON (ou erro de rede, sem context) cai no fallback.
+async function readFunctionError(error: any, fallback: string): Promise<BookingError> {
   try {
     const body = await error?.context?.json()
-    if (typeof body?.error === 'string' && body.error.trim()) return body.error
+    const message = typeof body?.error === 'string' && body.error.trim() ? body.error : fallback
+    const err: BookingError = new Error(message)
+    if (body?.code) err.code = body.code
+    if (body?.releaseDate) err.releaseDate = body.releaseDate
+    if (body?.rescheduleUrl) err.rescheduleUrl = body.rescheduleUrl
+    return err
   } catch {
-    // corpo não é JSON ou já foi consumido: mantém o fallback
+    return new Error(fallback)
   }
-  return fallback
 }
 
 // Disponibilidade do dia vem da edge function get-availability (service role):
@@ -35,9 +48,7 @@ export async function getDayScheduleData(userId: string, date: Date) {
   })
 
   if (error) {
-    throw new Error(
-      await readFunctionError(error, error.message || 'Falha ao carregar disponibilidade.'),
-    )
+    throw await readFunctionError(error, error.message || 'Falha ao carregar disponibilidade.')
   }
 
   return {
@@ -93,10 +104,17 @@ export async function createPublicAppointment(data: any) {
   })
 
   if (error) {
-    // Propaga a mensagem real do servidor (409 capacidade, 422 ocupado, 429, 503).
-    throw new Error(await readFunctionError(error, error.message || 'Falha ao agendar.'))
+    // Propaga a mensagem real do servidor (409 capacidade, 422 ocupado, 429, 503)
+    // e os códigos de negócio: cpf_open_visit, cpf_blocked_30d (+ releaseDate).
+    throw await readFunctionError(error, error.message || 'Falha ao agendar.')
   }
-  if (result?.error) throw new Error(result.error)
+  if (result?.error) {
+    const err: BookingError = new Error(result.error)
+    if (result.code) err.code = result.code
+    if (result.releaseDate) err.releaseDate = result.releaseDate
+    if (result.rescheduleUrl) err.rescheduleUrl = result.rescheduleUrl
+    throw err
+  }
 
   return { newApp: result.appointment, syncWarning: !!result.calendarWarning, result }
 }
