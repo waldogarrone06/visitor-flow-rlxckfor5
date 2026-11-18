@@ -511,8 +511,12 @@ Deno.serve(async (req: Request) => {
     // sentinela (1970-01-01), fora da checagem de capacidade por slot.
     const pMaxCapacity = isCaptureLead ? 2147483647 : MAX_CAPACITY
 
-    // --- 4) Inserção atômica (RPC com lock de capacidade) ---------------------
-    const { data: appointment, error: rpcError } = await supabase.rpc('book_appointment', {
+    // --- 4) Inserção atômica (RPC com trava de CPF + lock de capacidade) ------
+    // book_appointment_guarded = MESMOS parâmetros do book_appointment, com a
+    // guarda de CPF ANTES de inserir (visita em aberto → remarca a existente;
+    // <30 dias → bloqueado). A captura de lead (1970-01-01) passa direto pela
+    // guarda, fora da trava de capacidade — fluxo próprio, como era antes.
+    const { data: appointment, error: rpcError } = await supabase.rpc('book_appointment_guarded', {
       p_user_id: userId,
       p_appointment_date: appointmentDate,
       p_start_time: startTime,
@@ -544,6 +548,41 @@ Deno.serve(async (req: Request) => {
       const msg = rpcError?.message || 'Falha ao inserir agendamento.'
       const isCapacity = msg.includes('CAPACITY_EXCEEDED')
       console.error('[create-booking] RPC error:', msg)
+
+      // Trava de CPF (leia-me "Remarcar visita por CPF"): o visitante não cria
+      // linha nova — é mandado para a página de remarcação do representante,
+      // que preserva kit/rastreio/cupons da visita já existente.
+      const hasOpenVisit = msg.includes('CPF_HAS_OPEN_VISIT')
+      const blocked30d = msg.startsWith('CPF_BLOCKED_30D')
+
+      if (hasOpenVisit) {
+        return new Response(
+          JSON.stringify({
+            error:
+              'Este CPF já possui uma visita em aberto. Remarque a visita existente em vez de criar uma nova.',
+            code: 'cpf_open_visit',
+            rescheduleUrl: `/remarcar/${userId}`,
+          }),
+          { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        )
+      }
+
+      if (blocked30d) {
+        // Formato do erro na RPC: 'CPF_BLOCKED_30D:DD/MM/YYYY'
+        const releaseDate = msg.split(':')[1]?.trim() || null
+        return new Response(
+          JSON.stringify({
+            error: releaseDate
+              ? `Este CPF visitou há menos de 30 dias. Uma nova visita pode ser agendada a partir de ${releaseDate}.`
+              : 'Este CPF visitou há menos de 30 dias. Uma nova visita ainda não pode ser agendada.',
+            code: 'cpf_blocked_30d',
+            releaseDate,
+            rescheduleUrl: `/remarcar/${userId}`,
+          }),
+          { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        )
+      }
+
       return new Response(
         JSON.stringify({
           error: isCapacity

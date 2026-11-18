@@ -1,11 +1,17 @@
 // AVOID UPDATING THIS FILE DIRECTLY. It is automatically generated.
-export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
 
 export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: '14.4'
+    PostgrestVersion: "14.4"
   }
   public: {
     Tables: {
@@ -45,6 +51,8 @@ export type Database = {
           prescriber_notified: boolean | null
           professional_id: string | null
           reminder_sent: boolean | null
+          reschedule_count: number
+          rescheduled_at: string | null
           specialty: string | null
           start_time: string
           status: string | null
@@ -86,6 +94,8 @@ export type Database = {
           prescriber_notified?: boolean | null
           professional_id?: string | null
           reminder_sent?: boolean | null
+          reschedule_count?: number
+          rescheduled_at?: string | null
           specialty?: string | null
           start_time: string
           status?: string | null
@@ -127,6 +137,8 @@ export type Database = {
           prescriber_notified?: boolean | null
           professional_id?: string | null
           reminder_sent?: boolean | null
+          reschedule_count?: number
+          rescheduled_at?: string | null
           specialty?: string | null
           start_time?: string
           status?: string | null
@@ -153,18 +165,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'contact_tag_relations_contact_id_fkey'
-            columns: ['contact_id']
+            foreignKeyName: "contact_tag_relations_contact_id_fkey"
+            columns: ["contact_id"]
             isOneToOne: false
-            referencedRelation: 'contacts'
-            referencedColumns: ['id']
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'contact_tag_relations_tag_id_fkey'
-            columns: ['tag_id']
+            foreignKeyName: "contact_tag_relations_tag_id_fkey"
+            columns: ["tag_id"]
             isOneToOne: false
-            referencedRelation: 'contact_tags'
-            referencedColumns: ['id']
+            referencedRelation: "contact_tags"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -378,11 +390,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'interaction_log_contact_id_fkey'
-            columns: ['contact_id']
+            foreignKeyName: "interaction_log_contact_id_fkey"
+            columns: ["contact_id"]
             isOneToOne: false
-            referencedRelation: 'contacts'
-            referencedColumns: ['id']
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -437,11 +449,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'kit_items_kit_id_fkey'
-            columns: ['kit_id']
+            foreignKeyName: "kit_items_kit_id_fkey"
+            columns: ["kit_id"]
             isOneToOne: false
-            referencedRelation: 'kits'
-            referencedColumns: ['id']
+            referencedRelation: "kits"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -541,11 +553,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'messages_contact_id_fkey'
-            columns: ['contact_id']
+            foreignKeyName: "messages_contact_id_fkey"
+            columns: ["contact_id"]
             isOneToOne: false
-            referencedRelation: 'contacts'
-            referencedColumns: ['id']
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -573,11 +585,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'nps_responses_appointment_id_fkey'
-            columns: ['appointment_id']
+            foreignKeyName: "nps_responses_appointment_id_fkey"
+            columns: ["appointment_id"]
             isOneToOne: true
-            referencedRelation: 'appointments'
-            referencedColumns: ['id']
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -872,6 +884,8 @@ export type Database = {
           prescriber_notified: boolean | null
           professional_id: string | null
           reminder_sent: boolean | null
+          reschedule_count: number
+          rescheduled_at: string | null
           specialty: string | null
           start_time: string
           status: string | null
@@ -879,13 +893,93 @@ export type Database = {
           user_id: string
         }
         SetofOptions: {
-          from: '*'
-          to: 'appointments'
+          from: "*"
+          to: "appointments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      book_appointment_guarded: {
+        Args: {
+          p_appointment_date: string
+          p_client_document?: string
+          p_client_email?: string
+          p_client_name?: string
+          p_client_phone?: string
+          p_clinic_address?: string
+          p_clinic_cep?: string
+          p_clinic_city?: string
+          p_clinic_complement?: string
+          p_clinic_neighborhood?: string
+          p_clinic_number?: string
+          p_clinic_state?: string
+          p_end_time: string
+          p_instagram?: string
+          p_lgpd_consent_at?: string
+          p_max_capacity?: number
+          p_patients_per_month?: string
+          p_professional_id?: string
+          p_specialty?: string
+          p_start_time: string
+          p_status: string
+          p_user_id: string
+        }
+        Returns: {
+          appointment_date: string
+          client_document: string
+          client_email: string
+          client_name: string
+          client_phone: string | null
+          clinic_address: string | null
+          clinic_cep: string | null
+          clinic_city: string | null
+          clinic_complement: string | null
+          clinic_neighborhood: string | null
+          clinic_number: string | null
+          clinic_state: string | null
+          coupon_code: string | null
+          coupon_usage_count: number
+          coupon_verified: boolean | null
+          created_at: string
+          delivered_at: string | null
+          end_time: string
+          google_event_id: string | null
+          google_meet_link: string | null
+          id: string
+          instagram: string | null
+          is_address_edited: boolean | null
+          kit_name: string | null
+          kit_requested_at: string | null
+          kit_status: string | null
+          lgpd_consent_at: string | null
+          lgpd_consent_term_version: string | null
+          nutritionist_coupon: string | null
+          patient_coupon: string | null
+          patients_per_month: string | null
+          prescriber_notified: boolean | null
+          professional_id: string | null
+          reminder_sent: boolean | null
+          reschedule_count: number
+          rescheduled_at: string | null
+          specialty: string | null
+          start_time: string
+          status: string | null
+          tracking_number: string | null
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "appointments"
           isOneToOne: true
           isSetofReturn: false
         }
       }
       check_rate_limit: { Args: { p_rules: Json }; Returns: Json }
+      cpf_digits: { Args: { p_raw: string }; Returns: string }
+      find_contact_by_cpf: {
+        Args: { p_cpf: string; p_user_id: string }
+        Returns: Json
+      }
       get_appointment_meet_link: {
         Args: { p_appointment_id: string }
         Returns: string
@@ -893,6 +987,21 @@ export type Database = {
       get_fixed_meet_link: { Args: { p_user_id: string }; Returns: string }
       get_prescriber_email: { Args: { p_user_id: string }; Returns: string }
       is_admin: { Args: never; Returns: boolean }
+      reschedule_appointment: {
+        Args: {
+          p_appointment_id: string
+          p_cpf: string
+          p_new_date: string
+          p_new_end: string
+          p_new_start: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      visit_eligibility: {
+        Args: { p_cpf: string; p_user_id: string }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never
@@ -903,31 +1012,33 @@ export type Database = {
   }
 }
 
-type DatabaseWithoutInternals = Omit<Database, '__InternalSupabase'>
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
 
-type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, 'public'>]
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
-    | keyof (DefaultSchema['Tables'] & DefaultSchema['Views'])
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'] &
-        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Views'])
-    : never = never,
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'] &
-      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Views'])[TableName] extends {
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
     ? R
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema['Tables'] & DefaultSchema['Views'])
-    ? (DefaultSchema['Tables'] & DefaultSchema['Views'])[DefaultSchemaTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
         Row: infer R
       }
       ? R
@@ -936,23 +1047,23 @@ export type Tables<
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema['Tables']
+    | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables']
-    : never = never,
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'][TableName] extends {
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Insert: infer I
     }
     ? I
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema['Tables']
-    ? DefaultSchema['Tables'][DefaultSchemaTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
         Insert: infer I
       }
       ? I
@@ -961,23 +1072,23 @@ export type TablesInsert<
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema['Tables']
+    | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables']
-    : never = never,
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'][TableName] extends {
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Update: infer U
     }
     ? U
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema['Tables']
-    ? DefaultSchema['Tables'][DefaultSchemaTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
         Update: infer U
       }
       ? U
@@ -986,36 +1097,36 @@ export type TablesUpdate<
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema['Enums']
+    | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions['schema']]['Enums']
-    : never = never,
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions['schema']]['Enums'][EnumName]
-  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema['Enums']
-    ? DefaultSchema['Enums'][DefaultSchemaEnumNameOrOptions]
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
     : never
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
-    | keyof DefaultSchema['CompositeTypes']
+    | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions['schema']]['CompositeTypes']
-    : never = never,
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions['schema']]['CompositeTypes'][CompositeTypeName]
-  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema['CompositeTypes']
-    ? DefaultSchema['CompositeTypes'][PublicCompositeTypeNameOrOptions]
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
 
 export const Constants = {
@@ -1023,3 +1134,4 @@ export const Constants = {
     Enums: {},
   },
 } as const
+
