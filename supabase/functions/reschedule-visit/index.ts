@@ -12,8 +12,7 @@ import { normalizeCpf, isValidCpf } from '../_shared/cpf.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers':
-    'authorization, x-client-info, apikey, content-type, prefer',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, prefer',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
@@ -70,10 +69,13 @@ Deno.serve(async (req) => {
     // Data passada (BRT = UTC-3): recusada, igual ao create-booking.
     const nowBrt = new Date(Date.now() - 3 * 3600 * 1000).toISOString().slice(0, 10)
     if (date < nowBrt) {
-      return new Response(JSON.stringify({ error: 'Não é possível remarcar para uma data passada.' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
+      return new Response(
+        JSON.stringify({ error: 'Não é possível remarcar para uma data passada.' }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      )
     }
 
     const admin = createClient(

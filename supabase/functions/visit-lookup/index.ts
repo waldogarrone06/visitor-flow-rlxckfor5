@@ -11,8 +11,7 @@ import { normalizeCpf, isValidCpf } from '../_shared/cpf.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers':
-    'authorization, x-client-info, apikey, content-type, prefer',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, prefer',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
@@ -77,16 +76,20 @@ Deno.serve(async (req) => {
       })
     }
 
-    // visit_eligibility retorna action/reschedule_count/can_reschedule/eligible_from/open_visit_id.
+    // visit_eligibility (20261118160000) retorna camelCase:
+    //   { action, reason? }                                        — 'normal' (CPF inválido)
+    //   { action: 'reschedule', canReschedule, rescheduleCount,
+    //     appointment: { id, appointment_date, start_time, ... } } — visita em aberto
+    //   { action: 'blocked', lastVisitDate, releaseDate }          — <30 dias
+    //   { action: 'new' }                                          — pode agendar nova visita
     // Normaliza para o contrato esperado pelo front (src/services/visit-reschedule.ts):
-    // remarcar (visita em aberto) | bloqueado (<30 dias, mostra data de liberação) |
-    // nova_visita (≥30 dias) | sem_visita (nunca visitou).
+    // remarcar | bloqueado (mostra data de liberação) | nova_visita | sem_visita.
     const rawAction = String(result.action ?? '')
-    const rescheduleCount = Number(result.reschedule_count ?? 0)
+    const appt = (result.appointment ?? null) as Record<string, any> | null
     let action: string
-    if (rawAction === 'reschedule' && !result.can_reschedule) {
+    if (rawAction === 'reschedule' && result.canReschedule === false) {
       action = 'sem_visita' // 5 remarcações esgotadas → falar com o representante
-    } else if (rawAction === 'reschedule') {
+    } else if (rawAction === 'reschedule' && appt?.id) {
       action = 'remarcar'
     } else if (rawAction === 'blocked') {
       action = 'bloqueado'
@@ -100,16 +103,16 @@ Deno.serve(async (req) => {
       JSON.stringify({
         action,
         visit:
-          result.open_visit_id && action === 'remarcar'
+          action === 'remarcar' && appt
             ? {
-                id: result.open_visit_id,
-                appointment_date: result.appointment_date ?? null,
-                start_time: result.start_time ?? null,
-                end_time: result.end_time ?? null,
-                reschedule_count: rescheduleCount,
+                id: appt.id,
+                appointment_date: appt.appointment_date ?? null,
+                start_time: appt.start_time ?? null,
+                end_time: appt.end_time ?? null,
+                reschedule_count: Number(result.rescheduleCount ?? appt.reschedule_count ?? 0),
               }
             : null,
-        eligibleFrom: result.eligible_from ?? null,
+        released_at: result.releaseDate ?? null,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     )
