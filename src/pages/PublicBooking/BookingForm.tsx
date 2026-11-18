@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -41,8 +42,29 @@ function saveDraft(values: Record<string, string>) {
   }
 }
 
+// Trava de CPF (leia-me "Remarcar visita por CPF"): o backend responde com
+// code 'cpf_blocked_30d' (+ releaseDate) ou 'cpf_open_visit' — em vez de um
+// toast genérico, a tela mostra o aviso com a data de liberação e o link
+// para remarcar a visita existente em /remarcar/:userId.
+interface CpfBlockState {
+  releaseDate: string | null
+  openVisit: boolean
+}
+
+// create-booking devolve a data de liberação como DD/MM/YYYY (formato da RPC);
+// por segurança aceita também yyyy-mm-dd.
+function formatReleaseDate(raw: string | null): string | null {
+  if (!raw) return null
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    const [y, m, d] = raw.split('-')
+    return `${d}/${m}/${y}`
+  }
+  return raw
+}
+
 export function BookingForm({ userId, date, slot, onSuccess }: BookingFormProps) {
   const [submitting, setSubmitting] = useState(false)
+  const [cpfBlock, setCpfBlock] = useState<CpfBlockState | null>(null)
   const [formErrors, setFormErrors] = useState<Record<string, boolean>>({})
   const [lgpdConsent, setLgpdConsent] = useState(false)
   const [formData, setFormData] = useState({
@@ -71,6 +93,8 @@ export function BookingForm({ userId, date, slot, onSuccess }: BookingFormProps)
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
+    // CPF alterado: o aviso de bloqueio não se aplica mais a esse valor.
+    if (cpfBlock && name === 'document') setCpfBlock(null)
     if (formErrors[name]) {
       setFormErrors((prev) => ({ ...prev, [name]: false }))
     }
@@ -155,6 +179,14 @@ export function BookingForm({ userId, date, slot, onSuccess }: BookingFormProps)
         description: error?.message || 'Ocorreu um erro ao tentar agendar. Tente novamente.',
         variant: 'destructive',
       })
+      // Trava de CPF: aviso em destaque no formulário (bloqueio <30d com a
+      // data de liberação) ou link para remarcar a visita em aberto.
+      if (error?.code === 'cpf_blocked_30d' || error?.code === 'cpf_open_visit') {
+        setCpfBlock({
+          releaseDate: error?.releaseDate || null,
+          openVisit: error?.code === 'cpf_open_visit',
+        })
+      }
     } finally {
       setSubmitting(false)
     }
@@ -162,6 +194,28 @@ export function BookingForm({ userId, date, slot, onSuccess }: BookingFormProps)
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {cpfBlock && (
+        <div
+          role="alert"
+          className="rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 space-y-3"
+        >
+          {cpfBlock.openVisit ? (
+            <p className="font-medium">
+              Este CPF já possui uma visita em aberto. Remarque a visita existente em vez de criar
+              uma nova.
+            </p>
+          ) : (
+            <p className="font-medium">
+              Você visitou recentemente. Você poderá agendar novamente a partir de{' '}
+              {formatReleaseDate(cpfBlock.releaseDate) || 'data a confirmar'}.
+            </p>
+          )}
+          <Button asChild variant="outline" className="border-amber-400 bg-white">
+            <Link to={`/remarcar/${userId}`}>Remarcar minha visita</Link>
+          </Button>
+        </div>
+      )}
+
       <div className="space-y-4 py-2">
         <div className="space-y-2">
           <Label htmlFor="name">Nome Completo *</Label>
